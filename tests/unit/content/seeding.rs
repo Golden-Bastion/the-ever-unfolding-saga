@@ -25,6 +25,7 @@ fn seed_world_adds_missing_content_locations_and_repairs_metadata() {
         },
         factions: vec![],
         npcs: vec![],
+        character_parts: vec![],
         quests: vec![],
         encounters: vec![],
         atmospheres: vec![],
