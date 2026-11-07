@@ -9,6 +9,9 @@ pub struct CampaignContent {
     pub factions: Vec<FactionContent>,
     #[serde(default)]
     pub npcs: Vec<NpcContent>,
+    /// Reusable portrait layers supplied by campaign content and mods.
+    #[serde(default)]
+    pub character_parts: Vec<CharacterPartContent>,
     #[serde(default)]
     pub quests: Vec<QuestContent>,
     #[serde(default)]
@@ -72,7 +75,29 @@ pub struct NpcContent {
     pub memory: Vec<String>,
     #[serde(default)]
     pub portrait: Option<String>,
+    /// Optional profile tags used to constrain weighted portrait-part selection.
+    #[serde(default)]
+    pub appearance_tags: Vec<String>,
 }
+
+/// A reusable transparent illustration layer selected by the portrait generator.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CharacterPartContent {
+    pub id: String,
+    pub slot: String,
+    /// PNG asset path resolved through the mod-aware asset loader.
+    pub asset: String,
+    #[serde(default = "default_character_part_weight")]
+    pub weight: u32,
+    #[serde(default)]
+    pub layer: i32,
+    #[serde(default)]
+    pub requires_tags: Vec<String>,
+    #[serde(default)]
+    pub excludes_tags: Vec<String>,
+}
+
+fn default_character_part_weight() -> u32 { 1 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuestContent {
@@ -221,6 +246,25 @@ impl CampaignContent {
             self.npcs.iter().map(|entry| entry.id.as_str()),
             &mut issues,
         );
+        validate_unique_ids(
+            "character part",
+            self.character_parts.iter().map(|entry| entry.id.as_str()),
+            &mut issues,
+        );
+        for part in &self.character_parts {
+            if part.slot.trim().is_empty() {
+                issues.push(format!("character part {} has an empty slot", part.id));
+            }
+            if part.weight == 0 {
+                issues.push(format!("character part {} has zero weight", part.id));
+            }
+            if !is_valid_character_part_asset(&part.asset) {
+                issues.push(format!(
+                    "character part {} has an invalid PNG asset reference",
+                    part.id
+                ));
+            }
+        }
         validate_unique_ids(
             "quest",
             self.quests.iter().map(|entry| entry.id.as_str()),
@@ -437,6 +481,14 @@ impl CampaignContent {
             .and_then(|entry| entry.portrait.as_deref())
     }
 
+    pub fn appearance_tags_for(&self, npc_name: &str) -> &[String] {
+        self.npcs
+            .iter()
+            .find(|entry| entry.name == npc_name)
+            .map(|entry| entry.appearance_tags.as_slice())
+            .unwrap_or(&[])
+    }
+
     pub fn item_art_for(&self, item_name: &str) -> Option<&str> {
         self.item_visuals
             .iter()
@@ -455,6 +507,16 @@ where
             issues.push(format!("duplicate {} id {}", kind, id));
         }
     }
+}
+
+fn is_valid_character_part_asset(reference: &str) -> bool {
+    !reference.trim().is_empty()
+        && reference.ends_with(".png")
+        && !reference.starts_with('/')
+        && !reference.contains('\\')
+        && reference.split('/').all(|segment| {
+            !segment.is_empty() && segment != "." && segment != ".."
+        })
 }
 
 fn default_true() -> bool {
