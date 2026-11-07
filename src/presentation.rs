@@ -197,8 +197,25 @@ pub(crate) struct TalkView {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct CharacterPortraitLayerView {
+    pub id: String,
+    pub slot: String,
+    pub asset: String,
+    pub layer: i32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct CharacterPortraitView {
+    pub layers: Vec<CharacterPortraitLayerView>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct ConversationView {
+    pub player: CharacterView,
+    pub player_portrait: CharacterPortraitView,
     pub npc: NpcView,
+    pub npc_portrait: CharacterPortraitView,
+    /// Legacy ASCII portrait retained as a temporary fallback.
     pub portrait: Option<String>,
     pub memory: Option<String>,
     pub options: Vec<String>,
