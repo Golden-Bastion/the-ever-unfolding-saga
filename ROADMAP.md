@@ -12,7 +12,7 @@ The roadmap tracks current and upcoming development. Detailed completed mileston
 
 ## Active milestone
 
-**v0.53.x — Spatial-first interaction foundation** (builds on prototype issue #353 and long-term exploration design issue #365)
+**v0.52.x — Spatial exploration and interaction foundation** (tracking issue #353; follow-up interaction design #405; long-term topology design #365)
 
 The first spatial map, renderer, movement, camera, and authored chamber work remains tracked in #353, #354, #355, #356, and #381. This iteration extends that base into the ordinary gameplay path: Explore opens the current location's local map regardless of its danger flag, and the dashboard no longer offers Talk or Search Remains as detached actions. NPCs and searchable corpses receive deterministic placements on reachable walkable cells; placements persist with the world-owned local map and old saves default to no placements until first entry. The contextual Interact target is selected from nearby NPCs, corpses, points of interest, and passages using range and clear approach checks. Dialogue choices, responses, remains inspection/search, and recovery results appear in a scrollable in-world overlay with a fixed action footer; closing it leaves the player in the same spatial session. Existing NPC dialogue, quest, time, loot, and recovery logic remains authoritative. The first actor markers reuse tinted character/remains UI icons rather than dedicated world sprites. Physical passages still return to the gameplay dashboard instead of transferring directly between spatial maps. Desktop and Android landscape playtesting remains an outstanding validation gate.
 
