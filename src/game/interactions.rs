@@ -116,11 +116,8 @@ fn build_conversation_view(state: &GameState, npc_index: usize) -> ConversationV
         actor_appearance_seed(world_seed, state.character.id),
         &[],
     );
-    let npc_layers = generate_character_portrait(
-        parts,
-        actor_appearance_seed(world_seed, npc.id),
-        npc_tags,
-    );
+    let npc_layers =
+        generate_character_portrait(parts, actor_appearance_seed(world_seed, npc.id), npc_tags);
     let player = CharacterView {
         name: state.character.name.clone(),
         title: state.character.title.clone(),

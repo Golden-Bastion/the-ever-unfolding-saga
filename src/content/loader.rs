@@ -107,7 +107,11 @@ fn merge_campaign_content(base: &mut CampaignContent, incoming: CampaignContent)
         entry.id.clone()
     });
     merge_vec_by_key(&mut base.npcs, incoming.npcs, |entry| entry.id.clone());
-    merge_vec_by_key(&mut base.character_parts, incoming.character_parts, |entry| entry.id.clone());
+    merge_vec_by_key(
+        &mut base.character_parts,
+        incoming.character_parts,
+        |entry| entry.id.clone(),
+    );
     merge_vec_by_key(&mut base.quests, incoming.quests, |entry| entry.id.clone());
     merge_vec_by_key(&mut base.encounters, incoming.encounters, |entry| {
         entry.location_name.clone()

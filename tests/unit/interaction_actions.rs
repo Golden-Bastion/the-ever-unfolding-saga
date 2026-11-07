@@ -9,7 +9,11 @@ fn interaction_targets_have_stable_distinct_keys() {
         "poi:poi.shrine"
     );
     assert_eq!(
-        InteractionTarget::Passage { id: "exit.north".into(), destination_id: 12 }.stable_key(),
+        InteractionTarget::Passage {
+            id: "exit.north".into(),
+            destination_id: 12
+        }
+        .stable_key(),
         "passage:exit.north:12"
     );
 }

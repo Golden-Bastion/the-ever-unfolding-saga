@@ -13,15 +13,15 @@ mod bevy_records;
 mod bevy_runtime;
 mod bevy_spatial;
 mod bevy_touch;
-mod content;
 mod character_appearance;
-mod interaction_actions;
+mod content;
 #[cfg(not(target_os = "android"))]
 mod desktop_window;
 mod events;
 mod game;
 mod game_paths;
 mod input;
+mod interaction_actions;
 mod mod_manager;
 mod model;
 mod persistence;

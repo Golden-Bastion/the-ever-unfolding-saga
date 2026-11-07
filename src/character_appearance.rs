@@ -17,9 +17,7 @@ pub(crate) struct CharacterPortraitLayer {
 }
 
 pub(crate) fn actor_appearance_seed(world_seed: u64, actor_id: u64) -> u64 {
-    let mixed = world_seed
-        ^ actor_id.wrapping_mul(0x9E37_79B9_7F4A_7C15)
-        ^ 0xA076_1D64_78BD_642F;
+    let mixed = world_seed ^ actor_id.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ 0xA076_1D64_78BD_642F;
     DeterministicRng::new(mixed).next_u64()
 }
 
@@ -29,7 +27,10 @@ pub(crate) fn generate_character_portrait(
     seed: u64,
     appearance_tags: &[String],
 ) -> Vec<CharacterPortraitLayer> {
-    let tags = appearance_tags.iter().map(String::as_str).collect::<HashSet<_>>();
+    let tags = appearance_tags
+        .iter()
+        .map(String::as_str)
+        .collect::<HashSet<_>>();
     let mut slots: BTreeMap<String, Vec<&CharacterPartContent>> = BTreeMap::new();
 
     for part in parts {
@@ -43,11 +44,19 @@ pub(crate) fn generate_character_portrait(
     let mut selected = Vec::new();
     for (slot, mut candidates) in slots {
         candidates.retain(|part| {
-            part.requires_tags.iter().all(|tag| tags.contains(tag.as_str()))
-                && part.excludes_tags.iter().all(|tag| !tags.contains(tag.as_str()))
+            part.requires_tags
+                .iter()
+                .all(|tag| tags.contains(tag.as_str()))
+                && part
+                    .excludes_tags
+                    .iter()
+                    .all(|tag| !tags.contains(tag.as_str()))
         });
         candidates.sort_by(|left, right| left.id.cmp(&right.id));
-        let total_weight = candidates.iter().map(|part| u64::from(part.weight)).sum::<u64>();
+        let total_weight = candidates
+            .iter()
+            .map(|part| u64::from(part.weight))
+            .sum::<u64>();
         if total_weight == 0 {
             continue;
         }
@@ -71,7 +80,8 @@ pub(crate) fn generate_character_portrait(
     }
 
     selected.sort_by(|left, right| {
-        left.layer.cmp(&right.layer)
+        left.layer
+            .cmp(&right.layer)
             .then_with(|| left.slot.cmp(&right.slot))
             .then_with(|| left.id.cmp(&right.id))
     });

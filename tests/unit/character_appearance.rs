@@ -1,7 +1,14 @@
 use super::*;
 use crate::content::CharacterPartContent;
 
-fn part(id: &str, slot: &str, weight: u32, layer: i32, requires: &[&str], excludes: &[&str]) -> CharacterPartContent {
+fn part(
+    id: &str,
+    slot: &str,
+    weight: u32,
+    layer: i32,
+    requires: &[&str],
+    excludes: &[&str],
+) -> CharacterPartContent {
     CharacterPartContent {
         id: id.into(),
         slot: slot.into(),
@@ -34,7 +41,10 @@ fn portrait_layers_follow_explicit_draw_order() {
         part("face.one", "face", 1, 10, &[], &[]),
     ];
     let chosen = generate_character_portrait(&parts, 7, &[]);
-    assert_eq!(chosen.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(), vec!["face.one", "hair.one"]);
+    assert_eq!(
+        chosen.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(),
+        vec!["face.one", "hair.one"]
+    );
 }
 
 #[test]
@@ -58,7 +68,10 @@ fn higher_weight_parts_are_selected_more_often() {
     let mut rare = 0;
     let mut common = 0;
     for seed in 0..500 {
-        match generate_character_portrait(&parts, seed, &[]).first().map(|p| p.id.as_str()) {
+        match generate_character_portrait(&parts, seed, &[])
+            .first()
+            .map(|p| p.id.as_str())
+        {
             Some("rare") => rare += 1,
             Some("common") => common += 1,
             _ => panic!("one compatible part should be selected"),

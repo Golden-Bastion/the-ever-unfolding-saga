@@ -460,10 +460,14 @@ fn interact_with_poi(
     lifecycle: &mut LifecycleState,
     poi_id: &str,
 ) {
-    let Some(session) = state.session.as_ref() else { return; };
+    let Some(session) = state.session.as_ref() else {
+        return;
+    };
     let location_id = session.location_id.clone();
     let position = session_position(state);
-    let Some(map) = state.maps.get(&location_id) else { return; };
+    let Some(map) = state.maps.get(&location_id) else {
+        return;
+    };
     let Some(poi) = map.points_of_interest.iter().find(|poi| poi.id == poi_id) else {
         state.message = Some("There is nothing here that answers your attention.".to_string());
         state.dirty = true;
@@ -474,10 +478,15 @@ fn interact_with_poi(
         state.dirty = true;
         return;
     }
-    let Some(map) = state.maps.get_mut(&location_id) else { return; };
-    let Some(poi) = map.point_of_interest_mut(poi_id) else { return; };
+    let Some(map) = state.maps.get_mut(&location_id) else {
+        return;
+    };
+    let Some(poi) = map.point_of_interest_mut(poi_id) else {
+        return;
+    };
     if poi.interacted {
-        state.message = Some("The remains offer nothing more. The wrongness is still there.".to_string());
+        state.message =
+            Some("The remains offer nothing more. The wrongness is still there.".to_string());
         state.dirty = true;
         return;
     }
@@ -489,7 +498,10 @@ fn interact_with_poi(
         let turn = session.state.character.turn;
         session.state.world.record_history(
             turn,
-            format!("{}: {} {}", title, description, "The discovery has been recorded."),
+            format!(
+                "{}: {} {}",
+                title, description, "The discovery has been recorded."
+            ),
         );
     }
     state.message = Some(format!(
@@ -505,27 +517,50 @@ fn interact_contextually(
     navigation: &mut NavigationState,
     requests: &mut MessageWriter<SpatialInteractionRequest>,
 ) {
-    let interaction = state.session.as_ref()
+    let interaction = state
+        .session
+        .as_ref()
         .and_then(|session| state.maps.get(&session.location_id))
-        .and_then(|map| lifecycle.session.as_ref().and_then(|game_session| {
-            available_interactions(map, &game_session.state, state.position).into_iter().next()
-        }));
+        .and_then(|map| {
+            lifecycle.session.as_ref().and_then(|game_session| {
+                available_interactions(map, &game_session.state, state.position)
+                    .into_iter()
+                    .next()
+            })
+        });
 
     match interaction {
-        Some(AvailableInteraction { action: InteractionActionKind::Talk, target: InteractionTarget::Npc(id), .. }) => {
+        Some(AvailableInteraction {
+            action: InteractionActionKind::Talk,
+            target: InteractionTarget::Npc(id),
+            ..
+        }) => {
             requests.write(SpatialInteractionRequest::Talk(id));
         }
-        Some(AvailableInteraction { action: InteractionActionKind::SearchRemains, target: InteractionTarget::Corpse(id), .. }) => {
+        Some(AvailableInteraction {
+            action: InteractionActionKind::SearchRemains,
+            target: InteractionTarget::Corpse(id),
+            ..
+        }) => {
             requests.write(SpatialInteractionRequest::SearchRemains(id));
         }
-        Some(AvailableInteraction { action: InteractionActionKind::Examine, target: InteractionTarget::PointOfInterest(id), .. }) => {
+        Some(AvailableInteraction {
+            action: InteractionActionKind::Examine,
+            target: InteractionTarget::PointOfInterest(id),
+            ..
+        }) => {
             interact_with_poi(state, lifecycle, &id);
         }
-        Some(AvailableInteraction { action: InteractionActionKind::Enter, target: InteractionTarget::Passage { id, destination_id }, .. }) => {
+        Some(AvailableInteraction {
+            action: InteractionActionKind::Enter,
+            target: InteractionTarget::Passage { id, destination_id },
+            ..
+        }) => {
             use_map_exit(state, navigation, &id, destination_id);
         }
         _ => {
-            state.message = Some("There is nothing within reach that can be approached.".to_string());
+            state.message =
+                Some("There is nothing within reach that can be approached.".to_string());
             state.dirty = true;
         }
     }
@@ -1253,7 +1288,8 @@ fn update_spatial_context_prompt(
             node.display = interaction_display;
         }
     }
-    let label = target.as_ref()
+    let label = target
+        .as_ref()
         .map(interaction_prompt_label)
         .unwrap_or_else(|| "Interact".to_string());
     for mut text in &mut prompt_labels {
@@ -1404,8 +1440,12 @@ pub(crate) fn available_interactions(
     let mut candidates = Vec::new();
 
     for poi in &map.points_of_interest {
-        if !poi_interaction_available_for(map, position, poi) { continue; }
-        let Some(distance) = poi_distance_px_for(map, position, poi) else { continue; };
+        if !poi_interaction_available_for(map, position, poi) {
+            continue;
+        }
+        let Some(distance) = poi_distance_px_for(map, position, poi) else {
+            continue;
+        };
         let item = AvailableInteraction {
             action: InteractionActionKind::Examine,
             target: InteractionTarget::PointOfInterest(poi.id.clone()),
@@ -1419,8 +1459,8 @@ pub(crate) fn available_interactions(
             f32::from(placement.position.x) + 0.5,
             f32::from(placement.position.y) + 0.5,
         );
-        let distance = map_to_world(position, Some(map))
-            .distance(map_to_world(target_position, Some(map)));
+        let distance =
+            map_to_world(position, Some(map)).distance(map_to_world(target_position, Some(map)));
         if distance > INTERACTION_RANGE_PX || !has_line_of_sight(map, position, target_position) {
             continue;
         }
@@ -1428,32 +1468,46 @@ pub(crate) fn available_interactions(
             SpatialEntityKind::Npc => {
                 let Some(npc) = game.npcs.iter().find(|npc| {
                     npc.id == placement.entity_id && npc.location_id == game.character.location_id
-                }) else { continue; };
-                (0_u8, AvailableInteraction {
-                    action: InteractionActionKind::Talk,
-                    target: InteractionTarget::Npc(npc.id),
-                    label: format!("Talk — {}", npc.name),
-                })
+                }) else {
+                    continue;
+                };
+                (
+                    0_u8,
+                    AvailableInteraction {
+                        action: InteractionActionKind::Talk,
+                        target: InteractionTarget::Npc(npc.id),
+                        label: format!("Talk — {}", npc.name),
+                    },
+                )
             }
             SpatialEntityKind::Corpse => {
                 let Some(corpse) = game.corpses.iter().find(|corpse| {
                     corpse.id == placement.entity_id
                         && corpse.location_id == game.character.location_id
                         && !corpse.inventory.is_empty()
-                }) else { continue; };
-                (1_u8, AvailableInteraction {
-                    action: InteractionActionKind::SearchRemains,
-                    target: InteractionTarget::Corpse(corpse.id),
-                    label: format!("Search — {}", corpse.former_name),
-                })
+                }) else {
+                    continue;
+                };
+                (
+                    1_u8,
+                    AvailableInteraction {
+                        action: InteractionActionKind::SearchRemains,
+                        target: InteractionTarget::Corpse(corpse.id),
+                        label: format!("Search — {}", corpse.former_name),
+                    },
+                )
             }
         };
         candidates.push((distance, priority, item.target.stable_key(), item));
     }
 
     for exit in &map.exits {
-        if !exit_interaction_available(map, position, exit) { continue; }
-        let label = game.world.location_by_id(exit.target_location_id)
+        if !exit_interaction_available(map, position, exit) {
+            continue;
+        }
+        let label = game
+            .world
+            .location_by_id(exit.target_location_id)
             .map(|location| format!("Enter — {}", location.name))
             .unwrap_or_else(|| "Use passage".to_string());
         let item = AvailableInteraction {
@@ -1464,10 +1518,19 @@ pub(crate) fn available_interactions(
             },
             label,
         };
-        candidates.push((exit_distance_px(map, position, exit), 3_u8, item.target.stable_key(), item));
+        candidates.push((
+            exit_distance_px(map, position, exit),
+            3_u8,
+            item.target.stable_key(),
+            item,
+        ));
     }
 
-    candidates.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)).then_with(|| a.2.cmp(&b.2)));
+    candidates.sort_by(|a, b| {
+        a.0.total_cmp(&b.0)
+            .then(a.1.cmp(&b.1))
+            .then_with(|| a.2.cmp(&b.2))
+    });
     candidates.into_iter().map(|(_, _, _, item)| item).collect()
 }
 
@@ -1476,7 +1539,9 @@ fn nearest_interaction_target(
     game: &GameState,
     position: Vec2,
 ) -> Option<AvailableInteraction> {
-    available_interactions(map, game, position).into_iter().next()
+    available_interactions(map, game, position)
+        .into_iter()
+        .next()
 }
 
 fn interaction_prompt_label(interaction: &AvailableInteraction) -> String {
@@ -1510,8 +1575,13 @@ fn poi_distance_px_for(
     position: Vec2,
     poi: &crate::spatial::PointOfInterest,
 ) -> Option<f32> {
-    if !map.contains(poi.position) { return None; }
-    let target = Vec2::new(f32::from(poi.position.x) + 0.5, f32::from(poi.position.y) + 0.5);
+    if !map.contains(poi.position) {
+        return None;
+    }
+    let target = Vec2::new(
+        f32::from(poi.position.x) + 0.5,
+        f32::from(poi.position.y) + 0.5,
+    );
     Some(map_to_world(position, Some(map)).distance(map_to_world(target, Some(map))))
 }
 
@@ -1520,15 +1590,22 @@ fn poi_interaction_available_for(
     position: Vec2,
     poi: &crate::spatial::PointOfInterest,
 ) -> bool {
-    if poi_distance_px_for(map, position, poi).is_none_or(|distance| distance > INTERACTION_RANGE_PX) {
+    if poi_distance_px_for(map, position, poi)
+        .is_none_or(|distance| distance > INTERACTION_RANGE_PX)
+    {
         return false;
     }
-    let target = Vec2::new(f32::from(poi.position.x) + 0.5, f32::from(poi.position.y) + 0.5);
+    let target = Vec2::new(
+        f32::from(poi.position.x) + 0.5,
+        f32::from(poi.position.y) + 0.5,
+    );
     has_line_of_sight(map, position, target)
 }
 
 fn poi_interaction_available(map: &LocalMap, position: Vec2) -> bool {
-    map.points_of_interest.iter().any(|poi| poi_interaction_available_for(map, position, poi))
+    map.points_of_interest
+        .iter()
+        .any(|poi| poi_interaction_available_for(map, position, poi))
 }
 
 fn has_line_of_sight(map: &LocalMap, start: Vec2, target: Vec2) -> bool {

@@ -97,7 +97,9 @@ pub struct CharacterPartContent {
     pub excludes_tags: Vec<String>,
 }
 
-fn default_character_part_weight() -> u32 { 1 }
+fn default_character_part_weight() -> u32 {
+    1
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuestContent {
@@ -514,9 +516,9 @@ fn is_valid_character_part_asset(reference: &str) -> bool {
         && reference.ends_with(".png")
         && !reference.starts_with('/')
         && !reference.contains('\\')
-        && reference.split('/').all(|segment| {
-            !segment.is_empty() && segment != "." && segment != ".."
-        })
+        && reference
+            .split('/')
+            .all(|segment| !segment.is_empty() && segment != "." && segment != "..")
 }
 
 fn default_true() -> bool {

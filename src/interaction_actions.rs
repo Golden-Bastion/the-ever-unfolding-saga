@@ -18,7 +18,10 @@ pub(crate) enum InteractionTarget {
     Npc(EntityId),
     Corpse(EntityId),
     PointOfInterest(String),
-    Passage { id: String, destination_id: EntityId },
+    Passage {
+        id: String,
+        destination_id: EntityId,
+    },
 }
 
 impl InteractionTarget {
