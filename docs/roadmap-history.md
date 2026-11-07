@@ -710,7 +710,6 @@ src/
 - Replaced the JPEG intermediate with a 600×125 PNG and nearest-neighbor image sampling for crisp pixel-art edges; retained the ASCII fallback for other locations and banner-load failures (#351).
 - Bumped the project and Android fallback version metadata to 0.51.23.
 
-
 ## v0.52.x: Storage, interface, and spatial foundations
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -731,9 +730,10 @@ src/
 - Gave each tab's entries an independent scroll area and kept import, install, reset, and Back actions in a persistent footer.
 - Kept explanatory copy focused on the save-import no-overwrite guarantee and current status notices.
 
-### v0.52.3: Save metadata, New Game flow, and release distribution (#390–#400)
+### v0.52.3: Save metadata, New Game flow, and release distribution (#390–#393, #395–#396, #399–#400)
 - Added character, world/progression, save-format, and saved mod-dependency metadata to save rows in Options and Load, with filename fallback when metadata is unavailable.
 - Split New Game setup into World, Character, and Start tabs. The Start tab reviews the chosen names before Begin Life; data-driven character backgrounds remain deferred to #368.
+- Replaced lifecycle button glyphs with bundled icons.
 - Rebranded the game as **The Ever-Unfolding Saga**, updated the Android app name to TEUS, and added a version label to the start screen.
 - Added optional GitHub Release mirroring to itch.io through Butler. Android release publishing waits for the full set of APK assets before uploading each platform/architecture build.
 
@@ -741,10 +741,9 @@ src/
 - Consolidated character records into one tabbed hub with General, Reputation, Inventory, Quests, and Journal views.
 - Combined the world chronicle and personal notes in Journal while preserving note writing without duplicating the generated history entry.
 
-### v0.52.5: Onyx interface and dark-fantasy iconography (#400, #402)
+### v0.52.5: Onyx interface and dark-fantasy iconography (#402)
 - Unified the shared interface around an onyx `#070707` background, neutral charcoal surfaces, and a coherent pixel-art icon set that mods can override individually.
-- Replaced lifecycle button glyphs with bundled icons and moved the sun and moon presentation to larger world-art sprites cropped from `data/assets/world/celestial/sun-moon.png`; they are not UI icons.
-
+- Moved the sun and moon presentation to larger world-art sprites cropped from `data/assets/world/celestial/sun-moon.png`; they are not UI icons.
 
 ### v0.52.6: UI transitions, text focus, and memory presentation
 - Kept the New Game, Character, and Options screen shells and tab strips in place while refreshing only the selected tab's content.
@@ -758,6 +757,6 @@ src/
 - Added deterministic NPC and searchable-remains placements persisted with local maps, with backward-compatible defaults for older saves.
 - Added stable action/target pairs for nearby NPCs, remains, points of interest, and passages. The current nearest-target control and in-world interaction overlay reuse existing dialogue, quest, time, loot, and recovery rules while keeping the player in the spatial session.
 - Added a mod-extensible, deterministic weighted portrait-part catalogue and bundled 15 transparent 64×96 pixel-art layers across body, face, hair, headgear, and accessory slots. Existing ASCII portraits remain the visible fallback until the dialogue scene composes the layers.
-- Added focused coverage for actor placement, interaction discovery, portrait determinism and compatibility, mod catalogue overrides, and the bundled assets. Formatting, Clippy, all 183 unit tests, REUSE lint, and third-party license checks passed on the PR head.
+- Added focused coverage for actor placement, interaction discovery, portrait determinism and compatibility, mod catalogue overrides, and the bundled assets. Formatting, Clippy, all 183 unit tests, REUSE lint, and third-party license checks passed on implementation commit `46cdd86`.
 - Manual desktop and Android landscape playtesting remains required before #404 is complete. The radial interaction wheel, reusable scene transitions, and close-up dialogue scene are follow-up work in #405.
 
