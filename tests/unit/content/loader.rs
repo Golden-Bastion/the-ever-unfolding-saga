@@ -29,6 +29,7 @@ fn empty_mod_content() -> CampaignContent {
 #[test]
 fn mods_extend_and_override_character_parts_by_stable_id() {
     let mut base = default_campaign_content();
+    base.character_parts.clear();
     base.character_parts.push(CharacterPartContent {
         id: "portrait.face.base".into(),
         slot: "face".into(),
