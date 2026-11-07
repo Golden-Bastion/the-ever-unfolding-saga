@@ -147,3 +147,24 @@ fn mod_events_can_reference_definitions_from_other_mods() {
         .any(|candidate| candidate.id == "events.later_dependency"));
     assert!(warnings.is_empty(), "unexpected warnings: {warnings:?}");
 }
+
+#[test]
+fn default_campaign_includes_reusable_character_parts_and_assets() {
+    let content = default_campaign_content();
+
+    for slot in ["body", "face", "hair", "headgear", "accessory"] {
+        assert!(
+            content.character_parts.iter().any(|part| part.slot == slot),
+            "missing bundled character-part slot: {slot}",
+        );
+    }
+
+    for part in &content.character_parts {
+        let path = std::path::Path::new("data/assets").join(&part.asset);
+        assert!(
+            path.is_file(),
+            "bundled character-part asset does not exist: {}",
+            path.display(),
+        );
+    }
+}
