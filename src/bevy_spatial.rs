@@ -1602,12 +1602,6 @@ fn poi_interaction_available_for(
     has_line_of_sight(map, position, target)
 }
 
-fn poi_interaction_available(map: &LocalMap, position: Vec2) -> bool {
-    map.points_of_interest
-        .iter()
-        .any(|poi| poi_interaction_available_for(map, position, poi))
-}
-
 fn has_line_of_sight(map: &LocalMap, start: Vec2, target: Vec2) -> bool {
     let distance = start.distance(target);
     let steps = (distance * 8.0).ceil() as u32;
