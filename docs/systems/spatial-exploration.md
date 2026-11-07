@@ -66,3 +66,8 @@ Automated unit tests cover deterministic map/prop/actor placement, reachable act
 These tests are source-level coverage. They do not establish successful end-to-end play on desktop or Android; interactive testing and on-device verification are intentionally left to the repository owner.
 
 The first representative authored room now exists as the Old Shrine chamber template. The remaining validation gate is interactive desktop and Android landscape playtesting: move around both sides of the pillar and table, cross the doorway, and inspect wall-top/face ordering and camera framing. Automated tests establish model reachability and depth calculations but do not replace visual playtesting. Full room/door topology, arbitrary authoring tools, and additional layouts remain future work.
+
+
+## Contextual action discovery
+
+Interaction discovery now produces a complete, ordered list of renderer-neutral action/target pairs for all currently eligible nearby NPCs, searchable remains, POIs, and passages. Each pair retains its target's stable identity, including individual POI and passage IDs. The existing Interact key/button continues to activate the nearest entry; the full list is the foundation for the radial wheel tracked in #405. Eligibility still uses the current proximity, clear-approach, actor-existence, and searchable-inventory checks.
