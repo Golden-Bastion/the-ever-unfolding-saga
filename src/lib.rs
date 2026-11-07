@@ -14,6 +14,8 @@ mod bevy_runtime;
 mod bevy_spatial;
 mod bevy_touch;
 mod content;
+mod character_appearance;
+mod interaction_actions;
 #[cfg(not(target_os = "android"))]
 mod desktop_window;
 mod events;
