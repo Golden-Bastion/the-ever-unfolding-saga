@@ -214,8 +214,12 @@ fn contextual_interaction_requires_range_and_clear_approach() {
         f32::from(poi.position.x) + 0.5,
         f32::from(poi.position.y) + 0.5,
     );
-    assert!(poi_interaction_available(&map, near));
-    assert!(!poi_interaction_available(&map, near + Vec2::new(3.0, 0.0)));
+    assert!(poi_interaction_available_for(&map, near, poi));
+    assert!(!poi_interaction_available_for(
+        &map,
+        near + Vec2::new(3.0, 0.0),
+        poi,
+    ));
 }
 
 #[test]
@@ -234,7 +238,11 @@ fn contextual_interaction_prefers_a_closer_point_of_interest() {
     );
     let exit = &map.exits[0];
 
-    assert!(poi_interaction_available(&map, player_position));
+    assert!(poi_interaction_available_for(
+        &map,
+        player_position,
+        &map.points_of_interest[0],
+    ));
     assert!(exit_interaction_available(&map, player_position, exit));
     let game = crate::model::create_new_state(
         "Test World",
