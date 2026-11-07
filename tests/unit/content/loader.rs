@@ -17,12 +17,41 @@ fn empty_mod_content() -> CampaignContent {
     content.world.locations.clear();
     content.factions.clear();
     content.npcs.clear();
+    content.character_parts.clear();
     content.quests.clear();
     content.encounters.clear();
     content.atmospheres.clear();
     content.item_visuals.clear();
     content.events.clear();
     content
+}
+
+#[test]
+fn mods_extend_and_override_character_parts_by_stable_id() {
+    let mut base = default_campaign_content();
+    base.character_parts.push(CharacterPartContent {
+        id: "portrait.face.base".into(), slot: "face".into(),
+        asset: "characters/parts/face/base.png".into(), weight: 2, layer: 10,
+        requires_tags: Vec::new(), excludes_tags: Vec::new(),
+    });
+    let mut incoming = empty_mod_content();
+    incoming.character_parts.push(CharacterPartContent {
+        id: "portrait.face.base".into(), slot: "face".into(),
+        asset: "characters/parts/face/modded.png".into(), weight: 5, layer: 10,
+        requires_tags: vec!["human".into()], excludes_tags: Vec::new(),
+    });
+    incoming.character_parts.push(CharacterPartContent {
+        id: "portrait.hair.long".into(), slot: "hair".into(),
+        asset: "characters/parts/hair/long.png".into(), weight: 1, layer: 20,
+        requires_tags: Vec::new(), excludes_tags: Vec::new(),
+    });
+    merge_campaign_content(&mut base, incoming);
+
+    assert_eq!(base.character_parts.len(), 2);
+    let face = base.character_parts.iter().find(|part| part.id == "portrait.face.base").unwrap();
+    assert_eq!(face.asset, "characters/parts/face/modded.png");
+    assert_eq!(face.weight, 5);
+    assert_eq!(face.requires_tags, vec!["human"]);
 }
 
 #[test]
