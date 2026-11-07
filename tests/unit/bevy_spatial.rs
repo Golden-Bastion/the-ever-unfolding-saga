@@ -329,7 +329,7 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
         .any(|item| item.target == InteractionTarget::Corpse(80)));
     assert!(items
         .iter()
-        .any(|item| item.target == InteractionTarget::PointOfInterest(poi_id)));
+        .any(|item| item.target == InteractionTarget::PointOfInterest(poi_id.clone())));
     assert!(items.iter().any(|item| {
         item.target
             == InteractionTarget::Passage {
