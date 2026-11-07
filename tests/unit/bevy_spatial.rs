@@ -243,10 +243,63 @@ fn contextual_interaction_prefers_a_closer_point_of_interest() {
         "Wanderer".to_string(),
     );
     assert_eq!(
-        nearest_interaction_target(&map, &game, player_position),
-        Some(NearbyInteractionTarget::PointOfInterest)
+        nearest_interaction_target(&map, &game, player_position)
+            .map(|interaction| interaction.action),
+        Some(InteractionActionKind::Examine)
     );
 }
+
+#[test]
+fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
+    let mut map = generate_local_map(4, "location.interaction_choices", LocalMapConfig::default());
+    map.props.clear();
+    map.points_of_interest[0].position = map.entry;
+    let poi_id = map.points_of_interest[0].id.clone();
+    map.exits = vec![MapExit { id: "exit.test".into(), position: map.entry, target_location_id: 999 }];
+
+    let mut game = crate::model::create_new_state(
+        "Interaction Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let location_id = game.character.location_id;
+    game.npcs.push(crate::model::Npc::new(70, "Mira", "Scout", location_id, None));
+    game.npcs.push(crate::model::Npc::new(71, "Bram", "Keeper", location_id, None));
+    game.corpses.push(crate::model::Corpse {
+        id: 80,
+        former_name: "Unknown Wanderer".into(),
+        former_title: "Pilgrim".into(),
+        location_id,
+        turn_of_death: 0,
+        inventory: vec![crate::model::Item {
+            id: 81,
+            name: "Rusty Key".into(),
+            description: "A key darkened by age.".into(),
+        }],
+        epitaph: String::new(),
+        scavenged: false,
+    });
+    for (entity_id, kind) in [(70, SpatialEntityKind::Npc), (71, SpatialEntityKind::Npc), (80, SpatialEntityKind::Corpse)] {
+        map.interactables.push(crate::spatial::SpatialEntityPlacement {
+            entity_id,
+            kind,
+            position: map.entry,
+        });
+    }
+
+    let position = Vec2::new(f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
+    let items = available_interactions(&map, &game, position);
+    assert_eq!(items.iter().filter(|item| item.action == InteractionActionKind::Talk).count(), 2);
+    assert!(items.iter().any(|item| item.target == InteractionTarget::Npc(70)));
+    assert!(items.iter().any(|item| item.target == InteractionTarget::Npc(71)));
+    assert!(items.iter().any(|item| item.target == InteractionTarget::Corpse(80)));
+    assert!(items.iter().any(|item| item.target == InteractionTarget::PointOfInterest(poi_id)));
+    assert!(items.iter().any(|item| {
+        item.target == InteractionTarget::Passage { id: "exit.test".into(), destination_id: 999 }
+    }));
+}
+
 
 #[test]
 fn passage_interaction_requires_approach_and_range() {
