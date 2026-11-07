@@ -236,7 +236,16 @@ fn contextual_interaction_prefers_a_closer_point_of_interest() {
 
     assert!(poi_interaction_available(&map, player_position));
     assert!(exit_interaction_available(&map, player_position, exit));
-    assert!(nearest_contextual_exit(&map, player_position).is_none());
+    let game = crate::model::create_new_state(
+        "Test World",
+        crate::model::WorldMode::New,
+        "Ash".to_string(),
+        "Wanderer".to_string(),
+    );
+    assert_eq!(
+        nearest_interaction_target(&map, &game, player_position),
+        Some(NearbyInteractionTarget::PointOfInterest)
+    );
 }
 
 #[test]

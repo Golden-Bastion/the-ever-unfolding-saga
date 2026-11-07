@@ -60,11 +60,13 @@ fn props_round_trip_and_older_saves_default_to_no_props() {
     let mut old_value = serde_json::to_value(&map).expect("map should serialize");
     let object = old_value.as_object_mut().expect("map should be an object");
     object.remove("props");
+    object.remove("interactables");
     object.remove("exits");
     object.remove("layout_id");
     let restored_old: LocalMap =
         serde_json::from_value(old_value).expect("pre-prop map should remain loadable");
     assert!(restored_old.props.is_empty());
+    assert!(restored_old.interactables.is_empty());
     assert!(restored_old.exits.is_empty());
     assert!(restored_old.layout_id.is_none());
 }
@@ -314,4 +316,57 @@ fn map_and_session_round_trip_through_serde() {
     let restored: ExplorationSession =
         serde_json::from_str(&json).expect("session should deserialize");
     assert_eq!(restored, session);
+}
+
+#[test]
+fn spatial_entity_placements_are_stable_unique_and_backward_compatible() {
+    let mut map = generate_local_map(82, "location.actor_test", LocalMapConfig::default());
+    let requested = vec![
+        (12, SpatialEntityKind::Npc),
+        (14, SpatialEntityKind::Corpse),
+        (10, SpatialEntityKind::Npc),
+    ];
+    ensure_spatial_entity_placements(&mut map, &requested);
+    let first = map.interactables.clone();
+    ensure_spatial_entity_placements(&mut map, &requested);
+
+    assert_eq!(map.interactables, first);
+    assert_eq!(map.interactables.len(), requested.len());
+    for (index, placement) in map.interactables.iter().enumerate() {
+        assert!(map.is_walkable(placement.position));
+        assert!(reachable_walkable_tiles(&map).contains(&placement.position));
+        assert_ne!(placement.position, map.entry);
+        assert!(!map
+            .points_of_interest
+            .iter()
+            .any(|poi| poi.position == placement.position));
+        assert!(!map
+            .exits
+            .iter()
+            .any(|exit| exit.position == placement.position));
+        assert!(!map.interactables[index + 1..]
+            .iter()
+            .any(|other| other.position == placement.position));
+    }
+
+    let json = serde_json::to_string(&map).expect("map with actor placements should serialize");
+    let restored: LocalMap =
+        serde_json::from_str(&json).expect("map with actor placements should deserialize");
+    assert_eq!(restored.interactables, map.interactables);
+}
+
+#[test]
+fn existing_spatial_entity_placements_are_preserved_when_new_actors_arrive() {
+    let mut map = generate_local_map(83, "location.actor_arrival", LocalMapConfig::default());
+    ensure_spatial_entity_placements(&mut map, &[(1, SpatialEntityKind::Npc)]);
+    let original = map.interactables[0].clone();
+
+    ensure_spatial_entity_placements(
+        &mut map,
+        &[(1, SpatialEntityKind::Npc), (2, SpatialEntityKind::Npc)],
+    );
+
+    assert_eq!(map.interactables[0], original);
+    assert_eq!(map.interactables.len(), 2);
+    assert_ne!(map.interactables[0].position, map.interactables[1].position);
 }

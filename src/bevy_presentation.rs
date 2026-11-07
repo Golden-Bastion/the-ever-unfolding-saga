@@ -373,7 +373,6 @@ pub enum ScreenId {
     Meditation,
     Talk,
     Conversation,
-    Remains,
     RemainsResult,
     SpatialExploration,
     Combat,
