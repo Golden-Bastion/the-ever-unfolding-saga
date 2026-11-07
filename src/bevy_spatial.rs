@@ -464,7 +464,7 @@ fn interact_with_poi(
     let location_id = session.location_id.clone();
     let position = session_position(state);
     let Some(map) = state.maps.get(&location_id) else { return; };
-    let Some(poi) = map.point_of_interest(poi_id) else {
+    let Some(poi) = map.points_of_interest.iter().find(|poi| poi.id == poi_id) else {
         state.message = Some("There is nothing here that answers your attention.".to_string());
         state.dirty = true;
         return;
@@ -1513,10 +1513,6 @@ fn poi_distance_px_for(
     if !map.contains(poi.position) { return None; }
     let target = Vec2::new(f32::from(poi.position.x) + 0.5, f32::from(poi.position.y) + 0.5);
     Some(map_to_world(position, Some(map)).distance(map_to_world(target, Some(map))))
-}
-
-fn poi_distance_px(map: &LocalMap, position: Vec2) -> Option<f32> {
-    map.points_of_interest.first().and_then(|poi| poi_distance_px_for(map, position, poi))
 }
 
 fn poi_interaction_available_for(
