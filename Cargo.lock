@@ -2257,7 +2257,7 @@ dependencies = [
 
 [[package]]
 name = "ever_unfolding_saga"
-version = "0.53.0"
+version = "0.52.7"
 dependencies = [
  "atomic-write-file",
  "bevy",
