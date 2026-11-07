@@ -106,3 +106,8 @@ Issue #278 establishes the reusable presentation primitives for the redesigned g
 ## Design direction
 
 Keep screen responsibilities separate from gameplay mechanics. New UI work should reuse frontend-neutral view models and semantic input events rather than introducing renderer-specific dependencies into gameplay rules. Adapt layouts and controls to desktop and mobile, supporting touch, mouse/keyboard, and controllers where practical. Keep spatial gameplay uncluttered, use contextual actions for nearby interactions, and reserve detailed management/information for hierarchical record screens. Avoid maintaining parallel terminal and graphical implementations or undertaking a wholesale UI redesign without a specific need.
+
+
+## Spatial interaction presentation direction
+
+Spatial interaction discovery exposes stable action/target descriptors independently of the UI. The current contextual prompt continues to activate the nearest eligible descriptor until the radial wheel in #405 is implemented. Conversation view data now carries generated portrait-layer selections for both the player and NPC; the existing overlay remains temporary, and the dedicated close-up two-character dialogue scene is future work. The weighted generator is renderer-neutral; the frontend is responsible for loading and compositing its resolved layers.
