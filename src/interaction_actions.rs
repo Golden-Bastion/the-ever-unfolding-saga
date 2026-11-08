@@ -10,7 +10,7 @@ const TILE_HALF_WIDTH: f32 = 24.0;
 const TILE_HALF_HEIGHT: f32 = 12.0;
 const INTERACTION_RANGE_PX: f32 = 34.0;
 
-type SpatialPosition = (f32, f32);
+pub(crate) type SpatialPosition = (f32, f32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum InteractionActionKind {
