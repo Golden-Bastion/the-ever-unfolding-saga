@@ -26,7 +26,7 @@ Character Workshop manually assembles currently available modular portrait parts
 
 ## Active milestone
 
-**v0.53.0 — Spatial exploration and directional character animation foundation** (prototype #353; actor and interaction foundation #404; presentation follow-up #405; world-topology design #365)
+**v0.52.24 — Spatial exploration and directional character animation foundation** (prototype #353; actor and interaction foundation #404; presentation follow-up #405; world-topology design #365)
 
 The renderer-neutral local-map model, deterministic generation, Bevy exploration view, continuous movement, blocked-terrain collision, camera tracking, depth ordering, and world-persistent map state are implemented. The prototype includes desktop keyboard movement, an Android virtual joystick, first-pass pixel-art terrain and character assets, basic prop collision and occlusion, and the authored Old Shrine chamber layout (#381). The exact active exploration position and session remain character-specific, while established local maps and their lasting changes persist with the world.
 

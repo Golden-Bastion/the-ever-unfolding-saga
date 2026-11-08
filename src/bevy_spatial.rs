@@ -423,15 +423,24 @@ fn setup_spatial_render_assets(
                 image.texture_descriptor.size.width == PLAYER_ANIMATION_SHEET_WIDTH
                     && image.texture_descriptor.size.height == PLAYER_ANIMATION_SHEET_HEIGHT
             });
-            if valid { Some(image) } else {
-                warn!("Spatial player animation sheet must be {}x{} pixels; using the static player sprite instead", PLAYER_ANIMATION_SHEET_WIDTH, PLAYER_ANIMATION_SHEET_HEIGHT);
+            if valid {
+                Some(image)
+            } else {
+                warn!(
+                    "Spatial player animation sheet must be {}x{} pixels; using the static player sprite instead",
+                    PLAYER_ANIMATION_SHEET_WIDTH,
+                    PLAYER_ANIMATION_SHEET_HEIGHT
+                );
                 None
             }
         });
     let player_animation_layout = player_animation_image.as_ref().map(|_| {
         atlas_layouts.add(TextureAtlasLayout::from_grid(
             UVec2::new(PLAYER_ANIMATION_FRAME_WIDTH, PLAYER_ANIMATION_FRAME_HEIGHT),
-            PLAYER_ANIMATION_COLUMNS, PLAYER_ANIMATION_ROWS, None, None,
+            PLAYER_ANIMATION_COLUMNS,
+            PLAYER_ANIMATION_ROWS,
+            None,
+            None,
         ))
     });
     let passage_image = load_spatial_image(&mut images, "spatial/passage.png");
@@ -558,11 +567,17 @@ fn spatial_input(
             let world_direction = screen_direction_to_world(direction);
             let previous_position = state.position;
             let next = advance_position(
-                map, previous_position, world_direction, time.delta_secs(), PLAYER_SPEED * input_strength,
+                map,
+                previous_position,
+                world_direction,
+                time.delta_secs(),
+                PLAYER_SPEED * input_strength,
             );
             state.player_animation.set_motion(
-                direction.x, direction.y,
+                direction.x,
+                direction.y,
                 next.distance_squared(previous_position) > 0.000_001,
+                input_strength,
             );
             state.position = next;
             if let Some(session) = state.session.as_mut() {
@@ -1359,10 +1374,17 @@ fn render_spatial_screen(
 
     let player_ground_position = session_position(&state);
     let player_position = map_to_world(player_ground_position, Some(map));
-    let player_sprite = match (assets.player_animation_image.clone(), assets.player_animation_layout.clone()) {
+    let player_sprite = match (
+        assets.player_animation_image.clone(),
+        assets.player_animation_layout.clone(),
+    ) {
         (Some(image), Some(layout)) => {
             let mut sprite = Sprite::from_atlas_image(
-                image, TextureAtlas { layout, index: state.player_animation.frame_index() },
+                image,
+                TextureAtlas {
+                    layout,
+                    index: state.player_animation.frame_index(),
+                },
             );
             sprite.custom_size = Some(Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT));
             Some(sprite)
@@ -1374,7 +1396,10 @@ fn render_spatial_screen(
         }),
     };
     if let Some(sprite) = player_sprite {
-        commands.spawn((SpatialWorldEntity, SpatialPlayer, sprite,
+        commands.spawn((
+            SpatialWorldEntity,
+            SpatialPlayer,
+            sprite,
             Transform::from_xyz(
                 player_position.x,
                 player_position.y + PLAYER_SPRITE_HEIGHT * 0.5,
