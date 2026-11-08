@@ -776,3 +776,10 @@ src/
 - Changed the spatial interaction control to identify the nearest NPC, remains, point of interest, or destination by name. When more than one distinct target is available, the prompt names the nearest target and indicates the additional target count; the radial wheel remains the action selector.
 - Added regression coverage for appearance resolution, legacy save defaults, inheritance, player/NPC portrait separation, and all spatial prompt target categories.
 - The project owner manually play-tested the existing #405 interaction/dialogue work; this change completes the remaining requested refinements. Formatting, Clippy, unit tests, REUSE lint, and third-party license checks are tracked on the associated pull request.
+
+### v0.52.23: Spatial movement and camera consistency
+- Subdivided spatial movement into short collision-checked steps with a bounded frame-time contribution, improving movement continuity during brief low-frame-rate intervals while preserving wall/prop collision and axis-separated sliding.
+- Changed camera following to exponential smoothing so the response is consistent across frame rates, and clamp the final smoothed camera position to map bounds.
+- Added regression tests for 30/60 FPS camera consistency, post-smoothing camera bounds, movement recovery after a short frame drop, and collision during a slow frame.
+- Recorded the staged spatial-first gameplay direction in #421. The existing Gameplay dashboard remains until its gameplay and system functions have validated replacements in the spatial experience.
+- Bumped the project version to 0.52.23.
