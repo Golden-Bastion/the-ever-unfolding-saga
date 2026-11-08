@@ -477,7 +477,11 @@ fn movement_is_continuous_within_walkable_tiles() {
 
 #[test]
 fn movement_catches_up_through_short_frame_drops() {
-    let mut map = generate_local_map(4, "location.movement_stutter_test", LocalMapConfig::default());
+    let mut map = generate_local_map(
+        4,
+        "location.movement_stutter_test",
+        LocalMapConfig::default(),
+    );
     map.props.clear();
     for x in map.entry.x..=map.entry.x + 2 {
         map.set_terrain(GridPosition { x, y: map.entry.y }, Terrain::Floor);
@@ -493,7 +497,11 @@ fn movement_catches_up_through_short_frame_drops() {
 
 #[test]
 fn movement_substeps_do_not_allow_crossing_blocked_terrain_after_a_slow_frame() {
-    let mut map = generate_local_map(4, "location.movement_collision_stutter_test", LocalMapConfig::default());
+    let mut map = generate_local_map(
+        4,
+        "location.movement_collision_stutter_test",
+        LocalMapConfig::default(),
+    );
     map.props.clear();
     let start = Vec2::new(f32::from(map.entry.x) + 0.8, f32::from(map.entry.y) + 0.5);
     let wall = GridPosition {
