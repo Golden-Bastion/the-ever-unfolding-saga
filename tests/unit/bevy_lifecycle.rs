@@ -83,6 +83,26 @@ fn options_activation_keeps_navigation_on_the_options_screen() {
 }
 
 #[test]
+fn developer_tools_activation_opens_without_starting_a_campaign() {
+    let mut lifecycle = LifecycleState::default();
+    let mut navigation = NavigationState {
+        current_screen: Some(ScreenId::Lifecycle),
+        return_screen: None,
+        selected: 0,
+    };
+
+    lifecycle.phase = LifecyclePhase::Start;
+    lifecycle.selected = super::start_developer_tools_index(&lifecycle);
+
+    let transition = super::activate_selection(&mut lifecycle, &mut navigation);
+
+    assert_eq!(transition, None);
+    assert_eq!(lifecycle.phase, LifecyclePhase::Start);
+    assert_eq!(navigation.current_screen, Some(ScreenId::DeveloperTools));
+    assert_eq!(navigation.return_screen, Some(ScreenId::Lifecycle));
+}
+
+#[test]
 fn load_back_returns_to_the_start_screen() {
     let mut lifecycle = LifecycleState {
         phase: LifecyclePhase::Load,
