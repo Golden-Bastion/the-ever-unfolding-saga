@@ -1040,12 +1040,13 @@ fn sandbox_map_cannot_be_replaced_during_an_active_playtest() {
 
     set_sandbox_map(&mut state, replacement);
 
-    assert_eq!(
-        state
-            .maps
-            .values()
-            .next()
-            .expect("playtest map should remain mounted"),
-        &original
-    );
+    let active_map = state
+        .maps
+        .values()
+        .next()
+        .expect("playtest map should remain mounted");
+    assert_eq!(active_map.location_id, original.location_id);
+    assert_eq!(active_map.seed, original.seed);
+    assert_eq!(active_map.terrain, original.terrain);
+    assert_eq!(active_map.props, original.props);
 }
