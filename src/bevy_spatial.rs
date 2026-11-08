@@ -197,7 +197,8 @@ pub(crate) fn start_sandbox_playtest(
     });
     state.interaction_wheel = None;
     state.sandbox_mode = true;
-    state.message = Some("Play-test the generated space. Back returns to the World Lab editor.".to_string());
+    state.message =
+        Some("Play-test the generated space. Back returns to the World Lab editor.".to_string());
     state.dirty = true;
     map_mark_discovered(state, position);
 
@@ -1374,8 +1375,16 @@ fn render_spatial_screen(
     commands.entity(header).add_child(vitals);
     if state.sandbox_mode {
         spawn_label(&mut commands, vitals, "TEMPORARY SANDBOX");
-        spawn_compact_label(&mut commands, vitals, format!("Map: {} × {}", map.width, map.height));
-        spawn_compact_label(&mut commands, vitals, format!("Generator seed: {}", map.seed));
+        spawn_compact_label(
+            &mut commands,
+            vitals,
+            format!("Map: {} × {}", map.width, map.height),
+        );
+        spawn_compact_label(
+            &mut commands,
+            vitals,
+            format!("Generator seed: {}", map.seed),
+        );
     } else {
         // Keep essential character status anchored to the spatial view. All values
         // come from the authoritative character, not a parallel HUD state.
@@ -1406,7 +1415,11 @@ fn render_spatial_screen(
     spawn_control(
         &mut commands,
         header,
-        if state.sandbox_mode { "Return to Editor" } else { "Leave" },
+        if state.sandbox_mode {
+            "Return to Editor"
+        } else {
+            "Leave"
+        },
         SpatialAction::Exit,
         Display::Flex,
     );

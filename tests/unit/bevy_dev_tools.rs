@@ -76,7 +76,6 @@ fn slot_and_part_cycling_wraps_and_handles_empty_catalogues() {
     assert_eq!(cycle_index(8, 3, 0), 2);
 }
 
-
 #[test]
 fn world_lab_generation_is_reproducible_and_respects_selected_layout() {
     let options = WorldLabOptions {
@@ -111,7 +110,9 @@ fn world_lab_preview_matches_generated_map_dimensions() {
     let rows = preview.lines().collect::<Vec<_>>();
 
     assert_eq!(rows.len(), usize::from(map.height));
-    assert!(rows.iter().all(|row| row.chars().count() == usize::from(map.width)));
+    assert!(rows
+        .iter()
+        .all(|row| row.chars().count() == usize::from(map.width)));
     assert!(rows.iter().any(|row| row.contains('@')));
     assert!(rows.iter().any(|row| row.contains('?')));
     assert!(rows.iter().any(|row| row.contains('#')));

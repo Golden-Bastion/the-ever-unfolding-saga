@@ -982,7 +982,6 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
     );
 }
 
-
 #[test]
 fn world_lab_playtest_is_disposable_and_returns_updated_map_to_editor() {
     let map = generate_local_map(123, "developer.world_lab", LocalMapConfig::default());

@@ -9,15 +9,17 @@ use bevy::prelude::*;
 
 use crate::bevy_interactions::{self, PortraitImageCache};
 use crate::bevy_lifecycle::LifecycleState;
-use crate::bevy_spatial::{self, SpatialExplorationState};
-use crate::spatial::{generate_local_map_with_layout, GridPosition, LocalMap, LocalMapConfig, Terrain};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId,
 };
+use crate::bevy_spatial::{self, SpatialExplorationState};
 use crate::character_appearance::generate_character_portrait;
 use crate::content::{loader::load_campaign_content_report, CharacterPartContent};
 use crate::input::InputEvent;
 use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
+use crate::spatial::{
+    generate_local_map_with_layout, GridPosition, LocalMap, LocalMapConfig, Terrain,
+};
 
 const WORKSHOP_ACTIONS: &[(&str, &str)] = &[
     ("back", "Previous part"),
@@ -223,9 +225,7 @@ fn generate_world_lab_map(options: WorldLabOptions) -> LocalMap {
 }
 
 fn world_lab_map_preview(map: &LocalMap) -> String {
-    let mut preview = String::with_capacity(
-        usize::from(map.width) * (usize::from(map.height) + 1),
-    );
+    let mut preview = String::with_capacity(usize::from(map.width) * (usize::from(map.height) + 1));
     for y in 0..map.height {
         for x in 0..map.width {
             let position = GridPosition { x, y };
@@ -372,27 +372,29 @@ fn developer_tools_input(
                     ScreenId::WorldLab => {
                         match navigation.selected {
                             0 => {
-                                state.world_lab.seed =
-                                    state.world_lab.seed.saturating_sub(1);
-                                state.world_lab_status =
-                                    Some("Settings changed. Generate a map before play-testing.".into());
+                                state.world_lab.seed = state.world_lab.seed.saturating_sub(1);
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
                             }
                             1 => {
-                                state.world_lab.seed =
-                                    state.world_lab.seed.saturating_add(1);
-                                state.world_lab_status =
-                                    Some("Settings changed. Generate a map before play-testing.".into());
+                                state.world_lab.seed = state.world_lab.seed.saturating_add(1);
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
                             }
                             2 => {
                                 state.world_lab.size_index =
                                     (state.world_lab.size_index + 1) % WORLD_LAB_SIZES.len();
-                                state.world_lab_status =
-                                    Some("Settings changed. Generate a map before play-testing.".into());
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
                             }
                             3 => {
                                 state.world_lab.shrine_layout = !state.world_lab.shrine_layout;
-                                state.world_lab_status =
-                                    Some("Settings changed. Generate a map before play-testing.".into());
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
                             }
                             4 => {
                                 bevy_spatial::set_sandbox_map(
@@ -434,7 +436,7 @@ fn developer_tools_input(
                             _ => {}
                         }
                         state.dirty = true;
-                    },
+                    }
                     _ => {}
                 }
                 break;
@@ -763,8 +765,8 @@ fn render_world_lab(
     );
 
     let map = bevy_spatial::sandbox_map(spatial);
-    let map_is_current = state.world_lab_generated_options == Some(state.world_lab)
-        && map.is_some();
+    let map_is_current =
+        state.world_lab_generated_options == Some(state.world_lab) && map.is_some();
     if let Some(map) = map {
         let tile_count = usize::from(map.width) * usize::from(map.height);
         let walls = map
