@@ -179,11 +179,6 @@ impl SpatialExplorationState {
     pub(crate) fn request_presentation_refresh(&mut self) {
         self.dirty = true;
     }
-
-    pub(crate) fn set_message(&mut self, message: String) {
-        self.message = Some(message);
-        self.dirty = true;
-    }
 }
 
 pub(crate) fn sandbox_map(state: &SpatialExplorationState) -> Option<&LocalMap> {
