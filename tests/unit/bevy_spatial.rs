@@ -526,30 +526,30 @@ fn radial_wheel_size_and_anchor_adapt_to_landscape_viewports() {
 #[test]
 fn crowded_radial_wheels_use_two_rings_without_clipping_entries() {
     for count in 9..=14 {
-        let size = INTERACTION_WHEEL_SIZE_PX;
-        for index in 0..count {
-            let layout = interaction_wheel_entry_layout(index, count, size);
-            assert!(layout.position.x >= 0.0, "entry {index} of {count} clips left");
-            assert!(layout.position.y >= 0.0, "entry {index} of {count} clips top");
-            assert!(
-                layout.position.x + layout.width <= size,
-                "entry {index} of {count} clips right"
-            );
-            assert!(
-                layout.position.y + INTERACTION_WHEEL_BUTTON_HEIGHT_PX <= size,
-                "entry {index} of {count} clips bottom"
-            );
+        for size in [INTERACTION_WHEEL_SIZE_PX, 244.0] {
+            for index in 0..count {
+                let layout = interaction_wheel_entry_layout(index, count, size);
+                assert!(layout.position.x >= 0.0, "entry {index} of {count} clips left at {size}");
+                assert!(layout.position.y >= 0.0, "entry {index} of {count} clips top at {size}");
+                assert!(
+                    layout.position.x + layout.width <= size,
+                    "entry {index} of {count} clips right at {size}"
+                );
+                assert!(
+                    layout.position.y + INTERACTION_WHEEL_BUTTON_HEIGHT_PX <= size,
+                    "entry {index} of {count} clips bottom at {size}"
+                );
 
-            let expected_radius = if index < INTERACTION_WHEEL_OUTER_RING_ENTRIES {
-                INTERACTION_WHEEL_OUTER_RING_RADIUS_PX
-            } else {
-                INTERACTION_WHEEL_INNER_RING_RADIUS_PX
-            };
-            assert!((layout.center_offset.length() - expected_radius).abs() < 0.01);
+                let expected_radius = if index < INTERACTION_WHEEL_OUTER_RING_ENTRIES {
+                    INTERACTION_WHEEL_OUTER_RING_RADIUS_PX * size / INTERACTION_WHEEL_SIZE_PX
+                } else {
+                    INTERACTION_WHEEL_INNER_RING_RADIUS_PX * size / INTERACTION_WHEEL_SIZE_PX
+                };
+                assert!((layout.center_offset.length() - expected_radius).abs() < 0.01);
+            }
         }
     }
 }
-
 #[test]
 fn crowded_wheel_directional_selection_matches_visible_cardinal_entries() {
     assert_eq!(

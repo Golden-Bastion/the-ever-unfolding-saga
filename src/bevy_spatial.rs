@@ -1617,6 +1617,7 @@ fn spawn_interaction_wheel(
     spawn_interaction_wheel_close_button(commands, root, size);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_interaction_wheel_entry(
     commands: &mut Commands,
     parent: Entity,
