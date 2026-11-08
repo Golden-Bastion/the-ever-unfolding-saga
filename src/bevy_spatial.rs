@@ -1094,13 +1094,17 @@ fn update_spatial_world(
         }
         return;
     }
-    let Some(session) = state.session.as_ref() else {
-        return;
-    };
-    let Some(map) = state.maps.get(&session.location_id) else {
+    let Some(location_id) = state
+        .session
+        .as_ref()
+        .map(|session| session.location_id.clone())
+    else {
         return;
     };
     let player_frame = state.player_animation.advance(time.delta_secs());
+    let Some(map) = state.maps.get(&location_id) else {
+        return;
+    };
     let position = session_position(&state);
     let target = map_to_world(position, Some(map));
     for (tile, mut sprite) in &mut tiles {
