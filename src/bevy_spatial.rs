@@ -1199,6 +1199,7 @@ fn update_spatial_world(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // Bevy screen systems need independent resources and queries.
 fn render_spatial_screen(
     mut commands: Commands,
     lifecycle: Res<LifecycleState>,
