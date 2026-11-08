@@ -158,7 +158,54 @@ pub(crate) struct SpatialExplorationState {
     position: Vec2,
     message: Option<String>,
     interaction_wheel: Option<SpatialInteractionWheel>,
+    sandbox_map: Option<LocalMap>,
+    sandbox_mode: bool,
     dirty: bool,
+}
+
+pub(crate) fn sandbox_map(state: &SpatialExplorationState) -> Option<&LocalMap> {
+    state.sandbox_map.as_ref()
+}
+
+pub(crate) fn set_sandbox_map(state: &mut SpatialExplorationState, map: LocalMap) {
+    if state.sandbox_mode {
+        return;
+    }
+    state.sandbox_map = Some(map);
+    state.dirty = true;
+}
+
+pub(crate) fn start_sandbox_playtest(
+    state: &mut SpatialExplorationState,
+    navigation: &mut NavigationState,
+) -> bool {
+    let Some(map) = state.sandbox_map.clone() else {
+        return false;
+    };
+    let location_id = map.location_id.clone();
+    let position = Vec2::new(f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
+
+    state.maps.clear();
+    state.maps.insert(location_id.clone(), map);
+    state.position = position;
+    state.session = Some(ExplorationSession {
+        location_id,
+        position: GridPosition {
+            x: position.x.floor() as u16,
+            y: position.y.floor() as u16,
+        },
+    });
+    state.interaction_wheel = None;
+    state.sandbox_mode = true;
+    state.message =
+        Some("Play-test the generated space. Back returns to the World Lab editor.".to_string());
+    state.dirty = true;
+    map_mark_discovered(state, position);
+
+    navigation.return_screen = Some(ScreenId::WorldLab);
+    navigation.current_screen = Some(ScreenId::SpatialExploration);
+    navigation.selected = 0;
+    true
 }
 
 pub(crate) fn install(app: &mut App) {
@@ -189,6 +236,7 @@ pub(crate) fn enter(
     game: &GameState,
     navigation: &mut NavigationState,
 ) {
+    state.sandbox_mode = false;
     let Some(location) = game.world.location_by_id(game.character.location_id) else {
         return;
     };
@@ -378,7 +426,7 @@ fn spatial_input(
     mut activations: MessageReader<UiButtonActivation>,
     action_buttons: Query<&SpatialAction>,
 ) {
-    if lifecycle.phase != LifecyclePhase::Complete
+    if (!state.sandbox_mode && lifecycle.phase != LifecyclePhase::Complete)
         || navigation.current_screen != Some(ScreenId::SpatialExploration)
         || crate::bevy_interactions::spatial_overlay_open(&interaction_state)
     {
@@ -395,7 +443,10 @@ fn spatial_input(
             continue;
         };
         match *action {
-            SpatialAction::Interact => open_interaction_wheel(&mut state, &lifecycle),
+            SpatialAction::Interact if !state.sandbox_mode => {
+                open_interaction_wheel(&mut state, &lifecycle);
+            }
+            SpatialAction::Interact => {}
             SpatialAction::Exit => exit_spatial(&mut state, &mut navigation),
             SpatialAction::SelectInteraction(index) => {
                 close_interaction_wheel(&mut state, Some(index));
@@ -473,7 +524,7 @@ fn spatial_input(
             }
         }
 
-        if keyboard.just_pressed(KeyCode::KeyE) {
+        if !state.sandbox_mode && keyboard.just_pressed(KeyCode::KeyE) {
             open_interaction_wheel(&mut state, &lifecycle);
         }
     }
@@ -487,7 +538,9 @@ fn spatial_input(
             InputEvent::Cancel | InputEvent::Backspace if state.interaction_wheel.is_some() => {
                 close_interaction_wheel(&mut state, None);
             }
-            InputEvent::Confirm => open_interaction_wheel(&mut state, &lifecycle),
+            InputEvent::Confirm if !state.sandbox_mode => {
+                open_interaction_wheel(&mut state, &lifecycle);
+            }
             InputEvent::Cancel | InputEvent::Backspace => {
                 exit_spatial(&mut state, &mut navigation);
             }
@@ -495,10 +548,15 @@ fn spatial_input(
         }
     }
 
-    sync_spatial_to_game(&state, &mut lifecycle);
+    if !state.sandbox_mode {
+        sync_spatial_to_game(&state, &mut lifecycle);
+    }
 }
 
 fn sync_spatial_to_game(state: &SpatialExplorationState, lifecycle: &mut LifecycleState) {
+    if state.sandbox_mode {
+        return;
+    }
     let (Some(session), Some(game_session)) = (state.session.as_ref(), lifecycle.session.as_mut())
     else {
         return;
@@ -925,6 +983,19 @@ fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut Navigation
     state.message = None;
     state.interaction_wheel = None;
     state.dirty = true;
+    if state.sandbox_mode {
+        if let Some(session) = state.session.take() {
+            if let Some(map) = state.maps.remove(&session.location_id) {
+                state.sandbox_map = Some(map);
+            }
+        }
+        state.sandbox_mode = false;
+        state.position = Vec2::ZERO;
+        navigation.current_screen = Some(ScreenId::WorldLab);
+        navigation.return_screen = None;
+        navigation.selected = 0;
+        return;
+    }
     navigation.current_screen = Some(ScreenId::Gameplay);
     navigation.return_screen = None;
     navigation.selected = 0;
@@ -1000,7 +1071,7 @@ fn render_spatial_screen(
     roots: Query<Entity, With<BevyScreenRoot>>,
     world_entities: Query<Entity, With<SpatialWorldEntity>>,
 ) {
-    if lifecycle.phase != LifecyclePhase::Complete
+    if (!state.sandbox_mode && lifecycle.phase != LifecyclePhase::Complete)
         || navigation.current_screen != Some(ScreenId::SpatialExploration)
         || !state.dirty
     {
@@ -1267,48 +1338,24 @@ fn render_spatial_screen(
         })
         .id();
     commands.entity(root).add_child(header);
-    let location_name = lifecycle
-        .session
-        .as_ref()
-        .and_then(|session| {
-            session
-                .state
-                .world
-                .location_by_id(session.state.character.location_id)
-        })
-        .map(|location| location.name.to_uppercase())
-        .unwrap_or_else(|| "UNKNOWN LOCATION".to_string());
-    spawn_label(
-        &mut commands,
-        header,
-        format!("{location_name} - LOCAL EXPLORATION"),
-    );
+    let location_heading = if state.sandbox_mode {
+        format!("WORLD LAB - PLAY TEST / SEED {}", map.seed)
+    } else {
+        let location_name = lifecycle
+            .session
+            .as_ref()
+            .and_then(|session| {
+                session
+                    .state
+                    .world
+                    .location_by_id(session.state.character.location_id)
+            })
+            .map(|location| location.name.to_uppercase())
+            .unwrap_or_else(|| "UNKNOWN LOCATION".to_string());
+        format!("{location_name} - LOCAL EXPLORATION")
+    };
+    spawn_label(&mut commands, header, location_heading);
 
-    // Keep essential character status anchored to the spatial view. All values
-    // come from the authoritative character, not a parallel HUD state.
-    let character = lifecycle
-        .session
-        .as_ref()
-        .map(|session| &session.state.character);
-    let (character_name, character_level, current_hp, maximum_hp, condition_summary) = character
-        .map(|character| {
-            (
-                character.name.clone(),
-                character.level,
-                character.hp,
-                character.max_hp,
-                format_condition_summary(&character.conditions),
-            )
-        })
-        .unwrap_or_else(|| {
-            (
-                "Character".to_string(),
-                1,
-                0,
-                0,
-                "Conditions: unavailable".to_string(),
-            )
-        });
     let vitals = commands
         .spawn((
             Node {
@@ -1326,18 +1373,53 @@ fn render_spatial_screen(
         ))
         .id();
     commands.entity(header).add_child(vitals);
-    spawn_label(
-        &mut commands,
-        vitals,
-        format!("{character_name} / LVL {character_level}"),
-    );
-    bevy_presentation::spawn_health_gauge(&mut commands, vitals, current_hp, maximum_hp);
-    spawn_compact_label(&mut commands, vitals, condition_summary);
+    if state.sandbox_mode {
+        spawn_label(&mut commands, vitals, "TEMPORARY SANDBOX");
+        spawn_compact_label(
+            &mut commands,
+            vitals,
+            format!("Map: {} × {}", map.width, map.height),
+        );
+        spawn_compact_label(
+            &mut commands,
+            vitals,
+            format!("Generator seed: {}", map.seed),
+        );
+    } else {
+        // Keep essential character status anchored to the spatial view. All values
+        // come from the authoritative character, not a parallel HUD state.
+        if let Some(character) = lifecycle
+            .session
+            .as_ref()
+            .map(|session| &session.state.character)
+        {
+            spawn_label(
+                &mut commands,
+                vitals,
+                format!("{} / LVL {}", character.name, character.level),
+            );
+            bevy_presentation::spawn_health_gauge(
+                &mut commands,
+                vitals,
+                character.hp,
+                character.max_hp,
+            );
+            spawn_compact_label(
+                &mut commands,
+                vitals,
+                format_condition_summary(&character.conditions),
+            );
+        }
+    }
 
     spawn_control(
         &mut commands,
         header,
-        "Leave",
+        if state.sandbox_mode {
+            "Return to Editor"
+        } else {
+            "Leave"
+        },
         SpatialAction::Exit,
         Display::Flex,
     );
@@ -1377,9 +1459,10 @@ fn render_spatial_screen(
     #[cfg(target_os = "android")]
     spawn_virtual_joystick(&mut commands, root);
 
-    let interaction_available = lifecycle.session.as_ref().is_some_and(|game_session| {
-        !available_interactions(map, &game_session.state, session_position(&state)).is_empty()
-    });
+    let interaction_available = !state.sandbox_mode
+        && lifecycle.session.as_ref().is_some_and(|game_session| {
+            !available_interactions(map, &game_session.state, session_position(&state)).is_empty()
+        });
     let interaction_display = if interaction_available {
         Display::Flex
     } else {
@@ -1970,7 +2053,8 @@ fn update_spatial_context_prompt(
     mut poi_prompts: Query<&mut Node, With<SpatialInteractionPrompt>>,
     mut prompt_labels: Query<&mut Text, With<SpatialPromptLabel>>,
 ) {
-    if lifecycle.phase != LifecyclePhase::Complete
+    if state.sandbox_mode
+        || lifecycle.phase != LifecyclePhase::Complete
         || navigation.current_screen != Some(ScreenId::SpatialExploration)
     {
         return;

@@ -981,3 +981,104 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
         Some(ScreenId::SpatialExploration)
     );
 }
+
+#[test]
+fn world_lab_playtest_is_disposable_and_returns_updated_map_to_editor() {
+    let map = generate_local_map(123, "developer.world_lab", LocalMapConfig::default());
+    let mut state = SpatialExplorationState::default();
+    set_sandbox_map(&mut state, map);
+    let mut navigation = NavigationState::default();
+
+    assert!(start_sandbox_playtest(&mut state, &mut navigation));
+    assert!(state.sandbox_mode);
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert!(state.session.is_some());
+
+    // The normal synchronization path must be a no-op: sandbox playtests do not
+    // create a campaign or write their temporary map into world state.
+    let mut lifecycle = LifecycleState::default();
+    let game = crate::model::create_new_state(
+        "Sandbox Isolation Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    lifecycle.session = Some(crate::bevy_lifecycle::GameSession {
+        state: game,
+        save_path: std::path::PathBuf::new(),
+    });
+    let original_local_maps = lifecycle
+        .session
+        .as_ref()
+        .expect("campaign fixture should exist")
+        .state
+        .world
+        .local_maps
+        .clone();
+    let original_exploration = lifecycle
+        .session
+        .as_ref()
+        .expect("campaign fixture should exist")
+        .state
+        .character
+        .exploration_session
+        .clone();
+
+    sync_spatial_to_game(&state, &mut lifecycle);
+
+    let game_after_sync = &lifecycle.session.as_ref().unwrap().state;
+    assert_eq!(game_after_sync.world.local_maps, original_local_maps);
+    assert_eq!(
+        game_after_sync.character.exploration_session,
+        original_exploration
+    );
+
+    let current_position = state.position;
+    map_mark_discovered(&mut state, current_position);
+    let discovered_before_exit = state
+        .maps
+        .values()
+        .next()
+        .expect("playtest map should exist")
+        .discovered_tiles
+        .clone();
+    assert!(discovered_before_exit.iter().any(|discovered| *discovered));
+
+    exit_spatial(&mut state, &mut navigation);
+
+    assert!(!state.sandbox_mode);
+    assert!(state.session.is_none());
+    assert!(state.maps.is_empty());
+    assert_eq!(navigation.current_screen, Some(ScreenId::WorldLab));
+    assert_eq!(
+        sandbox_map(&state)
+            .expect("updated map should return to the editor")
+            .discovered_tiles,
+        discovered_before_exit
+    );
+}
+
+#[test]
+fn sandbox_map_cannot_be_replaced_during_an_active_playtest() {
+    let original = generate_local_map(123, "developer.world_lab", LocalMapConfig::default());
+    let replacement = generate_local_map(456, "developer.world_lab", LocalMapConfig::default());
+    let mut state = SpatialExplorationState::default();
+    set_sandbox_map(&mut state, original.clone());
+    let mut navigation = NavigationState::default();
+    assert!(start_sandbox_playtest(&mut state, &mut navigation));
+
+    set_sandbox_map(&mut state, replacement);
+
+    let active_map = state
+        .maps
+        .values()
+        .next()
+        .expect("playtest map should remain mounted");
+    assert_eq!(active_map.location_id, original.location_id);
+    assert_eq!(active_map.seed, original.seed);
+    assert_eq!(active_map.terrain, original.terrain);
+    assert_eq!(active_map.props, original.props);
+}

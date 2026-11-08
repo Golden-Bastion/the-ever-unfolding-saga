@@ -12,10 +12,14 @@ use crate::bevy_lifecycle::LifecycleState;
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId,
 };
+use crate::bevy_spatial::{self, SpatialExplorationState};
 use crate::character_appearance::generate_character_portrait;
 use crate::content::{loader::load_campaign_content_report, CharacterPartContent};
 use crate::input::InputEvent;
 use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
+use crate::spatial::{
+    generate_local_map_with_layout, GridPosition, LocalMap, LocalMapConfig, Terrain,
+};
 
 const WORKSHOP_ACTIONS: &[(&str, &str)] = &[
     ("back", "Previous part"),
@@ -27,6 +31,36 @@ const WORKSHOP_ACTIONS: &[(&str, &str)] = &[
     ("cancel", "Reset combination"),
     ("back", "Back to Developer Tools"),
 ];
+
+const WORLD_LAB_ACTIONS: &[(&str, &str)] = &[
+    ("back", "Decrease seed"),
+    ("continue", "Increase seed"),
+    ("display", "Cycle map dimensions"),
+    ("choice", "Toggle spatial layout"),
+    ("investigate", "Generate map"),
+    ("explore", "Play-test map"),
+    ("cancel", "Reset settings"),
+    ("back", "Back to Developer Tools"),
+];
+
+const WORLD_LAB_SIZES: [(u16, u16); 3] = [(24, 16), (32, 20), (40, 24)];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct WorldLabOptions {
+    seed: u64,
+    size_index: usize,
+    shrine_layout: bool,
+}
+
+impl Default for WorldLabOptions {
+    fn default() -> Self {
+        Self {
+            seed: 1,
+            size_index: 0,
+            shrine_layout: false,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 struct WorkshopSlot {
@@ -42,6 +76,9 @@ struct DeveloperToolsState {
     selected_slot: usize,
     seed: u64,
     load_warnings: Vec<String>,
+    world_lab: WorldLabOptions,
+    world_lab_generated_options: Option<WorldLabOptions>,
+    world_lab_status: Option<String>,
     dirty: bool,
     rendered_screen: Option<ScreenId>,
 }
@@ -177,17 +214,64 @@ fn reset_combination(state: &mut DeveloperToolsState) {
     state.dirty = true;
 }
 
+fn generate_world_lab_map(options: WorldLabOptions) -> LocalMap {
+    let (width, height) = WORLD_LAB_SIZES[options.size_index.min(WORLD_LAB_SIZES.len() - 1)];
+    generate_local_map_with_layout(
+        options.seed,
+        "developer.world_lab",
+        LocalMapConfig { width, height },
+        options.shrine_layout.then_some("shrine_chamber"),
+    )
+}
+
+fn world_lab_map_preview(map: &LocalMap) -> String {
+    let mut preview = String::with_capacity(usize::from(map.width) * (usize::from(map.height) + 1));
+    for y in 0..map.height {
+        for x in 0..map.width {
+            let position = GridPosition { x, y };
+            let marker = if position == map.entry {
+                '@'
+            } else if map
+                .points_of_interest
+                .iter()
+                .any(|poi| poi.position == position)
+            {
+                '?'
+            } else if map
+                .props
+                .iter()
+                .any(|prop| prop.footprint_contains(position, map.width))
+            {
+                'P'
+            } else {
+                match map.terrain_at(position).unwrap_or(Terrain::Wall) {
+                    Terrain::Floor => '.',
+                    Terrain::Ash => ':',
+                    Terrain::Rubble => '%',
+                    Terrain::Wall => '#',
+                }
+            };
+            preview.push(marker);
+        }
+        if y + 1 < map.height {
+            preview.push('\n');
+        }
+    }
+    preview
+}
+
 fn is_developer_tool_screen(screen: ScreenId) -> bool {
     matches!(
         screen,
-        ScreenId::DeveloperTools | ScreenId::CharacterWorkshop
+        ScreenId::DeveloperTools | ScreenId::CharacterWorkshop | ScreenId::WorldLab
     )
 }
 
 fn screen_action_count(screen: ScreenId) -> usize {
     match screen {
-        ScreenId::DeveloperTools => 2,
+        ScreenId::DeveloperTools => 3,
         ScreenId::CharacterWorkshop => WORKSHOP_ACTIONS.len(),
+        ScreenId::WorldLab => WORLD_LAB_ACTIONS.len(),
         _ => 0,
     }
 }
@@ -210,6 +294,7 @@ fn developer_tools_input(
     mut lifecycle: ResMut<LifecycleState>,
     mut navigation: ResMut<NavigationState>,
     mut input_queue: ResMut<GameplayInputQueue>,
+    mut spatial: ResMut<SpatialExplorationState>,
 ) {
     let Some(screen) = navigation.current_screen else {
         return;
@@ -239,15 +324,30 @@ fn developer_tools_input(
             }
             InputEvent::Confirm => {
                 match screen {
-                    ScreenId::DeveloperTools => {
-                        if navigation.selected == 0 {
+                    ScreenId::DeveloperTools => match navigation.selected {
+                        0 => {
                             navigation.current_screen = Some(ScreenId::CharacterWorkshop);
                             navigation.selected = 0;
                             state.dirty = true;
-                        } else {
+                        }
+                        1 => {
+                            if bevy_spatial::sandbox_map(&spatial).is_none() {
+                                bevy_spatial::set_sandbox_map(
+                                    &mut spatial,
+                                    generate_world_lab_map(state.world_lab),
+                                );
+                                state.world_lab_generated_options = Some(state.world_lab);
+                                state.world_lab_status =
+                                    Some("A default map is ready to inspect or play-test.".into());
+                            }
+                            navigation.current_screen = Some(ScreenId::WorldLab);
+                            navigation.selected = 0;
+                            state.dirty = true;
+                        }
+                        _ => {
                             return_to_start(&mut state, &mut lifecycle, &mut navigation);
                         }
-                    }
+                    },
                     ScreenId::CharacterWorkshop => match navigation.selected {
                         0 => cycle_current_part(&mut state, -1),
                         1 => cycle_current_part(&mut state, 1),
@@ -269,6 +369,74 @@ fn developer_tools_input(
                         }
                         _ => {}
                     },
+                    ScreenId::WorldLab => {
+                        match navigation.selected {
+                            0 => {
+                                state.world_lab.seed = state.world_lab.seed.saturating_sub(1);
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
+                            }
+                            1 => {
+                                state.world_lab.seed = state.world_lab.seed.saturating_add(1);
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
+                            }
+                            2 => {
+                                state.world_lab.size_index =
+                                    (state.world_lab.size_index + 1) % WORLD_LAB_SIZES.len();
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
+                            }
+                            3 => {
+                                state.world_lab.shrine_layout = !state.world_lab.shrine_layout;
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
+                            }
+                            4 => {
+                                bevy_spatial::set_sandbox_map(
+                                    &mut spatial,
+                                    generate_world_lab_map(state.world_lab),
+                                );
+                                state.world_lab_generated_options = Some(state.world_lab);
+                                state.world_lab_status =
+                                    Some("Map generated with the current settings.".into());
+                            }
+                            5 => {
+                                if state.world_lab_generated_options == Some(state.world_lab)
+                                    && bevy_spatial::sandbox_map(&spatial).is_some()
+                                {
+                                    bevy_spatial::start_sandbox_playtest(
+                                        &mut spatial,
+                                        &mut navigation,
+                                    );
+                                } else {
+                                    state.world_lab_status = Some(
+                                        "Generate a map with the current settings before play-testing.".into(),
+                                    );
+                                }
+                            }
+                            6 => {
+                                state.world_lab = WorldLabOptions::default();
+                                bevy_spatial::set_sandbox_map(
+                                    &mut spatial,
+                                    generate_world_lab_map(state.world_lab),
+                                );
+                                state.world_lab_generated_options = Some(state.world_lab);
+                                state.world_lab_status =
+                                    Some("Settings reset and map regenerated.".into());
+                            }
+                            7 => {
+                                navigation.current_screen = Some(ScreenId::DeveloperTools);
+                                navigation.selected = 0;
+                            }
+                            _ => {}
+                        }
+                        state.dirty = true;
+                    }
                     _ => {}
                 }
                 break;
@@ -282,6 +450,11 @@ fn developer_tools_input(
                     }
                     ScreenId::DeveloperTools => {
                         return_to_start(&mut state, &mut lifecycle, &mut navigation);
+                    }
+                    ScreenId::WorldLab => {
+                        navigation.current_screen = Some(ScreenId::DeveloperTools);
+                        navigation.selected = 0;
+                        state.dirty = true;
                     }
                     _ => {}
                 }
@@ -317,11 +490,25 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
     bevy_presentation::spawn_muted_label(
         commands,
         panel,
-        "World Lab is the next editor milestone (tracked in #413).",
+        "World Lab creates temporary spaces with the real spatial generator and renderer.",
     );
 
-    let back = bevy_presentation::spawn_action_button(commands, panel, 1, "back", "Back");
+    let world_lab =
+        bevy_presentation::spawn_action_button(commands, panel, 1, "explore", "World Lab");
     if navigation.selected == 1 {
+        commands
+            .entity(world_lab)
+            .insert(bevy_presentation::UiSelected);
+    }
+
+    bevy_presentation::spawn_muted_label(
+        commands,
+        panel,
+        "Generate deterministic spaces and play-test them in the spatial renderer.",
+    );
+
+    let back = bevy_presentation::spawn_action_button(commands, panel, 2, "back", "Back");
+    if navigation.selected == 2 {
         commands.entity(back).insert(bevy_presentation::UiSelected);
     }
 }
@@ -537,12 +724,134 @@ fn render_character_workshop(
     }
 }
 
+fn render_world_lab(
+    commands: &mut Commands,
+    navigation: &NavigationState,
+    state: &DeveloperToolsState,
+    spatial: &SpatialExplorationState,
+) {
+    let root = bevy_presentation::spawn_screen(commands, "WORLD LAB");
+    bevy_presentation::spawn_muted_label(
+        commands,
+        root,
+        "Disposable spatial sandbox. Nothing here is written to campaign worlds or saves.",
+    );
+
+    let controls = bevy_presentation::spawn_panel(commands, root);
+    let (width, height) =
+        WORLD_LAB_SIZES[state.world_lab.size_index.min(WORLD_LAB_SIZES.len() - 1)];
+    bevy_presentation::spawn_label(commands, controls, "GENERATION SETTINGS");
+    bevy_presentation::spawn_muted_label(
+        commands,
+        controls,
+        format!("World seed: {}", state.world_lab.seed),
+    );
+    bevy_presentation::spawn_muted_label(
+        commands,
+        controls,
+        format!("Map dimensions: {width} × {height}"),
+    );
+    bevy_presentation::spawn_muted_label(
+        commands,
+        controls,
+        format!(
+            "Spatial layout: {}",
+            if state.world_lab.shrine_layout {
+                "Old Shrine chamber"
+            } else {
+                "Procedural"
+            }
+        ),
+    );
+
+    let map = bevy_spatial::sandbox_map(spatial);
+    let map_is_current =
+        state.world_lab_generated_options == Some(state.world_lab) && map.is_some();
+    if let Some(map) = map {
+        let tile_count = usize::from(map.width) * usize::from(map.height);
+        let walls = map
+            .terrain
+            .iter()
+            .filter(|terrain| **terrain == Terrain::Wall)
+            .count();
+        bevy_presentation::spawn_muted_label(
+            commands,
+            controls,
+            format!(
+                "Generated map seed: {} | {} tiles | {} walls | {} props | {} points of interest",
+                map.seed,
+                tile_count,
+                walls,
+                map.props.len(),
+                map.points_of_interest.len()
+            ),
+        );
+    } else {
+        bevy_presentation::spawn_muted_label(commands, controls, "No map generated yet.");
+    }
+    if !map_is_current {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            controls,
+            "The preview does not match the current settings. Generate a map before play-testing.",
+        );
+    }
+    if let Some(status) = state.world_lab_status.as_deref() {
+        bevy_presentation::spawn_muted_label(commands, controls, status);
+    }
+
+    for (index, (icon, label)) in WORLD_LAB_ACTIONS.iter().enumerate() {
+        let button =
+            bevy_presentation::spawn_action_button(commands, controls, index, *icon, *label);
+        if navigation.selected == index {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
+    }
+
+    let preview_panel = bevy_presentation::spawn_panel(commands, root);
+    bevy_presentation::spawn_label(commands, preview_panel, "MAP PREVIEW");
+    if let Some(map) = map {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            preview_panel,
+            "Legend: @ entry · ? point of interest · P prop · # wall · . floor · : ash · % rubble",
+        );
+        if map_is_current {
+            bevy_presentation::spawn_muted_label(
+                commands,
+                preview_panel,
+                world_lab_map_preview(map),
+            );
+        } else {
+            bevy_presentation::spawn_muted_label(
+                commands,
+                preview_panel,
+                "Previous generated map. Update it with Generate Map after changing settings.",
+            );
+            bevy_presentation::spawn_muted_label(
+                commands,
+                preview_panel,
+                world_lab_map_preview(map),
+            );
+        }
+    } else {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            preview_panel,
+            "Choose Generate Map to create a reproducible spatial layout.",
+        );
+    }
+}
+
 fn render_if_active(
     mut commands: Commands,
     navigation: Res<NavigationState>,
     mut state: ResMut<DeveloperToolsState>,
     mut images: ResMut<Assets<Image>>,
     mut cache: ResMut<PortraitImageCache>,
+    spatial: Res<SpatialExplorationState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
 ) {
     let Some(screen) = navigation
@@ -552,7 +861,7 @@ fn render_if_active(
         state.rendered_screen = None;
         return;
     };
-    if state.rendered_screen == Some(screen) && !state.dirty {
+    if state.rendered_screen == Some(screen) && !state.dirty && !spatial.is_changed() {
         return;
     }
 
@@ -564,6 +873,7 @@ fn render_if_active(
         ScreenId::CharacterWorkshop => {
             render_character_workshop(&mut commands, &navigation, &state, &mut images, &mut cache)
         }
+        ScreenId::WorldLab => render_world_lab(&mut commands, &navigation, &state, &spatial),
         _ => {}
     }
     state.rendered_screen = Some(screen);
