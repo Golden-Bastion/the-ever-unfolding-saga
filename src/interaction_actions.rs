@@ -79,7 +79,7 @@ pub(crate) fn discover_available_interactions(
     let mut candidates = Vec::new();
 
     for poi in &map.points_of_interest {
-        if !point_of_interest_interaction_available(map, position, poi) {
+        if !poi.discovered || !point_of_interest_interaction_available(map, position, poi) {
             continue;
         }
         let Some(distance) = point_of_interest_distance_px(map, position, poi) else {
@@ -181,8 +181,9 @@ pub(crate) fn point_of_interest_interaction_available(
     position: SpatialPosition,
     poi: &crate::spatial::PointOfInterest,
 ) -> bool {
-    if point_of_interest_distance_px(map, position, poi)
-        .is_none_or(|distance| distance > INTERACTION_RANGE_PX)
+    if !poi.discovered
+        || point_of_interest_distance_px(map, position, poi)
+            .is_none_or(|distance| distance > INTERACTION_RANGE_PX)
     {
         return false;
     }
