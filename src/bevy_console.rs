@@ -65,9 +65,7 @@ fn open_shortcut(
         && navigation.current_screen == Some(ScreenId::Gameplay)
         && keyboard.just_pressed(KeyCode::Slash)
     {
-        navigation.return_screen = Some(ScreenId::Gameplay);
-        navigation.current_screen = Some(ScreenId::Console);
-        navigation.selected = 0;
+        navigation.open_screen(ScreenId::Console);
     }
 }
 
@@ -270,8 +268,7 @@ fn console_input(
 }
 
 fn leave_console(state: &mut BevyConsoleState, navigation: &mut NavigationState) {
-    navigation.current_screen = navigation.return_screen.take().or(Some(ScreenId::Gameplay));
-    navigation.selected = 0;
+    navigation.return_to_previous_screen(ScreenId::Gameplay);
     state.console = ConsoleSession::default();
     state.dirty = true;
 }

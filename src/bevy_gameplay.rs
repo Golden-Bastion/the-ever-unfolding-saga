@@ -380,9 +380,7 @@ fn pause_actions_from(has_load: bool) -> Vec<PauseAction> {
 }
 
 fn open_dedicated_screen(navigation_state: &mut NavigationState, screen: ScreenId) {
-    navigation_state.return_screen = Some(ScreenId::Gameplay);
-    navigation_state.current_screen = Some(screen);
-    navigation_state.selected = 0;
+    navigation_state.open_screen(screen);
 }
 
 fn activate_selection(
@@ -457,9 +455,7 @@ fn activate_selection(
                         Ok(()) => {
                             gameplay.selected = 0;
                             gameplay.message = None;
-                            navigation_state.return_screen = Some(ScreenId::Gameplay);
-                            navigation_state.current_screen = Some(ScreenId::Combat);
-                            navigation_state.selected = 0;
+                            navigation_state.open_screen(ScreenId::Combat);
                         }
                         Err(message) => {
                             gameplay.message = Some(message);

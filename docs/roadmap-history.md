@@ -793,3 +793,10 @@ src/
 - Added the intentionally empty `data/assets/spatial/player_oathbound_animated.png` placeholder and documented its stable path and frame layout. Visible directional artwork and desktop/Android visual verification remain outstanding.
 - Added focused unit coverage for direction selection, frame order, configurable clips, looping, speed scaling, stopping/facing retention, frame-rate independence, and invalid deltas.
 - Bumped the project version to 0.52.24.
+
+### v0.52.25: Spatial screen context preservation
+- Added shared navigation helpers that capture the current screen when opening a dedicated screen and restore that caller when the dedicated screen closes.
+- Applied context-aware routing to Character, Meditation, Options, combat, console, and standalone interaction flows while retaining Gameplay as the compatibility fallback.
+- Added spatial-scene re-entry detection so its rendered entities and HUD are rebuilt after another dedicated screen replaces the screen root; the existing local map and continuous player position remain authoritative.
+- Kept the current HUD and action layout unchanged. Spatial access to records, meditation, combat, and system navigation remains a separate design/implementation step under #421.
+- Bumped the project version to 0.52.25.

@@ -65,6 +65,40 @@ fn quit_confirmation_can_return_to_gameplay() {
 }
 
 #[test]
+fn quit_confirmation_can_return_to_spatial_exploration() {
+    let mut lifecycle = LifecycleState::default();
+    let state = create_new_state(
+        "Test World",
+        WorldMode::New,
+        "Tester".to_string(),
+        "The Oathbound".to_string(),
+    );
+    lifecycle.session = Some(GameSession {
+        state,
+        save_path: PathBuf::from("saves/test.json.gz"),
+    });
+    lifecycle.phase = LifecyclePhase::QuitConfirm;
+    lifecycle.selected = 1;
+
+    let mut navigation = NavigationState {
+        current_screen: Some(ScreenId::Lifecycle),
+        return_screen: Some(ScreenId::SpatialExploration),
+        selected: 1,
+    };
+
+    lifecycle.cancel_quit_confirmation(&mut navigation);
+
+    assert_eq!(lifecycle.phase, LifecyclePhase::Complete);
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert_eq!(navigation.return_screen, None);
+    assert_eq!(lifecycle.selected, 0);
+    assert!(!lifecycle.dirty);
+}
+
+#[test]
 fn options_activation_keeps_navigation_on_the_options_screen() {
     let mut lifecycle = LifecycleState::default();
     let mut navigation = NavigationState {

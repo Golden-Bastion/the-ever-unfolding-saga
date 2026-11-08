@@ -504,14 +504,10 @@ fn activate_selection(
             } else if start_has_load(lifecycle) && lifecycle.selected == 1 {
                 lifecycle.start_load_game(navigation);
             } else if lifecycle.selected == start_developer_tools_index(lifecycle) {
-                navigation.return_screen = Some(ScreenId::Lifecycle);
-                navigation.current_screen = Some(ScreenId::DeveloperTools);
-                navigation.selected = 0;
+                navigation.open_screen(ScreenId::DeveloperTools);
                 return None;
             } else if lifecycle.selected == start_options_index(lifecycle) {
-                navigation.return_screen = Some(ScreenId::Lifecycle);
-                navigation.current_screen = Some(ScreenId::Options);
-                navigation.selected = 0;
+                navigation.open_screen(ScreenId::Options);
                 return None;
             } else {
                 return Some(true);
@@ -811,11 +807,15 @@ impl LifecycleState {
 
     pub(crate) fn cancel_quit_confirmation(&mut self, navigation: &mut NavigationState) {
         let return_screen = navigation.return_screen.take();
-        if return_screen == Some(ScreenId::Gameplay) && self.session.is_some() {
+        if matches!(
+            return_screen,
+            Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
+        ) && self.session.is_some()
+        {
             self.phase = LifecyclePhase::Complete;
             self.selected = 0;
             self.message = None;
-            navigation.current_screen = Some(ScreenId::Gameplay);
+            navigation.current_screen = return_screen;
             navigation.selected = 0;
             self.dirty = false;
         } else {

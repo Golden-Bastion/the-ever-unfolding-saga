@@ -330,10 +330,8 @@ fn move_to_end(records_state: &mut RecordScreenState, lifecycle: &LifecycleState
     }
 }
 
-fn close_to_gameplay(navigation: &mut NavigationState) {
-    navigation.current_screen = Some(ScreenId::Gameplay);
-    navigation.return_screen = None;
-    navigation.selected = 0;
+fn close_to_return_screen(navigation: &mut NavigationState) {
+    navigation.return_to_previous_screen(ScreenId::Gameplay);
 }
 
 fn return_to_character(records_state: &mut RecordScreenState, tab: CharacterTab) {
@@ -356,7 +354,7 @@ fn activate(
     match records_state.screen {
         RecordScreen::Character => match records_state.character_tab {
             CharacterTab::General | CharacterTab::Reputation => {
-                close_to_gameplay(navigation);
+                close_to_return_screen(navigation);
             }
             CharacterTab::Inventory => {
                 let view = records::build_inventory_view(&session.state);
@@ -366,7 +364,7 @@ fn activate(
                     records_state.selected = 0;
                     records_state.dirty = true;
                 } else {
-                    close_to_gameplay(navigation);
+                    close_to_return_screen(navigation);
                 }
             }
             CharacterTab::Quests => {
@@ -377,7 +375,7 @@ fn activate(
                     records_state.selected = 0;
                     records_state.dirty = true;
                 } else {
-                    close_to_gameplay(navigation);
+                    close_to_return_screen(navigation);
                 }
             }
             CharacterTab::Journal => {
@@ -396,7 +394,7 @@ fn activate(
                     records_state.journal_draft.clear();
                     records_state.dirty = true;
                 } else {
-                    close_to_gameplay(navigation);
+                    close_to_return_screen(navigation);
                 }
             }
         },
@@ -409,7 +407,7 @@ fn activate(
         RecordScreen::Meditation => {
             let view = actions::build_meditation_view(&session.state);
             if !view.safe_to_meditate || records_state.selected >= view.targets.len() {
-                close_to_gameplay(navigation);
+                close_to_return_screen(navigation);
             } else {
                 match actions::meditate_to_target(
                     &mut session.state,
@@ -430,7 +428,7 @@ fn activate(
                 }
             }
         }
-        RecordScreen::MeditationResult => close_to_gameplay(navigation),
+        RecordScreen::MeditationResult => close_to_return_screen(navigation),
         RecordScreen::ChronicleDetail => {
             return_to_character(records_state, CharacterTab::Journal);
         }
@@ -473,7 +471,7 @@ fn activate(
 fn cancel(navigation: &mut NavigationState, records_state: &mut RecordScreenState) {
     match records_state.screen {
         RecordScreen::Character | RecordScreen::Meditation | RecordScreen::MeditationResult => {
-            close_to_gameplay(navigation);
+            close_to_return_screen(navigation);
         }
         RecordScreen::InventoryDetail => {
             return_to_character(records_state, CharacterTab::Inventory);
