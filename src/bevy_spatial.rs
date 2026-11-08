@@ -24,9 +24,9 @@ use crate::interaction_actions::{
 };
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
-    configure_map_exits, ensure_spatial_entity_placements, generate_local_map_with_layout,
-    ExplorationSession, GridPosition, LocalMap, LocalMapConfig, MapExit, SpatialEntityKind,
-    SpatialPropKind, Terrain,
+    apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_entity_placements,
+    generate_local_map_with_layout, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
+    MapExit, SpatialDiscoveryDefinition, SpatialEntityKind, SpatialPropKind, Terrain,
 };
 
 const TILE_HALF_WIDTH: f32 = 24.0;
@@ -199,20 +199,47 @@ pub(crate) fn enter(
         .map(|generation| generation.seed)
         .unwrap_or(game.world.id);
 
-    let mut map = game
+    let mut map = if let Some(existing) = game
         .world
         .local_maps
         .iter()
         .find(|map| map.location_id == location_id)
-        .cloned()
-        .unwrap_or_else(|| {
-            generate_local_map_with_layout(
-                world_seed,
-                location_id.clone(),
-                LocalMapConfig::default(),
-                location.spatial_layout.as_deref(),
-            )
-        });
+    {
+        existing.clone()
+    } else {
+        let mut generated = generate_local_map_with_layout(
+            world_seed,
+            location_id.clone(),
+            LocalMapConfig::default(),
+            location.spatial_layout.as_deref(),
+        );
+        configure_map_exits(&mut generated, &location.exits);
+
+        let discoveries = game
+            .campaign_content
+            .as_ref()
+            .and_then(|content| {
+                content
+                    .world
+                    .locations
+                    .iter()
+                    .find(|content_location| content_location.name == location.name)
+            })
+            .map(|content_location| {
+                content_location
+                    .spatial_discoveries
+                    .iter()
+                    .map(|discovery| SpatialDiscoveryDefinition {
+                        id: discovery.id.clone(),
+                        title: discovery.title.clone(),
+                        description: discovery.description.clone(),
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        apply_authored_spatial_discoveries(&mut generated, &discoveries);
+        generated
+    };
     // Migrate older saved maps without exits and configure new maps from the
     // actual world graph. Passage targets are stored as stable world IDs.
     if map.exits.is_empty() {
@@ -436,7 +463,9 @@ fn spatial_input(
                     y: next.y.floor().max(0.0) as u16,
                 };
             }
-            map_mark_discovered(&mut state, next);
+            if map_mark_discovered(&mut state, next) {
+                state.dirty = true;
+            }
         }
 
         if keyboard.just_pressed(KeyCode::KeyE) {
@@ -501,21 +530,36 @@ fn session_position(state: &SpatialExplorationState) -> Vec2 {
     state.position
 }
 
-fn map_mark_discovered(state: &mut SpatialExplorationState, position: Vec2) {
+fn map_mark_discovered(state: &mut SpatialExplorationState, position: Vec2) -> bool {
     let Some(session) = state.session.as_ref() else {
-        return;
+        return false;
     };
-    if let Some(map) = state.maps.get_mut(&session.location_id) {
-        let center = GridPosition {
-            x: position.x.floor().max(0.0) as u16,
-            y: position.y.floor().max(0.0) as u16,
-        };
-        for y in center.y.saturating_sub(2)..=center.y.saturating_add(2).min(map.height - 1) {
-            for x in center.x.saturating_sub(2)..=center.x.saturating_add(2).min(map.width - 1) {
-                map.mark_tile_discovered(GridPosition { x, y });
-            }
+    let Some(map) = state.maps.get_mut(&session.location_id) else {
+        return false;
+    };
+
+    // Reveal the same 5×5 local tile area that is brightened by the exploration view.
+    let center = GridPosition {
+        x: position.x.floor().max(0.0) as u16,
+        y: position.y.floor().max(0.0) as u16,
+    };
+    for y in center.y.saturating_sub(2)..=center.y.saturating_add(2).min(map.height - 1) {
+        for x in center.x.saturating_sub(2)..=center.x.saturating_add(2).min(map.width - 1) {
+            map.mark_tile_discovered(GridPosition { x, y });
         }
     }
+
+    let width = usize::from(map.width);
+    let discovered_tiles = &map.discovered_tiles;
+    let mut revealed_new_discovery = false;
+    for poi in &mut map.points_of_interest {
+        let index = usize::from(poi.position.y) * width + usize::from(poi.position.x);
+        if !poi.discovered && discovered_tiles.get(index).copied().unwrap_or(false) {
+            poi.discovered = true;
+            revealed_new_discovery = true;
+        }
+    }
+    revealed_new_discovery
 }
 
 fn interact_with_poi(
@@ -548,8 +592,8 @@ fn interact_with_poi(
         return;
     };
     if poi.interacted {
-        state.message =
-            Some("The remains offer nothing more. The wrongness is still there.".to_string());
+        let title = poi.title.clone();
+        state.message = Some(format!("You have already examined {title}. You find nothing new."));
         state.dirty = true;
         return;
     }
@@ -1003,7 +1047,7 @@ fn render_spatial_screen(
         }
     }
 
-    if let Some(poi) = map.points_of_interest.first() {
+    for poi in map.points_of_interest.iter().filter(|poi| poi.discovered) {
         let poi_grid = Vec2::new(
             f32::from(poi.position.x) + 0.5,
             f32::from(poi.position.y) + 0.5,
