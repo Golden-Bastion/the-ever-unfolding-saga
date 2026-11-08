@@ -128,6 +128,7 @@ fn mod_events_can_reference_definitions_from_other_mods() {
         scene_art: None,
         scene_image: None,
         spatial_layout: None,
+        spatial_discoveries: Vec::new(),
     });
     definitions_mod.factions.push(FactionContent {
         id: "faction.later-ward".into(),
@@ -168,4 +169,106 @@ fn default_campaign_includes_reusable_character_parts_and_assets() {
             path.display(),
         );
     }
+}
+
+
+#[test]
+fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
+    let mut base = default_campaign_content();
+    let mut old_shrine = base
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id == "location.old_shrine")
+        .expect("base Old Shrine should exist")
+        .clone();
+    old_shrine.spatial_discoveries = vec![
+        SpatialDiscoveryContent {
+            id: "poi.old_shrine.altar".into(),
+            title: "Old Altar".into(),
+            description: "Base description.".into(),
+        },
+        SpatialDiscoveryContent {
+            id: "poi.old_shrine.footprints".into(),
+            title: "Footprints".into(),
+            description: "Footprints cross the dust.".into(),
+        },
+    ];
+    base.world.locations.retain(|location| location.id != old_shrine.id);
+    base.world.locations.push(old_shrine.clone());
+
+    let mut incoming = empty_mod_content();
+    let mut override_location = old_shrine;
+    override_location.spatial_discoveries = vec![
+        SpatialDiscoveryContent {
+            id: "poi.old_shrine.altar".into(),
+            title: "Black Altar".into(),
+            description: "A modded description.".into(),
+        },
+        SpatialDiscoveryContent {
+            id: "poi.old_shrine.scratches".into(),
+            title: "Scratches".into(),
+            description: "Marks appear in the stone.".into(),
+        },
+    ];
+    incoming.world.locations.push(override_location);
+
+    merge_campaign_content(&mut base, incoming);
+
+    let discoveries = &base
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id == "location.old_shrine")
+        .unwrap()
+        .spatial_discoveries;
+    assert_eq!(discoveries.len(), 3);
+    assert_eq!(
+        discoveries
+            .iter()
+            .find(|discovery| discovery.id == "poi.old_shrine.altar")
+            .unwrap()
+            .description,
+        "A modded description."
+    );
+    assert!(discoveries
+        .iter()
+        .any(|discovery| discovery.id == "poi.old_shrine.footprints"));
+    assert!(discoveries
+        .iter()
+        .any(|discovery| discovery.id == "poi.old_shrine.scratches"));
+}
+
+#[test]
+fn invalid_spatial_discoveries_are_reported_by_content_validation() {
+    let mut content = default_campaign_content();
+    let location = content
+        .world
+        .locations
+        .iter_mut()
+        .find(|location| location.id == "location.old_shrine")
+        .unwrap();
+    location.spatial_discoveries = vec![
+        SpatialDiscoveryContent {
+            id: String::new(),
+            title: "Missing ID".into(),
+            description: "Invalid discovery.".into(),
+        },
+        SpatialDiscoveryContent {
+            id: "poi.old_shrine.duplicate".into(),
+            title: String::new(),
+            description: "Invalid discovery.".into(),
+        },
+        SpatialDiscoveryContent {
+            id: "poi.old_shrine.duplicate".into(),
+            title: "Duplicate".into(),
+            description: String::new(),
+        },
+    ];
+
+    let issues = content.validate();
+    assert!(issues.iter().any(|issue| issue.contains("empty id")));
+    assert!(issues.iter().any(|issue| issue.contains("duplicate spatial discovery id")));
+    assert!(issues.iter().any(|issue| issue.contains("empty title")));
+    assert!(issues.iter().any(|issue| issue.contains("empty description")));
 }
