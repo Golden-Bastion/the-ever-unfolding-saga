@@ -10,9 +10,11 @@ The v0.52.0–v0.52.6 storage, mod-management, and character-focused interface w
 
 ## Developer tools (in progress)
 
-**v0.52.16 — Developer tools foundation (#413)**
+**v0.52.17 — Developer tools: Character Workshop and World Lab (#413)**
 
-The start screen now exposes a Developer Tools hub without requiring a campaign or save. Its first usable tool, Character Workshop, manually assembles the currently loaded modular portrait parts, previews them through the same layered portrait compositor and mod-aware PNG loader used by dialogue, and supports per-slot selection, visibility toggles, deterministic randomization, reset, and diagnostics. This is an initial portrait-workshop slice, not a full-body character editor. World Lab, temporary spatial-map sessions, in-world editing, and exportable test fixtures remain planned under #413.
+The start screen exposes a Developer Tools hub without requiring a campaign or save. Character Workshop manually assembles loaded modular portrait parts, previews them through the same layered portrait compositor and mod-aware PNG loader used by dialogue, and supports per-slot selection, visibility toggles, deterministic randomization, reset, and diagnostics. This remains a portrait-focused tool, not a full-body character editor.
+
+World Lab now generates reproducible temporary local maps with the real spatial generator. Its first workspace exposes a seed, three supported map dimensions, procedural or Old Shrine chamber layout, map metadata, and a text grid preview. A generated map can be play-tested through the actual spatial renderer, movement/collision, depth ordering, camera follow, and Android virtual joystick. The test session is isolated from campaign state and saves; leaving play-test returns the updated temporary map to the editor. Freeform terrain editing, prop placement/removal/repositioning, fixture export, and full-body character assembly remain future work under #413.
 
 ## Active milestone
 
