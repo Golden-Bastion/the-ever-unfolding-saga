@@ -342,7 +342,6 @@ fn spatial_input(
     mut state: ResMut<SpatialExplorationState>,
     joystick: Res<SpatialJoystickState>,
     interaction_state: Res<crate::bevy_interactions::BevyInteractionState>,
-    mut requests: MessageWriter<SpatialInteractionRequest>,
     mut activations: MessageReader<UiButtonActivation>,
     action_buttons: Query<&SpatialAction>,
 ) {
@@ -1214,7 +1213,7 @@ fn render_spatial_screen(
     spawn_virtual_joystick(&mut commands, root);
 
     let interaction_available = lifecycle.session.as_ref().is_some_and(|game_session| {
-        nearest_interaction_target(map, &game_session.state, session_position(&state)).is_some()
+        !available_interactions(map, &game_session.state, session_position(&state)).is_empty()
     });
     let interaction_display = if interaction_available {
         Display::Flex
@@ -1518,8 +1517,8 @@ fn spawn_interaction_wheel_entry(
             Button,
             Hovered::default(),
             bevy_presentation::UiTouchTargetShape::MinimumBounds {
-                width: width as u32,
-                height: INTERACTION_WHEEL_BUTTON_HEIGHT_PX as u32,
+                width: width as u16,
+                height: INTERACTION_WHEEL_BUTTON_HEIGHT_PX as u16,
             },
             SpatialControlButton,
             SpatialWheelEntry(index),
