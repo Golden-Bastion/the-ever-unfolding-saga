@@ -838,3 +838,113 @@ fn physical_passage_rejects_a_stale_world_connection_without_traveling() {
         .as_deref()
         .is_some_and(|message| message.contains("no longer leads")));
 }
+
+
+#[test]
+fn physical_passage_rejects_a_world_connection_without_a_return_route() {
+    let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
+        connected_spatial_fixture();
+    let exit = spatial
+        .maps
+        .get(&source_key)
+        .unwrap()
+        .exits
+        .iter()
+        .find(|exit| exit.target_location_id == destination_id)
+        .unwrap()
+        .clone();
+    spatial.position = Vec2::new(
+        f32::from(exit.position.x) + 0.5,
+        f32::from(exit.position.y) + 0.5,
+    );
+    spatial.session.as_mut().unwrap().position = exit.position;
+    lifecycle
+        .session
+        .as_mut()
+        .unwrap()
+        .state
+        .world
+        .location_by_id_mut(destination_id)
+        .unwrap()
+        .exits
+        .clear();
+    let source_location_id = lifecycle.session.as_ref().unwrap().state.character.location_id;
+    let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
+
+    use_map_exit(
+        &mut spatial,
+        &mut lifecycle,
+        &mut navigation,
+        &exit.id,
+        destination_id,
+    );
+
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    assert_eq!(game.character.location_id, source_location_id);
+    assert_eq!(game.character.turn, before_turn);
+    assert_eq!(spatial.session.as_ref().unwrap().location_id, source_key);
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert!(spatial
+        .message
+        .as_deref()
+        .is_some_and(|message| message.contains("no longer leads")));
+}
+
+#[test]
+fn physical_passage_generates_a_destination_map_on_first_arrival() {
+    let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
+        connected_spatial_fixture();
+    let destination_key = format!("location.{destination_id}");
+    lifecycle
+        .session
+        .as_mut()
+        .unwrap()
+        .state
+        .world
+        .local_maps
+        .retain(|map| map.location_id != destination_key);
+    let exit = spatial
+        .maps
+        .get(&source_key)
+        .unwrap()
+        .exits
+        .iter()
+        .find(|exit| exit.target_location_id == destination_id)
+        .unwrap()
+        .clone();
+    spatial.position = Vec2::new(
+        f32::from(exit.position.x) + 0.5,
+        f32::from(exit.position.y) + 0.5,
+    );
+    spatial.session.as_mut().unwrap().position = exit.position;
+
+    use_map_exit(
+        &mut spatial,
+        &mut lifecycle,
+        &mut navigation,
+        &exit.id,
+        destination_id,
+    );
+
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    let destination_map = spatial
+        .maps
+        .get(&destination_key)
+        .expect("first arrival should create the destination map");
+    assert!(destination_map.exits.iter().any(|map_exit| {
+        map_exit.target_location_id == game.character.location_id
+            && map_exit.target_location_id != destination_id
+    }));
+    assert!(game
+        .world
+        .local_maps
+        .iter()
+        .any(|map| map.location_id == destination_key));
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+}
