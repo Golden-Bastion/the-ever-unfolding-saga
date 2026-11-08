@@ -103,7 +103,6 @@ fn undiscovered_points_of_interest_do_not_offer_an_examine_action() {
     );
 }
 
-
 #[test]
 fn discovery_hides_stale_and_one_way_world_passages() {
     let mut map = crate::spatial::generate_local_map(
