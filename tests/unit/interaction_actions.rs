@@ -67,3 +67,38 @@ fn discovery_filters_stale_npcs_and_unsearchable_remains() {
         "stale actors and corpses without searchable inventory must not be offered",
     );
 }
+
+#[test]
+fn undiscovered_points_of_interest_do_not_offer_an_examine_action() {
+    let mut map = crate::spatial::generate_local_map(
+        23,
+        "location.hidden_discovery",
+        crate::spatial::LocalMapConfig::default(),
+    );
+    map.props.clear();
+    map.exits.clear();
+    map.interactables.clear();
+    let poi = &map.points_of_interest[0];
+    let position = (
+        f32::from(poi.position.x) + 0.5,
+        f32::from(poi.position.y) + 0.5,
+    );
+
+    let game = crate::model::create_new_state(
+        "Discovery Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+
+    assert!(discover_available_interactions(&map, &game, position).is_empty());
+
+    map.points_of_interest[0].discovered = true;
+    let available = discover_available_interactions(&map, &game, position);
+    assert_eq!(available.len(), 1);
+    assert_eq!(available[0].action, InteractionActionKind::Examine);
+    assert_eq!(
+        available[0].target,
+        InteractionTarget::PointOfInterest(map.points_of_interest[0].id.clone())
+    );
+}

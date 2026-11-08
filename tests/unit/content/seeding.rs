@@ -21,6 +21,7 @@ fn seed_world_adds_missing_content_locations_and_repairs_metadata() {
                 scene_art: None,
                 scene_image: None,
                 spatial_layout: Some("shrine_chamber".into()),
+                spatial_discoveries: Vec::new(),
             }],
         },
         factions: vec![],

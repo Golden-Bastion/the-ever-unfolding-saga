@@ -370,3 +370,69 @@ fn existing_spatial_entity_placements_are_preserved_when_new_actors_arrive() {
     assert_eq!(map.interactables.len(), 2);
     assert_ne!(map.interactables[0].position, map.interactables[1].position);
 }
+
+#[test]
+fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
+    let definitions = vec![
+        SpatialDiscoveryDefinition {
+            id: "poi.old_shrine.black_altar".into(),
+            title: "Black Altar".into(),
+            description: "Soot clings to the altar.".into(),
+        },
+        SpatialDiscoveryDefinition {
+            id: "poi.old_shrine.fresh_soot".into(),
+            title: "Fresh Soot".into(),
+            description: "Fresh soot crosses the floor.".into(),
+        },
+    ];
+
+    let mut first = generate_local_map_with_layout(
+        42,
+        "location.old_shrine",
+        LocalMapConfig::default(),
+        Some("shrine_chamber"),
+    );
+    configure_map_exits(&mut first, &[101, 202]);
+    let mut second = first.clone();
+
+    assert_eq!(
+        apply_authored_spatial_discoveries(&mut first, &definitions),
+        2
+    );
+    assert_eq!(
+        apply_authored_spatial_discoveries(&mut second, &definitions),
+        2
+    );
+    assert_eq!(first.points_of_interest, second.points_of_interest);
+    assert_eq!(first.points_of_interest.len(), definitions.len());
+    assert!(first
+        .points_of_interest
+        .iter()
+        .all(|poi| !poi.discovered && !poi.interacted));
+
+    let positions = first
+        .points_of_interest
+        .iter()
+        .map(|poi| poi.position)
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(positions.len(), definitions.len());
+    for poi in &first.points_of_interest {
+        assert!(first.is_walkable(poi.position));
+        assert!(has_walkable_path(&first, first.entry, poi.position));
+        assert_ne!(poi.position, first.entry);
+        assert!(!first.exits.iter().any(|exit| exit.position == poi.position));
+        assert!(!first
+            .interactables
+            .iter()
+            .any(|actor| actor.position == poi.position));
+    }
+}
+
+#[test]
+fn no_authored_discoveries_preserve_the_legacy_fallback() {
+    let mut map = generate_local_map(42, "location.legacy_discovery", LocalMapConfig::default());
+    let original = map.points_of_interest.clone();
+
+    assert_eq!(apply_authored_spatial_discoveries(&mut map, &[]), 0);
+    assert_eq!(map.points_of_interest, original);
+}

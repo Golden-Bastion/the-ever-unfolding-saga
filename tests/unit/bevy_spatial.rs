@@ -208,7 +208,8 @@ fn camera_bounds_keep_the_viewport_inside_large_map_extents() {
 
 #[test]
 fn contextual_interaction_requires_range_and_clear_approach() {
-    let map = generate_local_map(4, "location.test", LocalMapConfig::default());
+    let mut map = generate_local_map(4, "location.test", LocalMapConfig::default());
+    map.points_of_interest[0].discovered = true;
     let poi = &map.points_of_interest[0];
     let near = Vec2::new(
         f32::from(poi.position.x) + 0.5,
@@ -231,6 +232,7 @@ fn contextual_interaction_prefers_a_closer_point_of_interest() {
         x: map.width - 2,
         y: exit_position.y,
     };
+    map.points_of_interest[0].discovered = true;
     let poi_position = map.points_of_interest[0].position;
     let player_position = Vec2::new(
         f32::from(poi_position.x) + 0.5,
@@ -262,6 +264,7 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
     let mut map = generate_local_map(4, "location.interaction_choices", LocalMapConfig::default());
     map.props.clear();
     map.points_of_interest[0].position = map.entry;
+    map.points_of_interest[0].discovered = true;
     let poi_id = map.points_of_interest[0].id.clone();
     map.exits = vec![MapExit {
         id: "exit.test".into(),
@@ -563,4 +566,53 @@ fn crowded_wheel_directional_selection_matches_visible_cardinal_entries() {
         interaction_wheel_index_for_direction(9, Vec2::NEG_X),
         Some(6)
     );
+}
+
+#[test]
+fn points_of_interest_reveal_when_their_tiles_enter_the_explored_area() {
+    let mut map = generate_local_map(17, "location.poi_reveal", LocalMapConfig::default());
+    let entry = map.entry;
+    let near = GridPosition {
+        x: entry.x.saturating_add(2),
+        y: entry.y,
+    };
+    let far = GridPosition {
+        x: map.width.saturating_sub(2),
+        y: map.height.saturating_sub(2),
+    };
+    map.points_of_interest = vec![
+        crate::spatial::PointOfInterest {
+            id: "poi.near".into(),
+            position: near,
+            title: "Near clue".into(),
+            description: "Close enough to notice.".into(),
+            discovered: false,
+            interacted: false,
+        },
+        crate::spatial::PointOfInterest {
+            id: "poi.far".into(),
+            position: far,
+            title: "Far clue".into(),
+            description: "Still beyond the explored area.".into(),
+            discovered: false,
+            interacted: false,
+        },
+    ];
+    let location_id = map.location_id.clone();
+    let position = Vec2::new(f32::from(entry.x) + 0.5, f32::from(entry.y) + 0.5);
+    let mut state = SpatialExplorationState {
+        maps: HashMap::from([(location_id.clone(), map)]),
+        session: Some(ExplorationSession {
+            location_id,
+            position: entry,
+        }),
+        position,
+        ..default()
+    };
+
+    assert_eq!(map_mark_discovered(&mut state, position), vec!["Near clue"]);
+    let map = state.maps.values().next().expect("map should be present");
+    assert!(map.point_of_interest("poi.near").unwrap().discovered);
+    assert!(!map.point_of_interest("poi.far").unwrap().discovered);
+    assert!(map_mark_discovered(&mut state, position).is_empty());
 }
