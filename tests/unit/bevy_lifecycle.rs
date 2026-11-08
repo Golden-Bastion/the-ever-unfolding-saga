@@ -185,7 +185,8 @@ fn default_creation_values_match_legacy_flow() {
 fn creation_tabs_have_independent_selection_ranges() {
     assert_eq!(creation_selection_bounds(0), (0, 0));
     assert_eq!(creation_selection_bounds(1), (1, 2));
-    assert_eq!(creation_selection_bounds(2), (3, 3));
+    assert_eq!(creation_selection_bounds(2), (3, 6));
+    assert_eq!(creation_selection_bounds(3), (7, 7));
     assert_eq!(creation_tab_for_field(0), 0);
     assert_eq!(creation_tab_for_field(1), 1);
     assert_eq!(creation_tab_for_field(2), 1);
@@ -291,4 +292,49 @@ fn creation_field_focus_is_explicit_and_stops_at_the_review_tab() {
     assert!(should_focus_creation_field(1, Some(0)));
     assert!(!should_focus_creation_field(1, Some(1)));
     assert!(!should_focus_creation_field(3, None));
+    assert!(!should_focus_creation_field(7, None));
+}
+
+#[test]
+fn appearance_creation_tab_cycles_parts_and_slots_and_persists_the_selection() {
+    assert_eq!(creation_selection_bounds(2), (3, 6));
+    assert_eq!(creation_selection_bounds(3), (7, 7));
+
+    let mut lifecycle = LifecycleState::default();
+    let mut navigation = NavigationState::default();
+    lifecycle.start_new_game(&mut navigation);
+    assert!(!lifecycle.appearance_slots.is_empty());
+
+    select_creation_tab(&mut lifecycle, &mut navigation, 2);
+    let initial_slot = lifecycle.appearance_slots[0].name.clone();
+    let initial_part = lifecycle.appearance_slots[0].parts[0].id.clone();
+    let part_count = lifecycle.appearance_slots[0].parts.len();
+    cycle_appearance_part(&mut lifecycle, 1);
+    if part_count > 1 {
+        assert_ne!(
+            lifecycle.appearance_slots[0].parts[lifecycle.appearance_slots[0].selected_part].id,
+            initial_part
+        );
+    }
+
+    cycle_appearance_slot(&mut lifecycle, 1);
+    if lifecycle.appearance_slots.len() > 1 {
+        assert_ne!(
+            lifecycle.appearance_slots[lifecycle.selected_appearance_slot].name,
+            initial_slot
+        );
+    }
+    let selected = selected_appearance_part_ids(&lifecycle);
+    assert_eq!(selected.len(), lifecycle.appearance_slots.len());
+
+    select_creation_tab(&mut lifecycle, &mut navigation, 3);
+    assert_eq!(lifecycle.selected, 7);
+    let mut state = crate::model::create_new_state(
+        "Appearance Test",
+        crate::model::WorldMode::New,
+        "Wanderer".into(),
+        "Ash Walker".into(),
+    );
+    apply_selected_character_appearance(&lifecycle, &mut state);
+    assert_eq!(state.character.appearance_parts, selected);
 }

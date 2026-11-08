@@ -128,3 +128,33 @@ fn objective_defaults_are_safe_for_old_saves() {
     assert_eq!(objective.progress, 0);
     assert!(!objective.completed);
 }
+
+#[test]
+fn character_appearance_is_persisted_and_inherited() {
+    let mut state = create_new_state(
+        "Appearance Test",
+        WorldMode::New,
+        "First Warden".to_string(),
+        "Ash Walker".to_string(),
+    );
+    state.character.appearance_parts = vec!["face.custom".to_string(), "hair.custom".to_string()];
+
+    let inherited = create_inherited_state(
+        &state,
+        "Second Warden".to_string(),
+        "Ash Walker".to_string(),
+    );
+    assert_eq!(
+        inherited.character.appearance_parts,
+        state.character.appearance_parts
+    );
+
+    let mut legacy = serde_json::to_value(&state.character).expect("character should serialize");
+    legacy
+        .as_object_mut()
+        .expect("character should serialize as an object")
+        .remove("appearance_parts");
+    let legacy: Character = serde_json::from_value(legacy)
+        .expect("legacy character should load without appearance data");
+    assert!(legacy.appearance_parts.is_empty());
+}

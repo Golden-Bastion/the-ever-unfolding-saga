@@ -4,7 +4,7 @@
 //! Bevy presentation. Persistent maps and actor placements are synchronized with
 //! world state, while the character's continuous position belongs to the session.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
@@ -2105,9 +2105,9 @@ fn update_spatial_context_prompt(
             node.display = interaction_display;
         }
     }
-    let label = interactions
-        .first()
-        .map(|interaction| interaction_prompt_label(interaction, interactions.len()))
+    let label = current_map
+        .zip(game)
+        .map(|(map, game)| interaction_prompt_label(&interactions, game, map))
         .unwrap_or_else(|| "Interact".to_string());
     for mut text in &mut prompt_labels {
         *text = Text::new(label.clone());
@@ -2292,11 +2292,45 @@ fn nearest_interaction_target(
         .next()
 }
 
-fn interaction_prompt_label(interaction: &AvailableInteraction, count: usize) -> String {
-    if count > 1 {
-        format!("{} (+{})", interaction.label, count - 1)
+fn interaction_prompt_label(
+    interactions: &[AvailableInteraction],
+    game: &GameState,
+    map: &LocalMap,
+) -> String {
+    let Some(interaction) = interactions.first() else {
+        return "Interact".to_string();
+    };
+    let target_name = match &interaction.target {
+        InteractionTarget::Npc(id) => game
+            .npcs
+            .iter()
+            .find(|npc| npc.id == *id)
+            .map(|npc| npc.name.clone()),
+        InteractionTarget::Corpse(id) => game
+            .corpses
+            .iter()
+            .find(|corpse| corpse.id == *id)
+            .map(|corpse| corpse.former_name.clone()),
+        InteractionTarget::PointOfInterest(id) => map
+            .points_of_interest
+            .iter()
+            .find(|poi| poi.id == *id)
+            .map(|poi| poi.title.clone()),
+        InteractionTarget::Passage { destination_id, .. } => game
+            .world
+            .location_by_id(*destination_id)
+            .map(|location| location.name.clone()),
+    }
+    .unwrap_or_else(|| "Interact".to_string());
+    let target_count = interactions
+        .iter()
+        .map(|entry| entry.target.stable_key())
+        .collect::<HashSet<_>>()
+        .len();
+    if target_count > 1 {
+        format!("{target_name} (+{})", target_count - 1)
     } else {
-        interaction.label.clone()
+        target_name
     }
 }
 

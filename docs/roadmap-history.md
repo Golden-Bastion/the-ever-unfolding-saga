@@ -768,3 +768,11 @@ src/
 - Kept World Lab isolated from campaign state and saves, and preserved the existing production movement, collision, rendering, and interaction paths for playtesting.
 - Added focused model, editor, renderer-integration, and fixture regression tests. Formatting, Clippy, all 230 unit tests, REUSE lint, and third-party license checks passed on PR #419's validated commit.
 - Full-body character authoring remains future work until the required full-body visual assets and renderer support exist; it is not a prerequisite for this milestone.
+
+### v0.52.22: Player portraits and contextual target prompts (#405)
+- Added an Appearance tab to new-character creation with a live modular-portrait preview and controls for selecting a part in each available layer slot.
+- Persisted stable portrait-part IDs on the player character. Missing appearance data in older saves resolves to a deterministic catalogue default; inherited lives retain the player's configured appearance.
+- Kept NPC portraits on the existing deterministic weighted generator while resolving the player portrait exclusively from the player's selected part IDs.
+- Changed the spatial interaction control to identify the nearest NPC, remains, point of interest, or destination by name. When more than one distinct target is available, the prompt names the nearest target and indicates the additional target count; the radial wheel remains the action selector.
+- Added regression coverage for appearance resolution, legacy save defaults, inheritance, player/NPC portrait separation, and all spatial prompt target categories.
+- The project owner manually play-tested the existing #405 interaction/dialogue work; this change completes the remaining requested refinements. Formatting, Clippy, unit tests, REUSE lint, and third-party license checks are tracked on the associated pull request.
