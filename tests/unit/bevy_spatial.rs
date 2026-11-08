@@ -345,6 +345,14 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
                 destination_id: 999,
             }
     }));
+    for (index, item) in items.iter().enumerate() {
+        assert!(
+            !items[..index]
+                .iter()
+                .any(|previous| previous.stable_key() == item.stable_key()),
+            "each wheel entry must keep a unique action/target identity",
+        );
+    }
 }
 
 #[test]
@@ -427,4 +435,47 @@ fn movement_does_not_cross_blocked_terrain() {
     let world_units_per_pixel = Vec2::X / 45.0;
     let moved = advance_position(&map, start, world_units_per_pixel, 0.1, PLAYER_SPEED);
     assert_eq!(moved, start);
+}
+
+#[test]
+fn radial_wheel_directional_selection_uses_the_closest_entry() {
+    assert_eq!(interaction_wheel_index_for_direction(0, Vec2::Y), None);
+    assert_eq!(interaction_wheel_index_for_direction(4, Vec2::Y), Some(0));
+    assert_eq!(interaction_wheel_index_for_direction(4, Vec2::X), Some(1));
+    assert_eq!(interaction_wheel_index_for_direction(4, Vec2::NEG_Y), Some(2));
+    assert_eq!(interaction_wheel_index_for_direction(4, Vec2::NEG_X), Some(3));
+    assert_eq!(interaction_wheel_index_for_direction(1, Vec2::X), Some(0));
+}
+
+#[test]
+fn radial_wheel_scale_eases_between_open_and_closed_states() {
+    let opening = SpatialInteractionWheel {
+        entries: Vec::new(),
+        selected: 0,
+        phase: InteractionWheelPhase::Opening,
+        elapsed: 0.0,
+        pending: None,
+    };
+    assert!((interaction_wheel_scale(&opening) - 0.78).abs() < 0.001);
+
+    let open = SpatialInteractionWheel {
+        phase: InteractionWheelPhase::Open,
+        ..opening
+    };
+    assert_eq!(interaction_wheel_scale(&open), 1.0);
+}
+
+#[test]
+fn same_target_actions_have_distinct_wheel_identities() {
+    let talk = AvailableInteraction {
+        action: InteractionActionKind::Talk,
+        target: InteractionTarget::Npc(70),
+        label: "Talk — Mira".into(),
+    };
+    let examine = AvailableInteraction {
+        action: InteractionActionKind::Examine,
+        target: InteractionTarget::Npc(70),
+        label: "Examine — Mira".into(),
+    };
+    assert_ne!(talk.stable_key(), examine.stable_key());
 }
