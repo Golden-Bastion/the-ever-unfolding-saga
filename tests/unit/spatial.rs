@@ -437,7 +437,6 @@ fn no_authored_discoveries_preserve_the_legacy_fallback() {
     assert_eq!(map.points_of_interest, original);
 }
 
-
 #[test]
 fn editor_operations_validate_terrain_and_complete_prop_footprints() {
     let mut map = generate_local_map(73, "developer.world_lab", LocalMapConfig::default());
@@ -450,22 +449,37 @@ fn editor_operations_validate_terrain_and_complete_prop_footprints() {
     let is_free_cell = |map: &LocalMap, position: GridPosition| {
         map.is_walkable(position)
             && position != map.entry
-            && !map.points_of_interest.iter().any(|point| point.position == position)
+            && !map
+                .points_of_interest
+                .iter()
+                .any(|point| point.position == position)
             && !map.exits.iter().any(|exit| exit.position == position)
-            && !map.interactables.iter().any(|actor| actor.position == position)
+            && !map
+                .interactables
+                .iter()
+                .any(|actor| actor.position == position)
     };
     let find_table_position = |map: &LocalMap| {
         (1..map.height - 1)
             .flat_map(|y| (1..map.width - 2).map(move |x| GridPosition { x, y }))
             .find(|position| {
                 is_free_cell(map, *position)
-                    && is_free_cell(map, GridPosition { x: position.x + 1, y: position.y })
+                    && is_free_cell(
+                        map,
+                        GridPosition {
+                            x: position.x + 1,
+                            y: position.y,
+                        },
+                    )
             })
     };
     let table_position = find_table_position(&map).expect("generated map should fit a table");
 
     assert!(map.place_prop("editor.table", SpatialPropKind::Table, table_position));
-    let second_table_cell = GridPosition { x: table_position.x + 1, y: table_position.y };
+    let second_table_cell = GridPosition {
+        x: table_position.x + 1,
+        y: table_position.y,
+    };
     assert!(!map.is_walkable(table_position));
     assert!(!map.is_walkable(second_table_cell));
     assert!(!map.place_prop("editor.overlap", SpatialPropKind::Pillar, second_table_cell));
@@ -475,7 +489,12 @@ fn editor_operations_validate_terrain_and_complete_prop_footprints() {
     let destination = find_table_position(&map).expect("generated map should fit a second table");
     assert!(map.move_prop("editor.table", destination));
     assert!(!map.is_walkable(destination));
-    assert!(map.remove_prop_at(GridPosition { x: destination.x + 1, y: destination.y }).is_some());
+    assert!(map
+        .remove_prop_at(GridPosition {
+            x: destination.x + 1,
+            y: destination.y
+        })
+        .is_some());
     assert!(map.props.iter().all(|prop| prop.id != "editor.table"));
 
     let terrain_position = (1..map.height - 1)
@@ -484,7 +503,8 @@ fn editor_operations_validate_terrain_and_complete_prop_footprints() {
         .expect("generated map should have an editable cell");
     assert!(map.set_terrain_for_editor(terrain_position, Terrain::Wall));
     assert_eq!(map.terrain_at(terrain_position), Some(Terrain::Wall));
-    assert!(map.terrain_changes.iter().any(|change| {
-        change.position == terrain_position && change.terrain == Terrain::Wall
-    }));
+    assert!(map
+        .terrain_changes
+        .iter()
+        .any(|change| { change.position == terrain_position && change.terrain == Terrain::Wall }));
 }

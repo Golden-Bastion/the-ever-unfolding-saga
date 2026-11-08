@@ -259,10 +259,22 @@ fn world_lab_map_preview_with_cursor(
                 'X'
             } else if position == map.entry {
                 '@'
-            } else if map.points_of_interest.iter().any(|poi| poi.position == position) {
+            } else if map
+                .points_of_interest
+                .iter()
+                .any(|poi| poi.position == position)
+            {
                 '?'
-            } else if let Some(prop) = map.props.iter().find(|prop| prop.footprint_contains(position, map.width)) {
-                if held_prop_id == Some(prop.id.as_str()) { 'H' } else { 'P' }
+            } else if let Some(prop) = map
+                .props
+                .iter()
+                .find(|prop| prop.footprint_contains(position, map.width))
+            {
+                if held_prop_id == Some(prop.id.as_str()) {
+                    'H'
+                } else {
+                    'P'
+                }
             } else {
                 match map.terrain_at(position).unwrap_or(Terrain::Wall) {
                     Terrain::Floor => '.',
@@ -297,7 +309,8 @@ fn world_lab_prop_name(kind: SpatialPropKind) -> &'static str {
 }
 
 fn world_lab_cursor(state: &DeveloperToolsState, map: &LocalMap) -> GridPosition {
-    state.world_lab_cursor
+    state
+        .world_lab_cursor
         .filter(|position| map.contains(*position))
         .unwrap_or(map.entry)
 }
@@ -308,7 +321,9 @@ fn move_world_lab_cursor(
     dx: i32,
     dy: i32,
 ) {
-    let Some(map) = bevy_spatial::sandbox_map(spatial) else { return; };
+    let Some(map) = bevy_spatial::sandbox_map(spatial) else {
+        return;
+    };
     let current = world_lab_cursor(state, map);
     state.world_lab_cursor = Some(GridPosition {
         x: (i32::from(current.x) + dx).clamp(0, i32::from(map.width - 1)) as u16,
@@ -316,11 +331,10 @@ fn move_world_lab_cursor(
     });
 }
 
-fn cycle_world_lab_terrain(
-    state: &mut DeveloperToolsState,
-    spatial: &mut SpatialExplorationState,
-) {
-    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+fn cycle_world_lab_terrain(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
     let Some(map) = bevy_spatial::sandbox_map_mut(spatial) else {
         state.world_lab_status = Some("No editable temporary map is available.".into());
         return;
@@ -338,12 +352,13 @@ fn cycle_world_lab_terrain(
     if map.set_terrain_for_editor(position, next) {
         state.world_lab_status = Some(format!(
             "Changed ({}, {}) to {}.",
-            position.x, position.y, world_lab_terrain_name(next)
+            position.x,
+            position.y,
+            world_lab_terrain_name(next)
         ));
     } else {
-        state.world_lab_status = Some(
-            "That cell is reserved for an entry, actor, passage, discovery, or prop.".into(),
-        );
+        state.world_lab_status =
+            Some("That cell is reserved for an entry, actor, passage, discovery, or prop.".into());
     }
 }
 
@@ -357,15 +372,14 @@ fn next_world_lab_prop_id(map: &LocalMap) -> String {
     unreachable!("the prop ID sequence is bounded by available memory");
 }
 
-fn place_world_lab_prop(
-    state: &mut DeveloperToolsState,
-    spatial: &mut SpatialExplorationState,
-) {
+fn place_world_lab_prop(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
     if state.world_lab_held_prop.is_some() {
         state.world_lab_status = Some("Drop the held prop before placing another.".into());
         return;
     }
-    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
     let kind = state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
     let placed = if let Some(map) = bevy_spatial::sandbox_map_mut(spatial) {
         let id = next_world_lab_prop_id(map);
@@ -376,7 +390,9 @@ fn place_world_lab_prop(
     state.world_lab_status = Some(if placed {
         format!(
             "Placed {} at ({}, {}).",
-            world_lab_prop_name(kind), position.x, position.y
+            world_lab_prop_name(kind),
+            position.x,
+            position.y
         )
     } else {
         "The prop needs a clear, walkable footprint away from reserved cells.".into()
@@ -387,24 +403,25 @@ fn pick_up_or_drop_world_lab_prop(
     state: &mut DeveloperToolsState,
     spatial: &mut SpatialExplorationState,
 ) {
-    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
     if let Some(held_id) = state.world_lab_held_prop.clone() {
         let moved = bevy_spatial::sandbox_map_mut(spatial)
             .is_some_and(|map| map.move_prop(&held_id, position));
         if moved {
             state.world_lab_held_prop = None;
-            state.world_lab_status = Some(format!(
-                "Moved prop to ({}, {}).", position.x, position.y
-            ));
+            state.world_lab_status =
+                Some(format!("Moved prop to ({}, {}).", position.x, position.y));
         } else {
-            state.world_lab_status = Some(
-                "The prop cannot fit there; choose a clear walkable footprint.".into()
-            );
+            state.world_lab_status =
+                Some("The prop cannot fit there; choose a clear walkable footprint.".into());
         }
         return;
     }
     let selected = bevy_spatial::sandbox_map(spatial).and_then(|map| {
-        map.props.iter()
+        map.props
+            .iter()
             .find(|prop| prop.footprint_contains(position, map.width))
             .map(|prop| (prop.id.clone(), prop.kind, prop.position))
     });
@@ -412,20 +429,21 @@ fn pick_up_or_drop_world_lab_prop(
         state.world_lab_held_prop = Some(id);
         state.world_lab_status = Some(format!(
             "Holding {} from ({}, {}). Move the cursor, then choose Pick up / drop prop.",
-            world_lab_prop_name(kind), origin.x, origin.y
+            world_lab_prop_name(kind),
+            origin.x,
+            origin.y
         ));
     } else {
         state.world_lab_status = Some("There is no prop under the selected cell.".into());
     }
 }
 
-fn remove_world_lab_prop(
-    state: &mut DeveloperToolsState,
-    spatial: &mut SpatialExplorationState,
-) {
-    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
-    let removed = bevy_spatial::sandbox_map_mut(spatial)
-        .and_then(|map| map.remove_prop_at(position));
+fn remove_world_lab_prop(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
+    let removed =
+        bevy_spatial::sandbox_map_mut(spatial).and_then(|map| map.remove_prop_at(position));
     if let Some(prop) = removed {
         if state.world_lab_held_prop.as_deref() == Some(prop.id.as_str()) {
             state.world_lab_held_prop = None;
@@ -437,21 +455,32 @@ fn remove_world_lab_prop(
 }
 
 fn world_lab_cell_details(map: &LocalMap, position: GridPosition) -> String {
-    let terrain = map.terrain_at(position)
+    let terrain = map
+        .terrain_at(position)
         .map(world_lab_terrain_name)
         .unwrap_or("Outside map");
     let mut markers = Vec::new();
-    if position == map.entry { markers.push("entry".to_string()); }
+    if position == map.entry {
+        markers.push("entry".to_string());
+    }
     for poi in &map.points_of_interest {
-        if poi.position == position { markers.push(format!("point of interest: {}", poi.title)); }
+        if poi.position == position {
+            markers.push(format!("point of interest: {}", poi.title));
+        }
     }
     if map.exits.iter().any(|exit| exit.position == position) {
         markers.push("passage".to_string());
     }
-    if map.interactables.iter().any(|actor| actor.position == position) {
+    if map
+        .interactables
+        .iter()
+        .any(|actor| actor.position == position)
+    {
         markers.push("actor".to_string());
     }
-    if let Some(prop) = map.props.iter()
+    if let Some(prop) = map
+        .props
+        .iter()
         .find(|prop| prop.footprint_contains(position, map.width))
     {
         markers.push(format!("prop: {}", world_lab_prop_name(prop.kind)));
@@ -461,7 +490,10 @@ fn world_lab_cell_details(map: &LocalMap, position: GridPosition) -> String {
     } else {
         markers.join(", ")
     };
-    format!("Selected cell ({}, {}) · {} · {}", position.x, position.y, terrain, markers)
+    format!(
+        "Selected cell ({}, {}) · {} · {}",
+        position.x, position.y, terrain, markers
+    )
 }
 
 fn is_developer_tool_screen(screen: ScreenId) -> bool {
@@ -581,19 +613,28 @@ fn developer_tools_input(
                         match navigation.selected {
                             0 => {
                                 state.world_lab.seed = state.world_lab.seed.saturating_sub(1);
-                                state.world_lab_status = Some("Settings changed. Generate a map before play-testing.".into());
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
                             }
                             1 => {
                                 state.world_lab.seed = state.world_lab.seed.saturating_add(1);
-                                state.world_lab_status = Some("Settings changed. Generate a map before play-testing.".into());
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
                             }
                             2 => {
-                                state.world_lab.size_index = (state.world_lab.size_index + 1) % WORLD_LAB_SIZES.len();
-                                state.world_lab_status = Some("Settings changed. Generate a map before play-testing.".into());
+                                state.world_lab.size_index =
+                                    (state.world_lab.size_index + 1) % WORLD_LAB_SIZES.len();
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
                             }
                             3 => {
                                 state.world_lab.shrine_layout = !state.world_lab.shrine_layout;
-                                state.world_lab_status = Some("Settings changed. Generate a map before play-testing.".into());
+                                state.world_lab_status = Some(
+                                    "Settings changed. Generate a map before play-testing.".into(),
+                                );
                             }
                             4 => {
                                 let map = generate_world_lab_map(state.world_lab);
@@ -601,7 +642,8 @@ fn developer_tools_input(
                                 state.world_lab_held_prop = None;
                                 bevy_spatial::set_sandbox_map(&mut spatial, map);
                                 state.world_lab_generated_options = Some(state.world_lab);
-                                state.world_lab_status = Some("Map generated with the current settings.".into());
+                                state.world_lab_status =
+                                    Some("Map generated with the current settings.".into());
                             }
                             5 => {
                                 if let Some(map) = bevy_spatial::sandbox_map(&spatial) {
@@ -609,14 +651,18 @@ fn developer_tools_input(
                                     navigation.current_screen = Some(ScreenId::WorldLabEditor);
                                     navigation.selected = 0;
                                 } else {
-                                    state.world_lab_status = Some("Generate a map before opening the editor.".into());
+                                    state.world_lab_status =
+                                        Some("Generate a map before opening the editor.".into());
                                 }
                             }
                             6 => {
                                 if state.world_lab_generated_options == Some(state.world_lab)
                                     && bevy_spatial::sandbox_map(&spatial).is_some()
                                 {
-                                    bevy_spatial::start_sandbox_playtest(&mut spatial, &mut navigation);
+                                    bevy_spatial::start_sandbox_playtest(
+                                        &mut spatial,
+                                        &mut navigation,
+                                    );
                                 } else {
                                     state.world_lab_status = Some("Generate a map with the current settings before play-testing.".into());
                                 }
@@ -628,7 +674,8 @@ fn developer_tools_input(
                                 state.world_lab_held_prop = None;
                                 bevy_spatial::set_sandbox_map(&mut spatial, map);
                                 state.world_lab_generated_options = Some(state.world_lab);
-                                state.world_lab_status = Some("Settings reset and map regenerated.".into());
+                                state.world_lab_status =
+                                    Some("Settings reset and map regenerated.".into());
                             }
                             8 => {
                                 navigation.current_screen = Some(ScreenId::DeveloperTools);
@@ -646,12 +693,21 @@ fn developer_tools_input(
                             3 => move_world_lab_cursor(&mut state, &spatial, 0, 1),
                             4 => cycle_world_lab_terrain(&mut state, &mut spatial),
                             5 => {
-                                state.world_lab_prop_kind = Some(match state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar) {
-                                    SpatialPropKind::Pillar => SpatialPropKind::Table,
-                                    SpatialPropKind::Table => SpatialPropKind::Pillar,
-                                });
-                                let kind = state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
-                                state.world_lab_status = Some(format!("Prop tool set to {}.", world_lab_prop_name(kind)));
+                                state.world_lab_prop_kind = Some(
+                                    match state
+                                        .world_lab_prop_kind
+                                        .unwrap_or(SpatialPropKind::Pillar)
+                                    {
+                                        SpatialPropKind::Pillar => SpatialPropKind::Table,
+                                        SpatialPropKind::Table => SpatialPropKind::Pillar,
+                                    },
+                                );
+                                let kind =
+                                    state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
+                                state.world_lab_status = Some(format!(
+                                    "Prop tool set to {}.",
+                                    world_lab_prop_name(kind)
+                                ));
                             }
                             6 => place_world_lab_prop(&mut state, &mut spatial),
                             7 => pick_up_or_drop_world_lab_prop(&mut state, &mut spatial),
@@ -1095,11 +1151,15 @@ fn render_world_lab_editor(
         let cursor = world_lab_cursor(state, map);
         bevy_presentation::spawn_label(commands, controls, "SELECTED CELL");
         bevy_presentation::spawn_muted_label(
-            commands, controls, world_lab_cell_details(map, cursor),
+            commands,
+            controls,
+            world_lab_cell_details(map, cursor),
         );
         let prop_kind = state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
         bevy_presentation::spawn_muted_label(
-            commands, controls, format!("Prop tool: {}", world_lab_prop_name(prop_kind)),
+            commands,
+            controls,
+            format!("Prop tool: {}", world_lab_prop_name(prop_kind)),
         );
         if let Some(held_id) = state.world_lab_held_prop.as_deref() {
             if let Some(prop) = map.props.iter().find(|prop| prop.id == held_id) {
@@ -1120,9 +1180,12 @@ fn render_world_lab_editor(
         bevy_presentation::spawn_muted_label(commands, controls, status);
     }
     for (index, (icon, label)) in WORLD_LAB_EDITOR_ACTIONS.iter().enumerate() {
-        let button = bevy_presentation::spawn_action_button(commands, controls, index, *icon, *label);
+        let button =
+            bevy_presentation::spawn_action_button(commands, controls, index, *icon, *label);
         if navigation.selected == index {
-            commands.entity(button).insert(bevy_presentation::UiSelected);
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
         }
     }
 
@@ -1135,8 +1198,13 @@ fn render_world_lab_editor(
             "Legend: X cursor · H moving prop · @ entry · ? discovery · P prop · # wall · . floor · : ash · % rubble",
         );
         bevy_presentation::spawn_muted_label(
-            commands, preview_panel,
-            world_lab_map_preview_with_cursor(map, Some(cursor), state.world_lab_held_prop.as_deref()),
+            commands,
+            preview_panel,
+            world_lab_map_preview_with_cursor(
+                map,
+                Some(cursor),
+                state.world_lab_held_prop.as_deref(),
+            ),
         );
     } else {
         bevy_presentation::spawn_muted_label(commands, preview_panel, "Generate a map first.");

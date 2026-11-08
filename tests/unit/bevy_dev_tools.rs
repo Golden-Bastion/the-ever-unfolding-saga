@@ -118,19 +118,28 @@ fn world_lab_preview_matches_generated_map_dimensions() {
     assert!(rows.iter().any(|row| row.contains('#')));
 }
 
-
 #[test]
 fn world_lab_editor_preview_marks_cursor_and_held_prop() {
     let map = generate_world_lab_map(WorldLabOptions::default());
-    let prop = map.props.first().expect("generated map should include a prop");
+    let prop = map
+        .props
+        .first()
+        .expect("generated map should include a prop");
     let held_id = prop.id.clone();
     let held_position = prop.position;
     let cursor = GridPosition { x: 0, y: 0 };
     let preview = world_lab_map_preview_with_cursor(&map, Some(cursor), Some(&held_id));
     let rows = preview.lines().collect::<Vec<_>>();
-    assert_eq!(rows[usize::from(cursor.y)].chars().nth(usize::from(cursor.x)), Some('X'));
     assert_eq!(
-        rows[usize::from(held_position.y)].chars().nth(usize::from(held_position.x)),
+        rows[usize::from(cursor.y)]
+            .chars()
+            .nth(usize::from(cursor.x)),
+        Some('X')
+    );
+    assert_eq!(
+        rows[usize::from(held_position.y)]
+            .chars()
+            .nth(usize::from(held_position.x)),
         Some('H')
     );
 }
@@ -139,7 +148,10 @@ fn world_lab_editor_preview_marks_cursor_and_held_prop() {
 fn world_lab_cursor_movement_stays_inside_the_current_map() {
     let mut spatial = SpatialExplorationState::default();
     let map = generate_world_lab_map(WorldLabOptions::default());
-    let lower_right = GridPosition { x: map.width - 1, y: map.height - 1 };
+    let lower_right = GridPosition {
+        x: map.width - 1,
+        y: map.height - 1,
+    };
     bevy_spatial::set_sandbox_map(&mut spatial, map);
     let mut state = DeveloperToolsState {
         world_lab_cursor: Some(lower_right),
@@ -148,8 +160,11 @@ fn world_lab_cursor_movement_stays_inside_the_current_map() {
     move_world_lab_cursor(&mut state, &spatial, 1, 1);
     assert_eq!(state.world_lab_cursor, Some(lower_right));
     move_world_lab_cursor(&mut state, &spatial, -1, -1);
-    assert_eq!(state.world_lab_cursor, Some(GridPosition {
-        x: lower_right.x - 1,
-        y: lower_right.y - 1
-    }));
+    assert_eq!(
+        state.world_lab_cursor,
+        Some(GridPosition {
+            x: lower_right.x - 1,
+            y: lower_right.y - 1
+        })
+    );
 }

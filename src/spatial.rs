@@ -214,7 +214,10 @@ impl LocalMap {
     pub fn set_terrain_for_editor(&mut self, position: GridPosition, terrain: Terrain) -> bool {
         if !self.contains(position)
             || self.is_editor_reserved_position(position)
-            || self.props.iter().any(|prop| prop.footprint_contains(position, self.width))
+            || self
+                .props
+                .iter()
+                .any(|prop| prop.footprint_contains(position, self.width))
         {
             return false;
         }
@@ -241,7 +244,12 @@ impl LocalMap {
 
     /// Move an existing prop after validating its complete destination footprint.
     pub fn move_prop(&mut self, id: &str, position: GridPosition) -> bool {
-        let Some(kind) = self.props.iter().find(|prop| prop.id == id).map(|prop| prop.kind) else {
+        let Some(kind) = self
+            .props
+            .iter()
+            .find(|prop| prop.id == id)
+            .map(|prop| prop.kind)
+        else {
             return false;
         };
         if !self.prop_placement_is_valid(kind, position, Some(id)) {
@@ -259,15 +267,24 @@ impl LocalMap {
         if !self.contains(position) {
             return None;
         }
-        let index = self.props.iter().position(|prop| prop.footprint_contains(position, self.width))?;
+        let index = self
+            .props
+            .iter()
+            .position(|prop| prop.footprint_contains(position, self.width))?;
         Some(self.props.remove(index))
     }
 
     fn is_editor_reserved_position(&self, position: GridPosition) -> bool {
         position == self.entry
-            || self.points_of_interest.iter().any(|poi| poi.position == position)
+            || self
+                .points_of_interest
+                .iter()
+                .any(|poi| poi.position == position)
             || self.exits.iter().any(|exit| exit.position == position)
-            || self.interactables.iter().any(|actor| actor.position == position)
+            || self
+                .interactables
+                .iter()
+                .any(|actor| actor.position == position)
     }
 
     fn prop_placement_is_valid(
