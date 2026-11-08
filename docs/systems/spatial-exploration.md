@@ -55,6 +55,12 @@ The local exploration screen keeps a compact character-status panel in the heade
 
 This is the first HUD layer, not the complete reference layout. Combat telegraphs, enemy vitality, ability controls, a minimap/compass, and local ally orders are not implemented by this change.
 
+## Player animation
+
+The spatial renderer uses a small renderer-independent animation player. The Ash Warden sheet contract is a row-major 5×4 grid of 16×24 frames (80×96 total): north, east, south, and west rows; one idle frame followed by four looping walk frames. Clip timing is defined by clip metadata and playback advances from frame delta rather than update count. Movement and collision remain authoritative and unchanged; the animation layer consumes resolved movement and selects a facing/clip only for presentation. Blocked movement can update facing but does not play a walk cycle, and stopping returns to the same direction's idle frame.
+
+The sheet uses the mod-aware asset resolver. Until `spatial/player_ash_warden_animated.png` contains a valid 80×96 PNG, the renderer keeps using `spatial/player_ash_warden.png`; the empty placeholder therefore does not prevent exploration.
+
 ## Camera behavior
 
 The camera uses a viewport-scaled dead zone: ordinary small player movements do not move the camera, while crossing the dead-zone edge shifts the target by only the excess distance. Exponential smoothing keeps the follow response consistent across frame rates. The resulting camera position is clamped after smoothing as well as at the target, so a stale/out-of-bounds camera position cannot temporarily expose space beyond the projected map after a map or viewport change. Maps smaller than the viewport are centered.
