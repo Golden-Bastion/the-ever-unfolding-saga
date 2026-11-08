@@ -1,4 +1,4 @@
-//! Renderer-neutral identities for contextual world interactions.
+//! Renderer-neutral discovery and identities for contextual world interactions.
 //!
 //! Discovery produces action/target pairs. Presentation may arrange them in a
 //! radial wheel or another view; execution remains in authoritative gameplay.
