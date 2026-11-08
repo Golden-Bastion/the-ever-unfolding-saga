@@ -102,3 +102,58 @@ fn undiscovered_points_of_interest_do_not_offer_an_examine_action() {
         InteractionTarget::PointOfInterest(map.points_of_interest[0].id.clone())
     );
 }
+
+
+#[test]
+fn discovery_hides_stale_and_one_way_world_passages() {
+    let mut map = crate::spatial::generate_local_map(
+        31,
+        "location.route_filter",
+        crate::spatial::LocalMapConfig::default(),
+    );
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.interactables.clear();
+
+    let mut game = crate::model::create_new_state(
+        "Route Filter Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let source_id = game.character.location_id;
+    let source = game.world.location_by_id(source_id).unwrap().clone();
+    let destination_id = game.world.allocate_id();
+    game.world.locations.push(crate::model::Location {
+        id: destination_id,
+        name: "One-way Destination".into(),
+        description: "A destination without a return link.".into(),
+        region_id: source.region_id,
+        dangerous: false,
+        corpse_ids: Vec::new(),
+        exits: Vec::new(),
+        spatial_layout: None,
+    });
+    game.world
+        .location_by_id_mut(source_id)
+        .unwrap()
+        .exits
+        .push(destination_id);
+    map.exits.push(MapExit {
+        id: "exit.one-way".into(),
+        position: map.entry,
+        target_location_id: destination_id,
+    });
+    let position = (f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
+
+    assert!(discover_available_interactions(&map, &game, position).is_empty());
+
+    game.world
+        .location_by_id_mut(destination_id)
+        .unwrap()
+        .exits
+        .push(source_id);
+    let available = discover_available_interactions(&map, &game, position);
+    assert_eq!(available.len(), 1);
+    assert_eq!(available[0].action, InteractionActionKind::Enter);
+}
