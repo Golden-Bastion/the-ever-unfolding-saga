@@ -152,12 +152,14 @@ pub fn list_spatial_fixtures(directories: &[&Path]) -> io::Result<Vec<SpatialFix
                 path,
                 name: fixture.name,
                 details: format!(
-                    "{} × {} · seed {} · {} props · {} points of interest",
+                    "{} × {} · seed {} · {} props · {} discoveries · {} passages · {} actor placements",
                     fixture.map.width,
                     fixture.map.height,
                     fixture.map.seed,
                     fixture.map.props.len(),
-                    fixture.map.points_of_interest.len()
+                    fixture.map.points_of_interest.len(),
+                    fixture.map.exits.len(),
+                    fixture.map.interactables.len()
                 ),
                 map: Some(fixture.map),
                 error: None,
