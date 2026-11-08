@@ -55,6 +55,17 @@ pub struct LocationContent {
     /// Optional built-in local-map layout identifier (for example, `shrine_chamber`).
     #[serde(default)]
     pub spatial_layout: Option<String>,
+    /// Stable, authored discoveries placed on newly generated local maps.
+    #[serde(default)]
+    pub spatial_discoveries: Vec<SpatialDiscoveryContent>,
+}
+
+/// An authored, examinable discovery in one location's local spatial map.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpatialDiscoveryContent {
+    pub id: String,
+    pub title: String,
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -248,6 +259,37 @@ impl CampaignContent {
             self.npcs.iter().map(|entry| entry.id.as_str()),
             &mut issues,
         );
+        validate_unique_ids(
+            "spatial discovery",
+            self.world
+                .locations
+                .iter()
+                .flat_map(|location| location.spatial_discoveries.iter())
+                .map(|discovery| discovery.id.as_str()),
+            &mut issues,
+        );
+        for location in &self.world.locations {
+            for discovery in &location.spatial_discoveries {
+                if discovery.id.trim().is_empty() {
+                    issues.push(format!(
+                        "location {} has a spatial discovery with an empty id",
+                        location.id
+                    ));
+                }
+                if discovery.title.trim().is_empty() {
+                    issues.push(format!(
+                        "spatial discovery {} in location {} has an empty title",
+                        discovery.id, location.id
+                    ));
+                }
+                if discovery.description.trim().is_empty() {
+                    issues.push(format!(
+                        "spatial discovery {} in location {} has an empty description",
+                        discovery.id, location.id
+                    ));
+                }
+            }
+        }
         validate_unique_ids(
             "character part",
             self.character_parts.iter().map(|entry| entry.id.as_str()),
