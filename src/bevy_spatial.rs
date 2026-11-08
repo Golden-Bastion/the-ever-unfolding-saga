@@ -8,7 +8,8 @@ use std::collections::HashMap;
 
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::ui::Pressed;
+use bevy::text::{Justify, LineBreak, TextLayout};
+use bevy::ui::{Pressed, UiTransform};
 use bevy::ui_widgets::Button;
 #[cfg(target_os = "android")]
 use bevy::window::PrimaryWindow;
@@ -51,6 +52,9 @@ const GROUND_TERRAIN_DEPTH: f32 = -1.0;
 const WALL_TOP_DEPTH_BIAS: f32 = 0.002;
 const WALL_FACE_DEPTH_BIAS: f32 = -0.002;
 const PLAYER_DEPTH_OFFSET: f32 = 0.04;
+const INTERACTION_WHEEL_ANIMATION_SECONDS: f32 = 0.16;
+const INTERACTION_WHEEL_SIZE_PX: f32 = 300.0;
+const INTERACTION_WHEEL_BUTTON_HEIGHT_PX: f32 = 48.0;
 
 #[derive(Component)]
 struct SpatialWorldEntity;
@@ -74,6 +78,27 @@ struct SpatialWallSide {
 
 #[derive(Component)]
 struct SpatialControlButton;
+
+#[derive(Component)]
+struct SpatialInteractionWheelRoot;
+
+#[derive(Component, Clone, Copy)]
+struct SpatialWheelEntry(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InteractionWheelPhase {
+    Opening,
+    Open,
+    Closing,
+}
+
+struct SpatialInteractionWheel {
+    entries: Vec<AvailableInteraction>,
+    selected: usize,
+    phase: InteractionWheelPhase,
+    elapsed: f32,
+    pending: Option<AvailableInteraction>,
+}
 
 #[cfg(target_os = "android")]
 #[derive(Component)]
@@ -116,6 +141,8 @@ struct SpatialRenderAssets {
 enum SpatialAction {
     Interact,
     Exit,
+    SelectInteraction(usize),
+    CloseWheel,
 }
 
 #[derive(Resource, Default)]
@@ -124,6 +151,7 @@ pub(crate) struct SpatialExplorationState {
     session: Option<ExplorationSession>,
     position: Vec2,
     message: Option<String>,
+    interaction_wheel: Option<SpatialInteractionWheel>,
     dirty: bool,
 }
 
@@ -136,10 +164,13 @@ pub(crate) fn install(app: &mut App) {
             Update,
             (
                 spatial_input,
+                update_spatial_wheel_animation,
                 update_spatial_world,
                 update_spatial_context_prompt,
                 update_spatial_control_feedback,
                 render_spatial_screen,
+                sync_spatial_interaction_wheel,
+                update_spatial_wheel_anchor,
             )
                 .chain(),
         );
@@ -222,6 +253,7 @@ pub(crate) fn enter(
             f32::from(map.entry.y) + 0.5,
         ));
     state.position = position;
+    state.interaction_wheel = None;
     state.session = Some(ExplorationSession {
         location_id,
         position: GridPosition {
@@ -320,77 +352,105 @@ fn spatial_input(
     {
         return;
     }
+
     let activated_buttons = activations
         .read()
         .map(|activation| activation.0)
         .collect::<Vec<_>>();
-
-    let mut direction = Vec2::ZERO;
-    if keyboard.pressed(KeyCode::ArrowUp) || keyboard.pressed(KeyCode::KeyW) {
-        direction.y += 1.0;
-    }
-    if keyboard.pressed(KeyCode::ArrowDown) || keyboard.pressed(KeyCode::KeyS) {
-        direction.y -= 1.0;
-    }
-    if keyboard.pressed(KeyCode::ArrowLeft) || keyboard.pressed(KeyCode::KeyA) {
-        direction.x -= 1.0;
-    }
-    if keyboard.pressed(KeyCode::ArrowRight) || keyboard.pressed(KeyCode::KeyD) {
-        direction.x += 1.0;
-    }
-    direction += joystick.direction;
-    if direction.length_squared() > 0.0 {
-        let input_strength = direction.length().min(1.0);
-        let Some(location_id) = state
-            .session
-            .as_ref()
-            .map(|session| session.location_id.clone())
-        else {
-            return;
-        };
-        let Some(map) = state.maps.get(&location_id) else {
-            return;
-        };
-        let world_direction = screen_direction_to_world(direction);
-        let next = advance_position(
-            map,
-            state.position,
-            world_direction,
-            time.delta_secs(),
-            PLAYER_SPEED * input_strength,
-        );
-        state.position = next;
-        if let Some(session) = state.session.as_mut() {
-            session.position = GridPosition {
-                x: next.x.floor().max(0.0) as u16,
-                y: next.y.floor().max(0.0) as u16,
-            };
-        }
-        map_mark_discovered(&mut state, next);
-    }
-
-    if keyboard.just_pressed(KeyCode::KeyE) {
-        interact_contextually(&mut state, &mut lifecycle, &mut navigation, &mut requests);
-    }
 
     for button in activated_buttons {
         let Ok(action) = action_buttons.get(button) else {
             continue;
         };
         match *action {
-            SpatialAction::Interact => {
-                interact_contextually(&mut state, &mut lifecycle, &mut navigation, &mut requests)
-            }
+            SpatialAction::Interact => open_interaction_wheel(&mut state, &lifecycle),
             SpatialAction::Exit => exit_spatial(&mut state, &mut navigation),
+            SpatialAction::SelectInteraction(index) => {
+                close_interaction_wheel(&mut state, Some(index));
+            }
+            SpatialAction::CloseWheel => close_interaction_wheel(&mut state, None),
+        }
+    }
+
+    if state.interaction_wheel.is_some() {
+        if keyboard.just_pressed(KeyCode::ArrowUp) || keyboard.just_pressed(KeyCode::KeyW) {
+            move_interaction_wheel_selection(&mut state, Vec2::Y);
+        }
+        if keyboard.just_pressed(KeyCode::ArrowDown) || keyboard.just_pressed(KeyCode::KeyS) {
+            move_interaction_wheel_selection(&mut state, Vec2::NEG_Y);
+        }
+        if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::KeyA) {
+            move_interaction_wheel_selection(&mut state, Vec2::NEG_X);
+        }
+        if keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::KeyD) {
+            move_interaction_wheel_selection(&mut state, Vec2::X);
+        }
+        if keyboard.just_pressed(KeyCode::KeyE) {
+            confirm_interaction_wheel(&mut state);
+        }
+    } else {
+        let mut direction = Vec2::ZERO;
+        if keyboard.pressed(KeyCode::ArrowUp) || keyboard.pressed(KeyCode::KeyW) {
+            direction.y += 1.0;
+        }
+        if keyboard.pressed(KeyCode::ArrowDown) || keyboard.pressed(KeyCode::KeyS) {
+            direction.y -= 1.0;
+        }
+        if keyboard.pressed(KeyCode::ArrowLeft) || keyboard.pressed(KeyCode::KeyA) {
+            direction.x -= 1.0;
+        }
+        if keyboard.pressed(KeyCode::ArrowRight) || keyboard.pressed(KeyCode::KeyD) {
+            direction.x += 1.0;
+        }
+        direction += joystick.direction;
+
+        if direction.length_squared() > 0.0 {
+            let input_strength = direction.length().min(1.0);
+            let Some(location_id) = state
+                .session
+                .as_ref()
+                .map(|session| session.location_id.clone())
+            else {
+                return;
+            };
+            let Some(map) = state.maps.get(&location_id) else {
+                return;
+            };
+            let world_direction = screen_direction_to_world(direction);
+            let next = advance_position(
+                map,
+                state.position,
+                world_direction,
+                time.delta_secs(),
+                PLAYER_SPEED * input_strength,
+            );
+            state.position = next;
+            if let Some(session) = state.session.as_mut() {
+                session.position = GridPosition {
+                    x: next.x.floor().max(0.0) as u16,
+                    y: next.y.floor().max(0.0) as u16,
+                };
+            }
+            map_mark_discovered(&mut state, next);
+        }
+
+        if keyboard.just_pressed(KeyCode::KeyE) {
+            open_interaction_wheel(&mut state, &lifecycle);
         }
     }
 
     let events = std::mem::take(&mut queue.0);
     for event in events {
         match event {
-            InputEvent::Confirm => {
-                interact_contextually(&mut state, &mut lifecycle, &mut navigation, &mut requests);
+            InputEvent::Confirm if state.interaction_wheel.is_some() => {
+                confirm_interaction_wheel(&mut state);
             }
+            InputEvent::Cancel | InputEvent::Backspace
+                if state.interaction_wheel.is_some() =>
+            {
+                close_interaction_wheel(&mut state, None);
+            }
+            InputEvent::Confirm => open_interaction_wheel(&mut state, &lifecycle),
             InputEvent::Cancel | InputEvent::Backspace => {
                 exit_spatial(&mut state, &mut navigation);
             }
@@ -511,57 +571,180 @@ fn interact_with_poi(
     state.dirty = true;
 }
 
-fn interact_contextually(
+fn open_interaction_wheel(
     state: &mut SpatialExplorationState,
-    lifecycle: &mut LifecycleState,
-    navigation: &mut NavigationState,
-    requests: &mut MessageWriter<SpatialInteractionRequest>,
+    lifecycle: &LifecycleState,
 ) {
-    let interaction = state
+    if state.interaction_wheel.is_some() {
+        return;
+    }
+    let entries = state
         .session
         .as_ref()
         .and_then(|session| state.maps.get(&session.location_id))
         .and_then(|map| {
-            lifecycle.session.as_ref().and_then(|game_session| {
+            lifecycle.session.as_ref().map(|game_session| {
                 available_interactions(map, &game_session.state, state.position)
-                    .into_iter()
-                    .next()
             })
-        });
+        })
+        .unwrap_or_default();
 
-    match interaction {
-        Some(AvailableInteraction {
-            action: InteractionActionKind::Talk,
-            target: InteractionTarget::Npc(id),
-            ..
-        }) => {
+    if entries.is_empty() {
+        state.message =
+            Some("There is nothing within reach that can be approached.".to_string());
+        state.dirty = true;
+        return;
+    }
+
+    state.message = None;
+    state.interaction_wheel = Some(SpatialInteractionWheel {
+        entries,
+        selected: 0,
+        phase: InteractionWheelPhase::Opening,
+        elapsed: 0.0,
+        pending: None,
+    });
+}
+
+fn close_interaction_wheel(
+    state: &mut SpatialExplorationState,
+    selected: Option<usize>,
+) {
+    let Some(wheel) = state.interaction_wheel.as_mut() else {
+        return;
+    };
+    if wheel.phase == InteractionWheelPhase::Closing {
+        return;
+    }
+    if let Some(index) = selected {
+        let Some(interaction) = wheel.entries.get(index).cloned() else {
+            return;
+        };
+        wheel.selected = index;
+        wheel.pending = Some(interaction);
+    } else {
+        wheel.pending = None;
+    }
+    wheel.phase = InteractionWheelPhase::Closing;
+    wheel.elapsed = 0.0;
+}
+
+fn confirm_interaction_wheel(state: &mut SpatialExplorationState) {
+    let selected = state
+        .interaction_wheel
+        .as_ref()
+        .filter(|wheel| wheel.phase != InteractionWheelPhase::Closing)
+        .map(|wheel| wheel.selected);
+    if let Some(selected) = selected {
+        close_interaction_wheel(state, Some(selected));
+    }
+}
+
+fn move_interaction_wheel_selection(
+    state: &mut SpatialExplorationState,
+    direction: Vec2,
+) {
+    let Some(wheel) = state.interaction_wheel.as_mut() else {
+        return;
+    };
+    if wheel.phase == InteractionWheelPhase::Closing {
+        return;
+    }
+    if let Some(selected) =
+        interaction_wheel_index_for_direction(wheel.entries.len(), direction)
+    {
+        wheel.selected = selected;
+    }
+}
+
+fn execute_available_interaction(
+    state: &mut SpatialExplorationState,
+    lifecycle: &mut LifecycleState,
+    navigation: &mut NavigationState,
+    requests: &mut MessageWriter<SpatialInteractionRequest>,
+    interaction: AvailableInteraction,
+) {
+    let still_available = state
+        .session
+        .as_ref()
+        .and_then(|session| state.maps.get(&session.location_id))
+        .zip(lifecycle.session.as_ref())
+        .is_some_and(|(map, game_session)| {
+            available_interactions(map, &game_session.state, state.position)
+                .iter()
+                .any(|candidate| candidate.stable_key() == interaction.stable_key())
+        });
+    if !still_available {
+        state.message = Some("That action is no longer available.".to_string());
+        state.dirty = true;
+        return;
+    }
+
+    match (interaction.action, interaction.target) {
+        (InteractionActionKind::Talk, InteractionTarget::Npc(id)) => {
             requests.write(SpatialInteractionRequest::Talk(id));
         }
-        Some(AvailableInteraction {
-            action: InteractionActionKind::SearchRemains,
-            target: InteractionTarget::Corpse(id),
-            ..
-        }) => {
+        (InteractionActionKind::SearchRemains, InteractionTarget::Corpse(id)) => {
             requests.write(SpatialInteractionRequest::SearchRemains(id));
         }
-        Some(AvailableInteraction {
-            action: InteractionActionKind::Examine,
-            target: InteractionTarget::PointOfInterest(id),
-            ..
-        }) => {
+        (InteractionActionKind::Examine, InteractionTarget::PointOfInterest(id)) => {
             interact_with_poi(state, lifecycle, &id);
         }
-        Some(AvailableInteraction {
-            action: InteractionActionKind::Enter,
-            target: InteractionTarget::Passage { id, destination_id },
-            ..
-        }) => {
+        (
+            InteractionActionKind::Enter,
+            InteractionTarget::Passage {
+                id,
+                destination_id,
+            },
+        ) => {
             use_map_exit(state, navigation, &id, destination_id);
         }
         _ => {
-            state.message =
-                Some("There is nothing within reach that can be approached.".to_string());
+            state.message = Some("That action is not available for this target.".to_string());
             state.dirty = true;
+        }
+    }
+}
+
+fn update_spatial_wheel_animation(
+    time: Res<Time>,
+    mut state: ResMut<SpatialExplorationState>,
+    mut lifecycle: ResMut<LifecycleState>,
+    mut navigation: ResMut<NavigationState>,
+    mut requests: MessageWriter<SpatialInteractionRequest>,
+    mut wheel_roots: Query<&mut UiTransform, With<SpatialInteractionWheelRoot>>,
+) {
+    let mut finished_close = false;
+    let mut pending = None;
+    if let Some(wheel) = state.interaction_wheel.as_mut() {
+        wheel.elapsed += time.delta_secs();
+        if wheel.phase == InteractionWheelPhase::Opening
+            && wheel.elapsed >= INTERACTION_WHEEL_ANIMATION_SECONDS
+        {
+            wheel.phase = InteractionWheelPhase::Open;
+            wheel.elapsed = 0.0;
+        } else if wheel.phase == InteractionWheelPhase::Closing
+            && wheel.elapsed >= INTERACTION_WHEEL_ANIMATION_SECONDS
+        {
+            pending = wheel.pending.take();
+            finished_close = true;
+        }
+        let scale = interaction_wheel_scale(wheel);
+        for mut transform in &mut wheel_roots {
+            transform.scale = Vec2::splat(scale);
+        }
+    }
+
+    if finished_close {
+        state.interaction_wheel = None;
+        if let Some(interaction) = pending {
+            execute_available_interaction(
+                &mut state,
+                &mut lifecycle,
+                &mut navigation,
+                &mut requests,
+                interaction,
+            );
         }
     }
 }
@@ -596,6 +779,7 @@ fn use_map_exit(
 
 fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut NavigationState) {
     state.message = None;
+    state.interaction_wheel = None;
     state.dirty = true;
     navigation.current_screen = Some(ScreenId::Gameplay);
     navigation.return_screen = None;
@@ -1114,10 +1298,13 @@ fn update_virtual_joystick(
     touches: Res<Touches>,
     window: Single<&Window, With<PrimaryWindow>>,
     navigation: Res<NavigationState>,
+    spatial: Res<SpatialExplorationState>,
     mut joystick: ResMut<SpatialJoystickState>,
     mut thumbs: Query<&mut Node, With<SpatialJoystickThumb>>,
 ) {
-    if navigation.current_screen != Some(ScreenId::SpatialExploration) {
+    if navigation.current_screen != Some(ScreenId::SpatialExploration)
+        || spatial.interaction_wheel.is_some()
+    {
         joystick.active_touch = None;
         joystick.direction = Vec2::ZERO;
         return;
@@ -1168,6 +1355,298 @@ fn virtual_joystick_direction(screen_offset: Vec2) -> Vec2 {
     // Touch coordinates increase downward, but spatial movement treats positive Y as up.
     Vec2::new(screen_offset.x, -screen_offset.y).normalize()
         * ((normalized_distance - JOYSTICK_DEAD_ZONE) / (1.0 - JOYSTICK_DEAD_ZONE))
+}
+
+fn spatial_player_screen_position(
+    position: Vec2,
+    map: &LocalMap,
+    cameras: &Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+) -> Option<(Vec2, Vec2)> {
+    let projected = map_to_world(position, Some(map));
+    let player_world = Vec3::new(
+        projected.x,
+        projected.y + PLAYER_SPRITE_HEIGHT * 0.5,
+        0.0,
+    );
+    cameras.iter().find_map(|(camera, camera_transform)| {
+        let screen_position = camera
+            .world_to_viewport(camera_transform, player_world)
+            .ok()?;
+        let viewport = camera.logical_viewport_size()?;
+        Some((screen_position, viewport))
+    })
+}
+
+fn interaction_wheel_root_position(anchor: Vec2, viewport: Vec2) -> Vec2 {
+    let maximum = Vec2::new(
+        (viewport.x - INTERACTION_WHEEL_SIZE_PX - 8.0).max(8.0),
+        (viewport.y - INTERACTION_WHEEL_SIZE_PX - 8.0).max(8.0),
+    );
+    Vec2::new(
+        (anchor.x - INTERACTION_WHEEL_SIZE_PX * 0.5).clamp(8.0, maximum.x),
+        (anchor.y - INTERACTION_WHEEL_SIZE_PX * 0.5).clamp(8.0, maximum.y),
+    )
+}
+
+fn sync_spatial_interaction_wheel(
+    mut commands: Commands,
+    state: Res<SpatialExplorationState>,
+    navigation: Res<NavigationState>,
+    spatial_roots: Query<Entity, With<SpatialSceneRoot>>,
+    wheel_roots: Query<Entity, With<SpatialInteractionWheelRoot>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+) {
+    if navigation.current_screen != Some(ScreenId::SpatialExploration) {
+        for root in &wheel_roots {
+            commands.entity(root).despawn();
+        }
+        return;
+    }
+    let Some(wheel) = state.interaction_wheel.as_ref() else {
+        for root in &wheel_roots {
+            commands.entity(root).despawn();
+        }
+        return;
+    };
+    if !wheel_roots.is_empty() {
+        return;
+    }
+    let Some(session) = state.session.as_ref() else {
+        return;
+    };
+    let Some(map) = state.maps.get(&session.location_id) else {
+        return;
+    };
+    let Some((anchor, viewport)) =
+        spatial_player_screen_position(state.position, map, &cameras)
+    else {
+        return;
+    };
+    let Some(parent) = spatial_roots.iter().next() else {
+        return;
+    };
+    spawn_interaction_wheel(
+        &mut commands,
+        parent,
+        wheel,
+        interaction_wheel_root_position(anchor, viewport),
+    );
+}
+
+fn update_spatial_wheel_anchor(
+    state: Res<SpatialExplorationState>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+    mut wheel_roots: Query<&mut Node, With<SpatialInteractionWheelRoot>>,
+) {
+    if state.interaction_wheel.is_none() {
+        return;
+    }
+    let Some(session) = state.session.as_ref() else {
+        return;
+    };
+    let Some(map) = state.maps.get(&session.location_id) else {
+        return;
+    };
+    let Some((anchor, viewport)) =
+        spatial_player_screen_position(state.position, map, &cameras)
+    else {
+        return;
+    };
+    let root_position = interaction_wheel_root_position(anchor, viewport);
+    for mut node in &mut wheel_roots {
+        node.left = px(root_position.x);
+        node.top = px(root_position.y);
+    }
+}
+
+fn interaction_wheel_entry_position(index: usize, count: usize, button_width: f32) -> Vec2 {
+    let angle = -std::f32::consts::FRAC_PI_2
+        + std::f32::consts::TAU * index as f32 / count as f32;
+    let radius = 102.0;
+    let center = Vec2::splat(INTERACTION_WHEEL_SIZE_PX * 0.5);
+    let offset = Vec2::new(angle.cos(), angle.sin()) * radius;
+    center + offset - Vec2::new(button_width * 0.5, INTERACTION_WHEEL_BUTTON_HEIGHT_PX * 0.5)
+}
+
+fn spawn_interaction_wheel(
+    commands: &mut Commands,
+    parent: Entity,
+    wheel: &SpatialInteractionWheel,
+    position: Vec2,
+) {
+    let root = commands
+        .spawn((
+            SpatialInteractionWheelRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(position.x),
+                top: px(position.y),
+                width: px(INTERACTION_WHEEL_SIZE_PX),
+                height: px(INTERACTION_WHEEL_SIZE_PX),
+                ..default()
+            },
+            UiTransform::from_scale(Vec2::splat(interaction_wheel_scale(wheel))),
+            BackgroundColor(Color::NONE),
+        ))
+        .id();
+    commands.entity(parent).add_child(root);
+
+    let ring_size = 224.0;
+    let ring = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: px((INTERACTION_WHEEL_SIZE_PX - ring_size) * 0.5),
+                top: px((INTERACTION_WHEEL_SIZE_PX - ring_size) * 0.5),
+                width: px(ring_size),
+                height: px(ring_size),
+                border: UiRect::all(px(1)),
+                border_radius: BorderRadius::MAX,
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(Color::srgba(0.035, 0.035, 0.04, 0.88)),
+        ))
+        .id();
+    commands.entity(root).add_child(ring);
+
+    let count = wheel.entries.len();
+    let button_width = if count <= 4 {
+        104.0
+    } else if count <= 6 {
+        92.0
+    } else {
+        78.0
+    };
+    for (index, interaction) in wheel.entries.iter().enumerate() {
+        let entry_position = interaction_wheel_entry_position(index, count, button_width);
+        spawn_interaction_wheel_entry(
+            commands,
+            root,
+            index,
+            &interaction.label,
+            entry_position,
+            button_width,
+        );
+    }
+    spawn_interaction_wheel_close_button(commands, root);
+}
+
+fn spawn_interaction_wheel_entry(
+    commands: &mut Commands,
+    parent: Entity,
+    index: usize,
+    label: &str,
+    position: Vec2,
+    width: f32,
+) {
+    let button = commands
+        .spawn((
+            Button,
+            Hovered::default(),
+            bevy_presentation::UiTouchTargetShape::MinimumBounds {
+                width: width as u32,
+                height: INTERACTION_WHEEL_BUTTON_HEIGHT_PX as u32,
+            },
+            SpatialControlButton,
+            SpatialWheelEntry(index),
+            SpatialAction::SelectInteraction(index),
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(position.x),
+                top: px(position.y),
+                width: px(width),
+                height: px(INTERACTION_WHEEL_BUTTON_HEIGHT_PX),
+                padding: UiRect::axes(px(5), px(4)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                border: UiRect::all(px(1)),
+                border_radius: BorderRadius::all(px(5)),
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+        ))
+        .id();
+    let text = commands
+        .spawn((
+            Text::new(label.to_string()),
+            Node {
+                width: percent(100),
+                ..default()
+            },
+            TextLayout::new(Justify::Center, LineBreak::WordOrCharacter),
+            TextFont::from_font_size(FontSize::Rem(if width < 90.0 { 0.68 } else { 0.78 })),
+            TextColor(bevy_presentation::THEME_TEXT),
+        ))
+        .id();
+    commands.entity(button).add_child(text);
+    commands.entity(parent).add_child(button);
+}
+
+fn spawn_interaction_wheel_close_button(commands: &mut Commands, parent: Entity) {
+    let close = commands
+        .spawn((
+            Button,
+            Hovered::default(),
+            bevy_presentation::UiTouchTargetShape::MinimumBounds {
+                width: 44,
+                height: 44,
+            },
+            SpatialControlButton,
+            SpatialAction::CloseWheel,
+            Node {
+                position_type: PositionType::Absolute,
+                left: px((INTERACTION_WHEEL_SIZE_PX - 44.0) * 0.5),
+                top: px((INTERACTION_WHEEL_SIZE_PX - 44.0) * 0.5),
+                width: px(44),
+                height: px(44),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                border: UiRect::all(px(1)),
+                border_radius: BorderRadius::MAX,
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+        ))
+        .id();
+    let label = commands
+        .spawn((
+            Text::new("X"),
+            TextFont::from_font_size(FontSize::Rem(0.9)),
+            TextColor(bevy_presentation::THEME_TEXT),
+        ))
+        .id();
+    commands.entity(close).add_child(label);
+    commands.entity(parent).add_child(close);
+}
+
+fn interaction_wheel_scale(wheel: &SpatialInteractionWheel) -> f32 {
+    let progress = (wheel.elapsed / INTERACTION_WHEEL_ANIMATION_SECONDS).clamp(0.0, 1.0);
+    let eased = progress * progress * (3.0 - 2.0 * progress);
+    match wheel.phase {
+        InteractionWheelPhase::Opening => 0.78 + 0.22 * eased,
+        InteractionWheelPhase::Open => 1.0,
+        InteractionWheelPhase::Closing => 1.0 - 0.22 * eased,
+    }
+}
+
+fn interaction_wheel_index_for_direction(count: usize, direction: Vec2) -> Option<usize> {
+    if count == 0 || direction.length_squared() <= f32::EPSILON {
+        return None;
+    }
+    let direction = direction.normalize();
+    (0..count).max_by(|left, right| {
+        let angle_for = |index: usize| {
+            std::f32::consts::FRAC_PI_2 - std::f32::consts::TAU * index as f32 / count as f32
+        };
+        let left_score =
+            Vec2::new(angle_for(*left).cos(), angle_for(*left).sin()).dot(direction);
+        let right_score =
+            Vec2::new(angle_for(*right).cos(), angle_for(*right).sin()).dot(direction);
+        left_score.total_cmp(&right_score)
+    })
 }
 
 fn spawn_control(
@@ -1274,23 +1753,24 @@ fn update_spatial_context_prompt(
         .as_ref()
         .and_then(|session| state.maps.get(&session.location_id));
     let game = lifecycle.session.as_ref().map(|session| &session.state);
-    let position = session_position(&state);
-    let target = current_map
+    let interactions = current_map
         .zip(game)
-        .and_then(|(map, game)| nearest_interaction_target(map, game, position));
-    let interaction_display = if target.is_some() {
-        Display::Flex
-    } else {
-        Display::None
-    };
+        .map(|(map, game)| available_interactions(map, game, session_position(&state)))
+        .unwrap_or_default();
+    let interaction_display =
+        if !interactions.is_empty() && state.interaction_wheel.is_none() {
+            Display::Flex
+        } else {
+            Display::None
+        };
     for mut node in &mut poi_prompts {
         if node.display != interaction_display {
             node.display = interaction_display;
         }
     }
-    let label = target
-        .as_ref()
-        .map(interaction_prompt_label)
+    let label = interactions
+        .first()
+        .map(|interaction| interaction_prompt_label(interaction, interactions.len()))
         .unwrap_or_else(|| "Interact".to_string());
     for mut text in &mut prompt_labels {
         *text = Text::new(label.clone());
@@ -1298,16 +1778,36 @@ fn update_spatial_context_prompt(
 }
 
 fn update_spatial_control_feedback(
-    mut controls: Query<(&Hovered, Has<Pressed>, &mut BackgroundColor), With<SpatialControlButton>>,
+    state: Res<SpatialExplorationState>,
+    mut controls: Query<(
+        &Hovered,
+        Has<Pressed>,
+        Option<&SpatialWheelEntry>,
+        &mut BackgroundColor,
+        &mut BorderColor,
+    ), With<SpatialControlButton>>,
 ) {
-    for (hovered, pressed, mut background) in &mut controls {
-        background.0 = if pressed {
+    for (hovered, pressed, wheel_entry, mut background, mut border) in &mut controls {
+        let selected = wheel_entry.is_some_and(|entry| {
+            state
+                .interaction_wheel
+                .as_ref()
+                .is_some_and(|wheel| wheel.selected == entry.0)
+        });
+        background.0 = if selected {
+            bevy_presentation::THEME_SELECTED
+        } else if pressed {
             bevy_presentation::THEME_PRESSED
         } else if hovered.get() {
             bevy_presentation::THEME_HOVER
         } else {
             bevy_presentation::THEME_SURFACE_STRONG
         };
+        *border = BorderColor::all(if selected {
+            bevy_presentation::THEME_ACCENT
+        } else {
+            bevy_presentation::THEME_BORDER
+        });
     }
 }
 
@@ -1451,7 +1951,7 @@ pub(crate) fn available_interactions(
             target: InteractionTarget::PointOfInterest(poi.id.clone()),
             label: format!("Examine — {}", poi.title),
         };
-        candidates.push((distance, 2_u8, item.target.stable_key(), item));
+        candidates.push((distance, 2_u8, item.stable_key(), item));
     }
 
     for placement in &map.interactables {
@@ -1498,7 +1998,7 @@ pub(crate) fn available_interactions(
                 )
             }
         };
-        candidates.push((distance, priority, item.target.stable_key(), item));
+        candidates.push((distance, priority, item.stable_key(), item));
     }
 
     for exit in &map.exits {
@@ -1521,7 +2021,7 @@ pub(crate) fn available_interactions(
         candidates.push((
             exit_distance_px(map, position, exit),
             3_u8,
-            item.target.stable_key(),
+            item.stable_key(),
             item,
         ));
     }
@@ -1534,6 +2034,7 @@ pub(crate) fn available_interactions(
     candidates.into_iter().map(|(_, _, _, item)| item).collect()
 }
 
+#[cfg(test)]
 fn nearest_interaction_target(
     map: &LocalMap,
     game: &GameState,
@@ -1544,8 +2045,12 @@ fn nearest_interaction_target(
         .next()
 }
 
-fn interaction_prompt_label(interaction: &AvailableInteraction) -> String {
-    interaction.label.clone()
+fn interaction_prompt_label(interaction: &AvailableInteraction, count: usize) -> String {
+    if count > 1 {
+        format!("{} (+{})", interaction.label, count - 1)
+    } else {
+        interaction.label.clone()
+    }
 }
 
 fn exit_distance_px(map: &LocalMap, position: Vec2, exit: &MapExit) -> f32 {

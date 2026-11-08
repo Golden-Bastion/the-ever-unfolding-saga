@@ -13,6 +13,17 @@ pub(crate) enum InteractionActionKind {
     Enter,
 }
 
+impl InteractionActionKind {
+    pub(crate) const fn stable_key(self) -> &'static str {
+        match self {
+            Self::Talk => "talk",
+            Self::SearchRemains => "search_remains",
+            Self::Examine => "examine",
+            Self::Enter => "enter",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum InteractionTarget {
     Npc(EntityId),
@@ -40,6 +51,13 @@ pub(crate) struct AvailableInteraction {
     pub action: InteractionActionKind,
     pub target: InteractionTarget,
     pub label: String,
+}
+
+impl AvailableInteraction {
+    /// Stable identity for this action bound to this exact target.
+    pub(crate) fn stable_key(&self) -> String {
+        format!("{}:{}", self.action.stable_key(), self.target.stable_key())
+    }
 }
 
 #[cfg(test)]
