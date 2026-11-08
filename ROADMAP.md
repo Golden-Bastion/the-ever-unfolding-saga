@@ -8,6 +8,12 @@ The roadmap tracks current and upcoming development. Detailed completed mileston
 
 The v0.52.0–v0.52.6 storage, mod-management, and character-focused interface work is complete and recorded in the roadmap history. Spatial exploration and interaction are now the active development line. PR #404 implements persistent spatial actors, contextual action/target resolution, and the modular portrait catalogue. Its implementation commit passed automated checks, but desktop and Android landscape playtesting remains outstanding. The player-anchored radial interaction wheel now adapts to landscape viewport dimensions, adds a second ring for crowded target sets, and animates selected-entry feedback. Shared scene transitions and the dedicated close-up dialogue presentation are also implemented under #405. Dialogue composes the existing deterministic player/NPC portrait layers through mod-aware asset loading; manual desktop and Android landscape playtesting remains outstanding.
 
+## Developer tools (in progress)
+
+**v0.53.0 — Developer tools foundation (#413)**
+
+The start screen now exposes a Developer Tools hub without requiring a campaign or save. Its first usable tool, Character Workshop, manually assembles the currently loaded modular portrait parts, previews them through the same layered portrait compositor and mod-aware PNG loader used by dialogue, and supports per-slot selection, visibility toggles, deterministic randomization, reset, and diagnostics. This is an initial portrait-workshop slice, not a full-body character editor. World Lab, temporary spatial-map sessions, in-world editing, and exportable test fixtures remain planned under #413.
+
 ## Active milestone
 
 **v0.52.x — Spatial exploration and interaction** (prototype #353; actor and interaction foundation #404; presentation follow-up #405; world-topology design #365)

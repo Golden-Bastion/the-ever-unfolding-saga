@@ -10,9 +10,9 @@ use bevy::prelude::*;
 use bevy_picking::events::PointerRelease;
 
 use crate::{
-    bevy_combat, bevy_console, bevy_feedback, bevy_gameplay, bevy_interactions, bevy_lifecycle,
-    bevy_navigation_bridge, bevy_options, bevy_presentation, bevy_records, bevy_runtime,
-    bevy_spatial, bevy_touch, ui_settings,
+    bevy_combat, bevy_console, bevy_dev_tools, bevy_feedback, bevy_gameplay, bevy_interactions,
+    bevy_lifecycle, bevy_navigation_bridge, bevy_options, bevy_presentation, bevy_records,
+    bevy_runtime, bevy_spatial, bevy_touch, ui_settings,
 };
 
 const WINDOW_TITLE: &str = "The Ever-Unfolding Saga";
@@ -50,6 +50,7 @@ pub fn run() {
     bevy_options::install(&mut app);
     bevy_records::install(&mut app);
     bevy_interactions::install(&mut app);
+    bevy_dev_tools::install(&mut app);
     bevy_feedback::install(&mut app);
     #[cfg(not(target_os = "android"))]
     app.add_systems(Update, desktop_window::apply_window_icon);

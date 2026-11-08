@@ -368,6 +368,8 @@ pub struct NavigationState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenId {
     Lifecycle,
+    DeveloperTools,
+    CharacterWorkshop,
     Gameplay,
     Character,
     Meditation,

@@ -401,6 +401,11 @@ fn activate_selection(
                 lifecycle.start_new_game(navigation);
             } else if start_has_load(lifecycle) && lifecycle.selected == 1 {
                 lifecycle.start_load_game(navigation);
+            } else if lifecycle.selected == start_developer_tools_index(lifecycle) {
+                navigation.return_screen = Some(ScreenId::Lifecycle);
+                navigation.current_screen = Some(ScreenId::DeveloperTools);
+                navigation.selected = 0;
+                return None;
             } else if lifecycle.selected == start_options_index(lifecycle) {
                 navigation.return_screen = Some(ScreenId::Lifecycle);
                 navigation.current_screen = Some(ScreenId::Options);
@@ -584,9 +589,9 @@ pub(crate) fn has_available_saves() -> bool {
 
 fn start_option_count(lifecycle: &LifecycleState) -> usize {
     if start_has_load(lifecycle) {
-        4
+        5
     } else {
-        3
+        4
     }
 }
 
@@ -594,12 +599,16 @@ fn start_has_load(lifecycle: &LifecycleState) -> bool {
     !lifecycle.save_files.is_empty()
 }
 
-fn start_options_index(lifecycle: &LifecycleState) -> usize {
+fn start_developer_tools_index(lifecycle: &LifecycleState) -> usize {
     if start_has_load(lifecycle) {
         2
     } else {
         1
     }
+}
+
+fn start_options_index(lifecycle: &LifecycleState) -> usize {
+    start_developer_tools_index(lifecycle) + 1
 }
 
 impl LifecycleState {
@@ -875,12 +884,14 @@ const BEGIN_LIFE_ICON: &str = "new-game";
 const START_ACTIONS_WITH_LOAD: &[(&str, &str)] = &[
     ("new-game", "New Game"),
     ("load-game", "Load Game"),
+    ("terminal", "Developer Tools"),
     ("options", "Options"),
     ("quit", "Quit"),
 ];
 
 const START_ACTIONS_WITHOUT_LOAD: &[(&str, &str)] = &[
     ("new-game", "New Game"),
+    ("terminal", "Developer Tools"),
     ("options", "Options"),
     ("quit", "Quit"),
 ];

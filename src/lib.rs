@@ -2,6 +2,7 @@ mod asset_loading;
 mod bevy_app;
 mod bevy_combat;
 mod bevy_console;
+mod bevy_dev_tools;
 mod bevy_feedback;
 mod bevy_gameplay;
 mod bevy_interactions;
