@@ -118,9 +118,9 @@ impl SpatialProp {
     }
 }
 
-/// A physical passage at the edge of a local map. The destination uses the
-/// persistent world location ID so it can later connect directly to the world
-/// graph without relying on display names.
+/// A physical passage at the edge of a local map. Its destination uses the
+/// persistent world location ID and is validated against the authoritative
+/// location graph before the existing travel rules are applied.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MapExit {
     /// Stable within this local map and independent of destination display text.
