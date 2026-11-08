@@ -69,7 +69,7 @@ fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
         ("spatial/terrain_ash.png", 48, 24),
         ("spatial/terrain_rubble.png", 48, 24),
         ("spatial/terrain_wall_top.png", 48, 24),
-        ("spatial/player_ash_warden.png", 16, 24),
+        ("spatial/player_oathbound.png", 16, 24),
         ("spatial/passage.png", 24, 32),
         ("spatial/wall_face_left.png", 24, 36),
         ("spatial/wall_face_right.png", 24, 36),

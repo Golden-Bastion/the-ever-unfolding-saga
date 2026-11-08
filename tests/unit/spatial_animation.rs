@@ -14,11 +14,11 @@ fn sheet_contract_matches_four_rows_of_idle_and_walk_frames() {
     );
     assert_eq!(
         PLAYER_ANIMATION_SHEET_HEIGHT,
-        PLAYER_ANIMATION_FRAME_HEIGHT * PLAYER_ANIMATION_ROWS as u32
+        PLAYER_ANIMATION_FRAME_HEIGHT * PLAYER_ANIMATION_ROWS
     );
     assert_eq!(
         PLAYER_ANIMATION_SHEET_REFERENCE,
-        "spatial/player_ash_warden_animated.png"
+        "spatial/player_oathbound_animated.png"
     );
 }
 

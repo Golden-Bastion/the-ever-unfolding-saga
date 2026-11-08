@@ -17,6 +17,8 @@ const DEFAULT_WALK_FRAME_DURATION_SECONDS: f32 = 0.12;
 const MIN_FRAME_DURATION_SECONDS: f32 = 0.01;
 const MAX_FRAME_DURATION_SECONDS: f32 = 10.0;
 const MIN_WALK_SPEED_SCALE: f32 = 0.35;
+// Playback accumulates in f32; tolerate tiny under-runs at exact frame boundaries.
+const FRAME_BOUNDARY_EPSILON: f32 = 0.00001;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct AnimationClip {
@@ -219,7 +221,8 @@ impl PlayerAnimation {
         } else {
             self.idle_clip
         };
-        let elapsed_frames = (self.elapsed_seconds / clip.frame_duration_seconds).floor() as usize;
+        let frame_position = self.elapsed_seconds / clip.frame_duration_seconds;
+        let elapsed_frames = (frame_position + FRAME_BOUNDARY_EPSILON).floor() as usize;
         let clip_frame = if clip.looping {
             elapsed_frames % clip.frame_count
         } else {
