@@ -370,6 +370,7 @@ pub enum ScreenId {
     Lifecycle,
     DeveloperTools,
     CharacterWorkshop,
+    WorldLab,
     Gameplay,
     Character,
     Meditation,
