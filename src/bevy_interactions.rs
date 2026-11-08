@@ -10,7 +10,6 @@ use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, PresentationTransition, ScreenId,
 };
-use std::collections::{HashMap, HashSet};
 use crate::bevy_spatial::{SpatialInteractionRequest, SpatialSceneRoot};
 use crate::game::{interactions, legacy};
 use crate::input::InputEvent;
@@ -19,6 +18,7 @@ use crate::presentation::{
     CharacterPortraitLayerView, CharacterPortraitView, ConversationView, RemainsResultView,
     RemainsView, TalkView,
 };
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InteractionScreen {
@@ -323,7 +323,10 @@ fn close_spatial_overlay(state: &mut BevyInteractionState, navigation: &mut Navi
 
 fn begin_spatial_overlay_exit(
     state: Res<BevyInteractionState>,
-    mut roots: Query<(&mut PresentationTransition, &UiTransform), With<SpatialInteractionOverlayRoot>>,
+    mut roots: Query<
+        (&mut PresentationTransition, &UiTransform),
+        With<SpatialInteractionOverlayRoot>,
+    >,
 ) {
     if !state.spatial_overlay_closing {
         return;
@@ -588,7 +591,12 @@ fn render_if_active(
                 return;
             };
             render_spatial_interaction_overlay(
-                &mut commands, parent, &session.state, &state, &mut images, &mut portrait_images,
+                &mut commands,
+                parent,
+                &session.state,
+                &state,
+                &mut images,
+                &mut portrait_images,
             );
         }
         state.dirty = false;
@@ -610,16 +618,33 @@ fn render_if_active(
             render_talk(&mut commands, &view, state.selected);
         }
         InteractionScreen::Conversation => {
-            let view = state.npc_id
+            let view = state
+                .npc_id
                 .and_then(|npc_id| interactions::npc_index_by_id(&session.state, npc_id))
-                .and_then(|npc_index| interactions::build_conversation_view_for_bevy(&session.state, npc_index));
-            render_conversation(&mut commands, view.as_ref(), state.selected, state.message.as_deref(), &mut images, &mut portrait_images);
+                .and_then(|npc_index| {
+                    interactions::build_conversation_view_for_bevy(&session.state, npc_index)
+                });
+            render_conversation(
+                &mut commands,
+                view.as_ref(),
+                state.selected,
+                state.message.as_deref(),
+                &mut images,
+                &mut portrait_images,
+            );
         }
         InteractionScreen::Remains => {
             let view = legacy::build_remains_view_for_bevy(&session.state);
-            render_remains(&mut commands, &view, state.selected, state.message.as_deref());
+            render_remains(
+                &mut commands,
+                &view,
+                state.selected,
+                state.message.as_deref(),
+            );
         }
-        InteractionScreen::RemainsResult => render_remains_result(&mut commands, state.result.as_ref()),
+        InteractionScreen::RemainsResult => {
+            render_remains_result(&mut commands, state.result.as_ref())
+        }
     }
     state.dirty = false;
 }
@@ -634,59 +659,113 @@ fn render_spatial_interaction_overlay(
     portrait_images: &mut PortraitImageCache,
 ) {
     let is_dialogue = state.screen == InteractionScreen::Conversation;
-    let overlay = commands.spawn((
-        SpatialInteractionOverlayRoot,
-        PresentationTransition::entering(),
-        UiTransform { scale: Vec2::splat(0.96), ..default() },
-        Node {
-            position_type: PositionType::Absolute,
-            left: px(0), right: px(0), top: px(0), bottom: px(0),
-            width: percent(100), height: percent(100),
-            padding: if is_dialogue { UiRect::all(px(12)) } else { UiRect::all(px(0)) },
-            flex_direction: FlexDirection::Column,
-            row_gap: px(8),
-            overflow: Overflow::clip(),
-            ..default()
-        },
-        BackgroundColor(if is_dialogue { bevy_presentation::THEME_BACKGROUND } else { Color::NONE }),
-    )).id();
+    let overlay = commands
+        .spawn((
+            SpatialInteractionOverlayRoot,
+            PresentationTransition::entering(),
+            UiTransform {
+                scale: Vec2::splat(0.96),
+                ..default()
+            },
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(0),
+                right: px(0),
+                top: px(0),
+                bottom: px(0),
+                width: percent(100),
+                height: percent(100),
+                padding: if is_dialogue {
+                    UiRect::all(px(12))
+                } else {
+                    UiRect::all(px(0))
+                },
+                flex_direction: FlexDirection::Column,
+                row_gap: px(8),
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            BackgroundColor(if is_dialogue {
+                bevy_presentation::THEME_BACKGROUND
+            } else {
+                Color::NONE
+            }),
+        ))
+        .id();
     commands.entity(parent).add_child(overlay);
 
     match state.screen {
         InteractionScreen::Conversation => {
-            let view = state.npc_id
+            let view = state
+                .npc_id
                 .and_then(|npc_id| interactions::npc_index_by_id(game, npc_id))
-                .and_then(|npc_index| interactions::build_conversation_view_for_bevy(game, npc_index));
-            render_dialogue_scene_content(commands, overlay, view.as_ref(), state.selected, state.message.as_deref(), images, portrait_images);
+                .and_then(|npc_index| {
+                    interactions::build_conversation_view_for_bevy(game, npc_index)
+                });
+            render_dialogue_scene_content(
+                commands,
+                overlay,
+                view.as_ref(),
+                state.selected,
+                state.message.as_deref(),
+                images,
+                portrait_images,
+            );
         }
         InteractionScreen::Remains | InteractionScreen::RemainsResult | InteractionScreen::Talk => {
-            let panel = commands.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    right: px(14), bottom: px(14),
-                    width: percent(44), min_width: px(240), max_width: px(560),
-                    max_height: percent(76), min_height: px(150),
-                    padding: UiRect::all(px(12)),
-                    flex_direction: FlexDirection::Column, row_gap: px(8),
-                    border: UiRect::all(px(1)), overflow: Overflow::clip(),
-                    ..default()
-                },
-                BorderColor::all(bevy_presentation::THEME_BORDER),
-                BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
-            )).id();
+            let panel = commands
+                .spawn((
+                    Node {
+                        position_type: PositionType::Absolute,
+                        right: px(14),
+                        bottom: px(14),
+                        width: percent(44),
+                        min_width: px(240),
+                        max_width: px(560),
+                        max_height: percent(76),
+                        min_height: px(150),
+                        padding: UiRect::all(px(12)),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(8),
+                        border: UiRect::all(px(1)),
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    BorderColor::all(bevy_presentation::THEME_BORDER),
+                    BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+                ))
+                .id();
             commands.entity(overlay).add_child(panel);
             let content = bevy_presentation::spawn_scrollable_list(commands, panel);
             let footer = bevy_presentation::spawn_option_footer(commands, panel);
             match state.screen {
                 InteractionScreen::Remains => {
                     let view = legacy::build_remains_view_for_bevy(game);
-                    render_spatial_remains_content(commands, content, footer, &view, state.corpse_id, state.selected, state.message.as_deref());
+                    render_spatial_remains_content(
+                        commands,
+                        content,
+                        footer,
+                        &view,
+                        state.corpse_id,
+                        state.selected,
+                        state.message.as_deref(),
+                    );
                 }
-                InteractionScreen::RemainsResult => render_remains_result_content(commands, content, footer, state.result.as_ref()),
+                InteractionScreen::RemainsResult => {
+                    render_remains_result_content(commands, content, footer, state.result.as_ref())
+                }
                 InteractionScreen::Talk => {
-                    bevy_presentation::spawn_muted_label(commands, content, "There is no conversation to continue.");
-                    let button = bevy_presentation::spawn_action_button(commands, footer, 0, "back", "Close");
-                    commands.entity(button).insert(bevy_presentation::UiSelected);
+                    bevy_presentation::spawn_muted_label(
+                        commands,
+                        content,
+                        "There is no conversation to continue.",
+                    );
+                    let button = bevy_presentation::spawn_action_button(
+                        commands, footer, 0, "back", "Close",
+                    );
+                    commands
+                        .entity(button)
+                        .insert(bevy_presentation::UiSelected);
                 }
                 InteractionScreen::Conversation => {}
             }
@@ -696,11 +775,20 @@ fn render_spatial_interaction_overlay(
 
 fn ordered_portrait_layers(portrait: &CharacterPortraitView) -> Vec<&CharacterPortraitLayerView> {
     let mut layers = portrait.layers.iter().collect::<Vec<_>>();
-    layers.sort_by(|left, right| left.layer.cmp(&right.layer).then_with(|| left.slot.cmp(&right.slot)).then_with(|| left.id.cmp(&right.id)));
+    layers.sort_by(|left, right| {
+        left.layer
+            .cmp(&right.layer)
+            .then_with(|| left.slot.cmp(&right.slot))
+            .then_with(|| left.id.cmp(&right.id))
+    });
     layers
 }
 
-fn load_portrait_layer_image(images: &mut Assets<Image>, cache: &mut PortraitImageCache, layer: &CharacterPortraitLayerView) -> Option<Handle<Image>> {
+fn load_portrait_layer_image(
+    images: &mut Assets<Image>,
+    cache: &mut PortraitImageCache,
+    layer: &CharacterPortraitLayerView,
+) -> Option<Handle<Image>> {
     if let Some(image) = cache.images.get(&layer.asset) {
         return Some(image.clone());
     }
@@ -711,7 +799,10 @@ fn load_portrait_layer_image(images: &mut Assets<Image>, cache: &mut PortraitIma
         }
         Err(error) => {
             if cache.missing.insert(layer.asset.clone()) {
-                warn!("Could not load portrait layer {} ({}): {}", layer.id, layer.asset, error);
+                warn!(
+                    "Could not load portrait layer {} ({}): {}",
+                    layer.id, layer.asset, error
+                );
             }
             None
         }
@@ -729,49 +820,78 @@ fn render_character_portrait(
     images: &mut Assets<Image>,
     cache: &mut PortraitImageCache,
 ) {
-    let panel = commands.spawn((
-        Node {
-            width: percent(50), height: percent(100), min_width: px(0),
-            flex_grow: 1.0, flex_shrink: 1.0,
-            padding: UiRect::all(px(6)), flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center, justify_content: JustifyContent::Center,
-            row_gap: px(4), ..default()
-        },
-        BackgroundColor(bevy_presentation::THEME_SURFACE),
-    )).id();
+    let panel = commands
+        .spawn((
+            Node {
+                width: percent(50),
+                height: percent(100),
+                min_width: px(0),
+                flex_grow: 1.0,
+                flex_shrink: 1.0,
+                padding: UiRect::all(px(6)),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                row_gap: px(4),
+                ..default()
+            },
+            BackgroundColor(bevy_presentation::THEME_SURFACE),
+        ))
+        .id();
     commands.entity(parent).add_child(panel);
     bevy_presentation::spawn_label(commands, panel, name);
     if let Some(detail) = detail.filter(|value| !value.trim().is_empty()) {
         bevy_presentation::spawn_muted_label(commands, panel, detail);
     }
 
-    let canvas = commands.spawn((
-        Node {
-            width: Val::Auto, height: percent(78), max_width: percent(100), max_height: px(320),
-            aspect_ratio: Some(2.0 / 3.0), position_type: PositionType::Relative,
-            overflow: Overflow::clip(), flex_shrink: 1.0, ..default()
-        },
-        BackgroundColor(bevy_presentation::THEME_PANEL),
-        BorderColor::all(bevy_presentation::THEME_BORDER),
-    )).id();
+    let canvas = commands
+        .spawn((
+            Node {
+                width: Val::Auto,
+                height: percent(78),
+                max_width: percent(100),
+                max_height: px(320),
+                aspect_ratio: Some(2.0 / 3.0),
+                position_type: PositionType::Relative,
+                overflow: Overflow::clip(),
+                flex_shrink: 1.0,
+                ..default()
+            },
+            BackgroundColor(bevy_presentation::THEME_PANEL),
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+        ))
+        .id();
     commands.entity(panel).add_child(canvas);
 
     let mut rendered = 0usize;
     for layer in ordered_portrait_layers(portrait) {
-        let Some(image) = load_portrait_layer_image(images, cache, layer) else { continue; };
-        let node = commands.spawn((
-            ImageNode::new(image),
-            Node {
-                position_type: PositionType::Absolute,
-                left: px(0), right: px(0), top: px(0), bottom: px(0),
-                width: percent(100), height: percent(100), ..default()
-            },
-        )).id();
+        let Some(image) = load_portrait_layer_image(images, cache, layer) else {
+            continue;
+        };
+        let node = commands
+            .spawn((
+                ImageNode::new(image),
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: px(0),
+                    right: px(0),
+                    top: px(0),
+                    bottom: px(0),
+                    width: percent(100),
+                    height: percent(100),
+                    ..default()
+                },
+            ))
+            .id();
         commands.entity(canvas).add_child(node);
         rendered += 1;
     }
     if rendered == 0 {
-        bevy_presentation::spawn_muted_label(commands, panel, fallback.unwrap_or("Portrait unavailable"));
+        bevy_presentation::spawn_muted_label(
+            commands,
+            panel,
+            fallback.unwrap_or("Portrait unavailable"),
+        );
     }
 }
 
@@ -785,49 +905,108 @@ fn render_dialogue_scene_content(
     images: &mut Assets<Image>,
     portrait_images: &mut PortraitImageCache,
 ) {
-    let header = commands.spawn(Node {
-        width: percent(100), flex_direction: FlexDirection::Row,
-        justify_content: JustifyContent::SpaceBetween, align_items: AlignItems::Center,
-        flex_shrink: 0.0, ..default()
-    }).id();
+    let header = commands
+        .spawn(Node {
+            width: percent(100),
+            flex_direction: FlexDirection::Row,
+            justify_content: JustifyContent::SpaceBetween,
+            align_items: AlignItems::Center,
+            flex_shrink: 0.0,
+            ..default()
+        })
+        .id();
     commands.entity(parent).add_child(header);
     bevy_presentation::spawn_label(commands, header, "CONVERSATION");
     bevy_presentation::spawn_muted_label(commands, header, "THE EVER-UNFOLDING SAGA");
 
-    let stage = commands.spawn(Node {
-        width: percent(100), min_height: px(0), flex_grow: 1.0, flex_shrink: 1.0,
-        flex_direction: FlexDirection::Row, column_gap: px(8),
-        align_items: AlignItems::Center, justify_content: JustifyContent::SpaceEvenly,
-        ..default()
-    }).id();
+    let stage = commands
+        .spawn(Node {
+            width: percent(100),
+            min_height: px(0),
+            flex_grow: 1.0,
+            flex_shrink: 1.0,
+            flex_direction: FlexDirection::Row,
+            column_gap: px(8),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::SpaceEvenly,
+            ..default()
+        })
+        .id();
     commands.entity(parent).add_child(stage);
 
     if let Some(view) = view {
         let player_detail = format!("Health: {}/{}", view.player.hp, view.player.max_hp);
-        render_character_portrait(commands, stage, &view.player.display_name(), Some(&player_detail), &view.player_portrait, None, images, portrait_images);
-        render_character_portrait(commands, stage, &view.npc.display_name(), view.npc.faction_name.as_deref(), &view.npc_portrait, view.portrait.as_deref(), images, portrait_images);
+        render_character_portrait(
+            commands,
+            stage,
+            &view.player.display_name(),
+            Some(&player_detail),
+            &view.player_portrait,
+            None,
+            images,
+            portrait_images,
+        );
+        render_character_portrait(
+            commands,
+            stage,
+            &view.npc.display_name(),
+            view.npc.faction_name.as_deref(),
+            &view.npc_portrait,
+            view.portrait.as_deref(),
+            images,
+            portrait_images,
+        );
     } else {
-        bevy_presentation::spawn_muted_label(commands, stage, "That person can no longer be found.");
+        bevy_presentation::spawn_muted_label(
+            commands,
+            stage,
+            "That person can no longer be found.",
+        );
     }
 
-    let dialogue = commands.spawn((
-        Node {
-            width: percent(100), min_height: px(112), max_height: percent(46),
-            padding: UiRect::all(px(10)), border: UiRect::all(px(1)),
-            flex_direction: FlexDirection::Column, row_gap: px(6),
-            flex_shrink: 0.0, overflow: Overflow::clip(), ..default()
-        },
-        BorderColor::all(bevy_presentation::THEME_BORDER),
-        BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
-    )).id();
+    let dialogue = commands
+        .spawn((
+            Node {
+                width: percent(100),
+                min_height: px(112),
+                max_height: percent(46),
+                padding: UiRect::all(px(10)),
+                border: UiRect::all(px(1)),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(6),
+                flex_shrink: 0.0,
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+        ))
+        .id();
     commands.entity(parent).add_child(dialogue);
 
     let Some(view) = view else {
-        bevy_presentation::spawn_muted_label(commands, dialogue, "The conversation can no longer continue.");
-        let actions = commands.spawn(Node { width: percent(100), flex_direction: FlexDirection::Row, flex_wrap: FlexWrap::Wrap, column_gap: px(8), row_gap: px(6), ..default() }).id();
+        bevy_presentation::spawn_muted_label(
+            commands,
+            dialogue,
+            "The conversation can no longer continue.",
+        );
+        let actions = commands
+            .spawn(Node {
+                width: percent(100),
+                flex_direction: FlexDirection::Row,
+                flex_wrap: FlexWrap::Wrap,
+                column_gap: px(8),
+                row_gap: px(6),
+                ..default()
+            })
+            .id();
         commands.entity(dialogue).add_child(actions);
         let button = bevy_presentation::spawn_compact_action_button(commands, actions, 0, "Leave");
-        if selected == 0 { commands.entity(button).insert(bevy_presentation::UiSelected); }
+        if selected == 0 {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
         return;
     };
 
@@ -836,37 +1015,69 @@ fn render_dialogue_scene_content(
         bevy_presentation::spawn_muted_label(commands, dialogue, format!("Memory: {memory}"));
     }
     if let Some(message) = message {
-        for line in message.lines() { bevy_presentation::spawn_muted_label(commands, dialogue, line); }
+        for line in message.lines() {
+            bevy_presentation::spawn_muted_label(commands, dialogue, line);
+        }
     } else if !view.available {
-        bevy_presentation::spawn_muted_label(commands, dialogue, view.unavailable_message.as_deref().unwrap_or("They are unavailable right now."));
+        bevy_presentation::spawn_muted_label(
+            commands,
+            dialogue,
+            view.unavailable_message
+                .as_deref()
+                .unwrap_or("They are unavailable right now."),
+        );
     } else {
         bevy_presentation::spawn_muted_label(commands, dialogue, "Choose your response.");
     }
 
-    let actions = commands.spawn(Node {
-        width: percent(100), flex_direction: FlexDirection::Row, flex_wrap: FlexWrap::Wrap,
-        column_gap: px(8), row_gap: px(6), align_items: AlignItems::Center, ..default()
-    }).id();
+    let actions = commands
+        .spawn(Node {
+            width: percent(100),
+            flex_direction: FlexDirection::Row,
+            flex_wrap: FlexWrap::Wrap,
+            column_gap: px(8),
+            row_gap: px(6),
+            align_items: AlignItems::Center,
+            ..default()
+        })
+        .id();
     commands.entity(dialogue).add_child(actions);
 
     if message.is_some() {
-        let button = bevy_presentation::spawn_compact_action_button(commands, actions, 0, "Continue");
-        if selected == 0 { commands.entity(button).insert(bevy_presentation::UiSelected); }
+        let button =
+            bevy_presentation::spawn_compact_action_button(commands, actions, 0, "Continue");
+        if selected == 0 {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
     } else if view.available {
         for (index, option) in view.options.iter().enumerate() {
-            let button = bevy_presentation::spawn_compact_action_button(commands, actions, index, option);
-            if selected == index { commands.entity(button).insert(bevy_presentation::UiSelected); }
+            let button =
+                bevy_presentation::spawn_compact_action_button(commands, actions, index, option);
+            if selected == index {
+                commands
+                    .entity(button)
+                    .insert(bevy_presentation::UiSelected);
+            }
         }
         let leave_index = view.options.len();
-        let button = bevy_presentation::spawn_compact_action_button(commands, actions, leave_index, "Leave");
-        if selected == leave_index { commands.entity(button).insert(bevy_presentation::UiSelected); }
+        let button =
+            bevy_presentation::spawn_compact_action_button(commands, actions, leave_index, "Leave");
+        if selected == leave_index {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
     } else {
         let button = bevy_presentation::spawn_compact_action_button(commands, actions, 0, "Leave");
-        if selected == 0 { commands.entity(button).insert(bevy_presentation::UiSelected); }
+        if selected == 0 {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
     }
 }
-
-
 
 fn render_spatial_remains_content(
     commands: &mut Commands,
@@ -1016,18 +1227,37 @@ fn render_conversation(
     images: &mut Assets<Image>,
     portrait_images: &mut PortraitImageCache,
 ) {
-    let root = commands.spawn((
-        BevyScreenRoot,
-        PresentationTransition::entering(),
-        UiTransform { scale: Vec2::splat(0.96), ..default() },
-        Node {
-            width: percent(100), height: percent(100), min_width: px(0), min_height: px(0),
-            padding: UiRect::all(px(12)), flex_direction: FlexDirection::Column,
-            row_gap: px(8), overflow: Overflow::clip(), ..default()
-        },
-        BackgroundColor(bevy_presentation::THEME_BACKGROUND),
-    )).id();
-    render_dialogue_scene_content(commands, root, view, selected, message, images, portrait_images);
+    let root = commands
+        .spawn((
+            BevyScreenRoot,
+            PresentationTransition::entering(),
+            UiTransform {
+                scale: Vec2::splat(0.96),
+                ..default()
+            },
+            Node {
+                width: percent(100),
+                height: percent(100),
+                min_width: px(0),
+                min_height: px(0),
+                padding: UiRect::all(px(12)),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(8),
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            BackgroundColor(bevy_presentation::THEME_BACKGROUND),
+        ))
+        .id();
+    render_dialogue_scene_content(
+        commands,
+        root,
+        view,
+        selected,
+        message,
+        images,
+        portrait_images,
+    );
 }
 
 fn render_remains(

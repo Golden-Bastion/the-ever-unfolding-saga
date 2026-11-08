@@ -401,11 +401,20 @@ pub(crate) struct PresentationTransition {
 
 impl PresentationTransition {
     pub(crate) fn entering() -> Self {
-        Self { phase: PresentationTransitionPhase::Entering, elapsed: 0.0, duration: 0.18, start_scale: 0.96, end_scale: 1.0 }
+        Self {
+            phase: PresentationTransitionPhase::Entering,
+            elapsed: 0.0,
+            duration: 0.18,
+            start_scale: 0.96,
+            end_scale: 1.0,
+        }
     }
 
     pub(crate) fn begin_exit(&mut self, current_scale: f32) {
-        if matches!(self.phase, PresentationTransitionPhase::Exiting | PresentationTransitionPhase::Finished) {
+        if matches!(
+            self.phase,
+            PresentationTransitionPhase::Exiting | PresentationTransitionPhase::Finished
+        ) {
             return;
         }
         self.phase = PresentationTransitionPhase::Exiting;
@@ -431,19 +440,28 @@ pub(crate) fn update_presentation_transitions(
     mut transitions: Query<(&mut PresentationTransition, &mut UiTransform)>,
 ) {
     for (mut transition, mut transform) in &mut transitions {
-        if matches!(transition.phase, PresentationTransitionPhase::Active | PresentationTransitionPhase::Finished) {
+        if matches!(
+            transition.phase,
+            PresentationTransitionPhase::Active | PresentationTransitionPhase::Finished
+        ) {
             continue;
         }
         transition.elapsed += time.delta_secs();
         let progress = (transition.elapsed / transition.duration.max(f32::EPSILON)).clamp(0.0, 1.0);
-        transform.scale = Vec2::splat(presentation_transition_scale(transition.start_scale, transition.end_scale, progress));
+        transform.scale = Vec2::splat(presentation_transition_scale(
+            transition.start_scale,
+            transition.end_scale,
+            progress,
+        ));
         if progress >= 1.0 {
             match transition.phase {
                 PresentationTransitionPhase::Entering => {
                     transition.phase = PresentationTransitionPhase::Active;
                     transform.scale = Vec2::ONE;
                 }
-                PresentationTransitionPhase::Exiting => transition.phase = PresentationTransitionPhase::Finished,
+                PresentationTransitionPhase::Exiting => {
+                    transition.phase = PresentationTransitionPhase::Finished
+                }
                 PresentationTransitionPhase::Active | PresentationTransitionPhase::Finished => {}
             }
         }

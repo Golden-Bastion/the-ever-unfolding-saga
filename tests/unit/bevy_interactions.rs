@@ -19,15 +19,34 @@ fn spatial_interaction_overlay_keeps_the_exploration_screen_active() {
     assert!(!is_interaction_screen(Some(ScreenId::SpatialExploration)));
 }
 
-
 #[test]
 fn portrait_layers_are_composited_in_stable_draw_order() {
     let portrait = CharacterPortraitView {
         layers: vec![
-            CharacterPortraitLayerView { id: "body".to_string(), slot: "body".to_string(), asset: "body.png".to_string(), layer: 3 },
-            CharacterPortraitLayerView { id: "hair-z".to_string(), slot: "hair".to_string(), asset: "hair-z.png".to_string(), layer: 1 },
-            CharacterPortraitLayerView { id: "face-b".to_string(), slot: "face".to_string(), asset: "face-b.png".to_string(), layer: 1 },
-            CharacterPortraitLayerView { id: "face-a".to_string(), slot: "face".to_string(), asset: "face-a.png".to_string(), layer: 1 },
+            CharacterPortraitLayerView {
+                id: "body".to_string(),
+                slot: "body".to_string(),
+                asset: "body.png".to_string(),
+                layer: 3,
+            },
+            CharacterPortraitLayerView {
+                id: "hair-z".to_string(),
+                slot: "hair".to_string(),
+                asset: "hair-z.png".to_string(),
+                layer: 1,
+            },
+            CharacterPortraitLayerView {
+                id: "face-b".to_string(),
+                slot: "face".to_string(),
+                asset: "face-b.png".to_string(),
+                layer: 1,
+            },
+            CharacterPortraitLayerView {
+                id: "face-a".to_string(),
+                slot: "face".to_string(),
+                asset: "face-a.png".to_string(),
+                layer: 1,
+            },
         ],
     };
 
