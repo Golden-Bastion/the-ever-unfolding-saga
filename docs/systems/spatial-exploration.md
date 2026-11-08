@@ -55,6 +55,12 @@ The local exploration screen keeps a compact character-status panel in the heade
 
 This is the first HUD layer, not the complete reference layout. Combat telegraphs, enemy vitality, ability controls, a minimap/compass, and local ally orders are not implemented by this change.
 
+## Player animation
+
+The spatial renderer uses a small renderer-independent animation player. The player sprite sheet contract is a row-major 5×4 grid of 16×24 frames (80×96 total): north, east, south, and west rows; one idle frame followed by four looping walk frames. Clip definitions keep the first frame, frame count, frame duration, and looping behavior together outside the Bevy renderer. The default walk frame duration is 0.12 seconds at full movement input; lower movement input slows playback without changing the authoritative movement speed or collision rules. Playback accumulates frame delta, not update count. The four rows represent screen-facing directions in the three-quarter view. Blocked movement can update facing but does not play a walk cycle, and stopping returns to the same direction's idle frame.
+
+The sheet uses the mod-aware asset resolver. Until `spatial/player_oathbound_animated.png` contains a valid 80×96 PNG, the renderer keeps using `spatial/player_oathbound.png`; the committed animation file is intentionally zero bytes and is treated as unavailable artwork, so the static fallback remains active.
+
 ## Camera behavior
 
 The camera uses a viewport-scaled dead zone: ordinary small player movements do not move the camera, while crossing the dead-zone edge shifts the target by only the excess distance. Exponential smoothing keeps the follow response consistent across frame rates. The resulting camera position is clamped after smoothing as well as at the target, so a stale/out-of-bounds camera position cannot temporarily expose space beyond the projected map after a map or viewport change. Maps smaller than the viewport are centered.

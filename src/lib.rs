@@ -35,6 +35,7 @@ pub mod procedural_opportunities;
 pub mod procedural_relationships;
 pub mod rng;
 pub mod spatial;
+mod spatial_animation;
 mod spatial_fixtures;
 mod ui_settings;
 

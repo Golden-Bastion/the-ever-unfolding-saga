@@ -28,6 +28,11 @@ use crate::spatial::{
     generate_local_map_with_layout, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
     MapExit, SpatialDiscoveryDefinition, SpatialEntityKind, SpatialPropKind, Terrain,
 };
+use crate::spatial_animation::{
+    PlayerAnimation, PLAYER_ANIMATION_COLUMNS, PLAYER_ANIMATION_FRAME_HEIGHT,
+    PLAYER_ANIMATION_FRAME_WIDTH, PLAYER_ANIMATION_ROWS, PLAYER_ANIMATION_SHEET_HEIGHT,
+    PLAYER_ANIMATION_SHEET_REFERENCE, PLAYER_ANIMATION_SHEET_WIDTH,
+};
 
 const TILE_HALF_WIDTH: f32 = 24.0;
 const TILE_HALF_HEIGHT: f32 = 12.0;
@@ -143,6 +148,8 @@ struct SpatialRenderAssets {
     npc_image: Option<Handle<Image>>,
     corpse_image: Option<Handle<Image>>,
     prop_images: [Option<Handle<Image>>; 2],
+    player_animation_image: Option<Handle<Image>>,
+    player_animation_layout: Option<Handle<TextureAtlasLayout>>,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -164,6 +171,7 @@ pub(crate) struct SpatialExplorationState {
     sandbox_actor_entities: Vec<(EntityId, SpatialEntityKind)>,
     sandbox_mode: bool,
     dirty: bool,
+    player_animation: PlayerAnimation,
 }
 
 pub(crate) fn sandbox_map(state: &SpatialExplorationState) -> Option<&LocalMap> {
@@ -393,7 +401,11 @@ fn sync_map_interactable_placements(map: &mut LocalMap, game: &GameState, locati
     ensure_spatial_entity_placements(map, &entities);
 }
 
-fn setup_spatial_render_assets(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+fn setup_spatial_render_assets(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+) {
     let tile_images = [
         load_spatial_image(&mut images, "spatial/terrain_floor.png"),
         load_spatial_image(&mut images, "spatial/terrain_ash.png"),
@@ -404,7 +416,33 @@ fn setup_spatial_render_assets(mut commands: Commands, mut images: ResMut<Assets
         load_spatial_image(&mut images, "spatial/wall_face_left.png"),
         load_spatial_image(&mut images, "spatial/wall_face_right.png"),
     ];
-    let player_image = load_spatial_image(&mut images, "spatial/player_ash_warden.png");
+    let player_image = load_spatial_image(&mut images, "spatial/player_oathbound.png");
+    let player_animation_image =
+        load_spatial_image(&mut images, PLAYER_ANIMATION_SHEET_REFERENCE).and_then(|image| {
+            let valid = images.get(&image).is_some_and(|image| {
+                image.texture_descriptor.size.width == PLAYER_ANIMATION_SHEET_WIDTH
+                    && image.texture_descriptor.size.height == PLAYER_ANIMATION_SHEET_HEIGHT
+            });
+            if valid {
+                Some(image)
+            } else {
+                warn!(
+                    "Spatial player animation sheet must be {}x{} pixels; using the static player sprite instead",
+                    PLAYER_ANIMATION_SHEET_WIDTH,
+                    PLAYER_ANIMATION_SHEET_HEIGHT
+                );
+                None
+            }
+        });
+    let player_animation_layout = player_animation_image.as_ref().map(|_| {
+        atlas_layouts.add(TextureAtlasLayout::from_grid(
+            UVec2::new(PLAYER_ANIMATION_FRAME_WIDTH, PLAYER_ANIMATION_FRAME_HEIGHT),
+            PLAYER_ANIMATION_COLUMNS,
+            PLAYER_ANIMATION_ROWS,
+            None,
+            None,
+        ))
+    });
     let passage_image = load_spatial_image(&mut images, "spatial/passage.png");
     let poi_image = load_spatial_image(&mut images, "icons/ui/investigate.png");
     let npc_image = load_spatial_image(&mut images, "icons/ui/character.png");
@@ -423,6 +461,8 @@ fn setup_spatial_render_assets(mut commands: Commands, mut images: ResMut<Assets
         npc_image,
         corpse_image,
         prop_images,
+        player_animation_image,
+        player_animation_layout,
     });
 }
 
@@ -453,6 +493,7 @@ fn spatial_input(
         || navigation.current_screen != Some(ScreenId::SpatialExploration)
         || crate::bevy_interactions::spatial_overlay_open(&interaction_state)
     {
+        state.player_animation.stop();
         return;
     }
 
@@ -479,6 +520,7 @@ fn spatial_input(
     }
 
     if state.interaction_wheel.is_some() {
+        state.player_animation.stop();
         if keyboard.just_pressed(KeyCode::ArrowUp) || keyboard.just_pressed(KeyCode::KeyW) {
             move_interaction_wheel_selection(&mut state, Vec2::Y);
         }
@@ -523,12 +565,19 @@ fn spatial_input(
                 return;
             };
             let world_direction = screen_direction_to_world(direction);
+            let previous_position = state.position;
             let next = advance_position(
                 map,
-                state.position,
+                previous_position,
                 world_direction,
                 time.delta_secs(),
                 PLAYER_SPEED * input_strength,
+            );
+            state.player_animation.set_motion(
+                direction.x,
+                direction.y,
+                next.distance_squared(previous_position) > 0.000_001,
+                input_strength,
             );
             state.position = next;
             if let Some(session) = state.session.as_mut() {
@@ -545,6 +594,8 @@ fn spatial_input(
                 ));
                 state.dirty = true;
             }
+        } else {
+            state.player_animation.stop();
         }
 
         if !state.sandbox_mode && keyboard.just_pressed(KeyCode::KeyE) {
@@ -1028,11 +1079,11 @@ fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut Navigation
 fn update_spatial_world(
     mut commands: Commands,
     time: Res<Time>,
-    state: Res<SpatialExplorationState>,
+    mut state: ResMut<SpatialExplorationState>,
     navigation: Res<NavigationState>,
     assets: Res<SpatialRenderAssets>,
     mut camera: Query<(&mut Transform, &Camera), (With<Camera2d>, Without<SpatialPlayer>)>,
-    mut player: Query<&mut Transform, With<SpatialPlayer>>,
+    mut player: Query<(&mut Transform, &mut Sprite), With<SpatialPlayer>>,
     mut tiles: Query<(&SpatialTile, &mut Sprite), Without<SpatialWallSide>>,
     mut wall_sides: Query<(&SpatialWallSide, &mut Sprite), Without<SpatialTile>>,
     world_entities: Query<Entity, With<SpatialWorldEntity>>,
@@ -1043,10 +1094,15 @@ fn update_spatial_world(
         }
         return;
     }
-    let Some(session) = state.session.as_ref() else {
+    let Some(location_id) = state
+        .session
+        .as_ref()
+        .map(|session| session.location_id.clone())
+    else {
         return;
     };
-    let Some(map) = state.maps.get(&session.location_id) else {
+    let player_frame = state.player_animation.advance(time.delta_secs());
+    let Some(map) = state.maps.get(&location_id) else {
         return;
     };
     let position = session_position(&state);
@@ -1067,10 +1123,13 @@ fn update_spatial_world(
             terrain_tint(false)
         };
     }
-    for mut transform in &mut player {
+    for (mut transform, mut sprite) in &mut player {
         transform.translation.x = target.x;
         transform.translation.y = target.y + PLAYER_SPRITE_HEIGHT * 0.5;
         transform.translation.z = depth_for_position(position) + PLAYER_DEPTH_OFFSET;
+        if let Some(atlas) = sprite.texture_atlas.as_mut() {
+            atlas.index = player_frame;
+        }
     }
     for (mut transform, camera_component) in &mut camera {
         let viewport = camera_component
@@ -1321,15 +1380,32 @@ fn render_spatial_screen(
 
     let player_ground_position = session_position(&state);
     let player_position = map_to_world(player_ground_position, Some(map));
-    if let Some(image) = assets.player_image.clone() {
+    let player_sprite = match (
+        assets.player_animation_image.clone(),
+        assets.player_animation_layout.clone(),
+    ) {
+        (Some(image), Some(layout)) => {
+            let mut sprite = Sprite::from_atlas_image(
+                image,
+                TextureAtlas {
+                    layout,
+                    index: state.player_animation.frame_index(),
+                },
+            );
+            sprite.custom_size = Some(Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT));
+            Some(sprite)
+        }
+        _ => assets.player_image.clone().map(|image| {
+            let mut sprite = Sprite::from_image(image);
+            sprite.custom_size = Some(Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT));
+            sprite
+        }),
+    };
+    if let Some(sprite) = player_sprite {
         commands.spawn((
             SpatialWorldEntity,
             SpatialPlayer,
-            Sprite {
-                image,
-                custom_size: Some(Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT)),
-                ..default()
-            },
+            sprite,
             Transform::from_xyz(
                 player_position.x,
                 player_position.y + PLAYER_SPRITE_HEIGHT * 0.5,

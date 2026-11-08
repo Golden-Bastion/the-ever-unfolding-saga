@@ -783,3 +783,13 @@ src/
 - Added regression tests for 30/60 FPS camera consistency, post-smoothing camera bounds, movement recovery after a short frame drop, and collision during a slow frame.
 - Recorded the staged spatial-first gameplay direction in #421. The existing Gameplay dashboard remains until its gameplay and system functions have validated replacements in the spatial experience.
 - Bumped the project version to 0.52.23.
+
+
+### v0.52.24: Directional player animation foundation
+- Added a renderer-independent animation player with configurable idle/walk clip definitions, frame durations, looping behavior, retained facing, and frame-delta-based playback.
+- Defined the player sprite sheet as a row-major 5×4 atlas of 16×24 frames: north, east, south, and west rows, each with one idle frame followed by four looping walk frames.
+- Integrated four-way screen-facing selection and movement-speed-scaled idle/walk playback into spatial exploration without changing movement, collision, or world-state rules. Blocked movement may change facing but remains idle.
+- Added mod-aware sheet loading and exact atlas-dimension validation; missing, empty, or invalid art falls back to the existing static player sprite.
+- Added the intentionally empty `data/assets/spatial/player_oathbound_animated.png` placeholder and documented its stable path and frame layout. Visible directional artwork and desktop/Android visual verification remain outstanding.
+- Added focused unit coverage for direction selection, frame order, configurable clips, looping, speed scaling, stopping/facing retention, frame-rate independence, and invalid deltas.
+- Bumped the project version to 0.52.24.
