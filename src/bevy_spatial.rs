@@ -1735,22 +1735,6 @@ fn interaction_wheel_scale(wheel: &SpatialInteractionWheel) -> f32 {
     }
 }
 
-fn interaction_wheel_index_for_direction(count: usize, direction: Vec2) -> Option<usize> {
-    if count == 0 || direction.length_squared() <= f32::EPSILON {
-        return None;
-    }
-    let direction = direction.normalize();
-    (0..count).max_by(|left, right| {
-        let angle_for = |index: usize| {
-            std::f32::consts::FRAC_PI_2 - std::f32::consts::TAU * index as f32 / count as f32
-        };
-        let left_score = Vec2::new(angle_for(*left).cos(), angle_for(*left).sin()).dot(direction);
-        let right_score =
-            Vec2::new(angle_for(*right).cos(), angle_for(*right).sin()).dot(direction);
-        left_score.total_cmp(&right_score)
-    })
-}
-
 fn spawn_control(
     commands: &mut Commands,
     parent: Entity,
