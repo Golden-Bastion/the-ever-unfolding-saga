@@ -8,6 +8,12 @@ The roadmap tracks current and upcoming development. Detailed completed mileston
 
 The v0.52.0–v0.52.6 storage, mod-management, and character-focused interface work is complete and recorded in the roadmap history. Spatial exploration and interaction are now the active development line. PR #404 implements persistent spatial actors, contextual action/target resolution, and the modular portrait catalogue. Its implementation commit passed automated checks, but desktop and Android landscape playtesting remains outstanding. The player-anchored radial interaction wheel adapts to landscape viewport dimensions, adds a second ring for crowded targets, and animates selected-entry feedback. Shared scene transitions and the dedicated close-up dialogue presentation from #405 have been manually play-tested by the project owner. The player now configures a persistent portrait during new-character creation, while NPC portraits retain deterministic weighted generation; the spatial interaction control identifies its nearby target before opening that target's action list.
 
+## Spatial-first gameplay direction
+
+The current Gameplay dashboard is a transitional hub, not the intended permanent gameplay surface. Issue #421 tracks the migration of its useful functions—world context, travel, Explore/Investigate, meditation, character records, and system/menu access—into discoverable spatial HUD controls, contextual interactions, overlays, and focused record screens. The dashboard must remain available until those functions have replacements that work on desktop and Android landscape. The spatial scene should remain the primary context when opening and closing ordinary overlays where appropriate; safe-location activities must remain convenient rather than requiring unnecessary movement.
+
+The first foundation refinement makes movement collision checks resilient to brief frame drops and makes camera smoothing frame-rate independent while enforcing map bounds after smoothing. This is an incremental foundation pass, not a claim that the spatial-first migration is complete.
+
 ## Developer tools
 
 **v0.52.21 — Developer tools: World Lab authoring completion (#413)**
@@ -28,7 +34,7 @@ PR #404 extends Explore to safe and dangerous locations and removes detached Tal
 
 Manual desktop and Android landscape playtesting remains required before #404 is complete. The #405 interaction presentation includes the animated radial wheel with responsive crowded-target layout and eased selection feedback, reusable scene-root transitions, and the close-up two-character dialogue scene with composited portrait layers. The project owner has manually play-tested this work and confirmed it behaves as intended; the player-portrait and target-first prompt refinements complete the remaining #405 feedback. The first authored spatial-discovery slice now covers Old Shrine with the Black Altar and Fresh Soot points of interest. Physical passages now invoke the existing graph-travel rules and transition directly into connected destination maps without leaving spatial mode. The current map and character session are persisted before travel; destination maps are restored from world state or generated lazily on first arrival. Frontier-region creation, known-route fast travel, expanded room topology, additional authored layouts, and room-aware camera transitions remain future work under #365. Richer multi-step clue chains, evidence collection, investigation outcomes, and dynamic encounter integration also remain future work.
 
-Keep the existing world model, quests, time, narrative, and location-level actions authoritative. Spatial exploration supplements rather than replaces them. Real-time spatial combat and audio remain outside this milestone.
+Keep the existing world model, quests, time, narrative, and location-level actions authoritative. Spatial exploration should progressively become the primary gameplay shell without replacing those systems; see #421 for the staged dashboard migration. Real-time spatial combat and audio remain outside this milestone.
 
 Related design issues: #228, #229, and #252.
 
