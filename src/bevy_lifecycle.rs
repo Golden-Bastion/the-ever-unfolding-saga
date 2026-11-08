@@ -884,14 +884,14 @@ const BEGIN_LIFE_ICON: &str = "new-game";
 const START_ACTIONS_WITH_LOAD: &[(&str, &str)] = &[
     ("new-game", "New Game"),
     ("load-game", "Load Game"),
-    ("terminal", "Developer Tools"),
+    ("menu", "Developer Tools"),
     ("options", "Options"),
     ("quit", "Quit"),
 ];
 
 const START_ACTIONS_WITHOUT_LOAD: &[(&str, &str)] = &[
     ("new-game", "New Game"),
-    ("terminal", "Developer Tools"),
+    ("menu", "Developer Tools"),
     ("options", "Options"),
     ("quit", "Quit"),
 ];
