@@ -64,6 +64,15 @@ pub struct PointOfInterest {
     pub interacted: bool,
 }
 
+/// Campaign-authored discovery data used when a new local map is first created.
+/// Existing saved maps retain their already-generated points of interest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpatialDiscoveryDefinition {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TerrainChange {
     pub position: GridPosition,
@@ -483,6 +492,92 @@ fn reachable_walkable_tiles(map: &LocalMap) -> HashSet<GridPosition> {
         }
     }
     reachable
+}
+
+
+/// Replace the prototype discovery with campaign-authored discoveries on a
+/// newly generated map. Positions are selected deterministically from reachable
+/// walkable cells and avoid the entry, exits, props, and existing actors.
+/// Empty definitions leave the legacy fallback intact for older/base content.
+pub fn apply_authored_spatial_discoveries(
+    map: &mut LocalMap,
+    definitions: &[SpatialDiscoveryDefinition],
+) -> usize {
+    if definitions.is_empty() {
+        return 0;
+    }
+
+    let fallback_id = format!("{}.poi.initial_discovery", map.location_id);
+    let fallback = map
+        .points_of_interest
+        .iter()
+        .find(|poi| poi.id == fallback_id)
+        .cloned();
+    map.points_of_interest.retain(|poi| poi.id != fallback_id);
+
+    let mut candidates = reachable_walkable_tiles(map)
+        .into_iter()
+        .filter(|position| *position != map.entry)
+        .filter(|position| {
+            position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 5
+        })
+        .filter(|position| {
+            !map.exits.iter().any(|exit| exit.position == *position)
+                && !map
+                    .interactables
+                    .iter()
+                    .any(|actor| actor.position == *position)
+                && !map
+                    .points_of_interest
+                    .iter()
+                    .any(|poi| poi.position == *position)
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|position| (position.y, position.x));
+
+    let mut rng = DeterministicRng::new(map.seed ^ 0xA076_1D64_78BD_642F);
+    let mut placed_positions = Vec::new();
+
+    for definition in definitions {
+        if candidates.is_empty() {
+            break;
+        }
+
+        let spaced_candidates = candidates
+            .iter()
+            .enumerate()
+            .filter(|(_, candidate)| {
+                placed_positions.iter().all(|placed: &GridPosition| {
+                    candidate.x.abs_diff(placed.x) + candidate.y.abs_diff(placed.y) >= 3
+                })
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        let eligible = if spaced_candidates.is_empty() {
+            (0..candidates.len()).collect::<Vec<_>>()
+        } else {
+            spaced_candidates
+        };
+        let selected = eligible[rng.gen_range(0..eligible.len())];
+        let position = candidates.swap_remove(selected);
+        placed_positions.push(position);
+        map.points_of_interest.push(PointOfInterest {
+            id: definition.id.clone(),
+            position,
+            title: definition.title.clone(),
+            description: definition.description.clone(),
+            discovered: false,
+            interacted: false,
+        });
+    }
+
+    if placed_positions.is_empty() {
+        if let Some(fallback) = fallback {
+            map.points_of_interest.push(fallback);
+        }
+    }
+
+    placed_positions.len()
 }
 
 /// Add missing NPC/corpse placements without moving any placement already
