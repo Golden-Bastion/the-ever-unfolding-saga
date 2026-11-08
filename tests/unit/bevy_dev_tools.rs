@@ -22,7 +22,10 @@ fn slot_catalogue_groups_parts_and_keeps_a_stable_order() {
     ]);
 
     assert_eq!(
-        slots.iter().map(|slot| slot.name.as_str()).collect::<Vec<_>>(),
+        slots
+            .iter()
+            .map(|slot| slot.name.as_str())
+            .collect::<Vec<_>>(),
         vec!["face", "hair"]
     );
     assert_eq!(
@@ -45,14 +48,22 @@ fn preview_uses_visible_selected_parts_in_draw_order() {
 
     let portrait = build_preview_portrait(&slots);
     assert_eq!(
-        portrait.layers.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
+        portrait
+            .layers
+            .iter()
+            .map(|layer| layer.id.as_str())
+            .collect::<Vec<_>>(),
         vec!["face", "hair", "body"]
     );
 
     slots[0].visible = false;
     let portrait = build_preview_portrait(&slots);
     assert_eq!(
-        portrait.layers.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
+        portrait
+            .layers
+            .iter()
+            .map(|layer| layer.id.as_str())
+            .collect::<Vec<_>>(),
         vec!["hair", "body"]
     );
 }

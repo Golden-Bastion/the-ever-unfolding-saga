@@ -178,7 +178,10 @@ fn reset_combination(state: &mut DeveloperToolsState) {
 }
 
 fn is_developer_tool_screen(screen: ScreenId) -> bool {
-    matches!(screen, ScreenId::DeveloperTools | ScreenId::CharacterWorkshop)
+    matches!(
+        screen,
+        ScreenId::DeveloperTools | ScreenId::CharacterWorkshop
+    )
 }
 
 fn screen_action_count(screen: ScreenId) -> usize {
@@ -223,8 +226,7 @@ fn developer_tools_input(
                 state.dirty = true;
             }
             InputEvent::Down => {
-                navigation.selected =
-                    (navigation.selected + 1).min(count.saturating_sub(1));
+                navigation.selected = (navigation.selected + 1).min(count.saturating_sub(1));
                 state.dirty = true;
             }
             InputEvent::Home => {
@@ -298,13 +300,8 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
         "Visual development workspaces. No campaign or save is required.",
     );
 
-    let workshop = bevy_presentation::spawn_action_button(
-        commands,
-        panel,
-        0,
-        "user",
-        "Character Workshop",
-    );
+    let workshop =
+        bevy_presentation::spawn_action_button(commands, panel, 0, "user", "Character Workshop");
     if navigation.selected == 0 {
         commands
             .entity(workshop)
@@ -319,9 +316,7 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
 
     let back = bevy_presentation::spawn_action_button(commands, panel, 1, "arrow-left", "Back");
     if navigation.selected == 1 {
-        commands
-            .entity(back)
-            .insert(bevy_presentation::UiSelected);
+        commands.entity(back).insert(bevy_presentation::UiSelected);
     }
 }
 
@@ -462,7 +457,11 @@ fn render_character_workshop(
         );
         bevy_presentation::spawn_label(commands, controls, "AVAILABLE PARTS");
         for (index, part) in slot.parts.iter().enumerate() {
-            let marker = if index == slot.selected_part { ">" } else { " " };
+            let marker = if index == slot.selected_part {
+                ">"
+            } else {
+                " "
+            };
             bevy_presentation::spawn_muted_label(
                 commands,
                 controls,
@@ -556,13 +555,9 @@ fn render_if_active(
     }
     match screen {
         ScreenId::DeveloperTools => render_hub(&mut commands, &navigation),
-        ScreenId::CharacterWorkshop => render_character_workshop(
-            &mut commands,
-            &navigation,
-            &state,
-            &mut images,
-            &mut cache,
-        ),
+        ScreenId::CharacterWorkshop => {
+            render_character_workshop(&mut commands, &navigation, &state, &mut images, &mut cache)
+        }
         _ => {}
     }
     state.rendered_screen = Some(screen);
