@@ -21,7 +21,13 @@ fn saved_fixture_round_trips_the_complete_local_map() {
     let mut map = generate_local_map(31, "developer.world_lab", LocalMapConfig::default());
     let free = (1..map.height - 1)
         .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
-        .find(|position| map.is_walkable(*position) && *position != map.entry)
+        .find(|position| {
+            map.is_walkable(*position)
+                && *position != map.entry
+                && !map.points_of_interest.iter().any(|poi| poi.position == *position)
+                && !map.exits.iter().any(|exit| exit.position == *position)
+                && !map.interactables.iter().any(|actor| actor.position == *position)
+        })
         .expect("generated map should have a free tile");
     assert!(map.set_terrain_for_editor(free, Terrain::Ash));
     let prop_position = (1..map.height - 1)
