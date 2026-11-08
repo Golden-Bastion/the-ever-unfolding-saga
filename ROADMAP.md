@@ -10,7 +10,7 @@ The v0.52.0–v0.52.6 storage, mod-management, and character-focused interface w
 
 ## Developer tools (in progress)
 
-**v0.53.0 — Developer tools foundation (#413)**
+**v0.52.16 — Developer tools foundation (#413)**
 
 The start screen now exposes a Developer Tools hub without requiring a campaign or save. Its first usable tool, Character Workshop, manually assembles the currently loaded modular portrait parts, previews them through the same layered portrait compositor and mod-aware PNG loader used by dialogue, and supports per-slot selection, visibility toggles, deterministic randomization, reset, and diagnostics. This is an initial portrait-workshop slice, not a full-body character editor. World Lab, temporary spatial-map sessions, in-world editing, and exportable test fixtures remain planned under #413.
 
