@@ -1,6 +1,9 @@
 use super::*;
 
-use crate::spatial::{generate_local_map, LocalMapConfig, SpatialPropKind};
+use crate::spatial::{
+    generate_local_map, LocalMapConfig, MapExit, SpatialEntityKind, SpatialEntityPlacement,
+    SpatialPropKind,
+};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
