@@ -760,3 +760,11 @@ src/
 - Added focused coverage for actor placement, interaction discovery, portrait determinism and compatibility, mod catalogue overrides, and the bundled assets. Formatting, Clippy, all 183 unit tests, REUSE lint, and third-party license checks passed on implementation commit `46cdd86`.
 - Manual desktop and Android landscape playtesting remains required before #404 is complete. The radial interaction wheel, reusable scene transitions, and close-up dialogue scene are follow-up work in #405.
 
+### v0.52.21: World Lab passage and actor authoring completion (#413, PR #419)
+- Completed the initial Developer Tools milestone with a standalone Developer Tools hub and a portrait-focused Character Workshop using the same modular portrait compositor and mod-aware asset loader as dialogue.
+- Added World Lab passage placement, repositioning, and removal against real destinations in a deterministic disposable world graph; edits keep reciprocal location exits synchronized.
+- Added actor placement, repositioning, and removal using actual generated NPC and searchable-remains identities, with sandbox-owned identity validation in the production spatial renderer.
+- Extended fixture persistence and restoration for passage and actor references, reconstructing the deterministic world graph and actor catalogue from the fixture seed; validation rejects duplicate destinations and invalid or duplicate actor identities.
+- Kept World Lab isolated from campaign state and saves, and preserved the existing production movement, collision, rendering, and interaction paths for playtesting.
+- Added focused model, editor, renderer-integration, and fixture regression tests. Formatting, Clippy, all 230 unit tests, REUSE lint, and third-party license checks passed on PR #419's validated commit.
+- Full-body character authoring remains future work until the required full-body visual assets and renderer support exist; it is not a prerequisite for this milestone.
