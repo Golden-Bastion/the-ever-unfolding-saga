@@ -10,7 +10,7 @@ fn sheet_contract_matches_four_rows_of_idle_and_walk_frames() {
     assert_eq!(PLAYER_ANIMATION_SHEET_HEIGHT, 96);
     assert_eq!(
         PLAYER_ANIMATION_SHEET_WIDTH,
-        PLAYER_ANIMATION_FRAME_WIDTH * PLAYER_ANIMATION_COLUMNS as u32
+        PLAYER_ANIMATION_FRAME_WIDTH * PLAYER_ANIMATION_COLUMNS
     );
     assert_eq!(
         PLAYER_ANIMATION_SHEET_HEIGHT,

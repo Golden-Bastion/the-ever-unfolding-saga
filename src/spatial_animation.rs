@@ -6,8 +6,8 @@
 
 pub(crate) const PLAYER_ANIMATION_FRAME_WIDTH: u32 = 16;
 pub(crate) const PLAYER_ANIMATION_FRAME_HEIGHT: u32 = 24;
-pub(crate) const PLAYER_ANIMATION_COLUMNS: usize = 5;
-pub(crate) const PLAYER_ANIMATION_ROWS: usize = 4;
+pub(crate) const PLAYER_ANIMATION_COLUMNS: u32 = 5;
+pub(crate) const PLAYER_ANIMATION_ROWS: u32 = 4;
 pub(crate) const PLAYER_ANIMATION_SHEET_WIDTH: u32 = 80;
 pub(crate) const PLAYER_ANIMATION_SHEET_HEIGHT: u32 = 96;
 pub(crate) const PLAYER_ANIMATION_SHEET_REFERENCE: &str =
@@ -43,8 +43,8 @@ impl AnimationClip {
     }
 
     fn normalized(self) -> Self {
-        let first_frame = self.first_frame.min(PLAYER_ANIMATION_COLUMNS - 1);
-        let available_frames = PLAYER_ANIMATION_COLUMNS - first_frame;
+        let first_frame = self.first_frame.min(PLAYER_ANIMATION_COLUMNS as usize - 1);
+        let available_frames = PLAYER_ANIMATION_COLUMNS as usize - first_frame;
         let frame_count = self.frame_count.clamp(1, available_frames);
         let frame_duration_seconds = if self.frame_duration_seconds.is_finite()
             && self.frame_duration_seconds > 0.0
@@ -228,7 +228,7 @@ impl PlayerAnimation {
             elapsed_frames.min(clip.frame_count - 1)
         };
 
-        self.facing.atlas_row() * PLAYER_ANIMATION_COLUMNS + clip.first_frame + clip_frame
+        self.facing.atlas_row() * PLAYER_ANIMATION_COLUMNS as usize + clip.first_frame + clip_frame
     }
 
     #[cfg(test)]
