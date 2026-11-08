@@ -28,7 +28,6 @@ fn meditation_does_not_allow_a_zero_time_advance() {
     assert_eq!(((dusk + 12 - current) % 12).max(1), 1);
 }
 
-
 #[test]
 fn travel_requires_reciprocal_world_graph_connections() {
     let mut game = crate::model::create_new_state(
