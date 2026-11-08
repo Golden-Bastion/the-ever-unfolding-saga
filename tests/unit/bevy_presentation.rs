@@ -261,3 +261,12 @@ fn lifecycle_text_fields_do_not_request_automatic_input_focus() {
     assert!(world.get::<LifecycleTextField>(field).is_some());
     assert!(world.get::<bevy::input_focus::AutoFocus>(field).is_none());
 }
+
+#[test]
+fn presentation_transition_scale_is_smooth_and_bounded() {
+    assert!((presentation_transition_scale(0.96, 1.0, 0.0) - 0.96).abs() < 0.001);
+    assert!((presentation_transition_scale(0.96, 1.0, 0.5) - 0.98).abs() < 0.001);
+    assert!((presentation_transition_scale(0.96, 1.0, 1.0) - 1.0).abs() < 0.001);
+    assert_eq!(presentation_transition_scale(0.96, 1.0, -1.0), 0.96);
+    assert_eq!(presentation_transition_scale(0.96, 1.0, 2.0), 1.0);
+}
