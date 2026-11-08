@@ -142,7 +142,9 @@ pub(crate) fn discover_available_interactions(
     }
 
     for exit in &map.exits {
-        if !map_exit_interaction_available(map, position, exit) {
+        if !crate::game::actions::has_reciprocal_location_connection(game, exit.target_location_id)
+            || !map_exit_interaction_available(map, position, exit)
+        {
             continue;
         }
         let label = game

@@ -494,24 +494,32 @@ fn activate_selection(
             if let Some(destination) = view.destinations.get(gameplay.selected) {
                 let old_turn = session.state.character.turn;
                 let target_id = destination.id;
-                if actions::travel_to(&mut session.state, target_id).is_ok() {
-                    let message = session
-                        .state
-                        .world
-                        .history
-                        .iter()
-                        .rev()
-                        .find(|entry| entry.turn > old_turn)
-                        .map(|entry| entry.outcome.clone().unwrap_or_else(|| entry.text.clone()));
-                    if !session.state.character.alive {
-                        lifecycle.phase = LifecyclePhase::Death;
-                        lifecycle.selected = 0;
-                        lifecycle.mark_dirty();
+                match actions::travel_to(&mut session.state, target_id) {
+                    Ok(()) => {
+                        let message = session
+                            .state
+                            .world
+                            .history
+                            .iter()
+                            .rev()
+                            .find(|entry| entry.turn > old_turn)
+                            .map(|entry| {
+                                entry.outcome.clone().unwrap_or_else(|| entry.text.clone())
+                            });
+                        if !session.state.character.alive {
+                            lifecycle.phase = LifecyclePhase::Death;
+                            lifecycle.selected = 0;
+                            lifecycle.mark_dirty();
+                        }
+                        gameplay.screen = GameplayScreen::Dashboard;
+                        gameplay.selected = 0;
+                        gameplay.message = message;
+                        gameplay.dirty = true;
                     }
-                    gameplay.screen = GameplayScreen::Dashboard;
-                    gameplay.selected = 0;
-                    gameplay.message = message;
-                    gameplay.dirty = true;
+                    Err(_) => {
+                        gameplay.message = Some("That route is no longer available.".to_string());
+                        gameplay.dirty = true;
+                    }
                 }
             }
         }

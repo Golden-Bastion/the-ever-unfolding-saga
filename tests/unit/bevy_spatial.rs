@@ -279,6 +279,25 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
         "Wanderer".into(),
     );
     let location_id = game.character.location_id;
+    let source_location = game.world.location_by_id(location_id).unwrap().clone();
+    let destination_id = game.world.allocate_id();
+    game.world.locations.push(crate::model::Location {
+        id: destination_id,
+        name: "Passage Destination".into(),
+        description: "A connected place.".into(),
+        region_id: source_location.region_id,
+        dangerous: false,
+        corpse_ids: Vec::new(),
+        exits: vec![location_id],
+        spatial_layout: None,
+    });
+    game.world
+        .location_by_id_mut(location_id)
+        .unwrap()
+        .exits
+        .push(destination_id);
+    map.exits[0].target_location_id = destination_id;
+
     game.npcs.push(crate::model::Npc::new(
         70,
         "Mira",
@@ -345,7 +364,7 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
         item.target
             == InteractionTarget::Passage {
                 id: "exit.test".into(),
-                destination_id: 999,
+                destination_id,
             }
     }));
     for (index, item) in items.iter().enumerate() {
@@ -615,4 +634,350 @@ fn points_of_interest_reveal_when_their_tiles_enter_the_explored_area() {
     assert!(map.point_of_interest("poi.near").unwrap().discovered);
     assert!(!map.point_of_interest("poi.far").unwrap().discovered);
     assert!(map_mark_discovered(&mut state, position).is_empty());
+}
+
+fn connected_spatial_fixture() -> (
+    LifecycleState,
+    SpatialExplorationState,
+    NavigationState,
+    EntityId,
+    String,
+) {
+    let mut game = crate::model::create_new_state(
+        "Passage Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let source_location_id = game.character.location_id;
+    let source_location = game
+        .world
+        .location_by_id(source_location_id)
+        .expect("starting location should exist")
+        .clone();
+    let destination_id = game.world.allocate_id();
+    game.world.locations.push(crate::model::Location {
+        id: destination_id,
+        name: "Connected Clearing".into(),
+        description: "A quiet place beyond the passage.".into(),
+        region_id: source_location.region_id,
+        dangerous: false,
+        corpse_ids: Vec::new(),
+        exits: vec![source_location_id],
+        spatial_layout: None,
+    });
+    game.world
+        .location_by_id_mut(source_location_id)
+        .expect("starting location should still exist")
+        .exits
+        .push(destination_id);
+    if let Some(region) = game
+        .world
+        .regions
+        .iter_mut()
+        .find(|region| region.id == source_location.region_id)
+    {
+        region.location_ids.push(destination_id);
+    }
+
+    let destination_key = format!("location.{destination_id}");
+    let mut destination_map = generate_local_map(91, destination_key, LocalMapConfig::default());
+    destination_map.set_terrain(destination_map.entry, Terrain::Rubble);
+    destination_map
+        .points_of_interest
+        .push(crate::spatial::PointOfInterest {
+            id: "poi.destination.persisted".into(),
+            position: destination_map.entry,
+            title: "Old Waystone".into(),
+            description: "A waystone left by an earlier traveller.".into(),
+            discovered: true,
+            interacted: false,
+        });
+    game.world.local_maps.push(destination_map);
+
+    let mut lifecycle = LifecycleState::default();
+    lifecycle.phase = LifecyclePhase::Complete;
+    lifecycle.session = Some(crate::bevy_lifecycle::GameSession {
+        state: game,
+        save_path: std::path::PathBuf::new(),
+    });
+    let mut spatial = SpatialExplorationState::default();
+    let mut navigation = NavigationState::default();
+    enter(
+        &mut spatial,
+        &lifecycle
+            .session
+            .as_ref()
+            .expect("game session should exist")
+            .state,
+        &mut navigation,
+    );
+    (
+        lifecycle,
+        spatial,
+        navigation,
+        destination_id,
+        format!("location.{source_location_id}"),
+    )
+}
+
+#[test]
+fn physical_passage_travel_keeps_spatial_mode_and_restores_destination_map() {
+    let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
+        connected_spatial_fixture();
+    let exit = spatial
+        .maps
+        .get(&source_key)
+        .expect("source map should be loaded")
+        .exits
+        .iter()
+        .find(|exit| exit.target_location_id == destination_id)
+        .expect("source map should contain the connected passage")
+        .clone();
+    let source_entry = spatial.maps[&source_key].entry;
+    spatial
+        .maps
+        .get_mut(&source_key)
+        .unwrap()
+        .set_terrain(source_entry, Terrain::Rubble);
+    spatial.position = Vec2::new(
+        f32::from(exit.position.x) + 0.5,
+        f32::from(exit.position.y) + 0.5,
+    );
+    spatial.session.as_mut().unwrap().position = exit.position;
+    let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
+
+    use_map_exit(
+        &mut spatial,
+        &mut lifecycle,
+        &mut navigation,
+        &exit.id,
+        destination_id,
+    );
+
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    let destination_key = format!("location.{destination_id}");
+    assert_eq!(game.character.location_id, destination_id);
+    assert_eq!(game.character.turn, before_turn + 1);
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert_eq!(
+        spatial.session.as_ref().unwrap().location_id,
+        destination_key
+    );
+    assert_eq!(
+        spatial.position,
+        Vec2::new(
+            f32::from(spatial.maps[&destination_key].entry.x) + 0.5,
+            f32::from(spatial.maps[&destination_key].entry.y) + 0.5,
+        )
+    );
+    assert!(spatial.maps[&destination_key]
+        .point_of_interest("poi.destination.persisted")
+        .is_some_and(|poi| poi.discovered));
+    assert!(game.world.local_maps.iter().any(|map| {
+        map.location_id == source_key && map.terrain_at(source_entry) == Some(Terrain::Rubble)
+    }));
+    assert!(game.world.local_maps.iter().any(|map| {
+        map.location_id == destination_key
+            && map
+                .point_of_interest("poi.destination.persisted")
+                .is_some_and(|poi| poi.discovered)
+    }));
+    let character_session = game.character.exploration_session.as_ref().unwrap();
+    assert_eq!(character_session.location_id, destination_key);
+    assert_eq!(
+        game.character.exploration_position,
+        Some(ExplorationPosition {
+            x: spatial.position.x,
+            y: spatial.position.y,
+        })
+    );
+    assert!(spatial
+        .message
+        .as_deref()
+        .is_some_and(|message| message.contains("Connected Clearing")));
+}
+
+#[test]
+fn physical_passage_rejects_a_stale_world_connection_without_traveling() {
+    let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
+        connected_spatial_fixture();
+    let exit = spatial
+        .maps
+        .get(&source_key)
+        .unwrap()
+        .exits
+        .iter()
+        .find(|exit| exit.target_location_id == destination_id)
+        .unwrap()
+        .clone();
+    spatial.position = Vec2::new(
+        f32::from(exit.position.x) + 0.5,
+        f32::from(exit.position.y) + 0.5,
+    );
+    spatial.session.as_mut().unwrap().position = exit.position;
+    let source_location_id = lifecycle
+        .session
+        .as_ref()
+        .unwrap()
+        .state
+        .character
+        .location_id;
+    lifecycle
+        .session
+        .as_mut()
+        .unwrap()
+        .state
+        .world
+        .location_by_id_mut(source_location_id)
+        .unwrap()
+        .exits
+        .retain(|target| *target != destination_id);
+    let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
+
+    use_map_exit(
+        &mut spatial,
+        &mut lifecycle,
+        &mut navigation,
+        &exit.id,
+        destination_id,
+    );
+
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    assert_eq!(game.character.location_id, source_location_id);
+    assert_eq!(game.character.turn, before_turn);
+    assert_eq!(spatial.session.as_ref().unwrap().location_id, source_key);
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert!(spatial
+        .message
+        .as_deref()
+        .is_some_and(|message| message.contains("no longer leads")));
+}
+
+#[test]
+fn physical_passage_rejects_a_world_connection_without_a_return_route() {
+    let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
+        connected_spatial_fixture();
+    let exit = spatial
+        .maps
+        .get(&source_key)
+        .unwrap()
+        .exits
+        .iter()
+        .find(|exit| exit.target_location_id == destination_id)
+        .unwrap()
+        .clone();
+    spatial.position = Vec2::new(
+        f32::from(exit.position.x) + 0.5,
+        f32::from(exit.position.y) + 0.5,
+    );
+    spatial.session.as_mut().unwrap().position = exit.position;
+    lifecycle
+        .session
+        .as_mut()
+        .unwrap()
+        .state
+        .world
+        .location_by_id_mut(destination_id)
+        .unwrap()
+        .exits
+        .clear();
+    let source_location_id = lifecycle
+        .session
+        .as_ref()
+        .unwrap()
+        .state
+        .character
+        .location_id;
+    let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
+
+    use_map_exit(
+        &mut spatial,
+        &mut lifecycle,
+        &mut navigation,
+        &exit.id,
+        destination_id,
+    );
+
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    assert_eq!(game.character.location_id, source_location_id);
+    assert_eq!(game.character.turn, before_turn);
+    assert_eq!(spatial.session.as_ref().unwrap().location_id, source_key);
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert!(spatial
+        .message
+        .as_deref()
+        .is_some_and(|message| message.contains("no longer leads")));
+}
+
+#[test]
+fn physical_passage_generates_a_destination_map_on_first_arrival() {
+    let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
+        connected_spatial_fixture();
+    let destination_key = format!("location.{destination_id}");
+    lifecycle
+        .session
+        .as_mut()
+        .unwrap()
+        .state
+        .world
+        .local_maps
+        .retain(|map| map.location_id != destination_key);
+    let exit = spatial
+        .maps
+        .get(&source_key)
+        .unwrap()
+        .exits
+        .iter()
+        .find(|exit| exit.target_location_id == destination_id)
+        .unwrap()
+        .clone();
+    spatial.position = Vec2::new(
+        f32::from(exit.position.x) + 0.5,
+        f32::from(exit.position.y) + 0.5,
+    );
+    spatial.session.as_mut().unwrap().position = exit.position;
+    let source_location_id = lifecycle
+        .session
+        .as_ref()
+        .unwrap()
+        .state
+        .character
+        .location_id;
+
+    use_map_exit(
+        &mut spatial,
+        &mut lifecycle,
+        &mut navigation,
+        &exit.id,
+        destination_id,
+    );
+
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    let destination_map = spatial
+        .maps
+        .get(&destination_key)
+        .expect("first arrival should create the destination map");
+    assert!(destination_map
+        .exits
+        .iter()
+        .any(|map_exit| { map_exit.target_location_id == source_location_id }));
+    assert!(game
+        .world
+        .local_maps
+        .iter()
+        .any(|map| map.location_id == destination_key));
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
 }

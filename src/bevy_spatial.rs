@@ -740,7 +740,7 @@ fn execute_available_interaction(
             interact_with_poi(state, lifecycle, &id);
         }
         (InteractionActionKind::Enter, InteractionTarget::Passage { id, destination_id }) => {
-            use_map_exit(state, navigation, &id, destination_id);
+            use_map_exit(state, lifecycle, navigation, &id, destination_id);
         }
         _ => {
             state.message = Some("That action is not available for this target.".to_string());
@@ -806,30 +806,119 @@ fn update_spatial_wheel_animation(
 
 fn use_map_exit(
     state: &mut SpatialExplorationState,
+    lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
     exit_id: &str,
     target_location_id: EntityId,
 ) {
-    let available = state
+    let Some(game_state) = lifecycle.session.as_ref().map(|session| &session.state) else {
+        state.message = Some("The current world session is unavailable.".to_string());
+        state.dirty = true;
+        return;
+    };
+    let source_location_id = game_state.character.location_id;
+    let expected_map_id = format!("location.{source_location_id}");
+    let active_map_matches = state
+        .session
+        .as_ref()
+        .is_some_and(|session| session.location_id == expected_map_id);
+    let passage_available = state
         .session
         .as_ref()
         .and_then(|session| state.maps.get(&session.location_id))
-        .is_some_and(|map| {
+        .and_then(|map| {
             map.exits
                 .iter()
                 .find(|exit| exit.id == exit_id && exit.target_location_id == target_location_id)
-                .is_some_and(|exit| exit_interaction_available(map, state.position, exit))
-        });
-    if !available {
+                .map(|exit| exit_interaction_available(map, state.position, exit))
+        })
+        .unwrap_or(false);
+
+    if !active_map_matches || !passage_available {
         state.message = Some("Move closer to the passage and find a clear approach.".to_string());
         state.dirty = true;
         return;
     }
 
-    // Until every connected location has a spatial map, using a physical
-    // passage behaves like Leave. Its stable destination ID is retained in
-    // LocalMap so this can become a true connected-location transition later.
-    exit_spatial(state, navigation);
+    if !crate::game::actions::has_reciprocal_location_connection(game_state, target_location_id) {
+        state.message = Some("That passage no longer leads to a connected location.".to_string());
+        state.dirty = true;
+        return;
+    }
+
+    // Preserve the world-owned map and the character's exact position before
+    // the authoritative travel action changes the active world location.
+    sync_spatial_to_game(state, lifecycle);
+    let Some(old_turn) = lifecycle
+        .session
+        .as_ref()
+        .map(|session| session.state.character.turn)
+    else {
+        state.message = Some("The current world session is unavailable.".to_string());
+        state.dirty = true;
+        return;
+    };
+    let travel_result = lifecycle
+        .session
+        .as_mut()
+        .map(|session| crate::game::actions::travel_to(&mut session.state, target_location_id));
+    match travel_result {
+        Some(Ok(())) => {}
+        Some(Err(_)) | None => {
+            state.message = Some("The passage could not be used.".to_string());
+            state.dirty = true;
+            return;
+        }
+    }
+
+    let Some(game_state) = lifecycle.session.as_ref().map(|session| &session.state) else {
+        state.message = Some("The current world session is unavailable.".to_string());
+        state.dirty = true;
+        return;
+    };
+    if game_state.character.location_id != target_location_id {
+        // travel_to deliberately owns graph validation too. If its decision
+        // differs from the preflight check, keep the player in the source map.
+        state.message = Some("That passage no longer leads to a connected location.".to_string());
+        state.dirty = true;
+        return;
+    }
+
+    let destination_name = game_state
+        .world
+        .location_by_id(target_location_id)
+        .map(|location| location.name.clone())
+        .unwrap_or_else(|| "the destination".to_string());
+    let arrival_outcome = game_state
+        .world
+        .history
+        .iter()
+        .rev()
+        .find(|entry| entry.turn > old_turn && entry.outcome.is_some())
+        .and_then(|entry| entry.outcome.clone());
+    let alive = game_state.character.alive;
+
+    if !alive {
+        lifecycle.phase = LifecyclePhase::Death;
+        lifecycle.selected = 0;
+        lifecycle.mark_dirty();
+        exit_spatial(state, navigation);
+        return;
+    }
+
+    // enter() restores an established map or lazily creates the destination's
+    // first map. It also moves the character session to that map's entry while
+    // leaving the active presentation in SpatialExploration.
+    enter(state, game_state, navigation);
+    let mut message = format!("You arrive at {destination_name}.");
+    if let Some(outcome) = arrival_outcome {
+        message.push(' ');
+        message.push_str(&outcome);
+    }
+    state.message = Some(message);
+    state.dirty = true;
+    lifecycle.mark_dirty();
+    sync_spatial_to_game(state, lifecycle);
 }
 
 fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut NavigationState) {

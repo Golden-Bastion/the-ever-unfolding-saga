@@ -1,5 +1,5 @@
 use crate::game::state_effects::{self, add_or_refresh_condition};
-use crate::model::{Condition, GameState};
+use crate::model::{Condition, EntityId, GameState};
 use crate::persistence::save_game;
 use crate::presentation::{
     CharacterView, MeditationResultView, MeditationTargetView, MeditationView,
@@ -17,17 +17,30 @@ const MEDITATION_TARGETS: [(u32, &str); 8] = [
     (0, "Deep Night"),
 ];
 
+/// Return whether the active location and destination are joined by a
+/// reciprocal world-graph connection. All travel presentations use this
+/// shared rule; local-map exits are not an independent source of topology.
+pub(crate) fn has_reciprocal_location_connection(state: &GameState, target_id: EntityId) -> bool {
+    let Some(current_location) = state.world.location_by_id(state.character.location_id) else {
+        return false;
+    };
+    let Some(target_location) = state.world.location_by_id(target_id) else {
+        return false;
+    };
+
+    current_location.exits.contains(&target_id)
+        && target_location.exits.contains(&current_location.id)
+}
+
 pub(crate) fn travel_to(
     state: &mut GameState,
     target_id: crate::model::EntityId,
 ) -> std::io::Result<()> {
-    let current_location = match state.world.location_by_id(state.character.location_id) {
-        Some(location) => location.clone(),
-        None => return Ok(()),
-    };
-
-    if !current_location.exits.contains(&target_id) {
-        return Ok(());
+    if !has_reciprocal_location_connection(state, target_id) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Travel requires a reciprocal world-graph connection.",
+        ));
     }
 
     state_effects::advance_time(state, 2);
