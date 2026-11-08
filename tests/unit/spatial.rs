@@ -574,3 +574,118 @@ fn editor_operations_place_move_and_remove_points_of_interest_safely() {
     assert!(map.point_of_interest(&point.id).is_none());
     assert!(map.remove_point_of_interest_at(second_position).is_none());
 }
+
+ 
+#[test]
+fn editor_operations_place_move_and_remove_passages_using_valid_world_destinations() {
+    let mut map = generate_local_map(111, "location.10", LocalMapConfig::default());
+    let destination_id = 20_u64;
+    let exit = MapExit {
+        id: "location.10.exit.20".into(),
+        position: GridPosition { x: map.width - 1, y: 1 },
+        target_location_id: destination_id,
+    };
+
+    assert!(!map.place_map_exit(exit.clone(), &[21]));
+    assert!(!map.place_map_exit(
+        MapExit {
+            position: map.entry,
+            ..exit.clone()
+        },
+        &[destination_id]
+    ));
+
+    let find_placement = |map: &LocalMap, exit: &MapExit| {
+        (1..map.height - 1)
+            .map(|y| GridPosition { x: map.width - 1, y })
+            .find(|position| {
+                let mut candidate = map.clone();
+                candidate.place_map_exit(
+                    MapExit {
+                        position: *position,
+                        ..exit.clone()
+                    },
+                    &[destination_id],
+                )
+            })
+    };
+    let first_position = find_placement(&map, &exit)
+        .expect("at least one east-edge passage should have a clear route");
+    let exit = MapExit {
+        position: first_position,
+        ..exit
+    };
+    assert!(map.place_map_exit(exit.clone(), &[destination_id]));
+    assert_eq!(map.exits, vec![exit.clone()]);
+
+    let second_position = (1..map.height - 1)
+        .map(|y| GridPosition { x: 0, y })
+        .find(|position| {
+            let mut candidate = map.clone();
+            candidate.move_map_exit(&exit.id, *position)
+        })
+        .expect("a second edge should provide a valid passage route");
+    assert!(!map.move_map_exit(&exit.id, map.entry));
+    assert!(map.move_map_exit(&exit.id, second_position));
+    assert_eq!(map.exits[0].position, second_position);
+    assert_eq!(map.exits[0].target_location_id, destination_id);
+
+    assert_eq!(map.remove_map_exit_at(second_position), Some(MapExit {
+        position: second_position,
+        ..exit
+    }));
+    assert!(map.exits.is_empty());
+}
+
+#[test]
+fn editor_operations_place_move_and_remove_real_world_actor_placements() {
+    let mut map = generate_local_map(121, "location.10", LocalMapConfig::default());
+    let valid_entities = [
+        (101_u64, SpatialEntityKind::Npc),
+        (202_u64, SpatialEntityKind::Corpse),
+    ];
+    let find_free_cell = |map: &LocalMap, excluded: Option<GridPosition>| {
+        (1..map.height - 1)
+            .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
+            .find(|position| {
+                Some(*position) != excluded
+                    && map.is_walkable(*position)
+                    && *position != map.entry
+                    && !map.points_of_interest.iter().any(|point| point.position == *position)
+                    && !map.exits.iter().any(|exit| exit.position == *position)
+                    && !map.interactables.iter().any(|actor| actor.position == *position)
+            })
+    };
+    let first_position = find_free_cell(&map, None).expect("map should have a free actor cell");
+    let actor = SpatialEntityPlacement {
+        entity_id: 101,
+        kind: SpatialEntityKind::Npc,
+        position: first_position,
+    };
+
+    assert!(!map.place_spatial_entity(actor.clone(), &[(999, SpatialEntityKind::Npc)]));
+    assert!(!map.place_spatial_entity(
+        SpatialEntityPlacement {
+            position: map.entry,
+            ..actor.clone()
+        },
+        &valid_entities
+    ));
+    assert!(map.place_spatial_entity(actor.clone(), &valid_entities));
+    assert!(!map.place_spatial_entity(actor.clone(), &valid_entities));
+
+    let second_position =
+        find_free_cell(&map, Some(first_position)).expect("map should have another actor cell");
+    assert!(!map.move_spatial_entity(actor.entity_id, actor.kind, map.entry));
+    assert!(map.move_spatial_entity(actor.entity_id, actor.kind, second_position));
+    assert_eq!(map.interactables[0].position, second_position);
+    assert_eq!(map.interactables[0].entity_id, actor.entity_id);
+
+    let mut expected_removed = actor;
+    expected_removed.position = second_position;
+    assert_eq!(
+        map.remove_spatial_entity_at(second_position),
+        Some(expected_removed)
+    );
+    assert!(map.interactables.is_empty());
+}
