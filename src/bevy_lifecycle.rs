@@ -873,11 +873,7 @@ impl LifecycleState {
         } else {
             self.character_name.trim()
         };
-        let title = if self.character_title.trim().is_empty() {
-            "Ash Walker"
-        } else {
-            self.character_title.trim()
-        };
+        let title = self.effective_character_title();
         let state = create_inherited_state(&session.state, name.to_string(), title.to_string());
         let save_path = character_save_path(&GamePaths::get().saves_dir, name);
         self.session = Some(GameSession { state, save_path });
