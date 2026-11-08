@@ -1318,11 +1318,25 @@ fn activate_world_lab_map(
             map.seed
         ));
     } else {
+        map.exits.clear();
+        map.interactables.clear();
         state.world_lab_status = Some(format!(
-            "Loaded fixture: {name}. Its original world graph or entity identities are unavailable; passage and actor authoring require a map generated from a World Lab world."
+            "Loaded fixture: {name}. Its original world graph or entity identities are unavailable; unsupported passage and actor references were discarded."
         ));
     }
+    let actor_ids = state
+        .world_lab_scenario
+        .as_ref()
+        .map(|scenario| {
+            scenario
+                .actors
+                .iter()
+                .map(|actor| (actor.entity_id, actor.kind))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     bevy_spatial::set_sandbox_map(spatial, map);
+    bevy_spatial::set_sandbox_actor_entities(spatial, &actor_ids);
     state.world_lab_generated_options = Some(state.world_lab);
     navigation.current_screen = Some(ScreenId::WorldLab);
     navigation.selected = 6;
@@ -1584,7 +1598,13 @@ fn developer_tools_input(
                         1 => {
                             if bevy_spatial::sandbox_map(&spatial).is_none() {
                                 let (map, scenario) = generate_world_lab_session(state.world_lab);
+                                let actor_ids = scenario
+                                    .actors
+                                    .iter()
+                                    .map(|actor| (actor.entity_id, actor.kind))
+                                    .collect::<Vec<_>>();
                                 bevy_spatial::set_sandbox_map(&mut spatial, map);
+                                bevy_spatial::set_sandbox_actor_entities(&mut spatial, &actor_ids);
                                 state.world_lab_scenario = Some(scenario);
                                 state.world_lab_generated_options = Some(state.world_lab);
                                 state.world_lab_status =
@@ -1665,8 +1685,14 @@ fn developer_tools_input(
                                 let (map, scenario) = generate_world_lab_session(state.world_lab);
                                 state.world_lab_cursor = Some(map.entry);
                                 clear_world_lab_holds(&mut state);
+                                let actor_ids = scenario
+                                    .actors
+                                    .iter()
+                                    .map(|actor| (actor.entity_id, actor.kind))
+                                    .collect::<Vec<_>>();
                                 state.world_lab_scenario = Some(scenario);
                                 bevy_spatial::set_sandbox_map(&mut spatial, map);
+                                bevy_spatial::set_sandbox_actor_entities(&mut spatial, &actor_ids);
                                 state.world_lab_generated_options = Some(state.world_lab);
                                 state.world_lab_status =
                                     Some("Map generated from the selected world location.".into());
