@@ -840,19 +840,7 @@ fn use_map_exit(
         return;
     }
 
-    let route_is_connected = game_state
-        .world
-        .location_by_id(source_location_id)
-        .is_some_and(|location| location.exits.contains(&target_location_id));
-    let destination_has_return_route = game_state
-        .world
-        .location_by_id(target_location_id)
-        .is_some_and(|location| location.exits.contains(&source_location_id));
-    let destination_exists = game_state
-        .world
-        .location_by_id(target_location_id)
-        .is_some();
-    if !route_is_connected || !destination_exists || !destination_has_return_route {
+    if !crate::game::actions::has_reciprocal_location_connection(game_state, target_location_id) {
         state.message = Some("That passage no longer leads to a connected location.".to_string());
         state.dirty = true;
         return;
