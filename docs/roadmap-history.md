@@ -816,3 +816,11 @@ src/
 - Destination selection remains an overlay over spatial exploration. Back returns to the pause menu; successful travel enters the destination's spatial map, while invalid routes leave the source context intact.
 - Added regression coverage for source-map persistence, destination-map restoration, and stale-route rejection.
 - Bumped the project and Android fallback versions to 0.52.27. Desktop and Android landscape playtesting remains outstanding.
+
+
+### v0.52.28: Safe meditation entry from spatial exploration
+- Added Meditate to the existing spatial pause menu only when the authoritative game state permits safe meditation.
+- Opened the existing dedicated meditation screen from the spatial pause menu and retained the spatial scene as its return context; no artificial movement or permanent HUD control is required.
+- Kept meditation target selection, safety validation, recovery, time advancement, and persistence in the existing action and records systems.
+- Added regression coverage for safe-only visibility, non-spatial exclusion, menu ordering, and conditional menu sizing.
+- Bumped the project and Android fallback versions to 0.52.28. Desktop and Android landscape playtesting remains outstanding.

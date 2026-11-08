@@ -26,6 +26,7 @@ pub(crate) enum GameplayScreen {
 enum PauseAction {
     Resume,
     Travel,
+    Meditate,
     Character,
     NewGame,
     LoadGame,
@@ -345,6 +346,7 @@ fn move_selection(
         GameplayScreen::Navigation => navigation::build_view(&session.state).destinations.len() + 1,
         GameplayScreen::Pause => pause_action_count(
             navigation_state.current_screen == Some(ScreenId::SpatialExploration),
+            meditation_is_available(lifecycle),
         ),
     };
     if count == 0 {
@@ -375,6 +377,7 @@ fn move_selection_to_end(
         GameplayScreen::Navigation => navigation::build_view(&session.state).destinations.len() + 1,
         GameplayScreen::Pause => pause_action_count(
             navigation_state.current_screen == Some(ScreenId::SpatialExploration),
+            meditation_is_available(lifecycle),
         ),
     };
     if count > 0 {
@@ -455,18 +458,40 @@ fn sync_gameplay_menu_selection(
     }
 }
 
-fn pause_action_count(spatial_menu: bool) -> usize {
-    pause_actions_from(crate::bevy_lifecycle::has_available_saves(), spatial_menu).len()
+fn meditation_is_available(lifecycle: &LifecycleState) -> bool {
+    lifecycle.session.as_ref().is_some_and(|session| {
+        actions::build_meditation_view(&session.state).safe_to_meditate
+    })
 }
 
-fn pause_actions(spatial_menu: bool) -> Vec<PauseAction> {
-    pause_actions_from(crate::bevy_lifecycle::has_available_saves(), spatial_menu)
+fn pause_action_count(spatial_menu: bool, meditation_available: bool) -> usize {
+    pause_actions_from(
+        crate::bevy_lifecycle::has_available_saves(),
+        spatial_menu,
+        meditation_available,
+    )
+    .len()
 }
 
-fn pause_actions_from(has_load: bool, spatial_menu: bool) -> Vec<PauseAction> {
+fn pause_actions(spatial_menu: bool, meditation_available: bool) -> Vec<PauseAction> {
+    pause_actions_from(
+        crate::bevy_lifecycle::has_available_saves(),
+        spatial_menu,
+        meditation_available,
+    )
+}
+
+fn pause_actions_from(
+    has_load: bool,
+    spatial_menu: bool,
+    meditation_available: bool,
+) -> Vec<PauseAction> {
     let mut actions = vec![PauseAction::Resume];
     if spatial_menu {
         actions.push(PauseAction::Travel);
+        if meditation_available {
+            actions.push(PauseAction::Meditate);
+        }
     }
     actions.extend([PauseAction::Character, PauseAction::NewGame]);
     if has_load {
@@ -491,9 +516,9 @@ fn activate_selection(
 ) {
     match gameplay.screen {
         GameplayScreen::Pause => {
-            let actions = pause_actions(
-                navigation_state.current_screen == Some(ScreenId::SpatialExploration),
-            );
+            let spatial_menu =
+                navigation_state.current_screen == Some(ScreenId::SpatialExploration);
+            let actions = pause_actions(spatial_menu, meditation_is_available(lifecycle));
             let Some(action) = actions.get(gameplay.pause_selected).copied() else {
                 gameplay.pause_selected = 0;
                 navigation_state.selected = 0;
@@ -501,6 +526,10 @@ fn activate_selection(
             };
 
             match action {
+                PauseAction::Meditate => {
+                    gameplay.dirty = true;
+                    open_dedicated_screen(navigation_state, ScreenId::Meditation);
+                }
                 PauseAction::Travel => {
                     gameplay.screen = GameplayScreen::Navigation;
                     gameplay.selected = 0;
@@ -1268,8 +1297,9 @@ pub(crate) fn render_spatial_pause_overlay(
     commands: &mut Commands,
     parent: Entity,
     selected: usize,
+    meditation_available: bool,
 ) {
-    let actions = pause_actions(true);
+    let actions = pause_actions(true, meditation_available);
     render_pause(commands, parent, &actions, selected);
 }
 
@@ -1328,6 +1358,7 @@ fn pause_action_visuals(action: PauseAction) -> (&'static str, &'static str) {
     match action {
         PauseAction::Resume => ("resume", "Resume"),
         PauseAction::Travel => ("travel", "Travel"),
+        PauseAction::Meditate => ("meditate", "Meditate"),
         PauseAction::Character => ("character", "Character"),
         PauseAction::NewGame => ("new-game", "New Game"),
         PauseAction::LoadGame => ("load-game", "Load Game"),
