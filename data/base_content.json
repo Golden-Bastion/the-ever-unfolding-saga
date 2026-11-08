@@ -37,6 +37,18 @@
         "description": "A roofless shrine with a black altar and fresh soot on the floor.",
         "dangerous": true,
         "spatial_layout": "shrine_chamber",
+        "spatial_discoveries": [
+          {
+            "id": "poi.old_shrine.black_altar",
+            "title": "Black Altar",
+            "description": "A black stone altar stands in the chamber. Fresh soot clings to its upper surface."
+          },
+          {
+            "id": "poi.old_shrine.fresh_soot",
+            "title": "Fresh Soot",
+            "description": "Fresh soot lies across the shrine floor, distinct from the older ash around it."
+          }
+        ],
         "exits": [
           "location.hollow_market",
           "location.mourning_fields"
