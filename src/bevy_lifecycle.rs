@@ -429,6 +429,13 @@ fn cycle_appearance_slot(lifecycle: &mut LifecycleState, direction: isize) {
     lifecycle.dirty = true;
 }
 
+fn apply_selected_character_appearance(lifecycle: &LifecycleState, state: &mut GameState) {
+    let selected_parts = selected_appearance_part_ids(lifecycle);
+    if !selected_parts.is_empty() {
+        state.character.appearance_parts = selected_parts;
+    }
+}
+
 fn selected_appearance_part_ids(lifecycle: &LifecycleState) -> Vec<String> {
     lifecycle
         .appearance_slots
@@ -831,10 +838,7 @@ impl LifecycleState {
             character_name.to_string(),
             title.to_string(),
         );
-        let selected_parts = selected_appearance_part_ids(self);
-        if !selected_parts.is_empty() {
-            state.character.appearance_parts = selected_parts;
-        }
+        apply_selected_character_appearance(self, &mut state);
         crate::game::world::bootstrap_campaign_content(&mut state);
         let save_path = character_save_path(&GamePaths::get().saves_dir, character_name);
         self.session = Some(GameSession { state, save_path });

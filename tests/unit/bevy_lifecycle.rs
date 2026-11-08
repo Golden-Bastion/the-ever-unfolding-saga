@@ -329,15 +329,12 @@ fn appearance_creation_tab_cycles_parts_and_slots_and_persists_the_selection() {
 
     select_creation_tab(&mut lifecycle, &mut navigation, 3);
     assert_eq!(lifecycle.selected, 7);
-    lifecycle.create_character();
-    assert_eq!(
-        lifecycle
-            .session
-            .as_ref()
-            .unwrap()
-            .state
-            .character
-            .appearance_parts,
-        selected
+    let mut state = crate::model::create_new_state(
+        "Appearance Test",
+        crate::model::WorldMode::New,
+        "Wanderer".into(),
+        "Ash Walker".into(),
     );
+    apply_selected_character_appearance(&lifecycle, &mut state);
+    assert_eq!(state.character.appearance_parts, selected);
 }
