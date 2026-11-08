@@ -18,10 +18,12 @@ use crate::character_appearance::generate_character_portrait;
 use crate::content::{loader::load_campaign_content_report, CharacterPartContent};
 use crate::game_paths::GamePaths;
 use crate::input::InputEvent;
+use crate::model::{GameState, ThreatState, WorldGenerationMetadata};
 use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
 use crate::spatial::{
-    generate_local_map_with_layout, GridPosition, LocalMap, LocalMapConfig, PointOfInterest,
-    SpatialPropKind, Terrain,
+    apply_authored_spatial_discoveries, configure_map_exits, generate_local_map_with_layout,
+    GridPosition, LocalMap, LocalMapConfig, MapExit, PointOfInterest, SpatialDiscoveryDefinition,
+    SpatialEntityKind, SpatialEntityPlacement, SpatialPropKind, Terrain,
 };
 use crate::spatial_fixtures::{
     list_spatial_fixtures, load_spatial_fixture, save_spatial_fixture, SpatialFixtureEntry,
@@ -43,6 +45,7 @@ const WORLD_LAB_ACTIONS: &[(&str, &str)] = &[
     ("continue", "Increase seed"),
     ("display", "Cycle map dimensions"),
     ("choice", "Toggle spatial layout"),
+    ("choice", "Cycle world location"),
     ("investigate", "Generate map"),
     ("edit", "Edit map"),
     ("explore", "Play-test map"),
@@ -58,7 +61,7 @@ const WORLD_LAB_EDITOR_ACTIONS: &[(&str, &str)] = &[
     ("back", "Move cursor north"),
     ("continue", "Move cursor south"),
     ("display", "Cycle selected terrain"),
-    ("choice", "Cycle prop type"),
+    ("choice", "Cycle selected prop / target / actor"),
     ("display", "Cycle editor tool"),
     ("investigate", "Place selected object"),
     ("explore", "Pick up / drop selected object"),
@@ -72,6 +75,7 @@ const WORLD_LAB_SIZES: [(u16, u16); 3] = [(24, 16), (32, 20), (40, 24)];
 struct WorldLabOptions {
     seed: u64,
     size_index: usize,
+    location_index: usize,
     shrine_layout: bool,
 }
 
@@ -80,6 +84,8 @@ enum WorldLabEditorTool {
     #[default]
     Prop,
     PointOfInterest,
+    Passage,
+    Actor,
 }
 
 impl Default for WorldLabOptions {
@@ -87,6 +93,7 @@ impl Default for WorldLabOptions {
         Self {
             seed: 1,
             size_index: 0,
+            location_index: 0,
             shrine_layout: false,
         }
     }
@@ -107,6 +114,20 @@ struct WorldLabFixtureEntry {
     details: String,
     map: Option<LocalMap>,
     error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct WorldLabActor {
+    entity_id: u64,
+    kind: SpatialEntityKind,
+    label: String,
+}
+
+#[derive(Debug, Clone)]
+struct WorldLabScenario {
+    world: crate::model::World,
+    location_id: u64,
+    actors: Vec<WorldLabActor>,
 }
 
 impl From<SpatialFixtureEntry> for WorldLabFixtureEntry {
@@ -135,6 +156,11 @@ struct DeveloperToolsState {
     world_lab_editor_tool: WorldLabEditorTool,
     world_lab_held_prop: Option<String>,
     world_lab_held_point_of_interest: Option<String>,
+    world_lab_held_passage: Option<String>,
+    world_lab_held_actor: Option<(u64, SpatialEntityKind)>,
+    world_lab_destination_index: usize,
+    world_lab_actor_index: usize,
+    world_lab_scenario: Option<WorldLabScenario>,
     world_lab_fixtures: Vec<WorldLabFixtureEntry>,
     dirty: bool,
     rendered_screen: Option<ScreenId>,
