@@ -159,6 +159,7 @@ pub(crate) struct SpatialExplorationState {
     message: Option<String>,
     interaction_wheel: Option<SpatialInteractionWheel>,
     sandbox_map: Option<LocalMap>,
+    sandbox_actor_entities: Vec<(EntityId, SpatialEntityKind)>,
     sandbox_mode: bool,
     dirty: bool,
 }
@@ -180,6 +181,18 @@ pub(crate) fn set_sandbox_map(state: &mut SpatialExplorationState, map: LocalMap
         return;
     }
     state.sandbox_map = Some(map);
+    state.sandbox_actor_entities.clear();
+    state.dirty = true;
+}
+
+pub(crate) fn set_sandbox_actor_entities(
+    state: &mut SpatialExplorationState,
+    entities: &[(EntityId, SpatialEntityKind)],
+) {
+    if state.sandbox_mode {
+        return;
+    }
+    state.sandbox_actor_entities = entities.to_vec();
     state.dirty = true;
 }
 
@@ -1248,16 +1261,22 @@ fn render_spatial_screen(
 
     let game = lifecycle.session.as_ref().map(|session| &session.state);
     for placement in &map.interactables {
-        let exists = game.is_some_and(|game| match placement.kind {
-            SpatialEntityKind::Npc => game.npcs.iter().any(|npc| {
-                npc.id == placement.entity_id && npc.location_id == game.character.location_id
-            }),
-            SpatialEntityKind::Corpse => game.corpses.iter().any(|corpse| {
-                corpse.id == placement.entity_id
-                    && corpse.location_id == game.character.location_id
-                    && !corpse.inventory.is_empty()
-            }),
-        });
+        let exists = if state.sandbox_mode {
+            state
+                .sandbox_actor_entities
+                .contains(&(placement.entity_id, placement.kind))
+        } else {
+            game.is_some_and(|game| match placement.kind {
+                SpatialEntityKind::Npc => game.npcs.iter().any(|npc| {
+                    npc.id == placement.entity_id && npc.location_id == game.character.location_id
+                }),
+                SpatialEntityKind::Corpse => game.corpses.iter().any(|corpse| {
+                    corpse.id == placement.entity_id
+                        && corpse.location_id == game.character.location_id
+                        && !corpse.inventory.is_empty()
+                }),
+            })
+        };
         if !exists {
             continue;
         }
