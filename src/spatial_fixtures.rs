@@ -152,12 +152,14 @@ pub fn list_spatial_fixtures(directories: &[&Path]) -> io::Result<Vec<SpatialFix
                 path,
                 name: fixture.name,
                 details: format!(
-                    "{} × {} · seed {} · {} props · {} points of interest",
+                    "{} × {} · seed {} · {} props · {} discoveries · {} passages · {} actor placements",
                     fixture.map.width,
                     fixture.map.height,
                     fixture.map.seed,
                     fixture.map.props.len(),
-                    fixture.map.points_of_interest.len()
+                    fixture.map.points_of_interest.len(),
+                    fixture.map.exits.len(),
+                    fixture.map.interactables.len()
                 ),
                 map: Some(fixture.map),
                 error: None,
@@ -247,10 +249,27 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
         }
     }
 
+    let source_location_id = map
+        .location_id
+        .strip_prefix("location.")
+        .and_then(|id| id.parse::<u64>().ok());
     let mut exit_ids = HashSet::new();
+    let mut exit_destinations = HashSet::new();
     for exit in &map.exits {
         if exit.id.trim().is_empty() || !exit_ids.insert(exit.id.as_str()) {
             return Err("passage IDs must be non-empty and unique".to_string());
+        }
+        if exit.target_location_id == 0
+            || source_location_id == Some(exit.target_location_id)
+            || !exit_destinations.insert(exit.target_location_id)
+        {
+            return Err(
+                "passage destinations must be non-zero, unique, and different from the source location"
+                    .to_string(),
+            );
+        }
+        if source_location_id.is_none() {
+            return Err("passages require a numeric location.<id> map identity".to_string());
         }
         if !map.contains(exit.position)
             || !map
@@ -267,12 +286,11 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
         }
     }
 
-    let mut actor_ids = Vec::new();
+    let mut actor_ids = HashSet::new();
     for actor in &map.interactables {
-        if actor_ids.contains(&(actor.entity_id, actor.kind)) {
-            return Err("actor placements must have unique entity/type pairs".to_string());
+        if actor.entity_id == 0 || !actor_ids.insert(actor.entity_id) {
+            return Err("actor placements must have non-zero unique entity IDs".to_string());
         }
-        actor_ids.push((actor.entity_id, actor.kind));
         if !map.contains(actor.position)
             || !map
                 .terrain_at(actor.position)

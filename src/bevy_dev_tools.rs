@@ -18,9 +18,12 @@ use crate::character_appearance::generate_character_portrait;
 use crate::content::{loader::load_campaign_content_report, CharacterPartContent};
 use crate::game_paths::GamePaths;
 use crate::input::InputEvent;
+use crate::model::{GameState, ThreatState, WorldGenerationMetadata};
 use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
 use crate::spatial::{
-    generate_local_map_with_layout, GridPosition, LocalMap, LocalMapConfig, PointOfInterest,
+    apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_entity_placements,
+    generate_local_map_with_layout, GridPosition, LocalMap, LocalMapConfig, MapExit,
+    PointOfInterest, SpatialDiscoveryDefinition, SpatialEntityKind, SpatialEntityPlacement,
     SpatialPropKind, Terrain,
 };
 use crate::spatial_fixtures::{
@@ -43,6 +46,7 @@ const WORLD_LAB_ACTIONS: &[(&str, &str)] = &[
     ("continue", "Increase seed"),
     ("display", "Cycle map dimensions"),
     ("choice", "Toggle spatial layout"),
+    ("choice", "Cycle world location"),
     ("investigate", "Generate map"),
     ("edit", "Edit map"),
     ("explore", "Play-test map"),
@@ -58,7 +62,7 @@ const WORLD_LAB_EDITOR_ACTIONS: &[(&str, &str)] = &[
     ("back", "Move cursor north"),
     ("continue", "Move cursor south"),
     ("display", "Cycle selected terrain"),
-    ("choice", "Cycle prop type"),
+    ("choice", "Cycle selected prop / target / actor"),
     ("display", "Cycle editor tool"),
     ("investigate", "Place selected object"),
     ("explore", "Pick up / drop selected object"),
@@ -72,6 +76,7 @@ const WORLD_LAB_SIZES: [(u16, u16); 3] = [(24, 16), (32, 20), (40, 24)];
 struct WorldLabOptions {
     seed: u64,
     size_index: usize,
+    location_index: usize,
     shrine_layout: bool,
 }
 
@@ -80,6 +85,8 @@ enum WorldLabEditorTool {
     #[default]
     Prop,
     PointOfInterest,
+    Passage,
+    Actor,
 }
 
 impl Default for WorldLabOptions {
@@ -87,6 +94,7 @@ impl Default for WorldLabOptions {
         Self {
             seed: 1,
             size_index: 0,
+            location_index: 0,
             shrine_layout: false,
         }
     }
@@ -107,6 +115,20 @@ struct WorldLabFixtureEntry {
     details: String,
     map: Option<LocalMap>,
     error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct WorldLabActor {
+    entity_id: u64,
+    kind: SpatialEntityKind,
+    label: String,
+}
+
+#[derive(Debug, Clone)]
+struct WorldLabScenario {
+    world: crate::model::World,
+    location_id: u64,
+    actors: Vec<WorldLabActor>,
 }
 
 impl From<SpatialFixtureEntry> for WorldLabFixtureEntry {
@@ -135,6 +157,11 @@ struct DeveloperToolsState {
     world_lab_editor_tool: WorldLabEditorTool,
     world_lab_held_prop: Option<String>,
     world_lab_held_point_of_interest: Option<String>,
+    world_lab_held_passage: Option<String>,
+    world_lab_held_actor: Option<(u64, SpatialEntityKind)>,
+    world_lab_destination_index: usize,
+    world_lab_actor_index: usize,
+    world_lab_scenario: Option<WorldLabScenario>,
     world_lab_fixtures: Vec<WorldLabFixtureEntry>,
     dirty: bool,
     rendered_screen: Option<ScreenId>,
@@ -271,14 +298,163 @@ fn reset_combination(state: &mut DeveloperToolsState) {
     state.dirty = true;
 }
 
-fn generate_world_lab_map(options: WorldLabOptions) -> LocalMap {
+fn generate_world_lab_game(seed: u64) -> GameState {
+    let content = load_campaign_content_report().content;
+    let config = crate::procedural::WorldGenerationConfig::default();
+    let mut world = crate::procedural::generate_world("World Lab", seed, config);
+    world.generation = Some(WorldGenerationMetadata {
+        seed,
+        region_count: config.region_count,
+        location_count: config.location_count,
+        extra_edges: config.extra_edges,
+    });
+    crate::procedural::place_authored_content(&mut world, &content);
+    let character = world.spawn_character("World Lab Tester".into(), "Observer".into());
+    let mut game = GameState {
+        world,
+        character,
+        threat: ThreatState::default(),
+        corpses: Vec::new(),
+        factions: Vec::new(),
+        npcs: Vec::new(),
+        quests: Vec::new(),
+        last_announced_location_id: None,
+        rng_state: seed,
+        campaign_content: Some(content),
+    };
+    crate::game::world::bootstrap_campaign_content(&mut game);
+    game
+}
+
+fn world_lab_actor_catalog(game: &GameState, location_id: u64) -> Vec<WorldLabActor> {
+    let mut actors = game
+        .npcs
+        .iter()
+        .filter(|npc| npc.location_id == location_id)
+        .map(|npc| WorldLabActor {
+            entity_id: npc.id,
+            kind: SpatialEntityKind::Npc,
+            label: format!("{} — {}", npc.name, npc.title),
+        })
+        .collect::<Vec<_>>();
+    actors.extend(
+        game.corpses
+            .iter()
+            .filter(|corpse| corpse.location_id == location_id && !corpse.inventory.is_empty())
+            .map(|corpse| WorldLabActor {
+                entity_id: corpse.id,
+                kind: SpatialEntityKind::Corpse,
+                label: format!("Remains of {}", corpse.former_name),
+            }),
+    );
+    actors.sort_by_key(|actor| actor.entity_id);
+    actors
+}
+
+fn generate_world_lab_session(options: WorldLabOptions) -> (LocalMap, WorldLabScenario) {
+    let game = generate_world_lab_game(options.seed);
+    let location_index = options
+        .location_index
+        .min(game.world.locations.len().saturating_sub(1));
+    let location = game.world.locations[location_index].clone();
     let (width, height) = WORLD_LAB_SIZES[options.size_index.min(WORLD_LAB_SIZES.len() - 1)];
-    generate_local_map_with_layout(
+    let layout = if options.shrine_layout {
+        Some("shrine_chamber")
+    } else {
+        location.spatial_layout.as_deref()
+    };
+    let mut map = generate_local_map_with_layout(
         options.seed,
-        "developer.world_lab",
+        format!("location.{}", location.id),
         LocalMapConfig { width, height },
-        options.shrine_layout.then_some("shrine_chamber"),
-    )
+        layout,
+    );
+    configure_map_exits(&mut map, &location.exits);
+
+    let discoveries = game
+        .campaign_content
+        .as_ref()
+        .and_then(|content| {
+            content
+                .world
+                .locations
+                .iter()
+                .find(|content_location| content_location.name == location.name)
+        })
+        .map(|content_location| {
+            content_location
+                .spatial_discoveries
+                .iter()
+                .map(|discovery| SpatialDiscoveryDefinition {
+                    id: discovery.id.clone(),
+                    title: discovery.title.clone(),
+                    description: discovery.description.clone(),
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    apply_authored_spatial_discoveries(&mut map, &discoveries);
+
+    let actors = world_lab_actor_catalog(&game, location.id);
+    let actor_refs = actors
+        .iter()
+        .map(|actor| (actor.entity_id, actor.kind))
+        .collect::<Vec<_>>();
+    ensure_spatial_entity_placements(&mut map, &actor_refs);
+
+    let scenario = WorldLabScenario {
+        world: game.world.clone(),
+        location_id: location.id,
+        actors,
+    };
+    (map, scenario)
+}
+
+#[cfg(test)]
+fn generate_world_lab_map(options: WorldLabOptions) -> LocalMap {
+    generate_world_lab_session(options).0
+}
+
+fn restore_world_lab_scenario(map: &LocalMap) -> Option<WorldLabScenario> {
+    let location_id = map
+        .location_id
+        .strip_prefix("location.")?
+        .parse::<u64>()
+        .ok()?;
+    let game = generate_world_lab_game(map.seed);
+    game.world.location_by_id(location_id)?;
+
+    let mut scenario = WorldLabScenario {
+        world: game.world.clone(),
+        location_id,
+        actors: world_lab_actor_catalog(&game, location_id),
+    };
+    let valid_destinations = scenario
+        .world
+        .locations
+        .iter()
+        .map(|location| location.id)
+        .filter(|id| *id != location_id)
+        .collect::<Vec<_>>();
+    let targets = map
+        .exits
+        .iter()
+        .map(|exit| exit.target_location_id)
+        .filter(|target| valid_destinations.contains(target))
+        .collect::<Vec<_>>();
+    if let Some(source) = scenario.world.location_by_id_mut(location_id) {
+        source.exits = targets.clone();
+    }
+    for location in &mut scenario.world.locations {
+        if location.id == location_id {
+            continue;
+        }
+        location.exits.retain(|target| *target != location_id);
+        if targets.contains(&location.id) {
+            location.exits.push(location_id);
+        }
+    }
+    Some(scenario)
 }
 
 fn world_lab_map_preview(map: &LocalMap) -> String {
@@ -290,6 +466,24 @@ fn world_lab_map_preview_with_cursor(
     cursor: Option<GridPosition>,
     held_prop_id: Option<&str>,
     held_point_of_interest_id: Option<&str>,
+) -> String {
+    world_lab_map_preview_with_all_holds(
+        map,
+        cursor,
+        held_prop_id,
+        held_point_of_interest_id,
+        None,
+        None,
+    )
+}
+
+fn world_lab_map_preview_with_all_holds(
+    map: &LocalMap,
+    cursor: Option<GridPosition>,
+    held_prop_id: Option<&str>,
+    held_point_of_interest_id: Option<&str>,
+    held_passage_id: Option<&str>,
+    held_actor_id: Option<u64>,
 ) -> String {
     let mut preview = String::with_capacity(usize::from(map.width) * (usize::from(map.height) + 1));
     for y in 0..map.height {
@@ -308,6 +502,25 @@ fn world_lab_map_preview_with_cursor(
                     'Q'
                 } else {
                     '?'
+                }
+            } else if let Some(exit) = map.exits.iter().find(|exit| exit.position == position) {
+                if held_passage_id == Some(exit.id.as_str()) {
+                    'D'
+                } else {
+                    'E'
+                }
+            } else if let Some(actor) = map
+                .interactables
+                .iter()
+                .find(|actor| actor.position == position)
+            {
+                if held_actor_id == Some(actor.entity_id) {
+                    'A'
+                } else {
+                    match actor.kind {
+                        SpatialEntityKind::Npc => 'N',
+                        SpatialEntityKind::Corpse => 'C',
+                    }
                 }
             } else if let Some(prop) = map
                 .props
@@ -356,17 +569,25 @@ fn world_lab_editor_tool_name(tool: WorldLabEditorTool) -> &'static str {
     match tool {
         WorldLabEditorTool::Prop => "Prop",
         WorldLabEditorTool::PointOfInterest => "Point of Interest",
+        WorldLabEditorTool::Passage => "Passage",
+        WorldLabEditorTool::Actor => "Actor",
     }
 }
 
 fn cycle_world_lab_editor_tool(state: &mut DeveloperToolsState) {
-    if state.world_lab_held_prop.is_some() || state.world_lab_held_point_of_interest.is_some() {
+    if state.world_lab_held_prop.is_some()
+        || state.world_lab_held_point_of_interest.is_some()
+        || state.world_lab_held_passage.is_some()
+        || state.world_lab_held_actor.is_some()
+    {
         state.world_lab_status = Some("Drop the held object before switching editor tools.".into());
         return;
     }
     state.world_lab_editor_tool = match state.world_lab_editor_tool {
         WorldLabEditorTool::Prop => WorldLabEditorTool::PointOfInterest,
-        WorldLabEditorTool::PointOfInterest => WorldLabEditorTool::Prop,
+        WorldLabEditorTool::PointOfInterest => WorldLabEditorTool::Passage,
+        WorldLabEditorTool::Passage => WorldLabEditorTool::Actor,
+        WorldLabEditorTool::Actor => WorldLabEditorTool::Prop,
     };
     state.world_lab_status = Some(format!(
         "Editor tool set to {}.",
@@ -564,13 +785,19 @@ fn place_world_lab_point_of_interest(
 }
 
 fn place_world_lab_object(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
-    if state.world_lab_held_prop.is_some() || state.world_lab_held_point_of_interest.is_some() {
+    if state.world_lab_held_prop.is_some()
+        || state.world_lab_held_point_of_interest.is_some()
+        || state.world_lab_held_passage.is_some()
+        || state.world_lab_held_actor.is_some()
+    {
         state.world_lab_status = Some("Drop the held object before placing another.".into());
         return;
     }
     match state.world_lab_editor_tool {
         WorldLabEditorTool::Prop => place_world_lab_prop(state, spatial),
         WorldLabEditorTool::PointOfInterest => place_world_lab_point_of_interest(state, spatial),
+        WorldLabEditorTool::Passage => place_world_lab_passage(state, spatial),
+        WorldLabEditorTool::Actor => place_world_lab_actor(state, spatial),
     }
 }
 
@@ -624,6 +851,352 @@ fn pick_up_or_drop_world_lab_object(
         WorldLabEditorTool::PointOfInterest => {
             pick_up_or_drop_world_lab_point_of_interest(state, spatial)
         }
+        WorldLabEditorTool::Passage => pick_up_or_drop_world_lab_passage(state, spatial),
+        WorldLabEditorTool::Actor => pick_up_or_drop_world_lab_actor(state, spatial),
+    }
+}
+
+fn world_lab_destinations(state: &DeveloperToolsState) -> Vec<(u64, String)> {
+    let Some(scenario) = state.world_lab_scenario.as_ref() else {
+        return Vec::new();
+    };
+    let connected = scenario
+        .world
+        .location_by_id(scenario.location_id)
+        .map(|location| location.exits.clone())
+        .unwrap_or_default();
+    scenario
+        .world
+        .locations
+        .iter()
+        .filter(|location| location.id != scenario.location_id && !connected.contains(&location.id))
+        .map(|location| (location.id, location.name.clone()))
+        .collect()
+}
+
+fn selected_world_lab_destination(state: &DeveloperToolsState) -> Option<(u64, String)> {
+    let destinations = world_lab_destinations(state);
+    if destinations.is_empty() {
+        return None;
+    }
+    destinations
+        .get(state.world_lab_destination_index % destinations.len())
+        .cloned()
+}
+
+fn selected_world_lab_actor(state: &DeveloperToolsState) -> Option<WorldLabActor> {
+    let actors = &state.world_lab_scenario.as_ref()?.actors;
+    if actors.is_empty() {
+        return None;
+    }
+    actors
+        .get(state.world_lab_actor_index % actors.len())
+        .cloned()
+}
+
+fn cycle_world_lab_selected_value(state: &mut DeveloperToolsState) {
+    match state.world_lab_editor_tool {
+        WorldLabEditorTool::Prop => {
+            state.world_lab_prop_kind = Some(
+                match state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar) {
+                    SpatialPropKind::Pillar => SpatialPropKind::Table,
+                    SpatialPropKind::Table => SpatialPropKind::Pillar,
+                },
+            );
+            let kind = state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
+            state.world_lab_status =
+                Some(format!("Prop type set to {}.", world_lab_prop_name(kind)));
+        }
+        WorldLabEditorTool::PointOfInterest => {
+            state.world_lab_status = Some(
+                "Point of interest details are editable through the fixture format; placement uses the default temporary discovery.".into(),
+            );
+        }
+        WorldLabEditorTool::Passage => {
+            let count = world_lab_destinations(state).len();
+            if count == 0 {
+                state.world_lab_status = Some(
+                    "Every connected world location already has a passage, or no destination is available.".into(),
+                );
+            } else {
+                state.world_lab_destination_index = (state.world_lab_destination_index + 1) % count;
+                let (_, name) =
+                    selected_world_lab_destination(state).expect("destination count is non-zero");
+                state.world_lab_status = Some(format!("Passage destination set to {name}."));
+            }
+        }
+        WorldLabEditorTool::Actor => {
+            let count = state
+                .world_lab_scenario
+                .as_ref()
+                .map(|scenario| scenario.actors.len())
+                .unwrap_or(0);
+            if count == 0 {
+                state.world_lab_status =
+                    Some("No NPC or searchable remains exist at this world location.".into());
+            } else {
+                state.world_lab_actor_index = (state.world_lab_actor_index + 1) % count;
+                let actor = selected_world_lab_actor(state).expect("actor count is non-zero");
+                state.world_lab_status = Some(format!("Actor set to {}.", actor.label));
+            }
+        }
+    }
+}
+
+fn link_world_lab_locations(state: &mut DeveloperToolsState, target_id: u64, connected: bool) {
+    let Some(scenario) = state.world_lab_scenario.as_mut() else {
+        return;
+    };
+    let source_location_id = scenario.location_id;
+    if let Some(source) = scenario.world.location_by_id_mut(source_location_id) {
+        if connected {
+            if !source.exits.contains(&target_id) {
+                source.exits.push(target_id);
+            }
+        } else {
+            source.exits.retain(|id| *id != target_id);
+        }
+    }
+    if let Some(target) = scenario.world.location_by_id_mut(target_id) {
+        if connected {
+            if !target.exits.contains(&source_location_id) {
+                target.exits.push(source_location_id);
+            }
+        } else {
+            target.exits.retain(|id| *id != source_location_id);
+        }
+    }
+}
+
+fn place_world_lab_passage(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+    if state.world_lab_scenario.is_none() {
+        state.world_lab_status = Some(
+            "This fixture has no matching disposable world graph; generate a World Lab map to author passages.".into(),
+        );
+        return;
+    }
+    let Some((destination_id, destination_name)) = selected_world_lab_destination(state) else {
+        state.world_lab_status =
+            Some("No unconnected destination is available for a new passage.".into());
+        return;
+    };
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
+    let placed = bevy_spatial::sandbox_map_mut(spatial).is_some_and(|map| {
+        let id = format!("{}.exit.{}", map.location_id, destination_id);
+        map.place_map_exit(
+            MapExit {
+                id,
+                position,
+                target_location_id: destination_id,
+            },
+            &[destination_id],
+        )
+    });
+    if placed {
+        link_world_lab_locations(state, destination_id, true);
+        state.world_lab_status = Some(format!(
+            "Connected {destination_name} through a passage at ({}, {}).",
+            position.x, position.y
+        ));
+    } else {
+        state.world_lab_status = Some(
+            "A passage must be on a free edge cell, with a clear route to the entry and a valid destination.".into(),
+        );
+    }
+}
+
+fn pick_up_or_drop_world_lab_passage(
+    state: &mut DeveloperToolsState,
+    spatial: &mut SpatialExplorationState,
+) {
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
+    if let Some(id) = state.world_lab_held_passage.clone() {
+        let moved = bevy_spatial::sandbox_map_mut(spatial)
+            .is_some_and(|map| map.move_map_exit(&id, position));
+        if moved {
+            state.world_lab_held_passage = None;
+            state.world_lab_status = Some(format!(
+                "Moved passage to ({}, {}).",
+                position.x, position.y
+            ));
+        } else {
+            state.world_lab_status =
+                Some("The passage needs a free edge cell and a clear route to the entry.".into());
+        }
+        return;
+    }
+    let selected = bevy_spatial::sandbox_map(spatial).and_then(|map| {
+        map.exits
+            .iter()
+            .find(|exit| exit.position == position)
+            .map(|exit| (exit.id.clone(), exit.target_location_id))
+    });
+    if let Some((id, target_id)) = selected {
+        state.world_lab_held_passage = Some(id);
+        let name = state
+            .world_lab_scenario
+            .as_ref()
+            .and_then(|scenario| scenario.world.location_by_id(target_id))
+            .map(|location| location.name.as_str())
+            .unwrap_or("unknown destination");
+        state.world_lab_status = Some(format!(
+            "Holding passage to {name}. Move to another edge cell, then drop it."
+        ));
+    } else {
+        state.world_lab_status = Some("There is no passage under the selected cell.".into());
+    }
+}
+
+fn remove_world_lab_passage(
+    state: &mut DeveloperToolsState,
+    spatial: &mut SpatialExplorationState,
+) {
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
+    let removed =
+        bevy_spatial::sandbox_map_mut(spatial).and_then(|map| map.remove_map_exit_at(position));
+    if let Some(exit) = removed {
+        if state.world_lab_held_passage.as_deref() == Some(exit.id.as_str()) {
+            state.world_lab_held_passage = None;
+        }
+        link_world_lab_locations(state, exit.target_location_id, false);
+        state.world_lab_status = Some(format!(
+            "Removed passage to world location {}.",
+            exit.target_location_id
+        ));
+    } else {
+        state.world_lab_status = Some("There is no passage under the selected cell.".into());
+    }
+}
+
+fn place_world_lab_actor(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+    if state.world_lab_scenario.is_none() {
+        state.world_lab_status = Some(
+            "This fixture has no matching disposable world entities; generate a World Lab map to author actors.".into(),
+        );
+        return;
+    }
+    let Some(actor) = selected_world_lab_actor(state) else {
+        state.world_lab_status =
+            Some("No NPC or searchable remains are available at this location.".into());
+        return;
+    };
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
+    let valid_entities = state
+        .world_lab_scenario
+        .as_ref()
+        .map(|scenario| {
+            scenario
+                .actors
+                .iter()
+                .map(|actor| (actor.entity_id, actor.kind))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let placed = bevy_spatial::sandbox_map_mut(spatial).is_some_and(|map| {
+        map.place_spatial_entity(
+            SpatialEntityPlacement {
+                entity_id: actor.entity_id,
+                kind: actor.kind,
+                position,
+            },
+            &valid_entities,
+        )
+    });
+    state.world_lab_status = Some(if placed {
+        format!(
+            "Placed {} at ({}, {}).",
+            actor.label, position.x, position.y
+        )
+    } else {
+        format!(
+            "{} must have a free, walkable cell and can only be placed once.",
+            actor.label
+        )
+    });
+}
+
+fn pick_up_or_drop_world_lab_actor(
+    state: &mut DeveloperToolsState,
+    spatial: &mut SpatialExplorationState,
+) {
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
+    if let Some((entity_id, kind)) = state.world_lab_held_actor {
+        let moved = bevy_spatial::sandbox_map_mut(spatial)
+            .is_some_and(|map| map.move_spatial_entity(entity_id, kind, position));
+        if moved {
+            state.world_lab_held_actor = None;
+            state.world_lab_status = Some(format!(
+                "Moved actor {entity_id} to ({}, {}).",
+                position.x, position.y
+            ));
+        } else {
+            state.world_lab_status = Some("The actor needs a free, walkable cell.".into());
+        }
+        return;
+    }
+    let selected = bevy_spatial::sandbox_map(spatial).and_then(|map| {
+        map.interactables
+            .iter()
+            .find(|actor| actor.position == position)
+            .map(|actor| (actor.entity_id, actor.kind))
+    });
+    if let Some((entity_id, kind)) = selected {
+        state.world_lab_held_actor = Some((entity_id, kind));
+        let label = state
+            .world_lab_scenario
+            .as_ref()
+            .and_then(|scenario| {
+                scenario
+                    .actors
+                    .iter()
+                    .find(|actor| actor.entity_id == entity_id)
+            })
+            .map(|actor| actor.label.as_str())
+            .unwrap_or("world actor");
+        state.world_lab_status = Some(format!(
+            "Holding {label}. Move to a free cell, then drop the actor."
+        ));
+    } else {
+        state.world_lab_status = Some("There is no actor under the selected cell.".into());
+    }
+}
+
+fn remove_world_lab_actor(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
+    let removed = bevy_spatial::sandbox_map_mut(spatial)
+        .and_then(|map| map.remove_spatial_entity_at(position));
+    if let Some(actor) = removed {
+        if state.world_lab_held_actor == Some((actor.entity_id, actor.kind)) {
+            state.world_lab_held_actor = None;
+        }
+        let label = state
+            .world_lab_scenario
+            .as_ref()
+            .and_then(|scenario| {
+                scenario
+                    .actors
+                    .iter()
+                    .find(|entry| entry.entity_id == actor.entity_id)
+            })
+            .map(|entry| entry.label.as_str())
+            .unwrap_or("world actor");
+        state.world_lab_status = Some(format!(
+            "Removed the placement for {label}. The world entity remains available to place again."
+        ));
+    } else {
+        state.world_lab_status = Some("There is no actor under the selected cell.".into());
     }
 }
 
@@ -651,6 +1224,8 @@ fn remove_world_lab_object(state: &mut DeveloperToolsState, spatial: &mut Spatia
     match state.world_lab_editor_tool {
         WorldLabEditorTool::Prop => remove_world_lab_prop(state, spatial),
         WorldLabEditorTool::PointOfInterest => remove_world_lab_point_of_interest(state, spatial),
+        WorldLabEditorTool::Passage => remove_world_lab_passage(state, spatial),
+        WorldLabEditorTool::Actor => remove_world_lab_actor(state, spatial),
     }
 }
 
@@ -668,15 +1243,22 @@ fn world_lab_cell_details(map: &LocalMap, position: GridPosition) -> String {
             markers.push(format!("point of interest: {}", poi.title));
         }
     }
-    if map.exits.iter().any(|exit| exit.position == position) {
-        markers.push("passage".to_string());
+    for exit in map.exits.iter().filter(|exit| exit.position == position) {
+        markers.push(format!(
+            "passage to world location {}",
+            exit.target_location_id
+        ));
     }
-    if map
+    for actor in map
         .interactables
         .iter()
-        .any(|actor| actor.position == position)
+        .filter(|actor| actor.position == position)
     {
-        markers.push("actor".to_string());
+        let kind = match actor.kind {
+            SpatialEntityKind::Npc => "NPC",
+            SpatialEntityKind::Corpse => "searchable remains",
+        };
+        markers.push(format!("{kind} entity {}", actor.entity_id));
     }
     if let Some(prop) = map
         .props
@@ -712,23 +1294,76 @@ fn refresh_world_lab_fixtures(state: &mut DeveloperToolsState) {
     state.dirty = true;
 }
 
+fn clear_world_lab_holds(state: &mut DeveloperToolsState) {
+    state.world_lab_held_prop = None;
+    state.world_lab_held_point_of_interest = None;
+    state.world_lab_held_passage = None;
+    state.world_lab_held_actor = None;
+}
+
 fn activate_world_lab_map(
     state: &mut DeveloperToolsState,
     spatial: &mut SpatialExplorationState,
     navigation: &mut NavigationState,
-    map: LocalMap,
+    mut map: LocalMap,
     name: &str,
 ) {
+    clear_world_lab_holds(state);
     state.world_lab_cursor = Some(map.entry);
-    state.world_lab_held_prop = None;
-    state.world_lab_held_point_of_interest = None;
+    state.world_lab.seed = map.seed;
+    state.world_lab.shrine_layout = map.layout_id.as_deref() == Some("shrine_chamber");
+    state.world_lab_scenario = restore_world_lab_scenario(&map);
+    if let Some(scenario) = state.world_lab_scenario.as_ref() {
+        if let Some(index) = scenario
+            .world
+            .locations
+            .iter()
+            .position(|location| location.id == scenario.location_id)
+        {
+            state.world_lab.location_index = index;
+        }
+        let location_ids = scenario
+            .world
+            .locations
+            .iter()
+            .map(|location| location.id)
+            .collect::<HashSet<_>>();
+        let actor_ids = scenario
+            .actors
+            .iter()
+            .map(|actor| (actor.entity_id, actor.kind))
+            .collect::<Vec<_>>();
+        map.exits
+            .retain(|exit| location_ids.contains(&exit.target_location_id));
+        map.interactables
+            .retain(|actor| actor_ids.contains(&(actor.entity_id, actor.kind)));
+        state.world_lab_status = Some(format!(
+            "Loaded fixture: {name}. World graph and actor references were restored from seed {}.",
+            map.seed
+        ));
+    } else {
+        map.exits.clear();
+        map.interactables.clear();
+        state.world_lab_status = Some(format!(
+            "Loaded fixture: {name}. Its original world graph or entity identities are unavailable; unsupported passage and actor references were discarded."
+        ));
+    }
+    let actor_ids = state
+        .world_lab_scenario
+        .as_ref()
+        .map(|scenario| {
+            scenario
+                .actors
+                .iter()
+                .map(|actor| (actor.entity_id, actor.kind))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     bevy_spatial::set_sandbox_map(spatial, map);
+    bevy_spatial::set_sandbox_actor_entities(spatial, &actor_ids);
     state.world_lab_generated_options = Some(state.world_lab);
-    state.world_lab_status = Some(format!(
-        "Loaded fixture: {name}. The map is ready to edit or play-test."
-    ));
     navigation.current_screen = Some(ScreenId::WorldLab);
-    navigation.selected = 5;
+    navigation.selected = 6;
     state.dirty = true;
 }
 
@@ -986,10 +1621,15 @@ fn developer_tools_input(
                         }
                         1 => {
                             if bevy_spatial::sandbox_map(&spatial).is_none() {
-                                bevy_spatial::set_sandbox_map(
-                                    &mut spatial,
-                                    generate_world_lab_map(state.world_lab),
-                                );
+                                let (map, scenario) = generate_world_lab_session(state.world_lab);
+                                let actor_ids = scenario
+                                    .actors
+                                    .iter()
+                                    .map(|actor| (actor.entity_id, actor.kind))
+                                    .collect::<Vec<_>>();
+                                bevy_spatial::set_sandbox_map(&mut spatial, map);
+                                bevy_spatial::set_sandbox_actor_entities(&mut spatial, &actor_ids);
+                                state.world_lab_scenario = Some(scenario);
                                 state.world_lab_generated_options = Some(state.world_lab);
                                 state.world_lab_status =
                                     Some("A default map is ready to inspect or play-test.".into());
@@ -1051,20 +1691,40 @@ fn developer_tools_input(
                                 );
                             }
                             4 => {
-                                let map = generate_world_lab_map(state.world_lab);
-                                state.world_lab_cursor = Some(map.entry);
-                                state.world_lab_held_prop = None;
-                                state.world_lab_held_point_of_interest = None;
-                                bevy_spatial::set_sandbox_map(&mut spatial, map);
-                                state.world_lab_generated_options = Some(state.world_lab);
-                                state.world_lab_status =
-                                    Some("Map generated with the current settings.".into());
+                                let count = state
+                                    .world_lab_scenario
+                                    .as_ref()
+                                    .map(|scenario| scenario.world.locations.len())
+                                    .unwrap_or_else(|| {
+                                        crate::procedural::WorldGenerationConfig::default()
+                                            .location_count
+                                    });
+                                state.world_lab.location_index =
+                                    (state.world_lab.location_index + 1) % count.max(1);
+                                state.world_lab_status = Some(
+                                    "World location changed. Generate a map to load its graph and actors.".into(),
+                                );
                             }
                             5 => {
+                                let (map, scenario) = generate_world_lab_session(state.world_lab);
+                                state.world_lab_cursor = Some(map.entry);
+                                clear_world_lab_holds(&mut state);
+                                let actor_ids = scenario
+                                    .actors
+                                    .iter()
+                                    .map(|actor| (actor.entity_id, actor.kind))
+                                    .collect::<Vec<_>>();
+                                state.world_lab_scenario = Some(scenario);
+                                bevy_spatial::set_sandbox_map(&mut spatial, map);
+                                bevy_spatial::set_sandbox_actor_entities(&mut spatial, &actor_ids);
+                                state.world_lab_generated_options = Some(state.world_lab);
+                                state.world_lab_status =
+                                    Some("Map generated from the selected world location.".into());
+                            }
+                            6 => {
                                 if let Some(map) = bevy_spatial::sandbox_map(&spatial) {
                                     state.world_lab_cursor = Some(world_lab_cursor(&state, map));
-                                    state.world_lab_held_prop = None;
-                                    state.world_lab_held_point_of_interest = None;
+                                    clear_world_lab_holds(&mut state);
                                     navigation.current_screen = Some(ScreenId::WorldLabEditor);
                                     navigation.selected = 0;
                                 } else {
@@ -1072,7 +1732,7 @@ fn developer_tools_input(
                                         Some("Generate a map before opening the editor.".into());
                                 }
                             }
-                            6 => {
+                            7 => {
                                 if state.world_lab_generated_options == Some(state.world_lab)
                                     && bevy_spatial::sandbox_map(&spatial).is_some()
                                 {
@@ -1087,24 +1747,30 @@ fn developer_tools_input(
                                     );
                                 }
                             }
-                            7 => export_world_lab_fixture(&mut state, &spatial),
-                            8 => {
+                            8 => export_world_lab_fixture(&mut state, &spatial),
+                            9 => {
                                 refresh_world_lab_fixtures(&mut state);
                                 navigation.current_screen = Some(ScreenId::WorldLabFixtures);
                                 navigation.selected = 0;
                             }
-                            9 => {
+                            10 => {
                                 state.world_lab = WorldLabOptions::default();
-                                let map = generate_world_lab_map(state.world_lab);
+                                let (map, scenario) = generate_world_lab_session(state.world_lab);
                                 state.world_lab_cursor = Some(map.entry);
-                                state.world_lab_held_prop = None;
-                                state.world_lab_held_point_of_interest = None;
+                                clear_world_lab_holds(&mut state);
+                                let actor_ids = scenario
+                                    .actors
+                                    .iter()
+                                    .map(|actor| (actor.entity_id, actor.kind))
+                                    .collect::<Vec<_>>();
+                                state.world_lab_scenario = Some(scenario);
                                 bevy_spatial::set_sandbox_map(&mut spatial, map);
+                                bevy_spatial::set_sandbox_actor_entities(&mut spatial, &actor_ids);
                                 state.world_lab_generated_options = Some(state.world_lab);
                                 state.world_lab_status =
                                     Some("Settings reset and map regenerated.".into());
                             }
-                            10 => {
+                            11 => {
                                 navigation.current_screen = Some(ScreenId::DeveloperTools);
                                 navigation.selected = 0;
                             }
@@ -1132,7 +1798,7 @@ fn developer_tools_input(
                             ));
                         } else {
                             navigation.current_screen = Some(ScreenId::WorldLab);
-                            navigation.selected = 8;
+                            navigation.selected = 9;
                             state.dirty = true;
                         }
                     }
@@ -1143,32 +1809,15 @@ fn developer_tools_input(
                             2 => move_world_lab_cursor(&mut state, &spatial, 0, -1),
                             3 => move_world_lab_cursor(&mut state, &spatial, 0, 1),
                             4 => cycle_world_lab_terrain(&mut state, &mut spatial),
-                            5 => {
-                                state.world_lab_prop_kind = Some(
-                                    match state
-                                        .world_lab_prop_kind
-                                        .unwrap_or(SpatialPropKind::Pillar)
-                                    {
-                                        SpatialPropKind::Pillar => SpatialPropKind::Table,
-                                        SpatialPropKind::Table => SpatialPropKind::Pillar,
-                                    },
-                                );
-                                let kind =
-                                    state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
-                                state.world_lab_status = Some(format!(
-                                    "Prop tool set to {}.",
-                                    world_lab_prop_name(kind)
-                                ));
-                            }
+                            5 => cycle_world_lab_selected_value(&mut state),
                             6 => cycle_world_lab_editor_tool(&mut state),
                             7 => place_world_lab_object(&mut state, &mut spatial),
                             8 => pick_up_or_drop_world_lab_object(&mut state, &mut spatial),
                             9 => remove_world_lab_object(&mut state, &mut spatial),
                             10 => {
-                                state.world_lab_held_prop = None;
-                                state.world_lab_held_point_of_interest = None;
+                                clear_world_lab_holds(&mut state);
                                 navigation.current_screen = Some(ScreenId::WorldLab);
-                                navigation.selected = 5;
+                                navigation.selected = 6;
                             }
                             _ => {}
                         }
@@ -1194,15 +1843,14 @@ fn developer_tools_input(
                         state.dirty = true;
                     }
                     ScreenId::WorldLabEditor => {
-                        state.world_lab_held_prop = None;
-                        state.world_lab_held_point_of_interest = None;
+                        clear_world_lab_holds(&mut state);
                         navigation.current_screen = Some(ScreenId::WorldLab);
-                        navigation.selected = 5;
+                        navigation.selected = 6;
                         state.dirty = true;
                     }
                     ScreenId::WorldLabFixtures => {
                         navigation.current_screen = Some(ScreenId::WorldLab);
-                        navigation.selected = 8;
+                        navigation.selected = 9;
                         state.dirty = true;
                     }
                     _ => {}
@@ -1495,6 +2143,21 @@ fn render_world_lab(
         controls,
         format!("World seed: {}", state.world_lab.seed),
     );
+    if let Some(scenario) = state.world_lab_scenario.as_ref() {
+        if let Some(location) = scenario.world.locations.get(state.world_lab.location_index) {
+            bevy_presentation::spawn_muted_label(
+                commands,
+                controls,
+                format!(
+                    "World location {}/{}: {} (ID {})",
+                    state.world_lab.location_index + 1,
+                    scenario.world.locations.len(),
+                    location.name,
+                    location.id
+                ),
+            );
+        }
+    }
     bevy_presentation::spawn_muted_label(
         commands,
         controls,
@@ -1527,12 +2190,14 @@ fn render_world_lab(
             commands,
             controls,
             format!(
-                "Generated map seed: {} | {} tiles | {} walls | {} props | {} points of interest",
+                "Generated map seed: {} | {} tiles | {} walls | {} props | {} discoveries | {} passages | {} actor placements",
                 map.seed,
                 tile_count,
                 walls,
                 map.props.len(),
-                map.points_of_interest.len()
+                map.points_of_interest.len(),
+                map.exits.len(),
+                map.interactables.len()
             ),
         );
     } else {
@@ -1565,7 +2230,7 @@ fn render_world_lab(
         bevy_presentation::spawn_muted_label(
             commands,
             preview_panel,
-            "Legend: @ entry · ? point of interest · P prop · # wall · . floor · : ash · % rubble",
+            "Legend: @ entry · ? discovery · E passage · N NPC · C remains · P prop · # wall · . floor · : ash · % rubble",
         );
         if map_is_current {
             bevy_presentation::spawn_muted_label(
@@ -1604,7 +2269,7 @@ fn render_world_lab_editor(
     bevy_presentation::spawn_muted_label(
         commands,
         root,
-        "Changes affect only this temporary map. Entries, actors, and passages stay protected; choose Prop or Point of Interest to author objects.",
+        "Changes affect only this temporary map. Edit terrain, props, discoveries, passages to connected world locations, and placements for real sandbox NPCs/remains.",
     );
 
     let controls = bevy_presentation::spawn_panel(commands, root);
@@ -1624,13 +2289,51 @@ fn render_world_lab_editor(
                 world_lab_editor_tool_name(state.world_lab_editor_tool)
             ),
         );
-        if state.world_lab_editor_tool == WorldLabEditorTool::Prop {
-            let prop_kind = state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
-            bevy_presentation::spawn_muted_label(
-                commands,
-                controls,
-                format!("Prop type: {}", world_lab_prop_name(prop_kind)),
-            );
+        match state.world_lab_editor_tool {
+            WorldLabEditorTool::Prop => {
+                let prop_kind = state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
+                bevy_presentation::spawn_muted_label(
+                    commands,
+                    controls,
+                    format!("Prop type: {}", world_lab_prop_name(prop_kind)),
+                );
+            }
+            WorldLabEditorTool::Passage => {
+                if let Some((destination_id, destination_name)) =
+                    selected_world_lab_destination(state)
+                {
+                    bevy_presentation::spawn_muted_label(
+                        commands,
+                        controls,
+                        format!("Selected destination: {destination_name} (world location {destination_id})"),
+                    );
+                } else {
+                    bevy_presentation::spawn_muted_label(
+                        commands,
+                        controls,
+                        "No unconnected destination is available. Remove an existing passage to make that route available again.",
+                    );
+                }
+            }
+            WorldLabEditorTool::Actor => {
+                if let Some(actor) = selected_world_lab_actor(state) {
+                    bevy_presentation::spawn_muted_label(
+                        commands,
+                        controls,
+                        format!(
+                            "Selected world actor: {} (entity {})",
+                            actor.label, actor.entity_id
+                        ),
+                    );
+                } else {
+                    bevy_presentation::spawn_muted_label(
+                        commands,
+                        controls,
+                        "No NPC or searchable remains are available at this location.",
+                    );
+                }
+            }
+            WorldLabEditorTool::PointOfInterest => {}
         }
         if let Some(held_id) = state.world_lab_held_prop.as_deref() {
             if let Some(prop) = map.props.iter().find(|prop| prop.id == held_id) {
@@ -1660,6 +2363,39 @@ fn render_world_lab_editor(
                 );
             }
         }
+        if let Some(held_id) = state.world_lab_held_passage.as_deref() {
+            if let Some(exit) = map.exits.iter().find(|exit| exit.id == held_id) {
+                bevy_presentation::spawn_muted_label(
+                    commands,
+                    controls,
+                    format!(
+                        "Moving passage to location {} from ({}, {}). Choose another edge cell and drop it.",
+                        exit.target_location_id, exit.position.x, exit.position.y
+                    ),
+                );
+            }
+        }
+        if let Some((entity_id, kind)) = state.world_lab_held_actor {
+            let label = state
+                .world_lab_scenario
+                .as_ref()
+                .and_then(|scenario| {
+                    scenario
+                        .actors
+                        .iter()
+                        .find(|actor| actor.entity_id == entity_id)
+                })
+                .map(|actor| actor.label.as_str())
+                .unwrap_or(match kind {
+                    SpatialEntityKind::Npc => "NPC",
+                    SpatialEntityKind::Corpse => "searchable remains",
+                });
+            bevy_presentation::spawn_muted_label(
+                commands,
+                controls,
+                format!("Moving {label} (entity {entity_id}). Choose a free cell and drop it."),
+            );
+        }
     } else {
         bevy_presentation::spawn_muted_label(commands, controls, "No temporary map is available.");
     }
@@ -1682,16 +2418,18 @@ fn render_world_lab_editor(
         let cursor = world_lab_cursor(state, map);
         bevy_presentation::spawn_muted_label(
             commands, preview_panel,
-            "Legend: X cursor · H held prop · Q held discovery · @ entry · ? discovery · P prop · # wall · . floor · : ash · % rubble",
+            "Legend: X cursor · H prop · Q discovery · D passage · A actor · @ entry · ? discovery · E passage · N NPC · C remains · P prop · # wall · . floor · : ash · % rubble",
         );
         bevy_presentation::spawn_muted_label(
             commands,
             preview_panel,
-            world_lab_map_preview_with_cursor(
+            world_lab_map_preview_with_all_holds(
                 map,
                 Some(cursor),
                 state.world_lab_held_prop.as_deref(),
                 state.world_lab_held_point_of_interest.as_deref(),
+                state.world_lab_held_passage.as_deref(),
+                state.world_lab_held_actor.map(|(entity_id, _)| entity_id),
             ),
         );
     } else {

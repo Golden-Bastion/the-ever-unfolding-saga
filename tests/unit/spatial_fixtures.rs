@@ -1,6 +1,9 @@
 use super::*;
 
-use crate::spatial::{generate_local_map, LocalMapConfig, SpatialPropKind};
+use crate::spatial::{
+    generate_local_map, LocalMapConfig, MapExit, SpatialEntityKind, SpatialEntityPlacement,
+    SpatialPropKind,
+};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -147,4 +150,81 @@ fn fixture_names_cannot_create_paths_outside_the_fixture_directory() {
         .to_string_lossy()
         .starts_with("unsafe-name"));
     fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
+    let mut map = generate_local_map(73, "location.10", LocalMapConfig::default());
+    map.exits.clear();
+    map.interactables.clear();
+
+    let edge = GridPosition {
+        x: map.width - 1,
+        y: 1,
+    };
+    assert!(map.set_terrain(edge, Terrain::Floor));
+    map.exits.push(MapExit {
+        id: "location.10.exit.20".into(),
+        position: edge,
+        target_location_id: 20,
+    });
+    let actor = (1..map.height - 1)
+        .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
+        .find(|position| {
+            map.is_walkable(*position)
+                && *position != map.entry
+                && !map
+                    .points_of_interest
+                    .iter()
+                    .any(|point| point.position == *position)
+        })
+        .expect("map should have an unreserved walkable actor cell");
+    map.interactables.push(SpatialEntityPlacement {
+        entity_id: 101,
+        kind: SpatialEntityKind::Npc,
+        position: actor,
+    });
+    validate_local_map(&map).expect("real identities should validate in a fixture");
+
+    let mut duplicate_passage = map.clone();
+    let second_edge = GridPosition { x: 0, y: 1 };
+    assert!(duplicate_passage.set_terrain(second_edge, Terrain::Floor));
+    duplicate_passage.exits.push(MapExit {
+        id: "location.10.exit.20.duplicate".into(),
+        position: second_edge,
+        target_location_id: 20,
+    });
+    assert!(validate_local_map(&duplicate_passage)
+        .unwrap_err()
+        .contains("passage destinations"));
+
+    let mut duplicate_actor = map.clone();
+    let second_actor_cell = (1..map.height - 1)
+        .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
+        .find(|position| {
+            *position != actor && duplicate_actor_cell_is_free(&duplicate_actor, *position)
+        })
+        .expect("map should have a second unreserved walkable actor cell");
+    duplicate_actor.interactables.push(SpatialEntityPlacement {
+        entity_id: 101,
+        kind: SpatialEntityKind::Corpse,
+        position: second_actor_cell,
+    });
+    assert!(validate_local_map(&duplicate_actor)
+        .unwrap_err()
+        .contains("non-zero unique entity IDs"));
+}
+
+fn duplicate_actor_cell_is_free(map: &LocalMap, position: GridPosition) -> bool {
+    map.is_walkable(position)
+        && position != map.entry
+        && !map
+            .points_of_interest
+            .iter()
+            .any(|point| point.position == position)
+        && !map.exits.iter().any(|exit| exit.position == position)
+        && !map
+            .interactables
+            .iter()
+            .any(|actor| actor.position == position)
 }

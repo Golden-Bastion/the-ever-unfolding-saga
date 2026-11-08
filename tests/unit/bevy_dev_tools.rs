@@ -81,6 +81,7 @@ fn world_lab_generation_is_reproducible_and_respects_selected_layout() {
     let options = WorldLabOptions {
         seed: 7_654_321,
         size_index: 2,
+        location_index: 0,
         shrine_layout: true,
     };
 
@@ -103,6 +104,7 @@ fn world_lab_preview_matches_generated_map_dimensions() {
     let options = WorldLabOptions {
         seed: 19,
         size_index: 1,
+        location_index: 0,
         shrine_layout: false,
     };
     let map = generate_world_lab_map(options);
@@ -246,4 +248,235 @@ fn world_lab_point_of_interest_tool_can_place_move_and_remove_a_discovery() {
     remove_world_lab_object(&mut state, &mut spatial);
     assert!(bevy_spatial::sandbox_map(&spatial)
         .is_some_and(|map| map.point_of_interest(&created.id).is_none()));
+}
+
+#[test]
+fn world_lab_session_uses_real_world_graph_and_reproducible_actor_ids() {
+    let game = generate_world_lab_game(44_321);
+    let npc_location_index = game
+        .npcs
+        .first()
+        .and_then(|npc| {
+            game.world
+                .locations
+                .iter()
+                .position(|location| location.id == npc.location_id)
+        })
+        .expect("generated world should include an NPC at a real location");
+    let options = WorldLabOptions {
+        seed: 44_321,
+        size_index: 1,
+        location_index: npc_location_index,
+        shrine_layout: false,
+    };
+
+    let (map, scenario) = generate_world_lab_session(options);
+    let source = scenario
+        .world
+        .location_by_id(scenario.location_id)
+        .expect("selected location should exist in the scenario graph");
+    assert_eq!(map.location_id, format!("location.{}", source.id));
+    assert_eq!(
+        map.exits
+            .iter()
+            .map(|exit| exit.target_location_id)
+            .collect::<Vec<_>>(),
+        source.exits
+    );
+    assert!(!scenario.actors.is_empty());
+    assert!(map.interactables.iter().all(|placement| scenario
+        .actors
+        .iter()
+        .any(|actor| actor.entity_id == placement.entity_id && actor.kind == placement.kind)));
+
+    let restored =
+        restore_world_lab_scenario(&map).expect("generated fixture should restore its world graph");
+    assert_eq!(restored.location_id, scenario.location_id);
+    assert_eq!(
+        restored
+            .actors
+            .iter()
+            .map(|actor| actor.entity_id)
+            .collect::<Vec<_>>(),
+        scenario
+            .actors
+            .iter()
+            .map(|actor| actor.entity_id)
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn world_lab_passage_editor_updates_reciprocal_graph_links() {
+    let options = WorldLabOptions {
+        seed: 887_001,
+        ..WorldLabOptions::default()
+    };
+    let (map, scenario) = generate_world_lab_session(options);
+    let mut spatial = SpatialExplorationState::default();
+    bevy_spatial::set_sandbox_map(&mut spatial, map.clone());
+    let mut state = DeveloperToolsState {
+        world_lab: options,
+        world_lab_scenario: Some(scenario),
+        world_lab_cursor: Some(map.entry),
+        world_lab_editor_tool: WorldLabEditorTool::Passage,
+        ..Default::default()
+    };
+    let (destination_id, _) = selected_world_lab_destination(&state)
+        .expect("selected location should have at least one unconnected destination");
+    let passage_id = format!("{}.exit.{}", map.location_id, destination_id);
+    let edge_positions = (1..map.height - 1)
+        .flat_map(|y| {
+            [
+                GridPosition {
+                    x: map.width - 1,
+                    y,
+                },
+                GridPosition { x: 0, y },
+            ]
+        })
+        .chain((1..map.width - 1).flat_map(|x| {
+            [
+                GridPosition { x, y: 0 },
+                GridPosition {
+                    x,
+                    y: map.height - 1,
+                },
+            ]
+        }))
+        .collect::<Vec<_>>();
+    let placement = edge_positions
+        .iter()
+        .copied()
+        .find(|position| {
+            let mut candidate = map.clone();
+            candidate.place_map_exit(
+                MapExit {
+                    id: passage_id.clone(),
+                    position: *position,
+                    target_location_id: destination_id,
+                },
+                &[destination_id],
+            )
+        })
+        .expect("an unoccupied edge should accept a new route");
+    state.world_lab_cursor = Some(placement);
+
+    place_world_lab_object(&mut state, &mut spatial);
+    assert!(bevy_spatial::sandbox_map(&spatial)
+        .is_some_and(|map| { map.exits.iter().any(|exit| exit.id == passage_id) }));
+    let scenario = state.world_lab_scenario.as_ref().unwrap();
+    assert!(scenario
+        .world
+        .location_by_id(scenario.location_id)
+        .unwrap()
+        .exits
+        .contains(&destination_id));
+    assert!(scenario
+        .world
+        .location_by_id(destination_id)
+        .unwrap()
+        .exits
+        .contains(&scenario.location_id));
+
+    remove_world_lab_object(&mut state, &mut spatial);
+    let scenario = state.world_lab_scenario.as_ref().unwrap();
+    assert!(!scenario
+        .world
+        .location_by_id(scenario.location_id)
+        .unwrap()
+        .exits
+        .contains(&destination_id));
+    assert!(!scenario
+        .world
+        .location_by_id(destination_id)
+        .unwrap()
+        .exits
+        .contains(&scenario.location_id));
+}
+
+#[test]
+fn world_lab_actor_editor_moves_removes_and_reuses_a_real_entity() {
+    let game = generate_world_lab_game(19_992);
+    let location_index = game
+        .npcs
+        .first()
+        .and_then(|npc| {
+            game.world
+                .locations
+                .iter()
+                .position(|location| location.id == npc.location_id)
+        })
+        .expect("generated world should include NPCs");
+    let options = WorldLabOptions {
+        seed: 19_992,
+        location_index,
+        ..WorldLabOptions::default()
+    };
+    let (map, scenario) = generate_world_lab_session(options);
+    let actor = scenario
+        .actors
+        .first()
+        .expect("selected location should have an actor")
+        .clone();
+    let actor_position = map
+        .interactables
+        .iter()
+        .find(|placement| placement.entity_id == actor.entity_id)
+        .map(|placement| placement.position)
+        .expect("real actor should have a deterministic map placement");
+    let find_free_cell = |map: &LocalMap| {
+        (1..map.height - 1)
+            .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
+            .find(|position| {
+                map.is_walkable(*position)
+                    && *position != map.entry
+                    && !map
+                        .points_of_interest
+                        .iter()
+                        .any(|point| point.position == *position)
+                    && !map.exits.iter().any(|exit| exit.position == *position)
+                    && !map
+                        .interactables
+                        .iter()
+                        .any(|placed| placed.position == *position)
+            })
+    };
+    let mut spatial = SpatialExplorationState::default();
+    bevy_spatial::set_sandbox_map(&mut spatial, map.clone());
+    let mut state = DeveloperToolsState {
+        world_lab: options,
+        world_lab_scenario: Some(scenario),
+        world_lab_editor_tool: WorldLabEditorTool::Actor,
+        world_lab_actor_index: 0,
+        world_lab_cursor: Some(actor_position),
+        ..Default::default()
+    };
+
+    pick_up_or_drop_world_lab_object(&mut state, &mut spatial);
+    assert_eq!(
+        state.world_lab_held_actor,
+        Some((actor.entity_id, actor.kind))
+    );
+    let destination = find_free_cell(&map).expect("map should contain a second actor position");
+    state.world_lab_cursor = Some(destination);
+    pick_up_or_drop_world_lab_object(&mut state, &mut spatial);
+    assert!(state.world_lab_held_actor.is_none());
+    assert!(bevy_spatial::sandbox_map(&spatial).is_some_and(|map| map
+        .interactables
+        .iter()
+        .any(|placed| placed.entity_id == actor.entity_id && placed.position == destination)));
+
+    remove_world_lab_object(&mut state, &mut spatial);
+    assert!(bevy_spatial::sandbox_map(&spatial).is_some_and(|map| {
+        !map.interactables
+            .iter()
+            .any(|placed| placed.entity_id == actor.entity_id)
+    }));
+    place_world_lab_object(&mut state, &mut spatial);
+    assert!(bevy_spatial::sandbox_map(&spatial).is_some_and(|map| {
+        map.interactables
+            .iter()
+            .any(|placed| placed.entity_id == actor.entity_id && placed.position == destination)
+    }));
 }
