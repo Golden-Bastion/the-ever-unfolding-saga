@@ -442,8 +442,14 @@ fn radial_wheel_directional_selection_uses_the_closest_entry() {
     assert_eq!(interaction_wheel_index_for_direction(0, Vec2::Y), None);
     assert_eq!(interaction_wheel_index_for_direction(4, Vec2::Y), Some(0));
     assert_eq!(interaction_wheel_index_for_direction(4, Vec2::X), Some(1));
-    assert_eq!(interaction_wheel_index_for_direction(4, Vec2::NEG_Y), Some(2));
-    assert_eq!(interaction_wheel_index_for_direction(4, Vec2::NEG_X), Some(3));
+    assert_eq!(
+        interaction_wheel_index_for_direction(4, Vec2::NEG_Y),
+        Some(2)
+    );
+    assert_eq!(
+        interaction_wheel_index_for_direction(4, Vec2::NEG_X),
+        Some(3)
+    );
     assert_eq!(interaction_wheel_index_for_direction(1, Vec2::X), Some(0));
 }
 

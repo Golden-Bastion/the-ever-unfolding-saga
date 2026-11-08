@@ -445,9 +445,7 @@ fn spatial_input(
             InputEvent::Confirm if state.interaction_wheel.is_some() => {
                 confirm_interaction_wheel(&mut state);
             }
-            InputEvent::Cancel | InputEvent::Backspace
-                if state.interaction_wheel.is_some() =>
-            {
+            InputEvent::Cancel | InputEvent::Backspace if state.interaction_wheel.is_some() => {
                 close_interaction_wheel(&mut state, None);
             }
             InputEvent::Confirm => open_interaction_wheel(&mut state, &lifecycle),
@@ -571,10 +569,7 @@ fn interact_with_poi(
     state.dirty = true;
 }
 
-fn open_interaction_wheel(
-    state: &mut SpatialExplorationState,
-    lifecycle: &LifecycleState,
-) {
+fn open_interaction_wheel(state: &mut SpatialExplorationState, lifecycle: &LifecycleState) {
     if state.interaction_wheel.is_some() {
         return;
     }
@@ -590,8 +585,7 @@ fn open_interaction_wheel(
         .unwrap_or_default();
 
     if entries.is_empty() {
-        state.message =
-            Some("There is nothing within reach that can be approached.".to_string());
+        state.message = Some("There is nothing within reach that can be approached.".to_string());
         state.dirty = true;
         return;
     }
@@ -606,10 +600,7 @@ fn open_interaction_wheel(
     });
 }
 
-fn close_interaction_wheel(
-    state: &mut SpatialExplorationState,
-    selected: Option<usize>,
-) {
+fn close_interaction_wheel(state: &mut SpatialExplorationState, selected: Option<usize>) {
     let Some(wheel) = state.interaction_wheel.as_mut() else {
         return;
     };
@@ -640,19 +631,14 @@ fn confirm_interaction_wheel(state: &mut SpatialExplorationState) {
     }
 }
 
-fn move_interaction_wheel_selection(
-    state: &mut SpatialExplorationState,
-    direction: Vec2,
-) {
+fn move_interaction_wheel_selection(state: &mut SpatialExplorationState, direction: Vec2) {
     let Some(wheel) = state.interaction_wheel.as_mut() else {
         return;
     };
     if wheel.phase == InteractionWheelPhase::Closing {
         return;
     }
-    if let Some(selected) =
-        interaction_wheel_index_for_direction(wheel.entries.len(), direction)
-    {
+    if let Some(selected) = interaction_wheel_index_for_direction(wheel.entries.len(), direction) {
         wheel.selected = selected;
     }
 }
@@ -690,13 +676,7 @@ fn execute_available_interaction(
         (InteractionActionKind::Examine, InteractionTarget::PointOfInterest(id)) => {
             interact_with_poi(state, lifecycle, &id);
         }
-        (
-            InteractionActionKind::Enter,
-            InteractionTarget::Passage {
-                id,
-                destination_id,
-            },
-        ) => {
+        (InteractionActionKind::Enter, InteractionTarget::Passage { id, destination_id }) => {
             use_map_exit(state, navigation, &id, destination_id);
         }
         _ => {
@@ -1363,11 +1343,7 @@ fn spatial_player_screen_position(
     cameras: &Query<(&Camera, &GlobalTransform), With<Camera2d>>,
 ) -> Option<(Vec2, Vec2)> {
     let projected = map_to_world(position, Some(map));
-    let player_world = Vec3::new(
-        projected.x,
-        projected.y + PLAYER_SPRITE_HEIGHT * 0.5,
-        0.0,
-    );
+    let player_world = Vec3::new(projected.x, projected.y + PLAYER_SPRITE_HEIGHT * 0.5, 0.0);
     cameras.iter().find_map(|(camera, camera_transform)| {
         let screen_position = camera
             .world_to_viewport(camera_transform, player_world)
@@ -1417,8 +1393,7 @@ fn sync_spatial_interaction_wheel(
     let Some(map) = state.maps.get(&session.location_id) else {
         return;
     };
-    let Some((anchor, viewport)) =
-        spatial_player_screen_position(state.position, map, &cameras)
+    let Some((anchor, viewport)) = spatial_player_screen_position(state.position, map, &cameras)
     else {
         return;
     };
@@ -1447,8 +1422,7 @@ fn update_spatial_wheel_anchor(
     let Some(map) = state.maps.get(&session.location_id) else {
         return;
     };
-    let Some((anchor, viewport)) =
-        spatial_player_screen_position(state.position, map, &cameras)
+    let Some((anchor, viewport)) = spatial_player_screen_position(state.position, map, &cameras)
     else {
         return;
     };
@@ -1460,8 +1434,7 @@ fn update_spatial_wheel_anchor(
 }
 
 fn interaction_wheel_entry_position(index: usize, count: usize, button_width: f32) -> Vec2 {
-    let angle = -std::f32::consts::FRAC_PI_2
-        + std::f32::consts::TAU * index as f32 / count as f32;
+    let angle = -std::f32::consts::FRAC_PI_2 + std::f32::consts::TAU * index as f32 / count as f32;
     let radius = 102.0;
     let center = Vec2::splat(INTERACTION_WHEEL_SIZE_PX * 0.5);
     let offset = Vec2::new(angle.cos(), angle.sin()) * radius;
@@ -1641,8 +1614,7 @@ fn interaction_wheel_index_for_direction(count: usize, direction: Vec2) -> Optio
         let angle_for = |index: usize| {
             std::f32::consts::FRAC_PI_2 - std::f32::consts::TAU * index as f32 / count as f32
         };
-        let left_score =
-            Vec2::new(angle_for(*left).cos(), angle_for(*left).sin()).dot(direction);
+        let left_score = Vec2::new(angle_for(*left).cos(), angle_for(*left).sin()).dot(direction);
         let right_score =
             Vec2::new(angle_for(*right).cos(), angle_for(*right).sin()).dot(direction);
         left_score.total_cmp(&right_score)
@@ -1757,12 +1729,11 @@ fn update_spatial_context_prompt(
         .zip(game)
         .map(|(map, game)| available_interactions(map, game, session_position(&state)))
         .unwrap_or_default();
-    let interaction_display =
-        if !interactions.is_empty() && state.interaction_wheel.is_none() {
-            Display::Flex
-        } else {
-            Display::None
-        };
+    let interaction_display = if !interactions.is_empty() && state.interaction_wheel.is_none() {
+        Display::Flex
+    } else {
+        Display::None
+    };
     for mut node in &mut poi_prompts {
         if node.display != interaction_display {
             node.display = interaction_display;
@@ -1779,13 +1750,16 @@ fn update_spatial_context_prompt(
 
 fn update_spatial_control_feedback(
     state: Res<SpatialExplorationState>,
-    mut controls: Query<(
-        &Hovered,
-        Has<Pressed>,
-        Option<&SpatialWheelEntry>,
-        &mut BackgroundColor,
-        &mut BorderColor,
-    ), With<SpatialControlButton>>,
+    mut controls: Query<
+        (
+            &Hovered,
+            Has<Pressed>,
+            Option<&SpatialWheelEntry>,
+            &mut BackgroundColor,
+            &mut BorderColor,
+        ),
+        With<SpatialControlButton>,
+    >,
 ) {
     for (hovered, pressed, wheel_entry, mut background, mut border) in &mut controls {
         let selected = wheel_entry.is_some_and(|entry| {
