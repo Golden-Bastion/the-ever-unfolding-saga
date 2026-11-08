@@ -95,6 +95,9 @@ impl GameplayRuntimeState {
     }
 }
 
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+struct PauseMenuChoice(usize);
+
 #[derive(Resource)]
 pub(crate) struct GameplayState {
     pub(crate) screen: GameplayScreen,
@@ -130,7 +133,10 @@ pub(crate) fn install(app: &mut App) {
         .init_resource::<GameplayRuntimeState>()
         .init_resource::<CelestialArtAssets>()
         .add_systems(Startup, (load_location_art, load_celestial_art))
-        .add_systems(Update, (gameplay_input, render_if_active).chain())
+        .add_systems(
+            Update,
+            (gameplay_input, render_if_active, sync_pause_menu_selection).chain(),
+        )
         .add_systems(Update, animate_world_clouds);
 }
 
@@ -200,6 +206,20 @@ fn celestial_source_rects(size: UVec2) -> Option<(Rect, Rect)> {
     ))
 }
 
+fn accepts_gameplay_input(current_screen: Option<ScreenId>, gameplay_screen: GameplayScreen) -> bool {
+    current_screen == Some(ScreenId::Gameplay)
+        || (current_screen == Some(ScreenId::SpatialExploration)
+            && gameplay_screen == GameplayScreen::Pause)
+}
+
+fn pause_parent_screen(current_screen: Option<ScreenId>) -> ScreenId {
+    if current_screen == Some(ScreenId::SpatialExploration) {
+        ScreenId::SpatialExploration
+    } else {
+        ScreenId::Gameplay
+    }
+}
+
 fn gameplay_input(
     mut lifecycle: ResMut<LifecycleState>,
     mut gameplay: ResMut<GameplayState>,
@@ -211,7 +231,7 @@ fn gameplay_input(
 ) {
     if lifecycle.phase != LifecyclePhase::Complete
         || lifecycle.session.is_none()
-        || navigation_state.current_screen != Some(ScreenId::Gameplay)
+        || !accepts_gameplay_input(navigation_state.current_screen, gameplay.screen)
     {
         return;
     }
@@ -246,7 +266,7 @@ fn gameplay_input(
                     open_dedicated_screen(&mut navigation_state, ScreenId::Console);
                 }
             }
-            InputEvent::Cancel => match gameplay.screen {
+            InputEvent::Cancel | InputEvent::Backspace => match gameplay.screen {
                 GameplayScreen::Navigation => {
                     gameplay.screen = GameplayScreen::Dashboard;
                     gameplay.selected = 0;
@@ -255,7 +275,11 @@ fn gameplay_input(
                     navigation_state.selected = 0;
                 }
                 GameplayScreen::Pause => {
-                    close_pause(&mut gameplay, &mut runtime_state, &mut navigation_state);
+                    let return_screen = pause_parent_screen(navigation_state.current_screen);
+                    close_pause(&mut gameplay, &mut runtime_state, &mut navigation_state, return_screen);
+                    if return_screen == ScreenId::SpatialExploration {
+                        spatial_state.request_presentation_refresh();
+                    }
                 }
                 GameplayScreen::Dashboard => {
                     // Android BrowserBack and desktop Escape both use Cancel,
@@ -304,7 +328,6 @@ fn move_selection(
             (gameplay.selected as isize + direction).rem_euclid(count as isize) as usize;
         navigation_state.selected = gameplay.selected;
     }
-    navigation_state.current_screen = Some(ScreenId::Gameplay);
     gameplay.dirty = true;
 }
 
@@ -333,7 +356,7 @@ fn move_selection_to_end(
     }
 }
 
-fn open_pause(
+pub(crate) fn open_pause(
     gameplay: &mut GameplayState,
     runtime_state: &mut GameplayRuntimeState,
     navigation_state: &mut NavigationState,
@@ -349,12 +372,31 @@ fn close_pause(
     gameplay: &mut GameplayState,
     runtime_state: &mut GameplayRuntimeState,
     navigation_state: &mut NavigationState,
+    return_screen: ScreenId,
 ) {
     gameplay.screen = GameplayScreen::Dashboard;
     gameplay.dirty = true;
     runtime_state.set_paused(false);
-    navigation_state.current_screen = Some(ScreenId::Gameplay);
-    navigation_state.selected = gameplay.selected;
+    navigation_state.current_screen = Some(return_screen);
+    navigation_state.selected = if return_screen == ScreenId::SpatialExploration { 0 } else { gameplay.selected };
+}
+
+fn sync_pause_menu_selection(
+    navigation_state: Res<NavigationState>,
+    gameplay: Res<GameplayState>,
+    mut commands: Commands,
+    buttons: Query<(Entity, &PauseMenuChoice, Option<&bevy_presentation::UiSelected>)>,
+) {
+    if gameplay.screen != GameplayScreen::Pause
+        || !matches!(navigation_state.current_screen, Some(ScreenId::Gameplay | ScreenId::SpatialExploration))
+    { return; }
+    for (entity, choice, selected) in &buttons {
+        let should_select = choice.0 == gameplay.pause_selected;
+        if should_select != selected.is_some() {
+            if should_select { commands.entity(entity).insert(bevy_presentation::UiSelected); }
+            else { commands.entity(entity).remove::<bevy_presentation::UiSelected>(); }
+        }
+    }
 }
 
 fn pause_action_count() -> usize {
@@ -401,7 +443,11 @@ fn activate_selection(
             };
 
             match action {
-                PauseAction::Resume => close_pause(gameplay, runtime_state, navigation_state),
+                PauseAction::Resume => {
+                    let return_screen = pause_parent_screen(navigation_state.current_screen);
+                    close_pause(gameplay, runtime_state, navigation_state, return_screen);
+                    if return_screen == ScreenId::SpatialExploration { spatial_state.request_presentation_refresh(); }
+                }
                 PauseAction::Character => {
                     gameplay.dirty = true;
                     open_dedicated_screen(navigation_state, ScreenId::Character);
@@ -430,7 +476,8 @@ fn activate_selection(
                     open_dedicated_screen(navigation_state, ScreenId::Options);
                 }
                 PauseAction::Quit => {
-                    lifecycle.start_quit_confirmation(navigation_state, Some(ScreenId::Gameplay));
+                    let return_screen = pause_parent_screen(navigation_state.current_screen);
+                    lifecycle.start_quit_confirmation(navigation_state, Some(return_screen));
                 }
             }
         }
@@ -1105,6 +1152,11 @@ fn sky_visual(time_points: u32) -> SkyVisual {
     }
 }
 
+pub(crate) fn render_spatial_pause_overlay(commands: &mut Commands, parent: Entity, selected: usize) {
+    let actions = pause_actions();
+    render_pause(commands, parent, &actions, selected);
+}
+
 fn render_pause(commands: &mut Commands, parent: Entity, actions: &[PauseAction], selected: usize) {
     let overlay = bevy_presentation::spawn_overlay(commands, parent);
     commands
@@ -1144,6 +1196,7 @@ fn render_pause(commands: &mut Commands, parent: Entity, actions: &[PauseAction]
     for (index, action) in actions.iter().enumerate() {
         let (icon, label) = pause_action_visuals(*action);
         let button = bevy_presentation::spawn_action_button(commands, surface, index, icon, label);
+        commands.entity(button).insert(PauseMenuChoice(index));
         if index == selected {
             commands
                 .entity(button)

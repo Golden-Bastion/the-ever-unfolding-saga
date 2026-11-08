@@ -2,7 +2,7 @@
 
 This document audits the useful functions currently exposed by the Gameplay dashboard and pause/navigation flow, then assigns each one a proposed home in the spatial-first experience. It is the implementation map for issue [#421](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/421).
 
-**Status:** function audit complete; proposed placements are recorded; no new spatial menu or HUD controls are implemented by this document.
+**Status:** function audit complete; the existing unified pause menu is now available over spatial exploration; the remaining dashboard functions are still being migrated.
 
 The placements below follow the project's established direction: keep frequent actions contextual, make deliberate activities convenient, and put detailed information and infrequent system operations in focused screens. They are architectural assignments, not approval of a specific button layout or visual design.
 
@@ -18,7 +18,7 @@ The current spatial screen provides:
 - Desktop movement through WASD/arrow keys and interaction through E/Confirm.
 - Android movement through the virtual joystick and touch activation of the visible controls.
 
-There is not yet a system-menu control in the spatial screen. Cancel/Backspace, including the desktop Escape and Android Back semantic path, currently leaves spatial exploration and returns to Gameplay. That is the main access gap: ordinary system navigation cannot yet be opened while keeping the spatial scene as its context.
+Desktop Escape and Android system Back now open the existing unified pause menu over the spatial scene. Back while the menu is open dismisses it and resumes the same spatial session. The menu retains its existing Resume, Character, New Game, conditional Load Game, Options, and Quit actions; its child screens continue returning to the paused spatial context. The visible Leave control remains a separate, explicit transition to the compatibility Gameplay dashboard. While the menu is open, spatial movement, player animation, camera follow, and Android joystick input are paused.
 
 The spatial screen already rebuilds its presentation after returning from a dedicated screen, using the retained local map and continuous character position. NavigationState now captures and restores the invoking screen. Those foundations make spatial entry points possible without moving the player or regenerating the map.
 
@@ -38,9 +38,9 @@ The spatial screen already rebuilds its presentation after returning from a dedi
 | Character records | bevy_records.rs owns the Character hub and its General, Reputation, Inventory, Quests, and Journal tabs. | Open the existing Character hub as a dedicated screen from spatial play. Its Back action should return to the same map and player position. Do not split Inventory, Quests, or Journal into unrelated permanent HUD panels. | Return routing is implemented; spatial entry is missing. |
 | Talk, search remains, examine, and enter passages | bevy_spatial.rs and interaction_actions.rs discover eligible nearby action/target pairs; the radial wheel presents them. bevy_interactions.rs handles dialogue and remains overlays. | Keep these as proximity- and eligibility-driven contextual actions. They should not return as detached dashboard buttons. | Present in spatial exploration. |
 | Options | bevy_options.rs owns the Saves, Mods, and Interface tabs. The screen returns to the screen that opened it. | Open the existing Options screen from the spatial system menu. Keep its detailed controls in the dedicated screen. | Return routing is implemented; spatial entry is missing. |
-| Resume, New Game, Load Game, Quit | GameplayScreen::Pause owns these actions. New/load/quit continue through the lifecycle flows. | Put these infrequent system operations behind a spatial system/pause menu. Resume closes the menu; the other actions keep their existing lifecycle behavior. | Current pause menu is limited to Gameplay. |
+| Resume, New Game, Load Game, Quit | GameplayScreen::Pause owns these actions. New/load/quit continue through the lifecycle flows. | Reuse the existing pause menu as an overlay over spatial play. Resume or Back returns to the same spatial session; the other actions retain their existing lifecycle behavior. | Available from spatial exploration through Escape/Android Back. |
 | Developer console | bevy_console.rs opens from the Gameplay flow; the touchscreen hold gesture is attached to the Gameplay pause control. | Keep developer access separate from the player-facing system menu. Preserve its developer-only entry behavior while updating any necessary spatial shortcut separately. | Not a player gameplay function; spatial shortcut is not implemented. |
-| Leave spatial exploration | The spatial header currently has a Leave control; Cancel/Backspace also returns to Gameplay. | Keep an explicit exit only while the transitional dashboard still exists. Its eventual replacement or removal belongs to the final dashboard-retirement decision, not to ordinary menu dismissal. | Transitional behavior; not a permanent spatial-first destination. |
+| Leave spatial exploration | The spatial header has an explicit Leave control. | Keep it independent from Back navigation. It remains a temporary exit to the Gameplay dashboard while that dashboard is still the compatibility shell. Its eventual removal belongs to the final dashboard-retirement review. | Explicit action retained; Back no longer triggers it. |
 
 ## Authoritative behavior that must remain unchanged
 
@@ -57,7 +57,7 @@ The spatial interface must route into existing gameplay behavior rather than rep
 
 ## Recommended implementation order
 
-1. **Spatial system-menu access.** Add a discoverable way to open and close the existing pause/system actions while retaining the spatial scene as the parent context. Decide the control placement and Escape/Android Back behavior before changing the HUD.
+1. **Spatial system-menu access (implemented in v0.52.26).** Escape/Android Back opens the existing pause menu over the spatial scene; Back dismisses it to the same map and player position. The Leave control remains a separate explicit action.
 2. **Travel entry.** Expose the existing destination selection from spatial play while keeping physical passages as an in-world option. Do not add a second travel model.
 3. **Meditation entry.** Make the existing safe meditation flow accessible from spatial play without requiring unnecessary movement.
 4. **Character entry.** Open the existing Character hub from spatial play and verify all tabs and detail screens return to the exact spatial context.
@@ -65,15 +65,13 @@ The spatial interface must route into existing gameplay behavior rather than rep
 6. **Lifecycle hand-off.** Only after the spatial menu and entry points cover the required functions should new/load/start/quit flows be adjusted to make spatial exploration the normal active-character shell.
 7. **Retirement review.** Remove the dashboard and its transition-only Leave path only after the function audit has been implemented and validated on desktop and Android landscape.
 
-## Design decisions required before HUD implementation
+## Remaining design decisions before further HUD work
 
-The following points affect visible controls or input behavior and should be settled before implementation:
+The following points affect how the remaining dashboard functions are exposed and should be settled before implementing their spatial entry points:
 
-- **System menu access:** should Escape/Android Back open a menu over the spatial scene, with a separate menu item for leaving exploration, or should a visible header control be the primary entry? The current Cancel/Back behavior exits to Gameplay.
 - **Travel discovery:** should destination-list travel live inside the system/quick menu, or have its own compact map/travel control in the spatial HUD? Physical passages remain available either way.
 - **Meditation discovery:** should a safe-only Meditate action be directly available in the spatial action area, or live one level inside a contextual/quick menu? It must remain convenient in safe locations.
 - **Threat presentation:** should an active threat produce a contextual Investigate prompt, or be represented through another spatial indicator? The action should only appear when the existing threat state makes it valid.
 - **Time presentation:** should time-of-day be communicated through environmental lighting/sky treatment, a small cue, or both? The dashboard's large sky composition should not simply be copied over the spatial view.
-- **Transition-only Leave behavior:** once the dashboard is no longer the gameplay shell, should leaving spatial exploration remain a distinct action at all, or should navigation to another area happen only through travel and lifecycle/menu flows?
 
-Until those decisions are made, the implementation should preserve the current HUD, controls, and dashboard. The dashboard remains the compatibility fallback and must not be removed as part of this work.
+The pause-menu integration does not retire the dashboard. It remains the compatibility fallback until the other required functions have implemented and validated spatial replacements.

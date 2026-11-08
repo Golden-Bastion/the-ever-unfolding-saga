@@ -175,6 +175,10 @@ pub(crate) struct SpatialExplorationState {
     player_animation: PlayerAnimation,
 }
 
+impl SpatialExplorationState {
+    pub(crate) fn request_presentation_refresh(&mut self) { self.dirty = true; }
+}
+
 pub(crate) fn sandbox_map(state: &SpatialExplorationState) -> Option<&LocalMap> {
     state.sandbox_map.as_ref()
 }
@@ -502,6 +506,8 @@ fn spatial_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut lifecycle: ResMut<LifecycleState>,
     mut navigation: ResMut<NavigationState>,
+    mut gameplay: ResMut<crate::bevy_gameplay::GameplayState>,
+    mut runtime_state: ResMut<crate::bevy_gameplay::GameplayRuntimeState>,
     mut queue: ResMut<GameplayInputQueue>,
     mut state: ResMut<SpatialExplorationState>,
     joystick: Res<SpatialJoystickState>,
@@ -513,6 +519,12 @@ fn spatial_input(
         || navigation.current_screen != Some(ScreenId::SpatialExploration)
         || crate::bevy_interactions::spatial_overlay_open(&interaction_state)
     {
+        state.player_animation.stop();
+        return;
+    }
+
+    if runtime_state.is_paused() {
+        let _ = activations.read().count();
         state.player_animation.stop();
         return;
     }
@@ -635,8 +647,17 @@ fn spatial_input(
             InputEvent::Confirm if !state.sandbox_mode => {
                 open_interaction_wheel(&mut state, &lifecycle);
             }
-            InputEvent::Cancel | InputEvent::Backspace => {
-                exit_spatial(&mut state, &mut navigation);
+            InputEvent::Cancel | InputEvent::Backspace if !state.sandbox_mode => {
+                crate::bevy_gameplay::open_pause(&mut gameplay, &mut runtime_state, &mut navigation);
+                state.dirty = true;
+            }
+            InputEvent::Cancel | InputEvent::Backspace => exit_spatial(&mut state, &mut navigation),
+            InputEvent::OpenSecondaryNavigation if !state.sandbox_mode => {
+                if state.interaction_wheel.is_some() { close_interaction_wheel(&mut state, None); }
+                else {
+                    crate::bevy_gameplay::open_pause(&mut gameplay, &mut runtime_state, &mut navigation);
+                    state.dirty = true;
+                }
             }
             _ => {}
         }
@@ -1101,6 +1122,7 @@ fn update_spatial_world(
     time: Res<Time>,
     mut state: ResMut<SpatialExplorationState>,
     navigation: Res<NavigationState>,
+    runtime_state: Res<crate::bevy_gameplay::GameplayRuntimeState>,
     assets: Res<SpatialRenderAssets>,
     mut camera: Query<(&mut Transform, &Camera), (With<Camera2d>, Without<SpatialPlayer>)>,
     mut player: Query<(&mut Transform, &mut Sprite), With<SpatialPlayer>>,
@@ -1109,11 +1131,10 @@ fn update_spatial_world(
     world_entities: Query<Entity, With<SpatialWorldEntity>>,
 ) {
     if navigation.current_screen != Some(ScreenId::SpatialExploration) {
-        for entity in &world_entities {
-            commands.entity(entity).despawn();
-        }
+        for entity in &world_entities { commands.entity(entity).despawn(); }
         return;
     }
+    if runtime_state.is_paused() { return; }
     let Some(location_id) = state
         .session
         .as_ref()
@@ -1167,6 +1188,7 @@ fn render_spatial_screen(
     mut commands: Commands,
     lifecycle: Res<LifecycleState>,
     navigation: Res<NavigationState>,
+    gameplay: Res<crate::bevy_gameplay::GameplayState>,
     assets: Res<SpatialRenderAssets>,
     mut state: ResMut<SpatialExplorationState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
@@ -1593,12 +1615,11 @@ fn render_spatial_screen(
         Display::None
     };
     spawn_control(
-        &mut commands,
-        footer,
-        "Interact",
-        SpatialAction::Interact,
-        interaction_display,
+        &mut commands, footer, "Interact", SpatialAction::Interact, interaction_display,
     );
+    if gameplay.screen == crate::bevy_gameplay::GameplayScreen::Pause {
+        crate::bevy_gameplay::render_spatial_pause_overlay(&mut commands, root, gameplay.pause_selected);
+    }
     state.dirty = false;
 }
 
@@ -1650,11 +1671,13 @@ fn update_virtual_joystick(
     window: Single<&Window, With<PrimaryWindow>>,
     navigation: Res<NavigationState>,
     spatial: Res<SpatialExplorationState>,
+    runtime_state: Res<crate::bevy_gameplay::GameplayRuntimeState>,
     mut joystick: ResMut<SpatialJoystickState>,
     mut thumbs: Query<&mut Node, With<SpatialJoystickThumb>>,
 ) {
     if navigation.current_screen != Some(ScreenId::SpatialExploration)
         || spatial.interaction_wheel.is_some()
+        || runtime_state.is_paused()
     {
         joystick.active_touch = None;
         joystick.direction = Vec2::ZERO;

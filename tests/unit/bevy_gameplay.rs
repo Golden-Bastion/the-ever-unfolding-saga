@@ -36,9 +36,43 @@ fn gameplay_runtime_pause_entry_and_exit_update_runtime_state() {
     assert_eq!(gameplay.screen, GameplayScreen::Pause);
     assert!(runtime.is_paused());
 
-    close_pause(&mut gameplay, &mut runtime, &mut navigation);
+    close_pause(&mut gameplay, &mut runtime, &mut navigation, ScreenId::Gameplay);
     assert_eq!(gameplay.screen, GameplayScreen::Dashboard);
     assert!(!runtime.is_paused());
+}
+
+
+#[test]
+fn spatial_pause_menu_keeps_spatial_exploration_as_its_parent() {
+    let mut gameplay = GameplayState::default();
+    let mut runtime = GameplayRuntimeState::default();
+    let mut navigation = NavigationState { current_screen: Some(ScreenId::SpatialExploration), ..default() };
+    open_pause(&mut gameplay, &mut runtime, &mut navigation);
+    assert_eq!(gameplay.screen, GameplayScreen::Pause);
+    assert!(runtime.is_paused());
+    assert_eq!(navigation.current_screen, Some(ScreenId::SpatialExploration));
+    assert!(accepts_gameplay_input(navigation.current_screen, gameplay.screen));
+    assert_eq!(pause_parent_screen(navigation.current_screen), ScreenId::SpatialExploration);
+}
+
+#[test]
+fn closing_spatial_pause_menu_restores_the_spatial_screen_and_resumes_play() {
+    let mut gameplay = GameplayState::default();
+    let mut runtime = GameplayRuntimeState::default();
+    let mut navigation = NavigationState { current_screen: Some(ScreenId::SpatialExploration), ..default() };
+    open_pause(&mut gameplay, &mut runtime, &mut navigation);
+    close_pause(&mut gameplay, &mut runtime, &mut navigation, ScreenId::SpatialExploration);
+    assert_eq!(gameplay.screen, GameplayScreen::Dashboard);
+    assert!(!runtime.is_paused());
+    assert_eq!(navigation.current_screen, Some(ScreenId::SpatialExploration));
+}
+
+#[test]
+fn gameplay_input_accepts_only_gameplay_and_an_active_spatial_pause_menu() {
+    assert!(accepts_gameplay_input(Some(ScreenId::Gameplay), GameplayScreen::Dashboard));
+    assert!(accepts_gameplay_input(Some(ScreenId::SpatialExploration), GameplayScreen::Pause));
+    assert!(!accepts_gameplay_input(Some(ScreenId::SpatialExploration), GameplayScreen::Dashboard));
+    assert!(!accepts_gameplay_input(Some(ScreenId::Character), GameplayScreen::Pause));
 }
 
 #[test]
