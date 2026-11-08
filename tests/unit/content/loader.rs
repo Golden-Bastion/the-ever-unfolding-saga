@@ -171,7 +171,6 @@ fn default_campaign_includes_reusable_character_parts_and_assets() {
     }
 }
 
-
 #[test]
 fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
     let mut base = default_campaign_content();
@@ -194,7 +193,9 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
             description: "Footprints cross the dust.".into(),
         },
     ];
-    base.world.locations.retain(|location| location.id != old_shrine.id);
+    base.world
+        .locations
+        .retain(|location| location.id != old_shrine.id);
     base.world.locations.push(old_shrine.clone());
 
     let mut incoming = empty_mod_content();
@@ -268,7 +269,11 @@ fn invalid_spatial_discoveries_are_reported_by_content_validation() {
 
     let issues = content.validate();
     assert!(issues.iter().any(|issue| issue.contains("empty id")));
-    assert!(issues.iter().any(|issue| issue.contains("duplicate spatial discovery id")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("duplicate spatial discovery id")));
     assert!(issues.iter().any(|issue| issue.contains("empty title")));
-    assert!(issues.iter().any(|issue| issue.contains("empty description")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("empty description")));
 }

@@ -371,7 +371,6 @@ fn existing_spatial_entity_placements_are_preserved_when_new_actors_arrive() {
     assert_ne!(map.interactables[0].position, map.interactables[1].position);
 }
 
-
 #[test]
 fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
     let definitions = vec![
@@ -396,8 +395,14 @@ fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
     configure_map_exits(&mut first, &[101, 202]);
     let mut second = first.clone();
 
-    assert_eq!(apply_authored_spatial_discoveries(&mut first, &definitions), 2);
-    assert_eq!(apply_authored_spatial_discoveries(&mut second, &definitions), 2);
+    assert_eq!(
+        apply_authored_spatial_discoveries(&mut first, &definitions),
+        2
+    );
+    assert_eq!(
+        apply_authored_spatial_discoveries(&mut second, &definitions),
+        2
+    );
     assert_eq!(first.points_of_interest, second.points_of_interest);
     assert_eq!(first.points_of_interest.len(), definitions.len());
     assert!(first
@@ -415,10 +420,7 @@ fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
         assert!(first.is_walkable(poi.position));
         assert!(has_walkable_path(&first, first.entry, poi.position));
         assert_ne!(poi.position, first.entry);
-        assert!(!first
-            .exits
-            .iter()
-            .any(|exit| exit.position == poi.position));
+        assert!(!first.exits.iter().any(|exit| exit.position == poi.position));
         assert!(!first
             .interactables
             .iter()

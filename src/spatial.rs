@@ -494,7 +494,6 @@ fn reachable_walkable_tiles(map: &LocalMap) -> HashSet<GridPosition> {
     reachable
 }
 
-
 /// Replace the prototype discovery with campaign-authored discoveries on a
 /// newly generated map. Positions are selected deterministically from reachable
 /// walkable cells and avoid the entry, exits, props, and existing actors.
@@ -518,9 +517,7 @@ pub fn apply_authored_spatial_discoveries(
     let mut candidates = reachable_walkable_tiles(map)
         .into_iter()
         .filter(|position| *position != map.entry)
-        .filter(|position| {
-            position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 5
-        })
+        .filter(|position| position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 5)
         .filter(|position| {
             !map.exits.iter().any(|exit| exit.position == *position)
                 && !map

@@ -68,7 +68,6 @@ fn discovery_filters_stale_npcs_and_unsearchable_remains() {
     );
 }
 
-
 #[test]
 fn undiscovered_points_of_interest_do_not_offer_an_examine_action() {
     let mut map = crate::spatial::generate_local_map(

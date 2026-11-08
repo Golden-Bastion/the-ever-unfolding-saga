@@ -568,7 +568,6 @@ fn crowded_wheel_directional_selection_matches_visible_cardinal_entries() {
     );
 }
 
-
 #[test]
 fn points_of_interest_reveal_when_their_tiles_enter_the_explored_area() {
     let mut map = generate_local_map(17, "location.poi_reveal", LocalMapConfig::default());

@@ -598,7 +598,9 @@ fn interact_with_poi(
     };
     if poi.interacted {
         let title = poi.title.clone();
-        state.message = Some(format!("You have already examined {title}. You find nothing new."));
+        state.message = Some(format!(
+            "You have already examined {title}. You find nothing new."
+        ));
         state.dirty = true;
         return;
     }
