@@ -488,7 +488,7 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
     bevy_presentation::spawn_muted_label(
         commands,
         panel,
-        "World Lab is the next editor milestone (tracked in #413).",
+        "World Lab creates temporary spaces with the real spatial generator and renderer.",
     );
 
     let world_lab =
