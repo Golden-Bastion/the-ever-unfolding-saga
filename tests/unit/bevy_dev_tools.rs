@@ -64,7 +64,7 @@ fn preview_uses_visible_selected_parts_in_draw_order() {
             .iter()
             .map(|layer| layer.id.as_str())
             .collect::<Vec<_>>(),
-        vec!["hair", "body"]
+        vec!["face", "hair"]
     );
 }
 
