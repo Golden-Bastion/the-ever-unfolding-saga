@@ -324,11 +324,7 @@ impl LocalMap {
     /// Add a passage to a real destination in the owning world graph.
     /// The caller supplies valid destination IDs from that graph; this keeps
     /// the renderer-neutral map model from inventing world identities.
-    pub fn place_map_exit(
-        &mut self,
-        exit: MapExit,
-        valid_target_location_ids: &[u64],
-    ) -> bool {
+    pub fn place_map_exit(&mut self, exit: MapExit, valid_target_location_ids: &[u64]) -> bool {
         let Some(source_id) = self.location_entity_id() else {
             return false;
         };
@@ -344,7 +340,8 @@ impl LocalMap {
             return false;
         }
 
-        let side = map_exit_side(self, exit.position).expect("validated passage position is on an edge");
+        let side =
+            map_exit_side(self, exit.position).expect("validated passage position is on an edge");
         carve_exit_corridor(self, exit.position, side);
         self.exits.push(exit);
         true
@@ -370,7 +367,10 @@ impl LocalMap {
 
     /// Remove the passage occupying the selected edge cell.
     pub fn remove_map_exit_at(&mut self, position: GridPosition) -> Option<MapExit> {
-        let index = self.exits.iter().position(|exit| exit.position == position)?;
+        let index = self
+            .exits
+            .iter()
+            .position(|exit| exit.position == position)?;
         Some(self.exits.remove(index))
     }
 
@@ -446,12 +446,22 @@ impl LocalMap {
         if !self.contains(position)
             || map_exit_side(self, position).is_none()
             || position == self.entry
-            || self.exits.iter().any(|exit| {
-                Some(exit.id.as_str()) != ignored_exit_id && exit.position == position
-            })
-            || self.points_of_interest.iter().any(|point| point.position == position)
-            || self.interactables.iter().any(|actor| actor.position == position)
-            || self.props.iter().any(|prop| prop.footprint_contains(position, self.width))
+            || self
+                .exits
+                .iter()
+                .any(|exit| Some(exit.id.as_str()) != ignored_exit_id && exit.position == position)
+            || self
+                .points_of_interest
+                .iter()
+                .any(|point| point.position == position)
+            || self
+                .interactables
+                .iter()
+                .any(|actor| actor.position == position)
+            || self
+                .props
+                .iter()
+                .any(|prop| prop.footprint_contains(position, self.width))
         {
             return false;
         }
@@ -464,9 +474,18 @@ impl LocalMap {
                     .exits
                     .iter()
                     .any(|exit| Some(exit.id.as_str()) != ignored_exit_id && exit.position == cell)
-                    && !self.points_of_interest.iter().any(|point| point.position == cell)
-                    && !self.interactables.iter().any(|actor| actor.position == cell)
-                    && !self.props.iter().any(|prop| prop.footprint_contains(cell, self.width))
+                    && !self
+                        .points_of_interest
+                        .iter()
+                        .any(|point| point.position == cell)
+                    && !self
+                        .interactables
+                        .iter()
+                        .any(|actor| actor.position == cell)
+                    && !self
+                        .props
+                        .iter()
+                        .any(|prop| prop.footprint_contains(cell, self.width))
             })
     }
 
@@ -478,7 +497,10 @@ impl LocalMap {
         self.contains(position)
             && self.is_walkable(position)
             && position != self.entry
-            && !self.points_of_interest.iter().any(|point| point.position == position)
+            && !self
+                .points_of_interest
+                .iter()
+                .any(|point| point.position == position)
             && !self.exits.iter().any(|exit| exit.position == position)
             && !self.interactables.iter().any(|actor| {
                 Some(actor.entity_id) != ignored_entity_id && actor.position == position
@@ -1171,15 +1193,9 @@ fn map_exit_side(map: &LocalMap, position: GridPosition) -> Option<usize> {
         && position.y < map.height.saturating_sub(1)
     {
         Some(0)
-    } else if position.x == 0
-        && position.y > 0
-        && position.y < map.height.saturating_sub(1)
-    {
+    } else if position.x == 0 && position.y > 0 && position.y < map.height.saturating_sub(1) {
         Some(1)
-    } else if position.y == 0
-        && position.x > 0
-        && position.x < map.width.saturating_sub(1)
-    {
+    } else if position.y == 0 && position.x > 0 && position.x < map.width.saturating_sub(1) {
         Some(2)
     } else if position.y == map.height.saturating_sub(1)
         && position.x > 0
@@ -1202,21 +1218,39 @@ fn passage_corridor_positions(map: &LocalMap, exit: GridPosition) -> Vec<GridPos
         let bypass_x = right + 1;
         match side {
             0 if (top..=bottom).contains(&exit.y) => {
-                route.push(GridPosition { x: bypass_x, y: exit.y });
-                route.push(GridPosition { x: bypass_x, y: map.entry.y });
+                route.push(GridPosition {
+                    x: bypass_x,
+                    y: exit.y,
+                });
+                route.push(GridPosition {
+                    x: bypass_x,
+                    y: map.entry.y,
+                });
                 route.push(map.entry);
             }
             2 if (left..=right).contains(&exit.x) => {
                 route.push(GridPosition { x: exit.x, y: 1 });
                 route.push(GridPosition { x: bypass_x, y: 1 });
-                route.push(GridPosition { x: bypass_x, y: map.entry.y });
+                route.push(GridPosition {
+                    x: bypass_x,
+                    y: map.entry.y,
+                });
                 route.push(map.entry);
             }
             3 if (left..=right).contains(&exit.x) => {
                 let bypass_y = map.height - 2;
-                route.push(GridPosition { x: exit.x, y: bypass_y });
-                route.push(GridPosition { x: bypass_x, y: bypass_y });
-                route.push(GridPosition { x: bypass_x, y: map.entry.y });
+                route.push(GridPosition {
+                    x: exit.x,
+                    y: bypass_y,
+                });
+                route.push(GridPosition {
+                    x: bypass_x,
+                    y: bypass_y,
+                });
+                route.push(GridPosition {
+                    x: bypass_x,
+                    y: map.entry.y,
+                });
                 route.push(map.entry);
             }
             _ => {}
@@ -1225,8 +1259,14 @@ fn passage_corridor_positions(map: &LocalMap, exit: GridPosition) -> Vec<GridPos
 
     if route.is_empty() {
         route.push(match side {
-            0 | 1 => GridPosition { x: map.entry.x, y: exit.y },
-            _ => GridPosition { x: exit.x, y: map.entry.y },
+            0 | 1 => GridPosition {
+                x: map.entry.x,
+                y: exit.y,
+            },
+            _ => GridPosition {
+                x: exit.x,
+                y: map.entry.y,
+            },
         });
         route.push(map.entry);
     }

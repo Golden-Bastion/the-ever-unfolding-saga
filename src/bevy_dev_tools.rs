@@ -353,7 +353,9 @@ fn world_lab_actor_catalog(game: &GameState, location_id: u64) -> Vec<WorldLabAc
 
 fn generate_world_lab_session(options: WorldLabOptions) -> (LocalMap, WorldLabScenario) {
     let game = generate_world_lab_game(options.seed);
-    let location_index = options.location_index.min(game.world.locations.len().saturating_sub(1));
+    let location_index = options
+        .location_index
+        .min(game.world.locations.len().saturating_sub(1));
     let location = game.world.locations[location_index].clone();
     let (width, height) = WORLD_LAB_SIZES[options.size_index.min(WORLD_LAB_SIZES.len() - 1)];
     let layout = if options.shrine_layout {
@@ -414,7 +416,11 @@ fn generate_world_lab_map(options: WorldLabOptions) -> LocalMap {
 }
 
 fn restore_world_lab_scenario(map: &LocalMap) -> Option<WorldLabScenario> {
-    let location_id = map.location_id.strip_prefix("location.")?.parse::<u64>().ok()?;
+    let location_id = map
+        .location_id
+        .strip_prefix("location.")?
+        .parse::<u64>()
+        .ok()?;
     let game = generate_world_lab_game(map.seed);
     game.world.location_by_id(location_id)?;
 
@@ -479,8 +485,7 @@ fn world_lab_map_preview_with_all_holds(
     held_passage_id: Option<&str>,
     held_actor_id: Option<u64>,
 ) -> String {
-    let mut preview =
-        String::with_capacity(usize::from(map.width) * (usize::from(map.height) + 1));
+    let mut preview = String::with_capacity(usize::from(map.width) * (usize::from(map.height) + 1));
     for y in 0..map.height {
         for x in 0..map.width {
             let position = GridPosition { x, y };
@@ -499,8 +504,16 @@ fn world_lab_map_preview_with_all_holds(
                     '?'
                 }
             } else if let Some(exit) = map.exits.iter().find(|exit| exit.position == position) {
-                if held_passage_id == Some(exit.id.as_str()) { 'D' } else { 'E' }
-            } else if let Some(actor) = map.interactables.iter().find(|actor| actor.position == position) {
+                if held_passage_id == Some(exit.id.as_str()) {
+                    'D'
+                } else {
+                    'E'
+                }
+            } else if let Some(actor) = map
+                .interactables
+                .iter()
+                .find(|actor| actor.position == position)
+            {
                 if held_actor_id == Some(actor.entity_id) {
                     'A'
                 } else {
@@ -856,9 +869,7 @@ fn world_lab_destinations(state: &DeveloperToolsState) -> Vec<(u64, String)> {
         .world
         .locations
         .iter()
-        .filter(|location| {
-            location.id != scenario.location_id && !connected.contains(&location.id)
-        })
+        .filter(|location| location.id != scenario.location_id && !connected.contains(&location.id))
         .map(|location| (location.id, location.name.clone()))
         .collect()
 }
@@ -886,18 +897,15 @@ fn selected_world_lab_actor(state: &DeveloperToolsState) -> Option<WorldLabActor
 fn cycle_world_lab_selected_value(state: &mut DeveloperToolsState) {
     match state.world_lab_editor_tool {
         WorldLabEditorTool::Prop => {
-            state.world_lab_prop_kind = Some(match state
-                .world_lab_prop_kind
-                .unwrap_or(SpatialPropKind::Pillar)
-            {
-                SpatialPropKind::Pillar => SpatialPropKind::Table,
-                SpatialPropKind::Table => SpatialPropKind::Pillar,
-            });
+            state.world_lab_prop_kind = Some(
+                match state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar) {
+                    SpatialPropKind::Pillar => SpatialPropKind::Table,
+                    SpatialPropKind::Table => SpatialPropKind::Pillar,
+                },
+            );
             let kind = state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
-            state.world_lab_status = Some(format!(
-                "Prop type set to {}.",
-                world_lab_prop_name(kind)
-            ));
+            state.world_lab_status =
+                Some(format!("Prop type set to {}.", world_lab_prop_name(kind)));
         }
         WorldLabEditorTool::PointOfInterest => {
             state.world_lab_status = Some(
@@ -911,10 +919,9 @@ fn cycle_world_lab_selected_value(state: &mut DeveloperToolsState) {
                     "Every connected world location already has a passage, or no destination is available.".into(),
                 );
             } else {
-                state.world_lab_destination_index =
-                    (state.world_lab_destination_index + 1) % count;
-                let (_, name) = selected_world_lab_destination(state)
-                    .expect("destination count is non-zero");
+                state.world_lab_destination_index = (state.world_lab_destination_index + 1) % count;
+                let (_, name) =
+                    selected_world_lab_destination(state).expect("destination count is non-zero");
                 state.world_lab_status = Some(format!("Passage destination set to {name}."));
             }
         }
@@ -925,9 +932,8 @@ fn cycle_world_lab_selected_value(state: &mut DeveloperToolsState) {
                 .map(|scenario| scenario.actors.len())
                 .unwrap_or(0);
             if count == 0 {
-                state.world_lab_status = Some(
-                    "No NPC or searchable remains exist at this world location.".into(),
-                );
+                state.world_lab_status =
+                    Some("No NPC or searchable remains exist at this world location.".into());
             } else {
                 state.world_lab_actor_index = (state.world_lab_actor_index + 1) % count;
                 let actor = selected_world_lab_actor(state).expect("actor count is non-zero");
@@ -970,7 +976,8 @@ fn place_world_lab_passage(state: &mut DeveloperToolsState, spatial: &mut Spatia
         return;
     }
     let Some((destination_id, destination_name)) = selected_world_lab_destination(state) else {
-        state.world_lab_status = Some("No unconnected destination is available for a new passage.".into());
+        state.world_lab_status =
+            Some("No unconnected destination is available for a new passage.".into());
         return;
     };
     let position = state
@@ -1012,11 +1019,13 @@ fn pick_up_or_drop_world_lab_passage(
             .is_some_and(|map| map.move_map_exit(&id, position));
         if moved {
             state.world_lab_held_passage = None;
-            state.world_lab_status = Some(format!("Moved passage to ({}, {}).", position.x, position.y));
+            state.world_lab_status = Some(format!(
+                "Moved passage to ({}, {}).",
+                position.x, position.y
+            ));
         } else {
-            state.world_lab_status = Some(
-                "The passage needs a free edge cell and a clear route to the entry.".into(),
-            );
+            state.world_lab_status =
+                Some("The passage needs a free edge cell and a clear route to the entry.".into());
         }
         return;
     }
@@ -1042,12 +1051,15 @@ fn pick_up_or_drop_world_lab_passage(
     }
 }
 
-fn remove_world_lab_passage(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+fn remove_world_lab_passage(
+    state: &mut DeveloperToolsState,
+    spatial: &mut SpatialExplorationState,
+) {
     let position = state
         .world_lab_cursor
         .unwrap_or(GridPosition { x: 0, y: 0 });
-    let removed = bevy_spatial::sandbox_map_mut(spatial)
-        .and_then(|map| map.remove_map_exit_at(position));
+    let removed =
+        bevy_spatial::sandbox_map_mut(spatial).and_then(|map| map.remove_map_exit_at(position));
     if let Some(exit) = removed {
         if state.world_lab_held_passage.as_deref() == Some(exit.id.as_str()) {
             state.world_lab_held_passage = None;
@@ -1070,7 +1082,8 @@ fn place_world_lab_actor(state: &mut DeveloperToolsState, spatial: &mut SpatialE
         return;
     }
     let Some(actor) = selected_world_lab_actor(state) else {
-        state.world_lab_status = Some("No NPC or searchable remains are available at this location.".into());
+        state.world_lab_status =
+            Some("No NPC or searchable remains are available at this location.".into());
         return;
     };
     let position = state
@@ -1098,7 +1111,10 @@ fn place_world_lab_actor(state: &mut DeveloperToolsState, spatial: &mut SpatialE
         )
     });
     state.world_lab_status = Some(if placed {
-        format!("Placed {} at ({}, {}).", actor.label, position.x, position.y)
+        format!(
+            "Placed {} at ({}, {}).",
+            actor.label, position.x, position.y
+        )
     } else {
         format!(
             "{} must have a free, walkable cell and can only be placed once.",
@@ -1207,9 +1223,7 @@ fn remove_world_lab_point_of_interest(
 fn remove_world_lab_object(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
     match state.world_lab_editor_tool {
         WorldLabEditorTool::Prop => remove_world_lab_prop(state, spatial),
-        WorldLabEditorTool::PointOfInterest => {
-            remove_world_lab_point_of_interest(state, spatial)
-        }
+        WorldLabEditorTool::PointOfInterest => remove_world_lab_point_of_interest(state, spatial),
         WorldLabEditorTool::Passage => remove_world_lab_passage(state, spatial),
         WorldLabEditorTool::Actor => remove_world_lab_actor(state, spatial),
     }
@@ -1230,9 +1244,16 @@ fn world_lab_cell_details(map: &LocalMap, position: GridPosition) -> String {
         }
     }
     for exit in map.exits.iter().filter(|exit| exit.position == position) {
-        markers.push(format!("passage to world location {}", exit.target_location_id));
+        markers.push(format!(
+            "passage to world location {}",
+            exit.target_location_id
+        ));
     }
-    for actor in map.interactables.iter().filter(|actor| actor.position == position) {
+    for actor in map
+        .interactables
+        .iter()
+        .filter(|actor| actor.position == position)
+    {
         let kind = match actor.kind {
             SpatialEntityKind::Npc => "NPC",
             SpatialEntityKind::Corpse => "searchable remains",
@@ -1312,8 +1333,10 @@ fn activate_world_lab_map(
             .iter()
             .map(|actor| (actor.entity_id, actor.kind))
             .collect::<Vec<_>>();
-        map.exits.retain(|exit| location_ids.contains(&exit.target_location_id));
-        map.interactables.retain(|actor| actor_ids.contains(&(actor.entity_id, actor.kind)));
+        map.exits
+            .retain(|exit| location_ids.contains(&exit.target_location_id));
+        map.interactables
+            .retain(|actor| actor_ids.contains(&(actor.entity_id, actor.kind)));
         state.world_lab_status = Some(format!(
             "Loaded fixture: {name}. World graph and actor references were restored from seed {}.",
             map.seed
@@ -2276,7 +2299,9 @@ fn render_world_lab_editor(
                 );
             }
             WorldLabEditorTool::Passage => {
-                if let Some((destination_id, destination_name)) = selected_world_lab_destination(state) {
+                if let Some((destination_id, destination_name)) =
+                    selected_world_lab_destination(state)
+                {
                     bevy_presentation::spawn_muted_label(
                         commands,
                         controls,
@@ -2295,7 +2320,10 @@ fn render_world_lab_editor(
                     bevy_presentation::spawn_muted_label(
                         commands,
                         controls,
-                        format!("Selected world actor: {} (entity {})", actor.label, actor.entity_id),
+                        format!(
+                            "Selected world actor: {} (entity {})",
+                            actor.label, actor.entity_id
+                        ),
                     );
                 } else {
                     bevy_presentation::spawn_muted_label(
@@ -2351,7 +2379,12 @@ fn render_world_lab_editor(
             let label = state
                 .world_lab_scenario
                 .as_ref()
-                .and_then(|scenario| scenario.actors.iter().find(|actor| actor.entity_id == entity_id))
+                .and_then(|scenario| {
+                    scenario
+                        .actors
+                        .iter()
+                        .find(|actor| actor.entity_id == entity_id)
+                })
                 .map(|actor| actor.label.as_str())
                 .unwrap_or(match kind {
                     SpatialEntityKind::Npc => "NPC",

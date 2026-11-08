@@ -149,7 +149,6 @@ fn fixture_names_cannot_create_paths_outside_the_fixture_directory() {
     fs::remove_dir_all(directory).unwrap();
 }
 
-
 #[test]
 fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
     let mut map = generate_local_map(73, "location.10", LocalMapConfig::default());
@@ -200,8 +199,7 @@ fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
     let second_actor_cell = (1..map.height - 1)
         .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
         .find(|position| {
-            *position != actor
-                && duplicate_actor_cell_is_free(&duplicate_actor, *position)
+            *position != actor && duplicate_actor_cell_is_free(&duplicate_actor, *position)
         })
         .expect("map should have a second unreserved walkable actor cell");
     duplicate_actor.interactables.push(SpatialEntityPlacement {

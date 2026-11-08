@@ -575,14 +575,16 @@ fn editor_operations_place_move_and_remove_points_of_interest_safely() {
     assert!(map.remove_point_of_interest_at(second_position).is_none());
 }
 
- 
 #[test]
 fn editor_operations_place_move_and_remove_passages_using_valid_world_destinations() {
     let mut map = generate_local_map(111, "location.10", LocalMapConfig::default());
     let destination_id = 20_u64;
     let exit = MapExit {
         id: "location.10.exit.20".into(),
-        position: GridPosition { x: map.width - 1, y: 1 },
+        position: GridPosition {
+            x: map.width - 1,
+            y: 1,
+        },
         target_location_id: destination_id,
     };
 
@@ -598,14 +600,20 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
     let edge_positions = (1..map.height - 1)
         .flat_map(|y| {
             [
-                GridPosition { x: map.width - 1, y },
+                GridPosition {
+                    x: map.width - 1,
+                    y,
+                },
                 GridPosition { x: 0, y },
             ]
         })
         .chain((1..map.width - 1).flat_map(|x| {
             [
                 GridPosition { x, y: 0 },
-                GridPosition { x, y: map.height - 1 },
+                GridPosition {
+                    x,
+                    y: map.height - 1,
+                },
             ]
         }))
         .collect::<Vec<_>>();
@@ -644,10 +652,13 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
     assert_eq!(map.exits[0].position, second_position);
     assert_eq!(map.exits[0].target_location_id, destination_id);
 
-    assert_eq!(map.remove_map_exit_at(second_position), Some(MapExit {
-        position: second_position,
-        ..exit
-    }));
+    assert_eq!(
+        map.remove_map_exit_at(second_position),
+        Some(MapExit {
+            position: second_position,
+            ..exit
+        })
+    );
     assert!(map.exits.is_empty());
 }
 
@@ -665,9 +676,15 @@ fn editor_operations_place_move_and_remove_real_world_actor_placements() {
                 Some(*position) != excluded
                     && map.is_walkable(*position)
                     && *position != map.entry
-                    && !map.points_of_interest.iter().any(|point| point.position == *position)
+                    && !map
+                        .points_of_interest
+                        .iter()
+                        .any(|point| point.position == *position)
                     && !map.exits.iter().any(|exit| exit.position == *position)
-                    && !map.interactables.iter().any(|actor| actor.position == *position)
+                    && !map
+                        .interactables
+                        .iter()
+                        .any(|actor| actor.position == *position)
             })
     };
     let first_position = find_free_cell(&map, None).expect("map should have a free actor cell");
