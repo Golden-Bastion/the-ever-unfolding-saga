@@ -2049,12 +2049,10 @@ fn interaction_prompt_label(interaction: &AvailableInteraction, count: usize) ->
     }
 }
 
-#[cfg(test)]
 fn exit_interaction_available(map: &LocalMap, position: Vec2, exit: &MapExit) -> bool {
     crate::interaction_actions::map_exit_interaction_available(map, (position.x, position.y), exit)
 }
 
-#[cfg(test)]
 fn poi_interaction_available_for(
     map: &LocalMap,
     position: Vec2,
