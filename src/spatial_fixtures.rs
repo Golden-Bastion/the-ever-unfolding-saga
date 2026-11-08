@@ -97,7 +97,7 @@ pub fn load_spatial_fixture(path: &Path) -> io::Result<SpatialMapFixture> {
         return Err(invalid_data("fixture exceeds the 8 MiB size limit"));
     }
 
-    let mut input = fs::File::open(path)?;
+    let input = fs::File::open(path)?;
     let mut json = Vec::new();
     input
         .take(MAX_SPATIAL_FIXTURE_BYTES + 1)
