@@ -210,6 +210,91 @@ impl LocalMap {
         true
     }
 
+    /// Safely edit terrain without overwriting an entry, discovery, passage, actor, or prop.
+    pub fn set_terrain_for_editor(&mut self, position: GridPosition, terrain: Terrain) -> bool {
+        if !self.contains(position)
+            || self.is_editor_reserved_position(position)
+            || self.props.iter().any(|prop| prop.footprint_contains(position, self.width))
+        {
+            return false;
+        }
+        self.set_terrain(position, terrain)
+    }
+
+    /// Place a prop when its complete footprint fits on free walkable cells.
+    pub fn place_prop(
+        &mut self,
+        id: impl Into<String>,
+        kind: SpatialPropKind,
+        position: GridPosition,
+    ) -> bool {
+        let id = id.into();
+        if id.trim().is_empty()
+            || self.props.iter().any(|prop| prop.id == id)
+            || !self.prop_placement_is_valid(kind, position, None)
+        {
+            return false;
+        }
+        self.props.push(SpatialProp { id, kind, position });
+        true
+    }
+
+    /// Move an existing prop after validating its complete destination footprint.
+    pub fn move_prop(&mut self, id: &str, position: GridPosition) -> bool {
+        let Some(kind) = self.props.iter().find(|prop| prop.id == id).map(|prop| prop.kind) else {
+            return false;
+        };
+        if !self.prop_placement_is_valid(kind, position, Some(id)) {
+            return false;
+        }
+        let Some(prop) = self.props.iter_mut().find(|prop| prop.id == id) else {
+            return false;
+        };
+        prop.position = position;
+        true
+    }
+
+    /// Remove the prop whose footprint contains the selected cell.
+    pub fn remove_prop_at(&mut self, position: GridPosition) -> Option<SpatialProp> {
+        if !self.contains(position) {
+            return None;
+        }
+        let index = self.props.iter().position(|prop| prop.footprint_contains(position, self.width))?;
+        Some(self.props.remove(index))
+    }
+
+    fn is_editor_reserved_position(&self, position: GridPosition) -> bool {
+        position == self.entry
+            || self.points_of_interest.iter().any(|poi| poi.position == position)
+            || self.exits.iter().any(|exit| exit.position == position)
+            || self.interactables.iter().any(|actor| actor.position == position)
+    }
+
+    fn prop_placement_is_valid(
+        &self,
+        kind: SpatialPropKind,
+        position: GridPosition,
+        ignored_prop_id: Option<&str>,
+    ) -> bool {
+        for offset_x in 0..kind.footprint_width() {
+            let Some(x) = position.x.checked_add(offset_x) else {
+                return false;
+            };
+            let cell = GridPosition { x, y: position.y };
+            if !self.contains(cell)
+                || !self.terrain_at(cell).is_some_and(Terrain::is_walkable)
+                || self.is_editor_reserved_position(cell)
+                || self.props.iter().any(|prop| {
+                    Some(prop.id.as_str()) != ignored_prop_id
+                        && prop.footprint_contains(cell, self.width)
+                })
+            {
+                return false;
+            }
+        }
+        true
+    }
+
     pub fn mark_tile_discovered(&mut self, position: GridPosition) -> bool {
         if !self.contains(position) {
             return false;

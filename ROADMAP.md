@@ -10,11 +10,11 @@ The v0.52.0–v0.52.6 storage, mod-management, and character-focused interface w
 
 ## Developer tools (in progress)
 
-**v0.52.17 — Developer tools: Character Workshop and World Lab (#413)**
+**v0.52.18 — Developer tools: editable World Lab maps (#413)**
 
 The start screen exposes a Developer Tools hub without requiring a campaign or save. Character Workshop manually assembles loaded modular portrait parts, previews them through the same layered portrait compositor and mod-aware PNG loader used by dialogue, and supports per-slot selection, visibility toggles, deterministic randomization, reset, and diagnostics. This remains a portrait-focused tool, not a full-body character editor.
 
-World Lab now generates reproducible temporary local maps with the real spatial generator. Its first workspace exposes a seed, three supported map dimensions, procedural or Old Shrine chamber layout, map metadata, and a text grid preview. A generated map can be play-tested through the actual spatial renderer, movement/collision, depth ordering, camera follow, and Android virtual joystick. The test session is isolated from campaign state and saves; leaving play-test returns the updated temporary map to the editor. Freeform terrain editing, prop placement/removal/repositioning, fixture export, and full-body character assembly remain future work under #413.
+World Lab generates reproducible temporary local maps with the real spatial generator and offers a separate cell editor. The editor supports cursor-based terrain changes, pillar/table placement, removal, and repositioning through validated renderer-neutral LocalMap operations; it protects entry, discovery, passage, actor, and existing prop cells from conflicting edits. The same temporary map can be play-tested through the production spatial renderer, movement/collision, depth ordering, camera follow, and Android virtual joystick, with edits preserved on return and isolated from campaign state and saves. Named/exportable development fixtures and full-body character assembly remain future work under #413.
 
 ## Active milestone
 
