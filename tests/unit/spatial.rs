@@ -595,19 +595,31 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
         &[destination_id]
     ));
 
+    let edge_positions = (1..map.height - 1)
+        .flat_map(|y| {
+            [
+                GridPosition { x: map.width - 1, y },
+                GridPosition { x: 0, y },
+            ]
+        })
+        .chain((1..map.width - 1).flat_map(|x| {
+            [
+                GridPosition { x, y: 0 },
+                GridPosition { x, y: map.height - 1 },
+            ]
+        }))
+        .collect::<Vec<_>>();
     let find_placement = |map: &LocalMap, exit: &MapExit| {
-        (1..map.height - 1)
-            .map(|y| GridPosition { x: map.width - 1, y })
-            .find(|position| {
-                let mut candidate = map.clone();
-                candidate.place_map_exit(
-                    MapExit {
-                        position: *position,
-                        ..exit.clone()
-                    },
-                    &[destination_id],
-                )
-            })
+        edge_positions.iter().copied().find(|position| {
+            let mut candidate = map.clone();
+            candidate.place_map_exit(
+                MapExit {
+                    position: *position,
+                    ..exit.clone()
+                },
+                &[destination_id],
+            )
+        })
     };
     let first_position = find_placement(&map, &exit)
         .expect("at least one east-edge passage should have a clear route");
@@ -618,8 +630,10 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
     assert!(map.place_map_exit(exit.clone(), &[destination_id]));
     assert_eq!(map.exits, vec![exit.clone()]);
 
-    let second_position = (1..map.height - 1)
-        .map(|y| GridPosition { x: 0, y })
+    let second_position = edge_positions
+        .iter()
+        .copied()
+        .filter(|position| *position != first_position)
         .find(|position| {
             let mut candidate = map.clone();
             candidate.move_map_exit(&exit.id, *position)
