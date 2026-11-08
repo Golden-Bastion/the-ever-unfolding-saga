@@ -416,7 +416,3 @@ fn render_quest_reward(
 #[cfg(test)]
 #[path = "../tests/unit/bevy_feedback.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "../tests/unit/bevy_feedback.rs"]
-mod tests;
