@@ -1095,16 +1095,23 @@ fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map
         navigation.current_screen,
         Some(ScreenId::SpatialExploration)
     );
-    assert!(spatial.message.as_deref().is_some_and(|message| {
-        message.contains("Connected Clearing")
-    }));
+    assert!(spatial
+        .message
+        .as_deref()
+        .is_some_and(|message| { message.contains("Connected Clearing") }));
 }
 
 #[test]
 fn destination_list_travel_rejects_a_stale_connection_without_leaving_spatial_play() {
     let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
         connected_spatial_fixture();
-    let source_location_id = lifecycle.session.as_ref().unwrap().state.character.location_id;
+    let source_location_id = lifecycle
+        .session
+        .as_ref()
+        .unwrap()
+        .state
+        .character
+        .location_id;
     lifecycle
         .session
         .as_mut()

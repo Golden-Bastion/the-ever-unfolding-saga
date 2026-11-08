@@ -139,7 +139,12 @@ pub(crate) fn install(app: &mut App) {
         .add_systems(Startup, (load_location_art, load_celestial_art))
         .add_systems(
             Update,
-            (gameplay_input, render_if_active, sync_gameplay_menu_selection).chain(),
+            (
+                gameplay_input,
+                render_if_active,
+                sync_gameplay_menu_selection,
+            )
+                .chain(),
         )
         .add_systems(Update, animate_world_clouds);
 }
@@ -216,7 +221,10 @@ fn accepts_gameplay_input(
 ) -> bool {
     current_screen == Some(ScreenId::Gameplay)
         || (current_screen == Some(ScreenId::SpatialExploration)
-            && matches!(gameplay_screen, GameplayScreen::Pause | GameplayScreen::Navigation))
+            && matches!(
+                gameplay_screen,
+                GameplayScreen::Pause | GameplayScreen::Navigation
+            ))
 }
 
 fn pause_parent_screen(current_screen: Option<ScreenId>) -> ScreenId {
@@ -621,7 +629,7 @@ fn activate_selection(
                         gameplay.message = Some(message.to_string());
                         gameplay.dirty = true;
                         spatial_state.request_presentation_refresh();
-                    },
+                    }
                 }
             } else {
                 let Some(session) = lifecycle.session.as_mut() else {
@@ -662,7 +670,8 @@ fn activate_selection(
                             gameplay.dirty = true;
                         }
                         Err(_) => {
-                            gameplay.message = Some("That route is no longer available.".to_string());
+                            gameplay.message =
+                                Some("That route is no longer available.".to_string());
                             gameplay.dirty = true;
                         }
                     }
@@ -1410,14 +1419,20 @@ fn render_navigation_content(
     } else {
         for (index, destination) in view.destinations.iter().enumerate() {
             let button = bevy_presentation::spawn_action_button(
-                commands, panel, index, "travel", destination.name.clone(),
+                commands,
+                panel,
+                index,
+                "travel",
+                destination.name.clone(),
             );
             commands.entity(button).insert(GameplayMenuChoice {
                 screen: GameplayScreen::Navigation,
                 index,
             });
             if index == selected {
-                commands.entity(button).insert(bevy_presentation::UiSelected);
+                commands
+                    .entity(button)
+                    .insert(bevy_presentation::UiSelected);
             }
         }
     }
@@ -1429,7 +1444,9 @@ fn render_navigation_content(
         index: back_index,
     });
     if selected == back_index {
-        commands.entity(button).insert(bevy_presentation::UiSelected);
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
     }
 }
 
