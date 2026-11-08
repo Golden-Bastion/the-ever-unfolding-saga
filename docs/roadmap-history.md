@@ -1,5 +1,15 @@
 # The Ever-Unfolding Saga
 
+## v0.53.0 Directional player animation foundation
+
+- Added a renderer-independent animation clip/player state with configurable clip timing, frame accumulation, looping, facing retention, and safe handling of invalid frame deltas.
+- Defined a 5-column × 4-row Ash Warden sprite-sheet contract using 16×24 frames: one idle frame and four looping walk frames per direction.
+- Integrated four-way facing and movement-driven idle/walk selection into spatial exploration without changing movement, collision, or world-state rules.
+- Added atlas layout validation and mod-aware sheet loading. Missing or invalid animation art falls back to the existing static Ash Warden sprite.
+- Added the intentionally empty `data/assets/spatial/player_ash_warden_animated.png` placeholder and documented its layout so the real art can replace it without changing runtime paths.
+- Added focused unit coverage for direction selection, frame ordering, looping, stopping/facing retention, frame-rate independence, and invalid deltas.
+- Bumped the project version to 0.53.0.
+
 ## Roadmap
 
 ## Pre-v0.8.0
