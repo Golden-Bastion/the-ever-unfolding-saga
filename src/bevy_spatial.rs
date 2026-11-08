@@ -1747,6 +1747,7 @@ fn update_spatial_context_prompt(
     }
 }
 
+#[allow(clippy::type_complexity)] // for controls
 fn update_spatial_control_feedback(
     state: Res<SpatialExplorationState>,
     mut controls: Query<
