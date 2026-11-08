@@ -541,7 +541,7 @@ fn place_world_lab_point_of_interest(
         .unwrap_or(GridPosition { x: 0, y: 0 });
     let placed = if let Some(map) = bevy_spatial::sandbox_map_mut(spatial) {
         let id = next_world_lab_point_of_interest_id(map);
-        let ordinal = id.rsplit('.').next().unwrap_or("1");
+        let ordinal = id.rsplit('.').next().unwrap_or("1").to_string();
         map.place_point_of_interest(PointOfInterest {
             id,
             position,
