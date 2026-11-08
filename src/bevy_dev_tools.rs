@@ -4,6 +4,7 @@
 //! the dialogue portrait compositor, keeping preview output on the gameplay path.
 
 use std::collections::{BTreeMap, HashSet};
+use std::path::PathBuf;
 
 use bevy::prelude::*;
 
@@ -15,11 +16,15 @@ use crate::bevy_presentation::{
 use crate::bevy_spatial::{self, SpatialExplorationState};
 use crate::character_appearance::generate_character_portrait;
 use crate::content::{loader::load_campaign_content_report, CharacterPartContent};
+use crate::game_paths::GamePaths;
 use crate::input::InputEvent;
 use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
 use crate::spatial::{
     generate_local_map_with_layout, GridPosition, LocalMap, LocalMapConfig, SpatialPropKind,
     Terrain,
+};
+use crate::spatial_fixtures::{
+    list_spatial_fixtures, load_spatial_fixture, save_spatial_fixture, SpatialFixtureEntry,
 };
 
 const WORKSHOP_ACTIONS: &[(&str, &str)] = &[
@@ -41,6 +46,8 @@ const WORLD_LAB_ACTIONS: &[(&str, &str)] = &[
     ("investigate", "Generate map"),
     ("edit", "Edit map"),
     ("explore", "Play-test map"),
+    ("write", "Save / export fixture"),
+    ("folder", "Browse / load fixtures"),
     ("cancel", "Reset settings"),
     ("back", "Back to Developer Tools"),
 ];
@@ -85,6 +92,27 @@ struct WorkshopSlot {
     visible: bool,
 }
 
+#[derive(Debug, Clone)]
+struct WorldLabFixtureEntry {
+    path: PathBuf,
+    name: String,
+    details: String,
+    map: Option<LocalMap>,
+    error: Option<String>,
+}
+
+impl From<SpatialFixtureEntry> for WorldLabFixtureEntry {
+    fn from(entry: SpatialFixtureEntry) -> Self {
+        Self {
+            path: entry.path,
+            name: entry.name,
+            details: entry.details,
+            map: entry.map,
+            error: entry.error,
+        }
+    }
+}
+
 #[derive(Resource, Default)]
 struct DeveloperToolsState {
     slots: Vec<WorkshopSlot>,
@@ -97,6 +125,7 @@ struct DeveloperToolsState {
     world_lab_cursor: Option<GridPosition>,
     world_lab_prop_kind: Option<SpatialPropKind>,
     world_lab_held_prop: Option<String>,
+    world_lab_fixtures: Vec<WorldLabFixtureEntry>,
     dirty: bool,
     rendered_screen: Option<ScreenId>,
 }
@@ -496,6 +525,213 @@ fn world_lab_cell_details(map: &LocalMap, position: GridPosition) -> String {
     )
 }
 
+
+fn refresh_world_lab_fixtures(state: &mut DeveloperToolsState) {
+    let paths = GamePaths::get();
+    match list_spatial_fixtures(&[
+        paths.developer_fixtures_dir.as_path(),
+        paths.spatial_fixture_imports_dir.as_path(),
+    ]) {
+        Ok(fixtures) => {
+            state.world_lab_fixtures = fixtures.into_iter().map(Into::into).collect();
+        }
+        Err(error) => {
+            state.world_lab_status = Some(format!("Could not read World Lab fixtures: {error}"));
+        }
+    }
+    state.dirty = true;
+}
+
+fn activate_world_lab_map(
+    state: &mut DeveloperToolsState,
+    spatial: &mut SpatialExplorationState,
+    navigation: &mut NavigationState,
+    map: LocalMap,
+    name: &str,
+) {
+    state.world_lab_cursor = Some(map.entry);
+    state.world_lab_held_prop = None;
+    bevy_spatial::set_sandbox_map(spatial, map);
+    state.world_lab_generated_options = Some(state.world_lab);
+    state.world_lab_status = Some(format!("Loaded fixture: {name}. The map is ready to edit or play-test."));
+    navigation.current_screen = Some(ScreenId::WorldLab);
+    navigation.selected = 5;
+    state.dirty = true;
+}
+
+fn export_world_lab_fixture(
+    state: &mut DeveloperToolsState,
+    spatial: &SpatialExplorationState,
+) {
+    let Some(map) = bevy_spatial::sandbox_map(spatial) else {
+        state.world_lab_status = Some("Generate or load a map before exporting a fixture.".into());
+        return;
+    };
+    let name = format!("World Lab Seed {}", map.seed);
+    let paths = GamePaths::get();
+    let saved = match save_spatial_fixture(&paths.developer_fixtures_dir, &name, map) {
+        Ok(path) => path,
+        Err(error) => {
+            state.world_lab_status = Some(format!("Could not save World Lab fixture: {error}"));
+            return;
+        }
+    };
+    let file_name = saved
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| "world-lab-fixture.teus-map.json".to_string());
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let Some(destination) = rfd::FileDialog::new()
+            .set_title("Export World Lab fixture")
+            .set_file_name(&file_name)
+            .add_filter("TEUS spatial map fixtures", &["json"])
+            .save_file()
+        else {
+            state.world_lab_status = Some(format!(
+                "Saved {name} internally. External export was cancelled."
+            ));
+            refresh_world_lab_fixtures(state);
+            return;
+        };
+        match std::fs::copy(&saved, &destination) {
+            Ok(_) => {
+                state.world_lab_status = Some(format!(
+                    "Saved {name} internally and exported it to {}.",
+                    destination.display()
+                ));
+            }
+            Err(error) => {
+                state.world_lab_status = Some(format!(
+                    "Saved internally, but could not export the fixture: {error}"
+                ));
+            }
+        }
+    }
+    #[cfg(target_os = "android")]
+    {
+        if crate::bevy_options::android_request_storage_export(&saved, &file_name, "application/json") {
+            state.world_lab_status =
+                Some(format!("Saved {name} internally. Choose a destination for the JSON export."));
+        } else {
+            state.world_lab_status =
+                Some(format!("Saved {name} internally, but the Android document picker is unavailable."));
+        }
+    }
+    refresh_world_lab_fixtures(state);
+}
+
+fn import_world_lab_fixture(
+    state: &mut DeveloperToolsState,
+    spatial: &mut SpatialExplorationState,
+    navigation: &mut NavigationState,
+) {
+    #[cfg(not(target_os = "android"))]
+    {
+        let Some(source) = rfd::FileDialog::new()
+            .set_title("Import a World Lab fixture")
+            .add_filter("TEUS spatial map fixtures", &["json"])
+            .pick_file()
+        else {
+            state.world_lab_status = Some("Fixture import cancelled.".into());
+            state.dirty = true;
+            return;
+        };
+        match load_spatial_fixture(&source) {
+            Ok(fixture) => {
+                let paths = GamePaths::get();
+                match save_spatial_fixture(
+                    &paths.developer_fixtures_dir,
+                    &fixture.name,
+                    &fixture.map,
+                ) {
+                    Ok(saved) => {
+                        state.world_lab_status = Some(format!(
+                            "Imported {} as {}.",
+                            source.display(),
+                            saved.display()
+                        ));
+                        activate_world_lab_map(
+                            state,
+                            spatial,
+                            navigation,
+                            fixture.map,
+                            &fixture.name,
+                        );
+                        refresh_world_lab_fixtures(state);
+                    }
+                    Err(error) => {
+                        state.world_lab_status =
+                            Some(format!("Could not keep the imported fixture: {error}"));
+                        state.dirty = true;
+                    }
+                }
+            }
+            Err(error) => {
+                state.world_lab_status =
+                    Some(format!("Could not import World Lab fixture: {error}"));
+                state.dirty = true;
+            }
+        }
+    }
+    #[cfg(target_os = "android")]
+    {
+        if crate::bevy_options::android_request_storage_import("spatial_fixtures") {
+            state.world_lab_status = Some(
+                "Choose a World Lab .json fixture. Return here and choose Refresh to inspect it."
+                    .into(),
+            );
+        } else {
+            state.world_lab_status = Some("The Android document picker is unavailable.".into());
+        }
+        state.dirty = true;
+    }
+}
+
+fn load_world_lab_fixture(
+    state: &mut DeveloperToolsState,
+    spatial: &mut SpatialExplorationState,
+    navigation: &mut NavigationState,
+    index: usize,
+) {
+    let Some(entry) = state.world_lab_fixtures.get(index).cloned() else {
+        return;
+    };
+    let Some(map) = entry.map else {
+        state.world_lab_status = Some(format!(
+            "Cannot load {}: {}",
+            entry.name,
+            entry.error.unwrap_or_else(|| "fixture is invalid".into())
+        ));
+        state.dirty = true;
+        return;
+    };
+
+    let paths = GamePaths::get();
+    if entry.path.starts_with(&paths.spatial_fixture_imports_dir) {
+        match save_spatial_fixture(&paths.developer_fixtures_dir, &entry.name, &map) {
+            Ok(_) => {
+                if let Err(error) = std::fs::remove_file(&entry.path) {
+                    bevy::log::warn!(
+                        "Could not remove imported World Lab fixture {}: {error}",
+                        entry.path.display()
+                    );
+                }
+            }
+            Err(error) => {
+                state.world_lab_status =
+                    Some(format!("Could not install imported fixture: {error}"));
+                state.dirty = true;
+                return;
+            }
+        }
+    }
+
+    refresh_world_lab_fixtures(state);
+    activate_world_lab_map(state, spatial, navigation, map, &entry.name);
+}
+
 fn is_developer_tool_screen(screen: ScreenId) -> bool {
     matches!(
         screen,
@@ -503,15 +739,17 @@ fn is_developer_tool_screen(screen: ScreenId) -> bool {
             | ScreenId::CharacterWorkshop
             | ScreenId::WorldLab
             | ScreenId::WorldLabEditor
+            | ScreenId::WorldLabFixtures
     )
 }
 
-fn screen_action_count(screen: ScreenId) -> usize {
+fn screen_action_count(screen: ScreenId, state: &DeveloperToolsState) -> usize {
     match screen {
         ScreenId::DeveloperTools => 3,
         ScreenId::CharacterWorkshop => WORKSHOP_ACTIONS.len(),
         ScreenId::WorldLab => WORLD_LAB_ACTIONS.len(),
         ScreenId::WorldLabEditor => WORLD_LAB_EDITOR_ACTIONS.len(),
+        ScreenId::WorldLabFixtures => state.world_lab_fixtures.len() + 3,
         _ => 0,
     }
 }
@@ -544,7 +782,7 @@ fn developer_tools_input(
     }
 
     for event in std::mem::take(&mut input_queue.0) {
-        let count = screen_action_count(screen);
+        let count = screen_action_count(screen, &state);
         match event {
             InputEvent::Up => {
                 navigation.selected = navigation.selected.saturating_sub(1);
@@ -664,10 +902,19 @@ fn developer_tools_input(
                                         &mut navigation,
                                     );
                                 } else {
-                                    state.world_lab_status = Some("Generate a map with the current settings before play-testing.".into());
+                                    state.world_lab_status = Some(
+                                        "Generate a map with the current settings before play-testing."
+                                            .into(),
+                                    );
                                 }
                             }
-                            7 => {
+                            7 => export_world_lab_fixture(&mut state, &spatial),
+                            8 => {
+                                refresh_world_lab_fixtures(&mut state);
+                                navigation.current_screen = Some(ScreenId::WorldLabFixtures);
+                                navigation.selected = 0;
+                            }
+                            9 => {
                                 state.world_lab = WorldLabOptions::default();
                                 let map = generate_world_lab_map(state.world_lab);
                                 state.world_lab_cursor = Some(map.entry);
@@ -677,13 +924,41 @@ fn developer_tools_input(
                                 state.world_lab_status =
                                     Some("Settings reset and map regenerated.".into());
                             }
-                            8 => {
+                            10 => {
                                 navigation.current_screen = Some(ScreenId::DeveloperTools);
                                 navigation.selected = 0;
                             }
                             _ => {}
                         }
                         state.dirty = true;
+                    }
+                    ScreenId::WorldLabFixtures => {
+                        let fixture_count = state.world_lab_fixtures.len();
+                        if navigation.selected < fixture_count {
+                            let selected = navigation.selected;
+                            load_world_lab_fixture(
+                                &mut state,
+                                &mut spatial,
+                                &mut navigation,
+                                selected,
+                            );
+                        } else if navigation.selected == fixture_count {
+                            import_world_lab_fixture(
+                                &mut state,
+                                &mut spatial,
+                                &mut navigation,
+                            );
+                        } else if navigation.selected == fixture_count + 1 {
+                            refresh_world_lab_fixtures(&mut state);
+                            state.world_lab_status = Some(format!(
+                                "Refreshed fixture list: {} file(s).",
+                                state.world_lab_fixtures.len()
+                            ));
+                        } else {
+                            navigation.current_screen = Some(ScreenId::WorldLab);
+                            navigation.selected = 8;
+                            state.dirty = true;
+                        }
                     }
                     ScreenId::WorldLabEditor => {
                         match navigation.selected {
@@ -742,6 +1017,11 @@ fn developer_tools_input(
                     ScreenId::WorldLabEditor => {
                         navigation.current_screen = Some(ScreenId::WorldLab);
                         navigation.selected = 5;
+                        state.dirty = true;
+                    }
+                    ScreenId::WorldLabFixtures => {
+                        navigation.current_screen = Some(ScreenId::WorldLab);
+                        navigation.selected = 8;
                         state.dirty = true;
                     }
                     _ => {}
@@ -1211,6 +1491,79 @@ fn render_world_lab_editor(
     }
 }
 
+fn render_world_lab_fixtures(
+    commands: &mut Commands,
+    navigation: &NavigationState,
+    state: &DeveloperToolsState,
+) {
+    let root = bevy_presentation::spawn_screen(commands, "WORLD LAB · FIXTURES");
+    bevy_presentation::spawn_muted_label(
+        commands,
+        root,
+        "Reusable spatial maps are stored separately from campaign saves. Import validates a fixture before it replaces the temporary sandbox.",
+    );
+    let panel = bevy_presentation::spawn_panel(commands, root);
+    if state.world_lab_fixtures.is_empty() {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            panel,
+            "No fixtures found. Save the current map or import a .json fixture.",
+        );
+    }
+    for (index, fixture) in state.world_lab_fixtures.iter().enumerate() {
+        let button = bevy_presentation::spawn_action_button_with_detail(
+            commands,
+            panel,
+            index,
+            if fixture.error.is_some() { "cancel" } else { "folder" },
+            &fixture.name,
+            &fixture.details,
+        );
+        if navigation.selected == index {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
+    }
+
+    let import_index = state.world_lab_fixtures.len();
+    let import = bevy_presentation::spawn_action_button(
+        commands,
+        panel,
+        import_index,
+        "folder",
+        "Import fixture",
+    );
+    if navigation.selected == import_index {
+        commands.entity(import).insert(bevy_presentation::UiSelected);
+    }
+    let refresh_index = import_index + 1;
+    let refresh = bevy_presentation::spawn_action_button(
+        commands,
+        panel,
+        refresh_index,
+        "continue",
+        "Refresh fixture list",
+    );
+    if navigation.selected == refresh_index {
+        commands.entity(refresh).insert(bevy_presentation::UiSelected);
+    }
+    let back_index = refresh_index + 1;
+    let back = bevy_presentation::spawn_action_button(
+        commands,
+        panel,
+        back_index,
+        "back",
+        "Back to World Lab",
+    );
+    if navigation.selected == back_index {
+        commands.entity(back).insert(bevy_presentation::UiSelected);
+    }
+    if let Some(status) = state.world_lab_status.as_deref() {
+        bevy_presentation::spawn_muted_label(commands, panel, status);
+    }
+}
+
 fn render_if_active(
     mut commands: Commands,
     navigation: Res<NavigationState>,
@@ -1242,6 +1595,9 @@ fn render_if_active(
         ScreenId::WorldLab => render_world_lab(&mut commands, &navigation, &state, &spatial),
         ScreenId::WorldLabEditor => {
             render_world_lab_editor(&mut commands, &navigation, &state, &spatial)
+        }
+        ScreenId::WorldLabFixtures => {
+            render_world_lab_fixtures(&mut commands, &navigation, &state)
         }
         _ => {}
     }

@@ -76,10 +76,11 @@ public class MainActivity extends GameActivity {
         if (requestCode == REQUEST_CODE_IMPORT_DOCUMENT) {
             String kind = pendingImportKind;
             pendingImportKind = null;
-            if (!"mods".equals(kind) && !"saves".equals(kind)) {
+            if (!"mods".equals(kind) && !"saves".equals(kind) && !"spatial_fixtures".equals(kind)) {
                 return;
             }
-            String extension = "mods".equals(kind) ? ".zip" : ".save";
+            String extension = "mods".equals(kind) ? ".zip"
+                    : "saves".equals(kind) ? ".save" : ".json";
             File directory = new File(
                     new File(getFilesDir(), GAME_DIRECTORY_NAME), "imports/" + kind);
             if (!directory.isDirectory() && !directory.mkdirs()) {
@@ -396,9 +397,13 @@ public class MainActivity extends GameActivity {
             intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
                     "application/zip", "application/x-zip-compressed", "application/octet-stream"
             });
-        } else {
+        } else if ("saves".equals(kind)) {
             intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
                     "application/gzip", "application/json", "application/octet-stream"
+            });
+        } else {
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+                    "application/json", "application/octet-stream"
             });
         }
         startActivityForResult(intent, REQUEST_CODE_IMPORT_DOCUMENT);
