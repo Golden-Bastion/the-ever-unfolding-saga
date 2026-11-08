@@ -1123,7 +1123,9 @@ fn update_spatial_world(
         transform.translation.x = target.x;
         transform.translation.y = target.y + PLAYER_SPRITE_HEIGHT * 0.5;
         transform.translation.z = depth_for_position(position) + PLAYER_DEPTH_OFFSET;
-        if let Some(atlas) = sprite.texture_atlas.as_mut() { atlas.index = player_frame; }
+        if let Some(atlas) = sprite.texture_atlas.as_mut() {
+            atlas.index = player_frame;
+        }
     }
     for (mut transform, camera_component) in &mut camera {
         let viewport = camera_component

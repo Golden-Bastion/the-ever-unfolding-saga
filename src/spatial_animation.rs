@@ -10,8 +10,7 @@ pub(crate) const PLAYER_ANIMATION_COLUMNS: u32 = 5;
 pub(crate) const PLAYER_ANIMATION_ROWS: u32 = 4;
 pub(crate) const PLAYER_ANIMATION_SHEET_WIDTH: u32 = 80;
 pub(crate) const PLAYER_ANIMATION_SHEET_HEIGHT: u32 = 96;
-pub(crate) const PLAYER_ANIMATION_SHEET_REFERENCE: &str =
-    "spatial/player_ash_warden_animated.png";
+pub(crate) const PLAYER_ANIMATION_SHEET_REFERENCE: &str = "spatial/player_ash_warden_animated.png";
 
 const DEFAULT_IDLE_FRAME_DURATION_SECONDS: f32 = 0.16;
 const DEFAULT_WALK_FRAME_DURATION_SECONDS: f32 = 0.12;
@@ -46,14 +45,13 @@ impl AnimationClip {
         let first_frame = self.first_frame.min(PLAYER_ANIMATION_COLUMNS as usize - 1);
         let available_frames = PLAYER_ANIMATION_COLUMNS as usize - first_frame;
         let frame_count = self.frame_count.clamp(1, available_frames);
-        let frame_duration_seconds = if self.frame_duration_seconds.is_finite()
-            && self.frame_duration_seconds > 0.0
-        {
-            self.frame_duration_seconds
-                .clamp(MIN_FRAME_DURATION_SECONDS, MAX_FRAME_DURATION_SECONDS)
-        } else {
-            MIN_FRAME_DURATION_SECONDS
-        };
+        let frame_duration_seconds =
+            if self.frame_duration_seconds.is_finite() && self.frame_duration_seconds > 0.0 {
+                self.frame_duration_seconds
+                    .clamp(MIN_FRAME_DURATION_SECONDS, MAX_FRAME_DURATION_SECONDS)
+            } else {
+                MIN_FRAME_DURATION_SECONDS
+            };
 
         Self {
             first_frame,
