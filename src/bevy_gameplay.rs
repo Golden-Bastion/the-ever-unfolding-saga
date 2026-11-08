@@ -617,7 +617,11 @@ fn activate_selection(
                             navigation_state.selected = lifecycle.selected;
                         }
                     }
-                    Err(message) => spatial_state.set_message(message.to_string()),
+                    Err(message) => {
+                        gameplay.message = Some(message.to_string());
+                        gameplay.dirty = true;
+                        spatial_state.request_presentation_refresh();
+                    },
                 }
             } else {
                 let Some(session) = lifecycle.session.as_mut() else {
