@@ -981,3 +981,71 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
         Some(ScreenId::SpatialExploration)
     );
 }
+
+
+#[test]
+fn world_lab_playtest_is_disposable_and_returns_updated_map_to_editor() {
+    let map = generate_local_map(123, "developer.world_lab", LocalMapConfig::default());
+    let mut state = SpatialExplorationState::default();
+    set_sandbox_map(&mut state, map);
+    let mut navigation = NavigationState::default();
+
+    assert!(start_sandbox_playtest(&mut state, &mut navigation));
+    assert!(state.sandbox_mode);
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert!(state.session.is_some());
+
+    // The normal synchronization path must be a no-op: sandbox playtests do not
+    // create a campaign or write their temporary map into world state.
+    let mut lifecycle = LifecycleState::default();
+    sync_spatial_to_game(&state, &mut lifecycle);
+    assert!(lifecycle.session.is_none());
+
+    let current_position = state.position;
+    map_mark_discovered(&mut state, current_position);
+    let discovered_before_exit = state
+        .maps
+        .values()
+        .next()
+        .expect("playtest map should exist")
+        .discovered_tiles
+        .clone();
+    assert!(discovered_before_exit.iter().any(|discovered| *discovered));
+
+    exit_spatial(&mut state, &mut navigation);
+
+    assert!(!state.sandbox_mode);
+    assert!(state.session.is_none());
+    assert!(state.maps.is_empty());
+    assert_eq!(navigation.current_screen, Some(ScreenId::WorldLab));
+    assert_eq!(
+        sandbox_map(&state)
+            .expect("updated map should return to the editor")
+            .discovered_tiles,
+        discovered_before_exit
+    );
+}
+
+#[test]
+fn sandbox_map_cannot_be_replaced_during_an_active_playtest() {
+    let original = generate_local_map(123, "developer.world_lab", LocalMapConfig::default());
+    let replacement = generate_local_map(456, "developer.world_lab", LocalMapConfig::default());
+    let mut state = SpatialExplorationState::default();
+    set_sandbox_map(&mut state, original.clone());
+    let mut navigation = NavigationState::default();
+    assert!(start_sandbox_playtest(&mut state, &mut navigation));
+
+    set_sandbox_map(&mut state, replacement);
+
+    assert_eq!(
+        state
+            .maps
+            .values()
+            .next()
+            .expect("playtest map should remain mounted"),
+        &original
+    );
+}
