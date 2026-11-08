@@ -463,7 +463,12 @@ fn spatial_input(
                     y: next.y.floor().max(0.0) as u16,
                 };
             }
-            if map_mark_discovered(&mut state, next) {
+            let revealed = map_mark_discovered(&mut state, next);
+            if !revealed.is_empty() {
+                state.message = Some(format!(
+                    "You notice something nearby: {}.",
+                    revealed.join(", ")
+                ));
                 state.dirty = true;
             }
         }
@@ -530,12 +535,12 @@ fn session_position(state: &SpatialExplorationState) -> Vec2 {
     state.position
 }
 
-fn map_mark_discovered(state: &mut SpatialExplorationState, position: Vec2) -> bool {
+fn map_mark_discovered(state: &mut SpatialExplorationState, position: Vec2) -> Vec<String> {
     let Some(session) = state.session.as_ref() else {
-        return false;
+        return Vec::new();
     };
     let Some(map) = state.maps.get_mut(&session.location_id) else {
-        return false;
+        return Vec::new();
     };
 
     // Reveal the same 5×5 local tile area that is brightened by the exploration view.
@@ -551,15 +556,15 @@ fn map_mark_discovered(state: &mut SpatialExplorationState, position: Vec2) -> b
 
     let width = usize::from(map.width);
     let discovered_tiles = &map.discovered_tiles;
-    let mut revealed_new_discovery = false;
+    let mut revealed = Vec::new();
     for poi in &mut map.points_of_interest {
         let index = usize::from(poi.position.y) * width + usize::from(poi.position.x);
         if !poi.discovered && discovered_tiles.get(index).copied().unwrap_or(false) {
             poi.discovered = true;
-            revealed_new_discovery = true;
+            revealed.push(poi.title.clone());
         }
     }
-    revealed_new_discovery
+    revealed
 }
 
 fn interact_with_poi(
