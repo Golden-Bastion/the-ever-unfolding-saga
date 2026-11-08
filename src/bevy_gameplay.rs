@@ -774,7 +774,7 @@ fn render_if_active(
                 gameplay.selected,
                 gameplay.message.as_deref(),
             );
-            let pause_actions = pause_actions(false);
+            let pause_actions = pause_actions(false, false);
             render_pause(&mut commands, root, &pause_actions, gameplay.pause_selected);
         }
     }
