@@ -171,6 +171,7 @@ pub(crate) struct SpatialExplorationState {
     sandbox_actor_entities: Vec<(EntityId, SpatialEntityKind)>,
     sandbox_mode: bool,
     dirty: bool,
+    last_navigation_screen: Option<ScreenId>,
     player_animation: PlayerAnimation,
 }
 
@@ -239,6 +240,24 @@ pub(crate) fn start_sandbox_playtest(
     true
 }
 
+fn should_refresh_spatial_scene(
+    previous_screen: Option<ScreenId>,
+    current_screen: Option<ScreenId>,
+) -> bool {
+    current_screen == Some(ScreenId::SpatialExploration)
+        && previous_screen != Some(ScreenId::SpatialExploration)
+}
+
+fn refresh_spatial_scene_on_reentry(
+    navigation: Res<NavigationState>,
+    mut state: ResMut<SpatialExplorationState>,
+) {
+    if should_refresh_spatial_scene(state.last_navigation_screen, navigation.current_screen) {
+        state.dirty = true;
+    }
+    state.last_navigation_screen = navigation.current_screen;
+}
+
 pub(crate) fn install(app: &mut App) {
     app.add_message::<SpatialInteractionRequest>()
         .init_resource::<SpatialExplorationState>()
@@ -247,6 +266,7 @@ pub(crate) fn install(app: &mut App) {
         .add_systems(
             Update,
             (
+                refresh_spatial_scene_on_reentry,
                 spatial_input,
                 update_spatial_wheel_animation,
                 update_spatial_world,

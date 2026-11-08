@@ -115,13 +115,15 @@ fn combat_input(
             }
             InputEvent::Cancel => {
                 combat_state.clear();
-                navigation.return_screen = None;
-                navigation.current_screen = Some(ScreenId::Gameplay);
-                navigation.selected = 0;
+                return_from_combat(&mut navigation);
             }
             _ => {}
         }
     }
+}
+
+fn return_from_combat(navigation: &mut NavigationState) {
+    navigation.return_to_previous_screen(ScreenId::Gameplay);
 }
 
 fn move_selection(
@@ -180,14 +182,13 @@ fn activate_current_selection(
                 .map(|result| result.result_title == "Defeat")
                 .unwrap_or(false);
             combat_state.clear();
-            navigation.return_screen = None;
             if defeated {
+                navigation.return_screen = None;
                 lifecycle.phase = LifecyclePhase::Death;
                 lifecycle.selected = 0;
                 lifecycle.mark_dirty();
             } else {
-                navigation.current_screen = Some(ScreenId::Gameplay);
-                navigation.selected = 0;
+                return_from_combat(navigation);
             }
         }
         None => {}
@@ -329,3 +330,7 @@ fn render_if_active(
 
     combat_state.dirty = false;
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/bevy_combat.rs"]
+mod tests;

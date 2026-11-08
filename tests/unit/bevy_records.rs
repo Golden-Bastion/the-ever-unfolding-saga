@@ -10,6 +10,24 @@ fn character_tabs_have_a_stable_five_tab_order() {
 }
 
 #[test]
+fn closing_records_restores_spatial_context() {
+    let mut navigation = NavigationState {
+        current_screen: Some(ScreenId::Character),
+        return_screen: Some(ScreenId::SpatialExploration),
+        selected: 2,
+    };
+
+    close_to_return_screen(&mut navigation);
+
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert_eq!(navigation.return_screen, None);
+    assert_eq!(navigation.selected, 0);
+}
+
+#[test]
 fn journal_does_not_repeat_the_note_as_a_chronicle_entry() {
     let notes = vec!["I should remember this.".to_string()];
 

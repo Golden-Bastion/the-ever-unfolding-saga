@@ -253,7 +253,7 @@ fn move_to_end(
     }
 }
 
-fn close_to_gameplay(state: &mut BevyInteractionState, navigation: &mut NavigationState) {
+fn close_to_return_screen(state: &mut BevyInteractionState, navigation: &mut NavigationState) {
     state.selected = 0;
     state.npc_id = None;
     state.corpse_id = None;
@@ -262,9 +262,7 @@ fn close_to_gameplay(state: &mut BevyInteractionState, navigation: &mut Navigati
     state.spatial_overlay = false;
     state.spatial_overlay_closing = false;
     state.dirty = true;
-    navigation.current_screen = Some(ScreenId::Gameplay);
-    navigation.return_screen = None;
-    navigation.selected = 0;
+    navigation.return_to_previous_screen(ScreenId::Gameplay);
 }
 
 fn interaction_input(
@@ -453,7 +451,7 @@ fn activate(
         InteractionScreen::Talk => {
             let view = interactions::build_talk_view_for_bevy(&session.state);
             if state.selected >= view.npcs.len() {
-                close_to_gameplay(state, navigation);
+                close_to_return_screen(state, navigation);
                 return;
             }
             let Some(npc_id) = interactions::npc_ids_at_location(
@@ -516,7 +514,7 @@ fn activate(
         InteractionScreen::Remains => {
             let view = legacy::build_remains_view_for_bevy(&session.state);
             if state.selected >= view.remains.len() {
-                close_to_gameplay(state, navigation);
+                close_to_return_screen(state, navigation);
                 return;
             }
             match legacy::search_remains_for_bevy(&mut session.state, state.selected) {
@@ -534,14 +532,14 @@ fn activate(
                 }
             }
         }
-        InteractionScreen::RemainsResult => close_to_gameplay(state, navigation),
+        InteractionScreen::RemainsResult => close_to_return_screen(state, navigation),
     }
 }
 
 fn cancel(state: &mut BevyInteractionState, navigation: &mut NavigationState) {
     match state.screen {
         InteractionScreen::Talk | InteractionScreen::Remains => {
-            close_to_gameplay(state, navigation)
+            close_to_return_screen(state, navigation)
         }
         InteractionScreen::Conversation => {
             state.screen = InteractionScreen::Talk;
@@ -551,7 +549,7 @@ fn cancel(state: &mut BevyInteractionState, navigation: &mut NavigationState) {
             navigation.selected = 0;
             state.dirty = true;
         }
-        InteractionScreen::RemainsResult => close_to_gameplay(state, navigation),
+        InteractionScreen::RemainsResult => close_to_return_screen(state, navigation),
     }
 }
 

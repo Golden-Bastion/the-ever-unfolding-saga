@@ -365,6 +365,23 @@ pub struct NavigationState {
     pub selected: usize,
 }
 
+impl NavigationState {
+    /// Open a dedicated screen while retaining the screen that invoked it.
+    pub(crate) fn open_screen(&mut self, screen: ScreenId) {
+        self.return_screen = self.current_screen.filter(|current| *current != screen);
+        self.current_screen = Some(screen);
+        self.selected = 0;
+    }
+
+    /// Restore the invoking screen, or use the supplied fallback when none exists.
+    pub(crate) fn return_to_previous_screen(&mut self, fallback: ScreenId) -> ScreenId {
+        let screen = self.return_screen.take().unwrap_or(fallback);
+        self.current_screen = Some(screen);
+        self.selected = 0;
+        screen
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenId {
     Lifecycle,

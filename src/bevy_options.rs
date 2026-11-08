@@ -535,7 +535,7 @@ fn close_options(
     options: &mut OptionsState,
     gameplay: &GameplayState,
 ) {
-    let return_screen = navigation.return_screen.take();
+    let return_screen = navigation.return_to_previous_screen(ScreenId::Gameplay);
     lifecycle.refresh_saved_games();
     options.active = false;
     options.selected = 0;
@@ -544,15 +544,14 @@ fn close_options(
     options.pending_remove_id = None;
     options.dirty = true;
     match return_screen {
-        Some(ScreenId::Lifecycle) => {
-            navigation.current_screen = Some(ScreenId::Lifecycle);
+        ScreenId::Lifecycle => {
             navigation.selected = lifecycle.selected;
             lifecycle.mark_dirty();
         }
-        _ => {
-            navigation.current_screen = Some(ScreenId::Gameplay);
+        ScreenId::Gameplay => {
             navigation.selected = gameplay.navigation_selection();
         }
+        _ => {}
     }
 }
 

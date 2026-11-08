@@ -1286,3 +1286,23 @@ fn contextual_prompt_counts_distinct_targets_not_action_entries() {
     ];
     assert_eq!(interaction_prompt_label(&interactions, &game, &map), "Mara");
 }
+
+#[test]
+fn returning_to_spatial_exploration_requests_a_scene_rebuild() {
+    assert!(should_refresh_spatial_scene(
+        Some(ScreenId::Character),
+        Some(ScreenId::SpatialExploration)
+    ));
+    assert!(should_refresh_spatial_scene(
+        Some(ScreenId::Options),
+        Some(ScreenId::SpatialExploration)
+    ));
+    assert!(!should_refresh_spatial_scene(
+        Some(ScreenId::SpatialExploration),
+        Some(ScreenId::SpatialExploration)
+    ));
+    assert!(!should_refresh_spatial_scene(
+        Some(ScreenId::SpatialExploration),
+        Some(ScreenId::Gameplay)
+    ));
+}

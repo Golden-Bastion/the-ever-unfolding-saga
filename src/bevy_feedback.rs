@@ -270,7 +270,6 @@ fn finish_or_advance(feedback: &mut FeedbackState, navigation: &mut NavigationSt
     if feedback.entries.is_empty() {
         feedback.active = false;
         navigation.current_screen = feedback.return_screen.take();
-        navigation.return_screen = None;
         navigation.selected = 0;
     }
     feedback.dirty = true;
