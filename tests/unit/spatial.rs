@@ -565,9 +565,11 @@ fn editor_operations_place_move_and_remove_points_of_interest_safely() {
     assert_eq!(moved.description, point.description);
     assert_eq!(map.points_of_interest[0], original);
 
+    let mut expected_removed = point.clone();
+    expected_removed.position = second_position;
     assert_eq!(
         map.remove_point_of_interest_at(second_position),
-        Some(point.clone())
+        Some(expected_removed)
     );
     assert!(map.point_of_interest(&point.id).is_none());
     assert!(map.remove_point_of_interest_at(second_position).is_none());
