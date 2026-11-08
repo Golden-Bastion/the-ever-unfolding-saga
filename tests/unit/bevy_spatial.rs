@@ -208,7 +208,8 @@ fn camera_bounds_keep_the_viewport_inside_large_map_extents() {
 
 #[test]
 fn contextual_interaction_requires_range_and_clear_approach() {
-    let map = generate_local_map(4, "location.test", LocalMapConfig::default());
+    let mut map = generate_local_map(4, "location.test", LocalMapConfig::default());
+    map.points_of_interest[0].discovered = true;
     let poi = &map.points_of_interest[0];
     let near = Vec2::new(
         f32::from(poi.position.x) + 0.5,
@@ -610,9 +611,9 @@ fn points_of_interest_reveal_when_their_tiles_enter_the_explored_area() {
         ..default()
     };
 
-    assert!(map_mark_discovered(&mut state, position));
+    assert_eq!(map_mark_discovered(&mut state, position), vec!["Near clue"]);
     let map = state.maps.values().next().expect("map should be present");
     assert!(map.point_of_interest("poi.near").unwrap().discovered);
     assert!(!map.point_of_interest("poi.far").unwrap().discovered);
-    assert!(!map_mark_discovered(&mut state, position));
+    assert!(map_mark_discovered(&mut state, position).is_empty());
 }
