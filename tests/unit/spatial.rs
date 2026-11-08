@@ -509,7 +509,6 @@ fn editor_operations_validate_terrain_and_complete_prop_footprints() {
         .any(|change| { change.position == terrain_position && change.terrain == Terrain::Wall }));
 }
 
-
 #[test]
 fn editor_operations_place_move_and_remove_points_of_interest_safely() {
     let mut map = generate_local_map(91, "developer.world_lab_poi", LocalMapConfig::default());
@@ -553,10 +552,7 @@ fn editor_operations_place_move_and_remove_points_of_interest_safely() {
     let second_position = find_free_cell(&map, Some(first_position))
         .expect("map should have a second free walkable cell");
     assert!(!map.move_point_of_interest(&point.id, map.entry));
-    assert!(!map.move_point_of_interest(
-        &point.id,
-        GridPosition { x: 0, y: 0 }
-    ));
+    assert!(!map.move_point_of_interest(&point.id, GridPosition { x: 0, y: 0 }));
     assert!(map.move_point_of_interest(&point.id, second_position));
 
     let moved = map

@@ -143,9 +143,11 @@ fn world_lab_editor_preview_marks_cursor_and_held_prop() {
         Some('H')
     );
 
-    let point = map.points_of_interest.first().expect("map should include a discovery");
-    let held_point_preview =
-        world_lab_map_preview_with_cursor(&map, None, None, Some(&point.id));
+    let point = map
+        .points_of_interest
+        .first()
+        .expect("map should include a discovery");
+    let held_point_preview = world_lab_map_preview_with_cursor(&map, None, None, Some(&point.id));
     let held_point_rows = held_point_preview.lines().collect::<Vec<_>>();
     assert_eq!(
         held_point_rows[usize::from(point.position.y)]
@@ -180,7 +182,6 @@ fn world_lab_cursor_movement_stays_inside_the_current_map() {
     );
 }
 
-
 #[test]
 fn world_lab_point_of_interest_tool_can_place_move_and_remove_a_discovery() {
     let mut spatial = SpatialExplorationState::default();
@@ -192,9 +193,15 @@ fn world_lab_point_of_interest_tool_can_place_move_and_remove_a_discovery() {
                 Some(*position) != excluded
                     && map.is_walkable(*position)
                     && *position != map.entry
-                    && !map.points_of_interest.iter().any(|point| point.position == *position)
+                    && !map
+                        .points_of_interest
+                        .iter()
+                        .any(|point| point.position == *position)
                     && !map.exits.iter().any(|exit| exit.position == *position)
-                    && !map.interactables.iter().any(|actor| actor.position == *position)
+                    && !map
+                        .interactables
+                        .iter()
+                        .any(|actor| actor.position == *position)
             })
     };
     let first_position = find_free_cell(&map, None).expect("map should have a free editor cell");

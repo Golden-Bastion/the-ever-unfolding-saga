@@ -360,9 +360,7 @@ fn world_lab_editor_tool_name(tool: WorldLabEditorTool) -> &'static str {
 }
 
 fn cycle_world_lab_editor_tool(state: &mut DeveloperToolsState) {
-    if state.world_lab_held_prop.is_some()
-        || state.world_lab_held_point_of_interest.is_some()
-    {
+    if state.world_lab_held_prop.is_some() || state.world_lab_held_point_of_interest.is_some() {
         state.world_lab_status = Some("Drop the held object before switching editor tools.".into());
         return;
     }
@@ -566,17 +564,13 @@ fn place_world_lab_point_of_interest(
 }
 
 fn place_world_lab_object(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
-    if state.world_lab_held_prop.is_some()
-        || state.world_lab_held_point_of_interest.is_some()
-    {
+    if state.world_lab_held_prop.is_some() || state.world_lab_held_point_of_interest.is_some() {
         state.world_lab_status = Some("Drop the held object before placing another.".into());
         return;
     }
     match state.world_lab_editor_tool {
         WorldLabEditorTool::Prop => place_world_lab_prop(state, spatial),
-        WorldLabEditorTool::PointOfInterest => {
-            place_world_lab_point_of_interest(state, spatial)
-        }
+        WorldLabEditorTool::PointOfInterest => place_world_lab_point_of_interest(state, spatial),
     }
 }
 
@@ -597,9 +591,8 @@ fn pick_up_or_drop_world_lab_point_of_interest(
                 position.x, position.y
             ));
         } else {
-            state.world_lab_status = Some(
-                "The discovery cannot move there; choose a free, walkable cell.".into(),
-            );
+            state.world_lab_status =
+                Some("The discovery cannot move there; choose a free, walkable cell.".into());
         }
         return;
     }
@@ -617,7 +610,8 @@ fn pick_up_or_drop_world_lab_point_of_interest(
             position.x, position.y
         ));
     } else {
-        state.world_lab_status = Some("There is no point of interest under the selected cell.".into());
+        state.world_lab_status =
+            Some("There is no point of interest under the selected cell.".into());
     }
 }
 
@@ -653,15 +647,10 @@ fn remove_world_lab_point_of_interest(
     }
 }
 
-fn remove_world_lab_object(
-    state: &mut DeveloperToolsState,
-    spatial: &mut SpatialExplorationState,
-) {
+fn remove_world_lab_object(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
     match state.world_lab_editor_tool {
         WorldLabEditorTool::Prop => remove_world_lab_prop(state, spatial),
-        WorldLabEditorTool::PointOfInterest => {
-            remove_world_lab_point_of_interest(state, spatial)
-        }
+        WorldLabEditorTool::PointOfInterest => remove_world_lab_point_of_interest(state, spatial),
     }
 }
 
@@ -1656,7 +1645,11 @@ fn render_world_lab_editor(
             }
         }
         if let Some(held_id) = state.world_lab_held_point_of_interest.as_deref() {
-            if let Some(point) = map.points_of_interest.iter().find(|point| point.id == held_id) {
+            if let Some(point) = map
+                .points_of_interest
+                .iter()
+                .find(|point| point.id == held_id)
+            {
                 bevy_presentation::spawn_muted_label(
                     commands,
                     controls,

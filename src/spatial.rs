@@ -293,10 +293,7 @@ impl LocalMap {
 
     /// Move an existing point of interest without changing its discovery state or text.
     pub fn move_point_of_interest(&mut self, id: &str, position: GridPosition) -> bool {
-        if !self
-            .points_of_interest
-            .iter()
-            .any(|point| point.id == id)
+        if !self.points_of_interest.iter().any(|point| point.id == id)
             || !self.point_of_interest_placement_is_valid(position, Some(id))
         {
             return false;
