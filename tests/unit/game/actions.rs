@@ -63,7 +63,7 @@ fn travel_requires_reciprocal_world_graph_connections() {
     let initial_time = game.world.time_points;
     let initial_history = game.world.history.len();
     assert!(!has_reciprocal_location_connection(&game, destination_id));
-    travel_to(&mut game, destination_id).unwrap();
+    assert!(travel_to(&mut game, destination_id).is_err());
     assert_eq!(game.character.location_id, source_id);
     assert_eq!(game.character.turn, initial_turn);
     assert_eq!(game.world.time_points, initial_time);
