@@ -408,6 +408,7 @@ fn generate_world_lab_session(options: WorldLabOptions) -> (LocalMap, WorldLabSc
     (map, scenario)
 }
 
+#[cfg(test)]
 fn generate_world_lab_map(options: WorldLabOptions) -> LocalMap {
     generate_world_lab_session(options).0
 }
@@ -1736,6 +1737,7 @@ fn developer_tools_input(
                                 clear_world_lab_holds(&mut state);
                                 state.world_lab_scenario = Some(scenario);
                                 bevy_spatial::set_sandbox_map(&mut spatial, map);
+                                bevy_spatial::set_sandbox_actor_entities(&mut spatial, &actor_ids);
                                 state.world_lab_generated_options = Some(state.world_lab);
                                 state.world_lab_status =
                                     Some("Settings reset and map regenerated.".into());
