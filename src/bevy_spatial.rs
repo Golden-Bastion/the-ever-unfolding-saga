@@ -20,9 +20,8 @@ use crate::bevy_presentation::{
 };
 use crate::input::InputEvent;
 use crate::interaction_actions::{
-    discover_available_interactions, AvailableInteraction, InteractionActionKind,
-    InteractionTarget,
-  };
+    discover_available_interactions, AvailableInteraction, InteractionActionKind, InteractionTarget,
+};
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
     configure_map_exits, ensure_spatial_entity_placements, generate_local_map_with_layout,
@@ -2050,16 +2049,10 @@ fn interaction_prompt_label(interaction: &AvailableInteraction, count: usize) ->
     }
 }
 
-
 #[cfg(test)]
 fn exit_interaction_available(map: &LocalMap, position: Vec2, exit: &MapExit) -> bool {
-    crate::interaction_actions::map_exit_interaction_available(
-        map,
-        (position.x, position.y),
-        exit,
-    )
+    crate::interaction_actions::map_exit_interaction_available(map, (position.x, position.y), exit)
 }
-
 
 #[cfg(test)]
 fn poi_interaction_available_for(

@@ -59,10 +59,7 @@ fn discovery_filters_stale_npcs_and_unsearchable_remains() {
         },
     ];
 
-    let position = (
-        f32::from(map.entry.x) + 0.5,
-        f32::from(map.entry.y) + 0.5,
-    );
+    let position = (f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
     let available = discover_available_interactions(&map, &game, position);
 
     assert!(
