@@ -1001,8 +1001,41 @@ fn world_lab_playtest_is_disposable_and_returns_updated_map_to_editor() {
     // The normal synchronization path must be a no-op: sandbox playtests do not
     // create a campaign or write their temporary map into world state.
     let mut lifecycle = LifecycleState::default();
+    let game = crate::model::create_new_state(
+        "Sandbox Isolation Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    lifecycle.session = Some(crate::bevy_lifecycle::GameSession {
+        state: game,
+        save_path: std::path::PathBuf::new(),
+    });
+    let original_local_maps = lifecycle
+        .session
+        .as_ref()
+        .expect("campaign fixture should exist")
+        .state
+        .world
+        .local_maps
+        .clone();
+    let original_exploration = lifecycle
+        .session
+        .as_ref()
+        .expect("campaign fixture should exist")
+        .state
+        .character
+        .exploration_session
+        .clone();
+
     sync_spatial_to_game(&state, &mut lifecycle);
-    assert!(lifecycle.session.is_none());
+
+    let game_after_sync = &lifecycle.session.as_ref().unwrap().state;
+    assert_eq!(game_after_sync.world.local_maps, original_local_maps);
+    assert_eq!(
+        game_after_sync.character.exploration_session,
+        original_exploration
+    );
 
     let current_position = state.position;
     map_mark_discovered(&mut state, current_position);
