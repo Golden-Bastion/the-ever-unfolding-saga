@@ -321,6 +321,166 @@ impl LocalMap {
         Some(self.points_of_interest.remove(index))
     }
 
+    /// Add a passage to a real destination in the owning world graph.
+    /// The caller supplies valid destination IDs from that graph; this keeps
+    /// the renderer-neutral map model from inventing world identities.
+    pub fn place_map_exit(
+        &mut self,
+        exit: MapExit,
+        valid_target_location_ids: &[u64],
+    ) -> bool {
+        let Some(source_id) = self.location_entity_id() else {
+            return false;
+        };
+        if exit.id.trim().is_empty()
+            || exit.target_location_id == 0
+            || exit.target_location_id == source_id
+            || !valid_target_location_ids.contains(&exit.target_location_id)
+            || self.exits.iter().any(|existing| {
+                existing.id == exit.id || existing.target_location_id == exit.target_location_id
+            })
+            || !self.map_exit_placement_is_valid(exit.position, None)
+        {
+            return false;
+        }
+
+        let side = map_exit_side(self, exit.position).expect("validated passage position is on an edge");
+        carve_exit_corridor(self, exit.position, side);
+        self.exits.push(exit);
+        true
+    }
+
+    /// Reposition an existing passage while preserving its destination identity.
+    pub fn move_map_exit(&mut self, id: &str, position: GridPosition) -> bool {
+        if !self.exits.iter().any(|exit| exit.id == id)
+            || !self.map_exit_placement_is_valid(position, Some(id))
+        {
+            return false;
+        }
+        let Some(side) = map_exit_side(self, position) else {
+            return false;
+        };
+        carve_exit_corridor(self, position, side);
+        let Some(exit) = self.exits.iter_mut().find(|exit| exit.id == id) else {
+            return false;
+        };
+        exit.position = position;
+        true
+    }
+
+    /// Remove the passage occupying the selected edge cell.
+    pub fn remove_map_exit_at(&mut self, position: GridPosition) -> Option<MapExit> {
+        let index = self.exits.iter().position(|exit| exit.position == position)?;
+        Some(self.exits.remove(index))
+    }
+
+    /// Place a world-owned actor only when its identity exists in the supplied
+    /// sandbox world catalogue.
+    pub fn place_spatial_entity(
+        &mut self,
+        placement: SpatialEntityPlacement,
+        valid_entities: &[(u64, SpatialEntityKind)],
+    ) -> bool {
+        if placement.entity_id == 0
+            || !valid_entities.contains(&(placement.entity_id, placement.kind))
+            || self
+                .interactables
+                .iter()
+                .any(|existing| existing.entity_id == placement.entity_id)
+            || !self.interactable_placement_is_valid(placement.position, None)
+        {
+            return false;
+        }
+        self.interactables.push(placement);
+        true
+    }
+
+    /// Move an existing actor without changing its world-owned identity.
+    pub fn move_spatial_entity(
+        &mut self,
+        entity_id: u64,
+        kind: SpatialEntityKind,
+        position: GridPosition,
+    ) -> bool {
+        if !self
+            .interactables
+            .iter()
+            .any(|actor| actor.entity_id == entity_id && actor.kind == kind)
+            || !self.interactable_placement_is_valid(position, Some(entity_id))
+        {
+            return false;
+        }
+        let Some(actor) = self
+            .interactables
+            .iter_mut()
+            .find(|actor| actor.entity_id == entity_id && actor.kind == kind)
+        else {
+            return false;
+        };
+        actor.position = position;
+        true
+    }
+
+    /// Remove the actor occupying the selected map cell, without deleting the
+    /// underlying world entity from the disposable world catalogue.
+    pub fn remove_spatial_entity_at(
+        &mut self,
+        position: GridPosition,
+    ) -> Option<SpatialEntityPlacement> {
+        let index = self
+            .interactables
+            .iter()
+            .position(|actor| actor.position == position)?;
+        Some(self.interactables.remove(index))
+    }
+
+    fn location_entity_id(&self) -> Option<u64> {
+        self.location_id.strip_prefix("location.")?.parse().ok()
+    }
+
+    fn map_exit_placement_is_valid(
+        &self,
+        position: GridPosition,
+        ignored_exit_id: Option<&str>,
+    ) -> bool {
+        if !self.contains(position)
+            || map_exit_side(self, position).is_none()
+            || position == self.entry
+            || self.exits.iter().any(|exit| {
+                Some(exit.id.as_str()) != ignored_exit_id && exit.position == position
+            })
+            || self.points_of_interest.iter().any(|point| point.position == position)
+            || self.interactables.iter().any(|actor| actor.position == position)
+            || self.props.iter().any(|prop| prop.footprint_contains(position, self.width))
+        {
+            return false;
+        }
+
+        passage_corridor_positions(self, position)
+            .into_iter()
+            .filter(|cell| *cell != self.entry && *cell != position)
+            .all(|cell| {
+                !self.points_of_interest.iter().any(|point| point.position == cell)
+                    && !self.interactables.iter().any(|actor| actor.position == cell)
+                    && !self.props.iter().any(|prop| prop.footprint_contains(cell, self.width))
+            })
+    }
+
+    fn interactable_placement_is_valid(
+        &self,
+        position: GridPosition,
+        ignored_entity_id: Option<u64>,
+    ) -> bool {
+        self.contains(position)
+            && self.is_walkable(position)
+            && position != self.entry
+            && !self.points_of_interest.iter().any(|point| point.position == position)
+            && !self.exits.iter().any(|exit| exit.position == position)
+            && !self.interactables.iter().any(|actor| {
+                Some(actor.entity_id) != ignored_entity_id && actor.position == position
+            })
+    }
+
     fn point_of_interest_placement_is_valid(
         &self,
         position: GridPosition,
@@ -998,6 +1158,101 @@ fn carve_toward(map: &mut LocalMap, position: &mut GridPosition, target: GridPos
             position.y + 1
         };
         carve_generated_floor(map, *position);
+    }
+}
+
+fn map_exit_side(map: &LocalMap, position: GridPosition) -> Option<usize> {
+    if position.x == map.width.saturating_sub(1)
+        && position.y > 0
+        && position.y < map.height.saturating_sub(1)
+    {
+        Some(0)
+    } else if position.x == 0
+        && position.y > 0
+        && position.y < map.height.saturating_sub(1)
+    {
+        Some(1)
+    } else if position.y == 0
+        && position.x > 0
+        && position.x < map.width.saturating_sub(1)
+    {
+        Some(2)
+    } else if position.y == map.height.saturating_sub(1)
+        && position.x > 0
+        && position.x < map.width.saturating_sub(1)
+    {
+        Some(3)
+    } else {
+        None
+    }
+}
+
+fn passage_corridor_positions(map: &LocalMap, exit: GridPosition) -> Vec<GridPosition> {
+    let side = map_exit_side(map, exit).expect("passage route requires an edge position");
+    let mut positions = vec![exit];
+    let mut position = exit;
+    let mut route = Vec::new();
+
+    if map.layout_id.as_deref() == Some("shrine_chamber") {
+        let (left, right, top, bottom) = (2_u16, 7_u16, 2_u16, 7_u16);
+        let bypass_x = right + 1;
+        match side {
+            0 if (top..=bottom).contains(&exit.y) => {
+                route.push(GridPosition { x: bypass_x, y: exit.y });
+                route.push(GridPosition { x: bypass_x, y: map.entry.y });
+                route.push(map.entry);
+            }
+            2 if (left..=right).contains(&exit.x) => {
+                route.push(GridPosition { x: exit.x, y: 1 });
+                route.push(GridPosition { x: bypass_x, y: 1 });
+                route.push(GridPosition { x: bypass_x, y: map.entry.y });
+                route.push(map.entry);
+            }
+            3 if (left..=right).contains(&exit.x) => {
+                let bypass_y = map.height - 2;
+                route.push(GridPosition { x: exit.x, y: bypass_y });
+                route.push(GridPosition { x: bypass_x, y: bypass_y });
+                route.push(GridPosition { x: bypass_x, y: map.entry.y });
+                route.push(map.entry);
+            }
+            _ => {}
+        }
+    }
+
+    if route.is_empty() {
+        route.push(match side {
+            0 | 1 => GridPosition { x: map.entry.x, y: exit.y },
+            _ => GridPosition { x: exit.x, y: map.entry.y },
+        });
+        route.push(map.entry);
+    }
+
+    for target in route {
+        extend_passage_path(&mut positions, &mut position, target);
+    }
+    positions
+}
+
+fn extend_passage_path(
+    positions: &mut Vec<GridPosition>,
+    position: &mut GridPosition,
+    target: GridPosition,
+) {
+    while position.x != target.x {
+        position.x = if position.x > target.x {
+            position.x - 1
+        } else {
+            position.x + 1
+        };
+        positions.push(*position);
+    }
+    while position.y != target.y {
+        position.y = if position.y > target.y {
+            position.y - 1
+        } else {
+            position.y + 1
+        };
+        positions.push(*position);
     }
 }
 
