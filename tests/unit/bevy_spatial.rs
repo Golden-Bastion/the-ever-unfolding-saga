@@ -617,7 +617,6 @@ fn points_of_interest_reveal_when_their_tiles_enter_the_explored_area() {
     assert!(map_mark_discovered(&mut state, position).is_empty());
 }
 
-
 fn connected_spatial_fixture() -> (
     LifecycleState,
     SpatialExplorationState,
@@ -663,20 +662,18 @@ fn connected_spatial_fixture() -> (
     }
 
     let destination_key = format!("location.{destination_id}");
-    let mut destination_map = generate_local_map(
-        91,
-        destination_key,
-        LocalMapConfig::default(),
-    );
+    let mut destination_map = generate_local_map(91, destination_key, LocalMapConfig::default());
     destination_map.set_terrain(destination_map.entry, Terrain::Rubble);
-    destination_map.points_of_interest.push(crate::spatial::PointOfInterest {
-        id: "poi.destination.persisted".into(),
-        position: destination_map.entry,
-        title: "Old Waystone".into(),
-        description: "A waystone left by an earlier traveller.".into(),
-        discovered: true,
-        interacted: false,
-    });
+    destination_map
+        .points_of_interest
+        .push(crate::spatial::PointOfInterest {
+            id: "poi.destination.persisted".into(),
+            position: destination_map.entry,
+            title: "Old Waystone".into(),
+            description: "A waystone left by an earlier traveller.".into(),
+            discovered: true,
+            interacted: false,
+        });
     game.world.local_maps.push(destination_map);
 
     let mut lifecycle = LifecycleState::default();
@@ -766,7 +763,9 @@ fn physical_passage_travel_keeps_spatial_mode_and_restores_destination_map() {
     }));
     assert!(game.world.local_maps.iter().any(|map| {
         map.location_id == destination_key
-            && map.point_of_interest("poi.destination.persisted").is_some_and(|poi| poi.discovered)
+            && map
+                .point_of_interest("poi.destination.persisted")
+                .is_some_and(|poi| poi.discovered)
     }));
     let character_session = game.character.exploration_session.as_ref().unwrap();
     assert_eq!(character_session.location_id, destination_key);
@@ -801,7 +800,13 @@ fn physical_passage_rejects_a_stale_world_connection_without_traveling() {
         f32::from(exit.position.y) + 0.5,
     );
     spatial.session.as_mut().unwrap().position = exit.position;
-    let source_location_id = lifecycle.session.as_ref().unwrap().state.character.location_id;
+    let source_location_id = lifecycle
+        .session
+        .as_ref()
+        .unwrap()
+        .state
+        .character
+        .location_id;
     lifecycle
         .session
         .as_mut()
@@ -825,10 +830,7 @@ fn physical_passage_rejects_a_stale_world_connection_without_traveling() {
     let game = &lifecycle.session.as_ref().unwrap().state;
     assert_eq!(game.character.location_id, source_location_id);
     assert_eq!(game.character.turn, before_turn);
-    assert_eq!(
-        spatial.session.as_ref().unwrap().location_id,
-        source_key
-    );
+    assert_eq!(spatial.session.as_ref().unwrap().location_id, source_key);
     assert_eq!(
         navigation.current_screen,
         Some(ScreenId::SpatialExploration)
@@ -838,7 +840,6 @@ fn physical_passage_rejects_a_stale_world_connection_without_traveling() {
         .as_deref()
         .is_some_and(|message| message.contains("no longer leads")));
 }
-
 
 #[test]
 fn physical_passage_rejects_a_world_connection_without_a_return_route() {
@@ -868,7 +869,13 @@ fn physical_passage_rejects_a_world_connection_without_a_return_route() {
         .unwrap()
         .exits
         .clear();
-    let source_location_id = lifecycle.session.as_ref().unwrap().state.character.location_id;
+    let source_location_id = lifecycle
+        .session
+        .as_ref()
+        .unwrap()
+        .state
+        .character
+        .location_id;
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
 
     use_map_exit(
@@ -920,7 +927,13 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
         f32::from(exit.position.y) + 0.5,
     );
     spatial.session.as_mut().unwrap().position = exit.position;
-    let source_location_id = lifecycle.session.as_ref().unwrap().state.character.location_id;
+    let source_location_id = lifecycle
+        .session
+        .as_ref()
+        .unwrap()
+        .state
+        .character
+        .location_id;
 
     use_map_exit(
         &mut spatial,
@@ -935,9 +948,10 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
         .maps
         .get(&destination_key)
         .expect("first arrival should create the destination map");
-    assert!(destination_map.exits.iter().any(|map_exit| {
-        map_exit.target_location_id == source_location_id
-    }));
+    assert!(destination_map
+        .exits
+        .iter()
+        .any(|map_exit| { map_exit.target_location_id == source_location_id }));
     assert!(game
         .world
         .local_maps
