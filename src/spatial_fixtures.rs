@@ -36,11 +36,7 @@ pub struct SpatialFixtureEntry {
 ///
 /// Repeated names receive a numeric suffix instead of overwriting an existing
 /// fixture, so exporting an iteration never destroys an earlier experiment.
-pub fn save_spatial_fixture(
-    directory: &Path,
-    name: &str,
-    map: &LocalMap,
-) -> io::Result<PathBuf> {
+pub fn save_spatial_fixture(directory: &Path, name: &str, map: &LocalMap) -> io::Result<PathBuf> {
     validate_local_map(map).map_err(invalid_data)?;
     let display_name = name.trim();
     if display_name.is_empty() || display_name.chars().count() > 80 {
@@ -49,7 +45,9 @@ pub fn save_spatial_fixture(
 
     let file_stem = fixture_file_stem(display_name);
     if file_stem.is_empty() {
-        return Err(invalid_input("fixture name must contain at least one letter or number"));
+        return Err(invalid_input(
+            "fixture name must contain at least one letter or number",
+        ));
     }
     fs::create_dir_all(directory)?;
 
@@ -137,8 +135,7 @@ pub fn list_spatial_fixtures(directories: &[&Path]) -> io::Result<Vec<SpatialFix
                 continue;
             }
             let path = entry.path();
-            if path.extension().and_then(|value| value.to_str())
-                != Some(SPATIAL_FIXTURE_EXTENSION)
+            if path.extension().and_then(|value| value.to_str()) != Some(SPATIAL_FIXTURE_EXTENSION)
             {
                 continue;
             }
@@ -207,7 +204,9 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
     if map.terrain.len() != tile_count {
         return Err(format!(
             "terrain has {} cells; {} × {} requires {tile_count}",
-            map.terrain.len(), map.width, map.height
+            map.terrain.len(),
+            map.width,
+            map.height
         ));
     }
     if !map.discovered_tiles.is_empty() && map.discovered_tiles.len() != tile_count {
@@ -219,10 +218,7 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
     if !map.contains(map.entry) {
         return Err("entry position is outside the map".to_string());
     }
-    if !map
-        .terrain_at(map.entry)
-        .is_some_and(Terrain::is_walkable)
-    {
+    if !map.terrain_at(map.entry).is_some_and(Terrain::is_walkable) {
         return Err("entry position is not on walkable terrain".to_string());
     }
 
@@ -238,10 +234,16 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
                 .terrain_at(poi.position)
                 .is_some_and(Terrain::is_walkable)
         {
-            return Err(format!("point of interest {} is outside the map or not walkable", poi.id));
+            return Err(format!(
+                "point of interest {} is outside the map or not walkable",
+                poi.id
+            ));
         }
         if !reserved.insert(poi.position) {
-            return Err(format!("point of interest {} overlaps a reserved cell", poi.id));
+            return Err(format!(
+                "point of interest {} overlaps a reserved cell",
+                poi.id
+            ));
         }
     }
 
@@ -282,7 +284,10 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
             ));
         }
         if !reserved.insert(actor.position) {
-            return Err(format!("actor {} overlaps a reserved cell", actor.entity_id));
+            return Err(format!(
+                "actor {} overlaps a reserved cell",
+                actor.entity_id
+            ));
         }
     }
 
@@ -302,14 +307,14 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
             let Some(x) = prop.position.x.checked_add(offset) else {
                 return Err(format!("prop {} has an invalid footprint", prop.id));
             };
-            let cell = GridPosition { x, y: prop.position.y };
+            let cell = GridPosition {
+                x,
+                y: prop.position.y,
+            };
             if !map.contains(cell) {
                 return Err(format!("prop {} extends outside the map", prop.id));
             }
-            if !map
-                .terrain_at(cell)
-                .is_some_and(Terrain::is_walkable)
-            {
+            if !map.terrain_at(cell).is_some_and(Terrain::is_walkable) {
                 return Err(format!("prop {} occupies non-walkable terrain", prop.id));
             }
             if reserved.contains(&cell) || !prop_cells.insert(cell) {

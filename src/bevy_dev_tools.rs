@@ -525,7 +525,6 @@ fn world_lab_cell_details(map: &LocalMap, position: GridPosition) -> String {
     )
 }
 
-
 fn refresh_world_lab_fixtures(state: &mut DeveloperToolsState) {
     let paths = GamePaths::get();
     match list_spatial_fixtures(&[
@@ -553,16 +552,15 @@ fn activate_world_lab_map(
     state.world_lab_held_prop = None;
     bevy_spatial::set_sandbox_map(spatial, map);
     state.world_lab_generated_options = Some(state.world_lab);
-    state.world_lab_status = Some(format!("Loaded fixture: {name}. The map is ready to edit or play-test."));
+    state.world_lab_status = Some(format!(
+        "Loaded fixture: {name}. The map is ready to edit or play-test."
+    ));
     navigation.current_screen = Some(ScreenId::WorldLab);
     navigation.selected = 5;
     state.dirty = true;
 }
 
-fn export_world_lab_fixture(
-    state: &mut DeveloperToolsState,
-    spatial: &SpatialExplorationState,
-) {
+fn export_world_lab_fixture(state: &mut DeveloperToolsState, spatial: &SpatialExplorationState) {
     let Some(map) = bevy_spatial::sandbox_map(spatial) else {
         state.world_lab_status = Some("Generate or load a map before exporting a fixture.".into());
         return;
@@ -611,12 +609,18 @@ fn export_world_lab_fixture(
     }
     #[cfg(target_os = "android")]
     {
-        if crate::bevy_options::android_request_storage_export(&saved, &file_name, "application/json") {
-            state.world_lab_status =
-                Some(format!("Saved {name} internally. Choose a destination for the JSON export."));
+        if crate::bevy_options::android_request_storage_export(
+            &saved,
+            &file_name,
+            "application/json",
+        ) {
+            state.world_lab_status = Some(format!(
+                "Saved {name} internally. Choose a destination for the JSON export."
+            ));
         } else {
-            state.world_lab_status =
-                Some(format!("Saved {name} internally, but the Android document picker is unavailable."));
+            state.world_lab_status = Some(format!(
+                "Saved {name} internally, but the Android document picker is unavailable."
+            ));
         }
     }
     refresh_world_lab_fixtures(state);
@@ -943,11 +947,7 @@ fn developer_tools_input(
                                 selected,
                             );
                         } else if navigation.selected == fixture_count {
-                            import_world_lab_fixture(
-                                &mut state,
-                                &mut spatial,
-                                &mut navigation,
-                            );
+                            import_world_lab_fixture(&mut state, &mut spatial, &mut navigation);
                         } else if navigation.selected == fixture_count + 1 {
                             refresh_world_lab_fixtures(&mut state);
                             state.world_lab_status = Some(format!(
@@ -1515,7 +1515,11 @@ fn render_world_lab_fixtures(
             commands,
             panel,
             index,
-            if fixture.error.is_some() { "cancel" } else { "folder" },
+            if fixture.error.is_some() {
+                "cancel"
+            } else {
+                "folder"
+            },
             &fixture.name,
             &fixture.details,
         );
@@ -1535,7 +1539,9 @@ fn render_world_lab_fixtures(
         "Import fixture",
     );
     if navigation.selected == import_index {
-        commands.entity(import).insert(bevy_presentation::UiSelected);
+        commands
+            .entity(import)
+            .insert(bevy_presentation::UiSelected);
     }
     let refresh_index = import_index + 1;
     let refresh = bevy_presentation::spawn_action_button(
@@ -1546,7 +1552,9 @@ fn render_world_lab_fixtures(
         "Refresh fixture list",
     );
     if navigation.selected == refresh_index {
-        commands.entity(refresh).insert(bevy_presentation::UiSelected);
+        commands
+            .entity(refresh)
+            .insert(bevy_presentation::UiSelected);
     }
     let back_index = refresh_index + 1;
     let back = bevy_presentation::spawn_action_button(
@@ -1596,9 +1604,7 @@ fn render_if_active(
         ScreenId::WorldLabEditor => {
             render_world_lab_editor(&mut commands, &navigation, &state, &spatial)
         }
-        ScreenId::WorldLabFixtures => {
-            render_world_lab_fixtures(&mut commands, &navigation, &state)
-        }
+        ScreenId::WorldLabFixtures => render_world_lab_fixtures(&mut commands, &navigation, &state),
         _ => {}
     }
     state.rendered_screen = Some(screen);
