@@ -19,7 +19,10 @@ use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId, UiButtonActivation,
 };
 use crate::input::InputEvent;
-use crate::interaction_actions::{AvailableInteraction, InteractionActionKind, InteractionTarget};
+use crate::interaction_actions::{
+    discover_available_interactions, AvailableInteraction, InteractionActionKind,
+    InteractionTarget,
+  };
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
     configure_map_exits, ensure_spatial_entity_placements, generate_local_map_with_layout,
@@ -33,7 +36,6 @@ const WALL_HEIGHT: f32 = 24.0;
 const PLAYER_SPRITE_WIDTH: f32 = 16.0;
 const PLAYER_SPRITE_HEIGHT: f32 = 24.0;
 const PLAYER_COLLISION_HALF_EXTENT: f32 = 0.15;
-const INTERACTION_RANGE_PX: f32 = 34.0;
 const PLAYER_SPEED: f32 = 180.0; // Screen-space pixels per second.
 #[cfg(any(target_os = "android", test))]
 const JOYSTICK_RADIUS_PX: f32 = 68.0;
@@ -2021,106 +2023,12 @@ fn clamp_camera_target(target: Vec2, map: &LocalMap, viewport: Vec2) -> Vec2 {
     )
 }
 
-pub(crate) fn available_interactions(
+fn available_interactions(
     map: &LocalMap,
     game: &GameState,
     position: Vec2,
 ) -> Vec<AvailableInteraction> {
-    let mut candidates = Vec::new();
-
-    for poi in &map.points_of_interest {
-        if !poi_interaction_available_for(map, position, poi) {
-            continue;
-        }
-        let Some(distance) = poi_distance_px_for(map, position, poi) else {
-            continue;
-        };
-        let item = AvailableInteraction {
-            action: InteractionActionKind::Examine,
-            target: InteractionTarget::PointOfInterest(poi.id.clone()),
-            label: format!("Examine — {}", poi.title),
-        };
-        candidates.push((distance, 2_u8, item.stable_key(), item));
-    }
-
-    for placement in &map.interactables {
-        let target_position = Vec2::new(
-            f32::from(placement.position.x) + 0.5,
-            f32::from(placement.position.y) + 0.5,
-        );
-        let distance =
-            map_to_world(position, Some(map)).distance(map_to_world(target_position, Some(map)));
-        if distance > INTERACTION_RANGE_PX || !has_line_of_sight(map, position, target_position) {
-            continue;
-        }
-        let (priority, item) = match placement.kind {
-            SpatialEntityKind::Npc => {
-                let Some(npc) = game.npcs.iter().find(|npc| {
-                    npc.id == placement.entity_id && npc.location_id == game.character.location_id
-                }) else {
-                    continue;
-                };
-                (
-                    0_u8,
-                    AvailableInteraction {
-                        action: InteractionActionKind::Talk,
-                        target: InteractionTarget::Npc(npc.id),
-                        label: format!("Talk — {}", npc.name),
-                    },
-                )
-            }
-            SpatialEntityKind::Corpse => {
-                let Some(corpse) = game.corpses.iter().find(|corpse| {
-                    corpse.id == placement.entity_id
-                        && corpse.location_id == game.character.location_id
-                        && !corpse.inventory.is_empty()
-                }) else {
-                    continue;
-                };
-                (
-                    1_u8,
-                    AvailableInteraction {
-                        action: InteractionActionKind::SearchRemains,
-                        target: InteractionTarget::Corpse(corpse.id),
-                        label: format!("Search — {}", corpse.former_name),
-                    },
-                )
-            }
-        };
-        candidates.push((distance, priority, item.stable_key(), item));
-    }
-
-    for exit in &map.exits {
-        if !exit_interaction_available(map, position, exit) {
-            continue;
-        }
-        let label = game
-            .world
-            .location_by_id(exit.target_location_id)
-            .map(|location| format!("Enter — {}", location.name))
-            .unwrap_or_else(|| "Use passage".to_string());
-        let item = AvailableInteraction {
-            action: InteractionActionKind::Enter,
-            target: InteractionTarget::Passage {
-                id: exit.id.clone(),
-                destination_id: exit.target_location_id,
-            },
-            label,
-        };
-        candidates.push((
-            exit_distance_px(map, position, exit),
-            3_u8,
-            item.stable_key(),
-            item,
-        ));
-    }
-
-    candidates.sort_by(|a, b| {
-        a.0.total_cmp(&b.0)
-            .then(a.1.cmp(&b.1))
-            .then_with(|| a.2.cmp(&b.2))
-    });
-    candidates.into_iter().map(|(_, _, _, item)| item).collect()
+    discover_available_interactions(map, game, (position.x, position.y))
 }
 
 #[cfg(test)]
@@ -2142,77 +2050,37 @@ fn interaction_prompt_label(interaction: &AvailableInteraction, count: usize) ->
     }
 }
 
-fn exit_distance_px(map: &LocalMap, position: Vec2, exit: &MapExit) -> f32 {
-    let target = Vec2::new(
-        f32::from(exit.position.x) + 0.5,
-        f32::from(exit.position.y) + 0.5,
-    );
-    map_to_world(position, Some(map)).distance(map_to_world(target, Some(map)))
-}
 
+#[cfg(test)]
 fn exit_interaction_available(map: &LocalMap, position: Vec2, exit: &MapExit) -> bool {
-    if !map.contains(exit.position)
-        || !map.is_walkable(exit.position)
-        || exit_distance_px(map, position, exit) > INTERACTION_RANGE_PX
-    {
-        return false;
-    }
-    let target = Vec2::new(
-        f32::from(exit.position.x) + 0.5,
-        f32::from(exit.position.y) + 0.5,
-    );
-    has_line_of_sight(map, position, target)
+    crate::interaction_actions::map_exit_interaction_available(
+        map,
+        (position.x, position.y),
+        exit,
+    )
 }
 
-fn poi_distance_px_for(
-    map: &LocalMap,
-    position: Vec2,
-    poi: &crate::spatial::PointOfInterest,
-) -> Option<f32> {
-    if !map.contains(poi.position) {
-        return None;
-    }
-    let target = Vec2::new(
-        f32::from(poi.position.x) + 0.5,
-        f32::from(poi.position.y) + 0.5,
-    );
-    Some(map_to_world(position, Some(map)).distance(map_to_world(target, Some(map))))
-}
 
+#[cfg(test)]
 fn poi_interaction_available_for(
     map: &LocalMap,
     position: Vec2,
     poi: &crate::spatial::PointOfInterest,
 ) -> bool {
-    if poi_distance_px_for(map, position, poi)
-        .is_none_or(|distance| distance > INTERACTION_RANGE_PX)
-    {
-        return false;
-    }
-    let target = Vec2::new(
-        f32::from(poi.position.x) + 0.5,
-        f32::from(poi.position.y) + 0.5,
-    );
-    has_line_of_sight(map, position, target)
+    crate::interaction_actions::point_of_interest_interaction_available(
+        map,
+        (position.x, position.y),
+        poi,
+    )
 }
 
+#[cfg(test)]
 fn has_line_of_sight(map: &LocalMap, start: Vec2, target: Vec2) -> bool {
-    let distance = start.distance(target);
-    let steps = (distance * 8.0).ceil() as u32;
-    for step in 1..steps {
-        let sample = start.lerp(target, step as f32 / steps.max(1) as f32);
-        if sample.x < 0.0 || sample.y < 0.0 {
-            return false;
-        }
-        let tile = GridPosition {
-            x: sample.x.floor() as u16,
-            y: sample.y.floor() as u16,
-        };
-        if !map.is_walkable(tile) {
-            return false;
-        }
-    }
-    true
+    crate::interaction_actions::has_clear_line_of_sight(
+        map,
+        (start.x, start.y),
+        (target.x, target.y),
+    )
 }
 
 fn advance_position(
