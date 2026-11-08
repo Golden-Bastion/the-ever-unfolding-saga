@@ -301,8 +301,13 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
         "Visual development workspaces. No campaign or save is required.",
     );
 
-    let workshop =
-        bevy_presentation::spawn_action_button(commands, panel, 0, "character", "Character Workshop");
+    let workshop = bevy_presentation::spawn_action_button(
+        commands,
+        panel,
+        0,
+        "character",
+        "Character Workshop",
+    );
     if navigation.selected == 0 {
         commands
             .entity(workshop)
