@@ -167,6 +167,14 @@ pub(crate) fn sandbox_map(state: &SpatialExplorationState) -> Option<&LocalMap> 
     state.sandbox_map.as_ref()
 }
 
+pub(crate) fn sandbox_map_mut(state: &mut SpatialExplorationState) -> Option<&mut LocalMap> {
+    if state.sandbox_mode {
+        return None;
+    }
+    state.dirty = true;
+    state.sandbox_map.as_mut()
+}
+
 pub(crate) fn set_sandbox_map(state: &mut SpatialExplorationState, map: LocalMap) {
     if state.sandbox_mode {
         return;
