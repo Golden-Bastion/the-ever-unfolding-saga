@@ -274,6 +274,75 @@ impl LocalMap {
         Some(self.props.remove(index))
     }
 
+    /// Add a point of interest when its destination is a free, walkable cell.
+    /// IDs and titles must be non-empty and IDs must be unique within this map.
+    pub fn place_point_of_interest(&mut self, point: PointOfInterest) -> bool {
+        if point.id.trim().is_empty()
+            || point.title.trim().is_empty()
+            || self
+                .points_of_interest
+                .iter()
+                .any(|existing| existing.id == point.id)
+            || !self.point_of_interest_placement_is_valid(point.position, None)
+        {
+            return false;
+        }
+        self.points_of_interest.push(point);
+        true
+    }
+
+    /// Move an existing point of interest without changing its discovery state or text.
+    pub fn move_point_of_interest(&mut self, id: &str, position: GridPosition) -> bool {
+        if !self.points_of_interest.iter().any(|point| point.id == id)
+            || !self.point_of_interest_placement_is_valid(position, Some(id))
+        {
+            return false;
+        }
+        let Some(point) = self
+            .points_of_interest
+            .iter_mut()
+            .find(|point| point.id == id)
+        else {
+            return false;
+        };
+        point.position = position;
+        true
+    }
+
+    /// Remove the point of interest occupying the selected map cell.
+    pub fn remove_point_of_interest_at(
+        &mut self,
+        position: GridPosition,
+    ) -> Option<PointOfInterest> {
+        let index = self
+            .points_of_interest
+            .iter()
+            .position(|point| point.position == position)?;
+        Some(self.points_of_interest.remove(index))
+    }
+
+    fn point_of_interest_placement_is_valid(
+        &self,
+        position: GridPosition,
+        ignored_point_id: Option<&str>,
+    ) -> bool {
+        self.contains(position)
+            && self.terrain_at(position).is_some_and(Terrain::is_walkable)
+            && position != self.entry
+            && !self.points_of_interest.iter().any(|point| {
+                Some(point.id.as_str()) != ignored_point_id && point.position == position
+            })
+            && !self.exits.iter().any(|exit| exit.position == position)
+            && !self
+                .interactables
+                .iter()
+                .any(|actor| actor.position == position)
+            && !self
+                .props
+                .iter()
+                .any(|prop| prop.footprint_contains(position, self.width))
+    }
+
     fn is_editor_reserved_position(&self, position: GridPosition) -> bool {
         position == self.entry
             || self

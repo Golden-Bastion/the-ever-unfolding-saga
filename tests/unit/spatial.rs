@@ -508,3 +508,69 @@ fn editor_operations_validate_terrain_and_complete_prop_footprints() {
         .iter()
         .any(|change| { change.position == terrain_position && change.terrain == Terrain::Wall }));
 }
+
+#[test]
+fn editor_operations_place_move_and_remove_points_of_interest_safely() {
+    let mut map = generate_local_map(91, "developer.world_lab_poi", LocalMapConfig::default());
+    let original = map.points_of_interest[0].clone();
+
+    let is_free_cell = |map: &LocalMap, position: GridPosition| {
+        map.is_walkable(position)
+            && position != map.entry
+            && !map
+                .points_of_interest
+                .iter()
+                .any(|point| point.position == position)
+            && !map.exits.iter().any(|exit| exit.position == position)
+            && !map
+                .interactables
+                .iter()
+                .any(|actor| actor.position == position)
+    };
+    let find_free_cell = |map: &LocalMap, excluded: Option<GridPosition>| {
+        (1..map.height - 1)
+            .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
+            .find(|position| Some(*position) != excluded && is_free_cell(map, *position))
+    };
+
+    let first_position = find_free_cell(&map, None).expect("map should have a free walkable cell");
+    let point = PointOfInterest {
+        id: "developer.test.discovery".into(),
+        position: first_position,
+        title: "Test Discovery".into(),
+        description: "An editable discovery.".into(),
+        discovered: true,
+        interacted: true,
+    };
+    assert!(!map.place_point_of_interest(PointOfInterest {
+        position: map.entry,
+        ..point.clone()
+    }));
+    assert!(map.place_point_of_interest(point.clone()));
+    assert!(!map.place_point_of_interest(point.clone()));
+
+    let second_position = find_free_cell(&map, Some(first_position))
+        .expect("map should have a second free walkable cell");
+    assert!(!map.move_point_of_interest(&point.id, map.entry));
+    assert!(!map.move_point_of_interest(&point.id, GridPosition { x: 0, y: 0 }));
+    assert!(map.move_point_of_interest(&point.id, second_position));
+
+    let moved = map
+        .point_of_interest(&point.id)
+        .expect("moved point should remain in the map");
+    assert_eq!(moved.position, second_position);
+    assert!(moved.discovered);
+    assert!(moved.interacted);
+    assert_eq!(moved.title, point.title);
+    assert_eq!(moved.description, point.description);
+    assert_eq!(map.points_of_interest[0], original);
+
+    let mut expected_removed = point.clone();
+    expected_removed.position = second_position;
+    assert_eq!(
+        map.remove_point_of_interest_at(second_position),
+        Some(expected_removed)
+    );
+    assert!(map.point_of_interest(&point.id).is_none());
+    assert!(map.remove_point_of_interest_at(second_position).is_none());
+}

@@ -128,7 +128,7 @@ fn world_lab_editor_preview_marks_cursor_and_held_prop() {
     let held_id = prop.id.clone();
     let held_position = prop.position;
     let cursor = GridPosition { x: 0, y: 0 };
-    let preview = world_lab_map_preview_with_cursor(&map, Some(cursor), Some(&held_id));
+    let preview = world_lab_map_preview_with_cursor(&map, Some(cursor), Some(&held_id), None);
     let rows = preview.lines().collect::<Vec<_>>();
     assert_eq!(
         rows[usize::from(cursor.y)]
@@ -141,6 +141,19 @@ fn world_lab_editor_preview_marks_cursor_and_held_prop() {
             .chars()
             .nth(usize::from(held_position.x)),
         Some('H')
+    );
+
+    let point = map
+        .points_of_interest
+        .first()
+        .expect("map should include a discovery");
+    let held_point_preview = world_lab_map_preview_with_cursor(&map, None, None, Some(&point.id));
+    let held_point_rows = held_point_preview.lines().collect::<Vec<_>>();
+    assert_eq!(
+        held_point_rows[usize::from(point.position.y)]
+            .chars()
+            .nth(usize::from(point.position.x)),
+        Some('Q')
     );
 }
 
@@ -167,4 +180,70 @@ fn world_lab_cursor_movement_stays_inside_the_current_map() {
             y: lower_right.y - 1
         })
     );
+}
+
+#[test]
+fn world_lab_point_of_interest_tool_can_place_move_and_remove_a_discovery() {
+    let mut spatial = SpatialExplorationState::default();
+    let map = generate_world_lab_map(WorldLabOptions::default());
+    let find_free_cell = |map: &LocalMap, excluded: Option<GridPosition>| {
+        (1..map.height - 1)
+            .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
+            .find(|position| {
+                Some(*position) != excluded
+                    && map.is_walkable(*position)
+                    && *position != map.entry
+                    && !map
+                        .points_of_interest
+                        .iter()
+                        .any(|point| point.position == *position)
+                    && !map.exits.iter().any(|exit| exit.position == *position)
+                    && !map
+                        .interactables
+                        .iter()
+                        .any(|actor| actor.position == *position)
+            })
+    };
+    let first_position = find_free_cell(&map, None).expect("map should have a free editor cell");
+    let mut state = DeveloperToolsState {
+        world_lab_cursor: Some(first_position),
+        world_lab_editor_tool: WorldLabEditorTool::PointOfInterest,
+        ..Default::default()
+    };
+    bevy_spatial::set_sandbox_map(&mut spatial, map);
+
+    place_world_lab_object(&mut state, &mut spatial);
+    let created = bevy_spatial::sandbox_map(&spatial)
+        .and_then(|map| {
+            map.points_of_interest
+                .iter()
+                .find(|point| point.id.contains(".editor_poi."))
+                .cloned()
+        })
+        .expect("editor should place a temporary discovery");
+    assert_eq!(created.position, first_position);
+    assert!(created.title.starts_with("World Lab Discovery "));
+    assert!(!created.discovered);
+    assert!(!created.interacted);
+
+    pick_up_or_drop_world_lab_object(&mut state, &mut spatial);
+    assert_eq!(
+        state.world_lab_held_point_of_interest.as_deref(),
+        Some(created.id.as_str())
+    );
+
+    let map_after_pickup = bevy_spatial::sandbox_map(&spatial).unwrap().clone();
+    let second_position = find_free_cell(&map_after_pickup, Some(first_position))
+        .expect("map should have a second free editor cell");
+    state.world_lab_cursor = Some(second_position);
+    pick_up_or_drop_world_lab_object(&mut state, &mut spatial);
+    assert!(state.world_lab_held_point_of_interest.is_none());
+    let moved = bevy_spatial::sandbox_map(&spatial)
+        .and_then(|map| map.point_of_interest(&created.id))
+        .expect("discovery should still exist after moving");
+    assert_eq!(moved.position, second_position);
+
+    remove_world_lab_object(&mut state, &mut spatial);
+    assert!(bevy_spatial::sandbox_map(&spatial)
+        .is_some_and(|map| map.point_of_interest(&created.id).is_none()));
 }
