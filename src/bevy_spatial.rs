@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{Justify, LineBreak, TextLayout};
-use bevy::ui::Pressed;
+use bevy::ui::{Pressed, UiTransform};
 use bevy::ui_widgets::Button;
 #[cfg(target_os = "android")]
 use bevy::window::PrimaryWindow;
@@ -712,7 +712,7 @@ fn update_spatial_wheel_animation(
     mut lifecycle: ResMut<LifecycleState>,
     mut navigation: ResMut<NavigationState>,
     mut requests: MessageWriter<SpatialInteractionRequest>,
-    mut wheel_roots: Query<&mut Transform, With<SpatialInteractionWheelRoot>>,
+    mut wheel_roots: Query<&mut UiTransform, With<SpatialInteractionWheelRoot>>,
 ) {
     let mut finished_close = false;
     let mut pending = None;
@@ -731,7 +731,7 @@ fn update_spatial_wheel_animation(
         }
         let scale = interaction_wheel_scale(wheel);
         for mut transform in &mut wheel_roots {
-            transform.scale = Vec3::splat(scale);
+            transform.scale = Vec2::splat(scale);
         }
     }
 
@@ -1485,7 +1485,7 @@ fn spawn_interaction_wheel(
                 height: px(INTERACTION_WHEEL_SIZE_PX),
                 ..default()
             },
-            Transform::from_scale(Vec3::splat(interaction_wheel_scale(wheel))),
+            UiTransform::from_scale(Vec2::splat(interaction_wheel_scale(wheel))),
             BackgroundColor(Color::NONE),
         ))
         .id();
