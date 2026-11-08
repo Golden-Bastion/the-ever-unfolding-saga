@@ -114,6 +114,7 @@ fn discovery_hides_stale_and_one_way_world_passages() {
     map.props.clear();
     map.points_of_interest.clear();
     map.interactables.clear();
+    map.exits.clear();
 
     let mut game = crate::model::create_new_state(
         "Route Filter Test",
