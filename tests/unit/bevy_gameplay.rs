@@ -104,6 +104,10 @@ fn gameplay_input_accepts_only_gameplay_and_an_active_spatial_pause_menu() {
         Some(ScreenId::SpatialExploration),
         GameplayScreen::Pause
     ));
+    assert!(accepts_gameplay_input(
+        Some(ScreenId::SpatialExploration),
+        GameplayScreen::Navigation
+    ));
     assert!(!accepts_gameplay_input(
         Some(ScreenId::SpatialExploration),
         GameplayScreen::Dashboard
@@ -146,15 +150,17 @@ fn animate_world_clouds_does_not_move_clouds_while_paused() {
 }
 
 #[test]
-fn pause_action_count_matches_load_visibility() {
-    assert_eq!(pause_actions_from(false).len(), 5);
-    assert_eq!(pause_actions_from(true).len(), 6);
+fn pause_action_count_matches_load_visibility_and_spatial_context() {
+    assert_eq!(pause_actions_from(false, false).len(), 5);
+    assert_eq!(pause_actions_from(true, false).len(), 6);
+    assert_eq!(pause_actions_from(false, true).len(), 6);
+    assert_eq!(pause_actions_from(true, true).len(), 7);
 }
 
 #[test]
 fn pause_action_order_keeps_options_before_quit() {
     assert!(matches!(
-        pause_actions_from(true).as_slice(),
+        pause_actions_from(true, false).as_slice(),
         [
             PauseAction::Resume,
             PauseAction::Character,
@@ -184,4 +190,20 @@ fn gameplay_dashboard_uses_exploration_as_the_main_activity_entry() {
         actions.len(),
         PRIMARY_GAMEPLAY_ACTIONS.len() + usize::from(state.threat.active)
     );
+}
+
+#[test]
+fn spatial_pause_menu_places_travel_before_character_and_system_actions() {
+    assert!(matches!(
+        pause_actions_from(true, true).as_slice(),
+        [
+            PauseAction::Resume,
+            PauseAction::Travel,
+            PauseAction::Character,
+            PauseAction::NewGame,
+            PauseAction::LoadGame,
+            PauseAction::Options,
+            PauseAction::Quit
+        ]
+    ));
 }

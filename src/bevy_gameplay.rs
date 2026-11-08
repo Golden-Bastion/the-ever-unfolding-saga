@@ -25,6 +25,7 @@ pub(crate) enum GameplayScreen {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PauseAction {
     Resume,
+    Travel,
     Character,
     NewGame,
     LoadGame,
@@ -96,7 +97,10 @@ impl GameplayRuntimeState {
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-struct PauseMenuChoice(usize);
+struct GameplayMenuChoice {
+    screen: GameplayScreen,
+    index: usize,
+}
 
 #[derive(Resource)]
 pub(crate) struct GameplayState {
@@ -135,7 +139,12 @@ pub(crate) fn install(app: &mut App) {
         .add_systems(Startup, (load_location_art, load_celestial_art))
         .add_systems(
             Update,
-            (gameplay_input, render_if_active, sync_pause_menu_selection).chain(),
+            (
+                gameplay_input,
+                render_if_active,
+                sync_gameplay_menu_selection,
+            )
+                .chain(),
         )
         .add_systems(Update, animate_world_clouds);
 }
@@ -212,7 +221,10 @@ fn accepts_gameplay_input(
 ) -> bool {
     current_screen == Some(ScreenId::Gameplay)
         || (current_screen == Some(ScreenId::SpatialExploration)
-            && gameplay_screen == GameplayScreen::Pause)
+            && matches!(
+                gameplay_screen,
+                GameplayScreen::Pause | GameplayScreen::Navigation
+            ))
 }
 
 fn pause_parent_screen(current_screen: Option<ScreenId>) -> ScreenId {
@@ -271,11 +283,20 @@ fn gameplay_input(
             }
             InputEvent::Cancel | InputEvent::Backspace => match gameplay.screen {
                 GameplayScreen::Navigation => {
-                    gameplay.screen = GameplayScreen::Dashboard;
-                    gameplay.selected = 0;
-                    gameplay.message = None;
-                    gameplay.dirty = true;
-                    navigation_state.selected = 0;
+                    if navigation_state.current_screen == Some(ScreenId::SpatialExploration) {
+                        gameplay.screen = GameplayScreen::Pause;
+                        gameplay.selected = 0;
+                        gameplay.message = None;
+                        gameplay.dirty = true;
+                        navigation_state.selected = gameplay.pause_selected;
+                        spatial_state.request_presentation_refresh();
+                    } else {
+                        gameplay.screen = GameplayScreen::Dashboard;
+                        gameplay.selected = 0;
+                        gameplay.message = None;
+                        gameplay.dirty = true;
+                        navigation_state.selected = 0;
+                    }
                 }
                 GameplayScreen::Pause => {
                     let return_screen = pause_parent_screen(navigation_state.current_screen);
@@ -322,7 +343,9 @@ fn move_selection(
     let count = match gameplay.screen {
         GameplayScreen::Dashboard => dashboard_actions(&session.state).len(),
         GameplayScreen::Navigation => navigation::build_view(&session.state).destinations.len() + 1,
-        GameplayScreen::Pause => pause_action_count(),
+        GameplayScreen::Pause => pause_action_count(
+            navigation_state.current_screen == Some(ScreenId::SpatialExploration),
+        ),
     };
     if count == 0 {
         return;
@@ -350,7 +373,9 @@ fn move_selection_to_end(
     let count = match gameplay.screen {
         GameplayScreen::Dashboard => dashboard_actions(&session.state).len(),
         GameplayScreen::Navigation => navigation::build_view(&session.state).destinations.len() + 1,
-        GameplayScreen::Pause => pause_action_count(),
+        GameplayScreen::Pause => pause_action_count(
+            navigation_state.current_screen == Some(ScreenId::SpatialExploration),
+        ),
     };
     if count > 0 {
         if gameplay.screen == GameplayScreen::Pause {
@@ -393,26 +418,29 @@ fn close_pause(
     };
 }
 
-fn sync_pause_menu_selection(
+fn sync_gameplay_menu_selection(
     navigation_state: Res<NavigationState>,
     gameplay: Res<GameplayState>,
     mut commands: Commands,
     buttons: Query<(
         Entity,
-        &PauseMenuChoice,
+        &GameplayMenuChoice,
         Option<&bevy_presentation::UiSelected>,
     )>,
 ) {
-    if gameplay.screen != GameplayScreen::Pause
-        || !matches!(
-            navigation_state.current_screen,
-            Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
-        )
-    {
+    if !matches!(
+        navigation_state.current_screen,
+        Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
+    ) {
         return;
     }
+    let selected_index = match gameplay.screen {
+        GameplayScreen::Pause => gameplay.pause_selected,
+        GameplayScreen::Navigation => gameplay.selected,
+        GameplayScreen::Dashboard => return,
+    };
     for (entity, choice, selected) in &buttons {
-        let should_select = choice.0 == gameplay.pause_selected;
+        let should_select = choice.screen == gameplay.screen && choice.index == selected_index;
         if should_select != selected.is_some() {
             if should_select {
                 commands
@@ -427,20 +455,20 @@ fn sync_pause_menu_selection(
     }
 }
 
-fn pause_action_count() -> usize {
-    pause_actions_from(crate::bevy_lifecycle::has_available_saves()).len()
+fn pause_action_count(spatial_menu: bool) -> usize {
+    pause_actions_from(crate::bevy_lifecycle::has_available_saves(), spatial_menu).len()
 }
 
-fn pause_actions() -> Vec<PauseAction> {
-    pause_actions_from(crate::bevy_lifecycle::has_available_saves())
+fn pause_actions(spatial_menu: bool) -> Vec<PauseAction> {
+    pause_actions_from(crate::bevy_lifecycle::has_available_saves(), spatial_menu)
 }
 
-fn pause_actions_from(has_load: bool) -> Vec<PauseAction> {
-    let mut actions = vec![
-        PauseAction::Resume,
-        PauseAction::Character,
-        PauseAction::NewGame,
-    ];
+fn pause_actions_from(has_load: bool, spatial_menu: bool) -> Vec<PauseAction> {
+    let mut actions = vec![PauseAction::Resume];
+    if spatial_menu {
+        actions.push(PauseAction::Travel);
+    }
+    actions.extend([PauseAction::Character, PauseAction::NewGame]);
     if has_load {
         actions.push(PauseAction::LoadGame);
     }
@@ -463,7 +491,9 @@ fn activate_selection(
 ) {
     match gameplay.screen {
         GameplayScreen::Pause => {
-            let actions = pause_actions();
+            let actions = pause_actions(
+                navigation_state.current_screen == Some(ScreenId::SpatialExploration),
+            );
             let Some(action) = actions.get(gameplay.pause_selected).copied() else {
                 gameplay.pause_selected = 0;
                 navigation_state.selected = 0;
@@ -471,6 +501,14 @@ fn activate_selection(
             };
 
             match action {
+                PauseAction::Travel => {
+                    gameplay.screen = GameplayScreen::Navigation;
+                    gameplay.selected = 0;
+                    gameplay.message = None;
+                    gameplay.dirty = true;
+                    navigation_state.selected = 0;
+                    spatial_state.request_presentation_refresh();
+                }
                 PauseAction::Resume => {
                     let return_screen = pause_parent_screen(navigation_state.current_screen);
                     close_pause(gameplay, runtime_state, navigation_state, return_screen);
@@ -552,46 +590,90 @@ fn activate_selection(
             }
         }
         GameplayScreen::Navigation => {
-            let Some(session) = lifecycle.session.as_mut() else {
-                return;
-            };
-            let view = navigation::build_view(&session.state);
-            if gameplay.selected >= view.destinations.len() {
-                gameplay.screen = GameplayScreen::Dashboard;
-                gameplay.selected = 0;
-                gameplay.message = None;
-                gameplay.dirty = true;
-                navigation_state.selected = 0;
-                return;
-            }
-            if let Some(destination) = view.destinations.get(gameplay.selected) {
-                let old_turn = session.state.character.turn;
-                let target_id = destination.id;
-                match actions::travel_to(&mut session.state, target_id) {
+            if navigation_state.current_screen == Some(ScreenId::SpatialExploration) {
+                let Some(target_id) = lifecycle.session.as_ref().and_then(|session| {
+                    navigation::build_view(&session.state)
+                        .destinations
+                        .get(gameplay.selected)
+                        .map(|destination| destination.id)
+                }) else {
+                    gameplay.screen = GameplayScreen::Pause;
+                    gameplay.selected = 0;
+                    gameplay.message = None;
+                    gameplay.dirty = true;
+                    navigation_state.selected = gameplay.pause_selected;
+                    spatial_state.request_presentation_refresh();
+                    return;
+                };
+
+                match crate::bevy_spatial::travel_to_destination(
+                    spatial_state,
+                    lifecycle,
+                    navigation_state,
+                    target_id,
+                ) {
                     Ok(()) => {
-                        let message = session
-                            .state
-                            .world
-                            .history
-                            .iter()
-                            .rev()
-                            .find(|entry| entry.turn > old_turn)
-                            .map(|entry| {
-                                entry.outcome.clone().unwrap_or_else(|| entry.text.clone())
-                            });
-                        if !session.state.character.alive {
-                            lifecycle.phase = LifecyclePhase::Death;
-                            lifecycle.selected = 0;
-                            lifecycle.mark_dirty();
-                        }
                         gameplay.screen = GameplayScreen::Dashboard;
                         gameplay.selected = 0;
-                        gameplay.message = message;
+                        gameplay.pause_selected = 0;
+                        gameplay.message = None;
                         gameplay.dirty = true;
+                        runtime_state.set_paused(false);
+                        if lifecycle.phase == LifecyclePhase::Death {
+                            navigation_state.current_screen = Some(ScreenId::Lifecycle);
+                            navigation_state.return_screen = None;
+                            navigation_state.selected = lifecycle.selected;
+                        }
                     }
-                    Err(_) => {
-                        gameplay.message = Some("That route is no longer available.".to_string());
+                    Err(message) => {
+                        gameplay.message = Some(message.to_string());
                         gameplay.dirty = true;
+                        spatial_state.request_presentation_refresh();
+                    }
+                }
+            } else {
+                let Some(session) = lifecycle.session.as_mut() else {
+                    return;
+                };
+                let view = navigation::build_view(&session.state);
+                if gameplay.selected >= view.destinations.len() {
+                    gameplay.screen = GameplayScreen::Dashboard;
+                    gameplay.selected = 0;
+                    gameplay.message = None;
+                    gameplay.dirty = true;
+                    navigation_state.selected = 0;
+                    return;
+                }
+                if let Some(destination) = view.destinations.get(gameplay.selected) {
+                    let old_turn = session.state.character.turn;
+                    let target_id = destination.id;
+                    match actions::travel_to(&mut session.state, target_id) {
+                        Ok(()) => {
+                            let message = session
+                                .state
+                                .world
+                                .history
+                                .iter()
+                                .rev()
+                                .find(|entry| entry.turn > old_turn)
+                                .map(|entry| {
+                                    entry.outcome.clone().unwrap_or_else(|| entry.text.clone())
+                                });
+                            if !session.state.character.alive {
+                                lifecycle.phase = LifecyclePhase::Death;
+                                lifecycle.selected = 0;
+                                lifecycle.mark_dirty();
+                            }
+                            gameplay.screen = GameplayScreen::Dashboard;
+                            gameplay.selected = 0;
+                            gameplay.message = message;
+                            gameplay.dirty = true;
+                        }
+                        Err(_) => {
+                            gameplay.message =
+                                Some("That route is no longer available.".to_string());
+                            gameplay.dirty = true;
+                        }
                     }
                 }
             }
@@ -662,7 +744,7 @@ fn render_if_active(
                 gameplay.selected,
                 gameplay.message.as_deref(),
             );
-            let pause_actions = pause_actions();
+            let pause_actions = pause_actions(false);
             render_pause(&mut commands, root, &pause_actions, gameplay.pause_selected);
         }
     }
@@ -1187,7 +1269,7 @@ pub(crate) fn render_spatial_pause_overlay(
     parent: Entity,
     selected: usize,
 ) {
-    let actions = pause_actions();
+    let actions = pause_actions(true);
     render_pause(commands, parent, &actions, selected);
 }
 
@@ -1230,7 +1312,10 @@ fn render_pause(commands: &mut Commands, parent: Entity, actions: &[PauseAction]
     for (index, action) in actions.iter().enumerate() {
         let (icon, label) = pause_action_visuals(*action);
         let button = bevy_presentation::spawn_action_button(commands, surface, index, icon, label);
-        commands.entity(button).insert(PauseMenuChoice(index));
+        commands.entity(button).insert(GameplayMenuChoice {
+            screen: GameplayScreen::Pause,
+            index,
+        });
         if index == selected {
             commands
                 .entity(button)
@@ -1242,6 +1327,7 @@ fn render_pause(commands: &mut Commands, parent: Entity, actions: &[PauseAction]
 fn pause_action_visuals(action: PauseAction) -> (&'static str, &'static str) {
     match action {
         PauseAction::Resume => ("resume", "Resume"),
+        PauseAction::Travel => ("travel", "Travel"),
         PauseAction::Character => ("character", "Character"),
         PauseAction::NewGame => ("new-game", "New Game"),
         PauseAction::LoadGame => ("load-game", "Load Game"),
@@ -1253,6 +1339,53 @@ fn pause_action_visuals(action: PauseAction) -> (&'static str, &'static str) {
 fn render_navigation(commands: &mut Commands, view: &NavigationView, selected: usize) {
     let root = bevy_presentation::spawn_screen(commands, "WORLD NAVIGATION");
     let panel = bevy_presentation::spawn_panel(commands, root);
+    render_navigation_content(commands, panel, view, selected, None);
+}
+
+pub(crate) fn render_spatial_navigation_overlay(
+    commands: &mut Commands,
+    parent: Entity,
+    view: &NavigationView,
+    selected: usize,
+    message: Option<&str>,
+) {
+    let overlay = bevy_presentation::spawn_overlay(commands, parent);
+    commands
+        .entity(overlay)
+        .insert(BackgroundColor(bevy_presentation::THEME_OVERLAY));
+    let surface = commands
+        .spawn((
+            bevy_presentation::UiSurface,
+            bevy_presentation::TouchScrollablePanel,
+            Node {
+                width: percent(60),
+                min_width: px(280),
+                max_width: px(620),
+                max_height: percent(90),
+                min_height: px(0),
+                padding: UiRect::all(bevy_presentation::responsive_surface_padding()),
+                flex_direction: FlexDirection::Column,
+                row_gap: bevy_presentation::responsive_compact_gap(),
+                overflow: Overflow::scroll(),
+                border: UiRect::all(px(1)),
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+        ))
+        .id();
+    commands.entity(overlay).add_child(surface);
+    bevy_presentation::spawn_label(commands, surface, "WORLD NAVIGATION");
+    render_navigation_content(commands, surface, view, selected, message);
+}
+
+fn render_navigation_content(
+    commands: &mut Commands,
+    panel: Entity,
+    view: &NavigationView,
+    selected: usize,
+    message: Option<&str>,
+) {
     if let Some(current) = &view.current_location {
         bevy_presentation::spawn_label(commands, panel, current.name.clone());
         bevy_presentation::spawn_muted_label(
@@ -1277,6 +1410,9 @@ fn render_navigation(commands: &mut Commands, view: &NavigationView, selected: u
             "Your current location can no longer be resolved.",
         );
     }
+    if let Some(message) = message {
+        bevy_presentation::spawn_muted_label(commands, panel, message);
+    }
 
     if view.destinations.is_empty() {
         bevy_presentation::spawn_muted_label(commands, panel, "No known routes lead onward.");
@@ -1289,6 +1425,10 @@ fn render_navigation(commands: &mut Commands, view: &NavigationView, selected: u
                 "travel",
                 destination.name.clone(),
             );
+            commands.entity(button).insert(GameplayMenuChoice {
+                screen: GameplayScreen::Navigation,
+                index,
+            });
             if index == selected {
                 commands
                     .entity(button)
@@ -1299,6 +1439,10 @@ fn render_navigation(commands: &mut Commands, view: &NavigationView, selected: u
     let back_index = view.destinations.len();
     let button =
         bevy_presentation::spawn_action_button(commands, panel, back_index, "back", "Back");
+    commands.entity(button).insert(GameplayMenuChoice {
+        screen: GameplayScreen::Navigation,
+        index: back_index,
+    });
     if selected == back_index {
         commands
             .entity(button)
