@@ -96,13 +96,24 @@ fn load_mod_content(
     load_content_file(&canonical_path).map(Some)
 }
 
+fn merge_world_locations(base: &mut Vec<LocationContent>, incoming: Vec<LocationContent>) {
+    for mut location in incoming {
+        if let Some(existing) = base.iter().find(|existing| existing.id == location.id) {
+            let mut discoveries = existing.spatial_discoveries.clone();
+            merge_vec_by_key(
+                &mut discoveries,
+                std::mem::take(&mut location.spatial_discoveries),
+                |discovery| discovery.id.clone(),
+            );
+            location.spatial_discoveries = discoveries;
+        }
+        merge_vec_by_key(base, vec![location], |entry| entry.id.clone());
+    }
+}
+
 fn merge_campaign_content(base: &mut CampaignContent, incoming: CampaignContent) {
     base.world.region = incoming.world.region;
-    merge_vec_by_key(
-        &mut base.world.locations,
-        incoming.world.locations,
-        |entry| entry.id.clone(),
-    );
+    merge_world_locations(&mut base.world.locations, incoming.world.locations);
     merge_vec_by_key(&mut base.factions, incoming.factions, |entry| {
         entry.id.clone()
     });
