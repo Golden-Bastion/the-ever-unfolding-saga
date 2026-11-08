@@ -279,6 +279,25 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
         "Wanderer".into(),
     );
     let location_id = game.character.location_id;
+    let source_location = game.world.location_by_id(location_id).unwrap().clone();
+    let destination_id = game.world.allocate_id();
+    game.world.locations.push(crate::model::Location {
+        id: destination_id,
+        name: "Passage Destination".into(),
+        description: "A connected place.".into(),
+        region_id: source_location.region_id,
+        dangerous: false,
+        corpse_ids: Vec::new(),
+        exits: vec![location_id],
+        spatial_layout: None,
+    });
+    game.world
+        .location_by_id_mut(location_id)
+        .unwrap()
+        .exits
+        .push(destination_id);
+    map.exits[0].target_location_id = destination_id;
+
     game.npcs.push(crate::model::Npc::new(
         70,
         "Mira",
@@ -345,7 +364,7 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
         item.target
             == InteractionTarget::Passage {
                 id: "exit.test".into(),
-                destination_id: 999,
+                destination_id,
             }
     }));
     for (index, item) in items.iter().enumerate() {
