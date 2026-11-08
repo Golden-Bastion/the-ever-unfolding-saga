@@ -308,8 +308,23 @@ fn world_lab_passage_editor_updates_reciprocal_graph_links() {
     let (destination_id, _) = selected_world_lab_destination(&state)
         .expect("selected location should have at least one unconnected destination");
     let passage_id = format!("{}.exit.{}", map.location_id, destination_id);
-    let placement = (1..map.height - 1)
-        .map(|y| GridPosition { x: map.width - 1, y })
+    let edge_positions = (1..map.height - 1)
+        .flat_map(|y| {
+            [
+                GridPosition { x: map.width - 1, y },
+                GridPosition { x: 0, y },
+            ]
+        })
+        .chain((1..map.width - 1).flat_map(|x| {
+            [
+                GridPosition { x, y: 0 },
+                GridPosition { x, y: map.height - 1 },
+            ]
+        }))
+        .collect::<Vec<_>>();
+    let placement = edge_positions
+        .iter()
+        .copied()
         .find(|position| {
             let mut candidate = map.clone();
             candidate.place_map_exit(
