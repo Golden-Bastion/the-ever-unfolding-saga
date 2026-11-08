@@ -1056,6 +1056,86 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
 }
 
 #[test]
+fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map() {
+    let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
+        connected_spatial_fixture();
+    let source_entry = spatial.maps[&source_key].entry;
+    spatial
+        .maps
+        .get_mut(&source_key)
+        .unwrap()
+        .set_terrain(source_entry, Terrain::Rubble);
+    spatial.position = Vec2::new(
+        f32::from(source_entry.x) + 0.5,
+        f32::from(source_entry.y) + 0.5,
+    );
+    spatial.session.as_mut().unwrap().position = source_entry;
+    let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
+
+    travel_to_destination(
+        &mut spatial,
+        &mut lifecycle,
+        &mut navigation,
+        destination_id,
+    )
+    .expect("connected destinations should use the normal world travel action");
+
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    let destination_key = format!("location.{destination_id}");
+    assert_eq!(game.character.location_id, destination_id);
+    assert!(game.character.turn > before_turn);
+    assert!(game.world.local_maps.iter().any(|map| {
+        map.location_id == source_key && map.terrain_at(source_entry) == Some(Terrain::Rubble)
+    }));
+    assert_eq!(
+        spatial.session.as_ref().unwrap().location_id,
+        destination_key
+    );
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert!(spatial.message.as_deref().is_some_and(|message| {
+        message.contains("Connected Clearing")
+    }));
+}
+
+#[test]
+fn destination_list_travel_rejects_a_stale_connection_without_leaving_spatial_play() {
+    let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
+        connected_spatial_fixture();
+    let source_location_id = lifecycle.session.as_ref().unwrap().state.character.location_id;
+    lifecycle
+        .session
+        .as_mut()
+        .unwrap()
+        .state
+        .world
+        .location_by_id_mut(source_location_id)
+        .unwrap()
+        .exits
+        .retain(|target| *target != destination_id);
+    let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
+
+    let result = travel_to_destination(
+        &mut spatial,
+        &mut lifecycle,
+        &mut navigation,
+        destination_id,
+    );
+
+    assert_eq!(result, Err("That route is no longer available."));
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    assert_eq!(game.character.location_id, source_location_id);
+    assert_eq!(game.character.turn, before_turn);
+    assert_eq!(spatial.session.as_ref().unwrap().location_id, source_key);
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+}
+
+#[test]
 fn world_lab_playtest_is_disposable_and_returns_updated_map_to_editor() {
     let map = generate_local_map(123, "developer.world_lab", LocalMapConfig::default());
     let mut state = SpatialExplorationState::default();

@@ -808,3 +808,11 @@ src/
 - Paused spatial movement, animation advancement, camera following, and Android virtual-joystick input while the menu is open.
 - Added regression tests for spatial pause entry/exit, parent-screen retention, and input-screen gating.
 - Bumped the project and Android fallback versions to 0.52.26. Desktop and Android landscape playtesting remains outstanding.
+
+### v0.52.27: Spatial destination-list travel
+- Added a Travel entry to the existing spatial pause menu without adding a permanent HUD control.
+- Reused the current destination selector and authoritative location-graph travel action; physical passages remain available through spatial interactions.
+- Shared the map-preservation and destination-map restoration path between physical passage travel and destination-list travel.
+- Destination selection remains an overlay over spatial exploration. Back returns to the pause menu; successful travel enters the destination's spatial map, while invalid routes leave the source context intact.
+- Added regression coverage for source-map persistence, destination-map restoration, and stale-route rejection.
+- Bumped the project and Android fallback versions to 0.52.27. Desktop and Android landscape playtesting remains outstanding.
