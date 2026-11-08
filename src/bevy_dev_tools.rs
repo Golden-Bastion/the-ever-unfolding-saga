@@ -479,7 +479,7 @@ fn pick_up_or_drop_world_lab_prop(
             .is_some_and(|map| map.move_prop(&held_id, position));
         if moved {
             state.world_lab_held_prop = None;
-                                state.world_lab_held_point_of_interest = None;
+            state.world_lab_held_point_of_interest = None;
             state.world_lab_status =
                 Some(format!("Moved prop to ({}, {}).", position.x, position.y));
         } else {
@@ -516,7 +516,7 @@ fn remove_world_lab_prop(state: &mut DeveloperToolsState, spatial: &mut SpatialE
     if let Some(prop) = removed {
         if state.world_lab_held_prop.as_deref() == Some(prop.id.as_str()) {
             state.world_lab_held_prop = None;
-                                state.world_lab_held_point_of_interest = None;
+            state.world_lab_held_point_of_interest = None;
         }
         state.world_lab_status = Some(format!("Removed {}.", world_lab_prop_name(prop.kind)));
     } else {
@@ -732,7 +732,7 @@ fn activate_world_lab_map(
 ) {
     state.world_lab_cursor = Some(map.entry);
     state.world_lab_held_prop = None;
-                                state.world_lab_held_point_of_interest = None;
+    state.world_lab_held_point_of_interest = None;
     bevy_spatial::set_sandbox_map(spatial, map);
     state.world_lab_generated_options = Some(state.world_lab);
     state.world_lab_status = Some(format!(
@@ -1205,6 +1205,8 @@ fn developer_tools_input(
                         state.dirty = true;
                     }
                     ScreenId::WorldLabEditor => {
+                        state.world_lab_held_prop = None;
+                        state.world_lab_held_point_of_interest = None;
                         navigation.current_screen = Some(ScreenId::WorldLab);
                         navigation.selected = 5;
                         state.dirty = true;
