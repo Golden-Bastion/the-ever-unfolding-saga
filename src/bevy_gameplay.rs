@@ -459,9 +459,10 @@ fn sync_gameplay_menu_selection(
 }
 
 fn meditation_is_available(lifecycle: &LifecycleState) -> bool {
-    lifecycle.session.as_ref().is_some_and(|session| {
-        actions::build_meditation_view(&session.state).safe_to_meditate
-    })
+    lifecycle
+        .session
+        .as_ref()
+        .is_some_and(|session| actions::build_meditation_view(&session.state).safe_to_meditate)
 }
 
 fn pause_action_count(spatial_menu: bool, meditation_available: bool) -> usize {
