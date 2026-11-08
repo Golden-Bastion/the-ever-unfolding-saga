@@ -442,7 +442,10 @@ fn spatial_input(
             continue;
         };
         match *action {
-            SpatialAction::Interact => open_interaction_wheel(&mut state, &lifecycle),
+            SpatialAction::Interact if !state.sandbox_mode => {
+                open_interaction_wheel(&mut state, &lifecycle);
+            }
+            SpatialAction::Interact => {}
             SpatialAction::Exit => exit_spatial(&mut state, &mut navigation),
             SpatialAction::SelectInteraction(index) => {
                 close_interaction_wheel(&mut state, Some(index));
