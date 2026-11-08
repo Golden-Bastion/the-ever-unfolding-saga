@@ -387,9 +387,7 @@ fn select_creation_tab(
 fn creation_appearance_slots(parts: Vec<CharacterPartContent>) -> Vec<CreationAppearanceSlot> {
     let mut grouped = BTreeMap::<String, Vec<CharacterPartContent>>::new();
     for part in parts.into_iter().filter(|part| {
-        !part.id.trim().is_empty()
-            && !part.asset.trim().is_empty()
-            && part.requires_tags.is_empty()
+        !part.id.trim().is_empty() && !part.asset.trim().is_empty() && part.requires_tags.is_empty()
     }) {
         grouped.entry(part.slot.clone()).or_default().push(part);
     }
@@ -397,13 +395,20 @@ fn creation_appearance_slots(parts: Vec<CharacterPartContent>) -> Vec<CreationAp
         .into_iter()
         .map(|(name, mut parts)| {
             parts.sort_by(|left, right| left.id.cmp(&right.id));
-            CreationAppearanceSlot { name, parts, selected_part: 0 }
+            CreationAppearanceSlot {
+                name,
+                parts,
+                selected_part: 0,
+            }
         })
         .collect()
 }
 
 fn cycle_appearance_part(lifecycle: &mut LifecycleState, direction: isize) {
-    let Some(slot) = lifecycle.appearance_slots.get_mut(lifecycle.selected_appearance_slot) else {
+    let Some(slot) = lifecycle
+        .appearance_slots
+        .get_mut(lifecycle.selected_appearance_slot)
+    else {
         return;
     };
     if slot.parts.is_empty() {
@@ -419,7 +424,8 @@ fn cycle_appearance_slot(lifecycle: &mut LifecycleState, direction: isize) {
         return;
     }
     lifecycle.selected_appearance_slot = (lifecycle.selected_appearance_slot as isize + direction)
-        .rem_euclid(lifecycle.appearance_slots.len() as isize) as usize;
+        .rem_euclid(lifecycle.appearance_slots.len() as isize)
+        as usize;
     lifecycle.dirty = true;
 }
 
@@ -427,7 +433,11 @@ fn selected_appearance_part_ids(lifecycle: &LifecycleState) -> Vec<String> {
     lifecycle
         .appearance_slots
         .iter()
-        .filter_map(|slot| slot.parts.get(slot.selected_part).map(|part| part.id.clone()))
+        .filter_map(|slot| {
+            slot.parts
+                .get(slot.selected_part)
+                .map(|part| part.id.clone())
+        })
         .collect()
 }
 
@@ -901,7 +911,13 @@ fn render_if_dirty(
     if lifecycle.phase == LifecyclePhase::CreateCharacter && !creation_screens.is_empty() {
         if let Some(content) = creation_content.iter().next() {
             bevy_presentation::clear_tab_content(&mut commands, content, &children);
-            render_creation_content(&mut commands, content, &lifecycle, &mut images, &mut portrait_images);
+            render_creation_content(
+                &mut commands,
+                content,
+                &lifecycle,
+                &mut images,
+                &mut portrait_images,
+            );
             bevy_presentation::update_tab_strip_selection(
                 &mut commands,
                 &tab_buttons,
@@ -976,7 +992,7 @@ fn render(
         LifecyclePhase::Load => render_load(commands, panel, lifecycle),
         LifecyclePhase::CreateCharacter => {
             render_creation(commands, panel, lifecycle, images, portrait_images)
-        },
+        }
         LifecyclePhase::QuitConfirm => render_quit(commands, panel, lifecycle),
         LifecyclePhase::Death => render_death(commands, panel, lifecycle),
         LifecyclePhase::Complete => render_complete(commands, panel, lifecycle),
@@ -1173,7 +1189,10 @@ fn render_creation_content(
                 portrait_images,
             );
 
-            if let Some(slot) = lifecycle.appearance_slots.get(lifecycle.selected_appearance_slot) {
+            if let Some(slot) = lifecycle
+                .appearance_slots
+                .get(lifecycle.selected_appearance_slot)
+            {
                 bevy_presentation::spawn_label(
                     commands,
                     content,
@@ -1188,7 +1207,12 @@ fn render_creation_content(
                     bevy_presentation::spawn_label(
                         commands,
                         content,
-                        format!("PART {}/{}: {}", slot.selected_part + 1, slot.parts.len(), part.id),
+                        format!(
+                            "PART {}/{}: {}",
+                            slot.selected_part + 1,
+                            slot.parts.len(),
+                            part.id
+                        ),
                     );
                 }
             } else {
@@ -1213,7 +1237,9 @@ fn render_creation_content(
                     commands, content, selection, icon, label,
                 );
                 if lifecycle.selected == selection {
-                    commands.entity(button).insert(bevy_presentation::UiSelected);
+                    commands
+                        .entity(button)
+                        .insert(bevy_presentation::UiSelected);
                 }
             }
         }
@@ -1231,7 +1257,10 @@ fn render_creation_content(
             bevy_presentation::spawn_muted_label(
                 commands,
                 content,
-                format!("{} portrait layers selected.", selected_appearance_part_ids(lifecycle).len()),
+                format!(
+                    "{} portrait layers selected.",
+                    selected_appearance_part_ids(lifecycle).len()
+                ),
             );
             bevy_presentation::spawn_label(commands, content, "BACKGROUND");
             bevy_presentation::spawn_muted_label(commands, content, "Not available yet.");
@@ -1243,10 +1272,16 @@ fn render_creation_content(
 
             let footer = bevy_presentation::spawn_option_footer(commands, tab_content);
             let button = bevy_presentation::spawn_action_button(
-                commands, footer, 7, BEGIN_LIFE_ICON, "Begin Life",
+                commands,
+                footer,
+                7,
+                BEGIN_LIFE_ICON,
+                "Begin Life",
             );
             if lifecycle.selected == 7 {
-                commands.entity(button).insert(bevy_presentation::UiSelected);
+                commands
+                    .entity(button)
+                    .insert(bevy_presentation::UiSelected);
             }
         }
         _ => {}

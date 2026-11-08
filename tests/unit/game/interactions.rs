@@ -101,43 +101,78 @@ fn dialogue_uses_the_players_selected_portrait_and_keeps_npc_generation_seeded()
     ));
     let parts = vec![
         crate::content::CharacterPartContent {
-            id: "face.default".into(), slot: "face".into(),
-            asset: "characters/parts/face-default.png".into(), weight: 1, layer: 10,
-            requires_tags: Vec::new(), excludes_tags: Vec::new(),
+            id: "face.default".into(),
+            slot: "face".into(),
+            asset: "characters/parts/face-default.png".into(),
+            weight: 1,
+            layer: 10,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
         },
         crate::content::CharacterPartContent {
-            id: "face.player".into(), slot: "face".into(),
-            asset: "characters/parts/face-player.png".into(), weight: 1, layer: 10,
-            requires_tags: Vec::new(), excludes_tags: Vec::new(),
+            id: "face.player".into(),
+            slot: "face".into(),
+            asset: "characters/parts/face-player.png".into(),
+            weight: 1,
+            layer: 10,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
         },
         crate::content::CharacterPartContent {
-            id: "hair.default".into(), slot: "hair".into(),
-            asset: "characters/parts/hair-default.png".into(), weight: 1, layer: 20,
-            requires_tags: Vec::new(), excludes_tags: Vec::new(),
+            id: "hair.default".into(),
+            slot: "hair".into(),
+            asset: "characters/parts/hair-default.png".into(),
+            weight: 1,
+            layer: 20,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
         },
         crate::content::CharacterPartContent {
-            id: "hair.player".into(), slot: "hair".into(),
-            asset: "characters/parts/hair-player.png".into(), weight: 1, layer: 20,
-            requires_tags: Vec::new(), excludes_tags: Vec::new(),
+            id: "hair.player".into(),
+            slot: "hair".into(),
+            asset: "characters/parts/hair-player.png".into(),
+            weight: 1,
+            layer: 20,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
         },
     ];
-    state.campaign_content.as_mut().expect("new games retain campaign content").character_parts = parts.clone();
+    state
+        .campaign_content
+        .as_mut()
+        .expect("new games retain campaign content")
+        .character_parts = parts.clone();
     state.character.appearance_parts = vec!["face.player".into(), "hair.player".into()];
 
     let view = build_conversation_view(&state, npc_index);
     assert_eq!(
-        view.player_portrait.layers.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
+        view.player_portrait
+            .layers
+            .iter()
+            .map(|layer| layer.id.as_str())
+            .collect::<Vec<_>>(),
         vec!["face.player", "hair.player"]
     );
 
-    let world_seed = state.world.generation.map(|generation| generation.seed).unwrap_or(state.world.id);
+    let world_seed = state
+        .world
+        .generation
+        .map(|generation| generation.seed)
+        .unwrap_or(state.world.id);
     let expected_npc = crate::character_appearance::generate_character_portrait(
         &parts,
         crate::character_appearance::actor_appearance_seed(world_seed, npc_id),
         &[],
     );
     assert_eq!(
-        view.npc_portrait.layers.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
-        expected_npc.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>()
+        view.npc_portrait
+            .layers
+            .iter()
+            .map(|layer| layer.id.as_str())
+            .collect::<Vec<_>>(),
+        expected_npc
+            .iter()
+            .map(|layer| layer.id.as_str())
+            .collect::<Vec<_>>()
     );
 }

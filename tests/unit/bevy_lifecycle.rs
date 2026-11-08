@@ -331,7 +331,13 @@ fn appearance_creation_tab_cycles_parts_and_slots_and_persists_the_selection() {
     assert_eq!(lifecycle.selected, 7);
     lifecycle.create_character();
     assert_eq!(
-        lifecycle.session.as_ref().unwrap().state.character.appearance_parts,
+        lifecycle
+            .session
+            .as_ref()
+            .unwrap()
+            .state
+            .character
+            .appearance_parts,
         selected
     );
 }

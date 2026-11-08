@@ -1093,7 +1093,11 @@ fn contextual_prompt_names_each_target_instead_of_showing_an_action() {
     );
     let npc_id = game.world.allocate_id();
     game.npcs.push(crate::model::Npc::new(
-        npc_id, "Mara", "Keeper", game.character.location_id, None,
+        npc_id,
+        "Mara",
+        "Keeper",
+        game.character.location_id,
+        None,
     ));
     let corpse_id = game.world.allocate_id();
     game.corpses.push(crate::model::Corpse {
@@ -1102,50 +1106,110 @@ fn contextual_prompt_names_each_target_instead_of_showing_an_action() {
         location_id: game.character.location_id,
         ..Default::default()
     });
-    let destination_id = game.world.locations.iter()
+    let destination_id = game
+        .world
+        .locations
+        .iter()
         .find(|location| location.id != game.character.location_id)
-        .expect("generated world should contain another location").id;
+        .expect("generated world should contain another location")
+        .id;
     let mut map = generate_local_map(42, "location.prompt_test", LocalMapConfig::default());
     map.points_of_interest.clear();
-    map.points_of_interest.push(crate::spatial::PointOfInterest {
-        id: "test.black_altar".into(), position: map.entry, title: "Black Altar".into(),
-        description: "A dark stone altar.".into(), discovered: true, interacted: false,
-    });
+    map.points_of_interest
+        .push(crate::spatial::PointOfInterest {
+            id: "test.black_altar".into(),
+            position: map.entry,
+            title: "Black Altar".into(),
+            description: "A dark stone altar.".into(),
+            discovered: true,
+            interacted: false,
+        });
 
     let interaction = |target, label: &str| AvailableInteraction {
-        action: InteractionActionKind::Examine, target, label: label.into(),
+        action: InteractionActionKind::Examine,
+        target,
+        label: label.into(),
     };
-    assert_eq!(interaction_prompt_label(
-        &[interaction(InteractionTarget::Npc(npc_id), "Talk — Mara")], &game, &map,
-    ), "Mara");
-    assert_eq!(interaction_prompt_label(
-        &[interaction(InteractionTarget::Corpse(corpse_id), "Search — The Fallen Guard")],
-        &game, &map,
-    ), "The Fallen Guard");
-    assert_eq!(interaction_prompt_label(
-        &[interaction(InteractionTarget::PointOfInterest("test.black_altar".into()), "Examine — Black Altar")],
-        &game, &map,
-    ), "Black Altar");
-    let destination_name = game.world.location_by_id(destination_id).unwrap().name.clone();
-    assert_eq!(interaction_prompt_label(
-        &[interaction(InteractionTarget::Passage { id: "test.passage".into(), destination_id }, "Enter — elsewhere")],
-        &game, &map,
-    ), destination_name);
+    assert_eq!(
+        interaction_prompt_label(
+            &[interaction(InteractionTarget::Npc(npc_id), "Talk — Mara")],
+            &game,
+            &map,
+        ),
+        "Mara"
+    );
+    assert_eq!(
+        interaction_prompt_label(
+            &[interaction(
+                InteractionTarget::Corpse(corpse_id),
+                "Search — The Fallen Guard"
+            )],
+            &game,
+            &map,
+        ),
+        "The Fallen Guard"
+    );
+    assert_eq!(
+        interaction_prompt_label(
+            &[interaction(
+                InteractionTarget::PointOfInterest("test.black_altar".into()),
+                "Examine — Black Altar"
+            )],
+            &game,
+            &map,
+        ),
+        "Black Altar"
+    );
+    let destination_name = game
+        .world
+        .location_by_id(destination_id)
+        .unwrap()
+        .name
+        .clone();
+    assert_eq!(
+        interaction_prompt_label(
+            &[interaction(
+                InteractionTarget::Passage {
+                    id: "test.passage".into(),
+                    destination_id
+                },
+                "Enter — elsewhere"
+            )],
+            &game,
+            &map,
+        ),
+        destination_name
+    );
 }
 
 #[test]
 fn contextual_prompt_counts_distinct_targets_not_action_entries() {
     let mut game = crate::model::create_new_state(
-        "Prompt Count Test", crate::model::WorldMode::New, "Ash".into(), "Wanderer".into(),
+        "Prompt Count Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
     );
     let npc_id = game.world.allocate_id();
     game.npcs.push(crate::model::Npc::new(
-        npc_id, "Mara", "Keeper", game.character.location_id, None,
+        npc_id,
+        "Mara",
+        "Keeper",
+        game.character.location_id,
+        None,
     ));
     let map = generate_local_map(43, "location.prompt_count_test", LocalMapConfig::default());
     let interactions = vec![
-        AvailableInteraction { action: InteractionActionKind::Talk, target: InteractionTarget::Npc(npc_id), label: "Talk — Mara".into() },
-        AvailableInteraction { action: InteractionActionKind::Examine, target: InteractionTarget::Npc(npc_id), label: "Examine — Mara".into() },
+        AvailableInteraction {
+            action: InteractionActionKind::Talk,
+            target: InteractionTarget::Npc(npc_id),
+            label: "Talk — Mara".into(),
+        },
+        AvailableInteraction {
+            action: InteractionActionKind::Examine,
+            target: InteractionTarget::Npc(npc_id),
+            label: "Examine — Mara".into(),
+        },
     ];
     assert_eq!(interaction_prompt_label(&interactions, &game, &map), "Mara");
 }

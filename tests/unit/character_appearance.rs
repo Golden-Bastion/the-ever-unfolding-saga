@@ -104,7 +104,10 @@ fn player_portrait_uses_explicit_part_ids_in_draw_order() {
         &["hair.player".to_string(), "face.player".to_string()],
     );
     assert_eq!(
-        chosen.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
+        chosen
+            .iter()
+            .map(|layer| layer.id.as_str())
+            .collect::<Vec<_>>(),
         vec!["face.player", "hair.player"]
     );
 }

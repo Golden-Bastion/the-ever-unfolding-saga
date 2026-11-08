@@ -32,7 +32,10 @@ pub(crate) fn resolve_character_portrait(
     parts: &[CharacterPartContent],
     selected_ids: &[String],
 ) -> Vec<CharacterPortraitLayer> {
-    let selected_ids = selected_ids.iter().map(String::as_str).collect::<HashSet<_>>();
+    let selected_ids = selected_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<HashSet<_>>();
     let mut selected = Vec::new();
     for (slot, candidates) in selectable_player_parts(parts) {
         let chosen = candidates
@@ -64,9 +67,7 @@ fn selectable_player_parts(
 ) -> BTreeMap<String, Vec<&CharacterPartContent>> {
     let mut slots = BTreeMap::<String, Vec<&CharacterPartContent>>::new();
     for part in parts.iter().filter(|part| {
-        !part.id.trim().is_empty()
-            && !part.asset.trim().is_empty()
-            && part.requires_tags.is_empty()
+        !part.id.trim().is_empty() && !part.asset.trim().is_empty() && part.requires_tags.is_empty()
     }) {
         slots.entry(part.slot.clone()).or_default().push(part);
     }
