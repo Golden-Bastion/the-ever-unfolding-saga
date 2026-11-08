@@ -18,14 +18,14 @@ use crate::input::InputEvent;
 use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
 
 const WORKSHOP_ACTIONS: &[(&str, &str)] = &[
-    ("chevron-left", "Previous part"),
-    ("chevron-right", "Next part"),
-    ("arrow-left", "Previous slot"),
-    ("arrow-right", "Next slot"),
-    ("eye", "Toggle layer visibility"),
-    ("shuffle", "Randomize combination"),
-    ("rotate-ccw", "Reset combination"),
-    ("arrow-left", "Back to Developer Tools"),
+    ("back", "Previous part"),
+    ("continue", "Next part"),
+    ("back", "Previous slot"),
+    ("continue", "Next slot"),
+    ("display", "Toggle layer visibility"),
+    ("choice", "Randomize combination"),
+    ("cancel", "Reset combination"),
+    ("back", "Back to Developer Tools"),
 ];
 
 #[derive(Debug, Clone)]
@@ -302,7 +302,7 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
     );
 
     let workshop =
-        bevy_presentation::spawn_action_button(commands, panel, 0, "user", "Character Workshop");
+        bevy_presentation::spawn_action_button(commands, panel, 0, "character", "Character Workshop");
     if navigation.selected == 0 {
         commands
             .entity(workshop)
@@ -315,7 +315,7 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
         "World Lab is the next editor milestone (tracked in #413).",
     );
 
-    let back = bevy_presentation::spawn_action_button(commands, panel, 1, "arrow-left", "Back");
+    let back = bevy_presentation::spawn_action_button(commands, panel, 1, "back", "Back");
     if navigation.selected == 1 {
         commands.entity(back).insert(bevy_presentation::UiSelected);
     }
