@@ -1279,7 +1279,7 @@ fn activate_world_lab_map(
             .actors
             .iter()
             .map(|actor| (actor.entity_id, actor.kind))
-            .collect::<HashSet<_>>();
+            .collect::<Vec<_>>();
         map.exits.retain(|exit| location_ids.contains(&exit.target_location_id));
         map.interactables.retain(|actor| actor_ids.contains(&(actor.entity_id, actor.kind)));
         state.world_lab_status = Some(format!(
