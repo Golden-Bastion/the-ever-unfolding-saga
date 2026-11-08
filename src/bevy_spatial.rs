@@ -1998,7 +1998,7 @@ pub(crate) fn available_interactions(
                 )
             }
         };
-        candidates.push((distance, priority, item.target.stable_key(), item));
+        candidates.push((distance, priority, item.stable_key(), item));
     }
 
     for exit in &map.exits {
@@ -2034,6 +2034,7 @@ pub(crate) fn available_interactions(
     candidates.into_iter().map(|(_, _, _, item)| item).collect()
 }
 
+#[cfg(test)]
 fn nearest_interaction_target(
     map: &LocalMap,
     game: &GameState,

@@ -6,7 +6,7 @@ The roadmap tracks current and upcoming development. Detailed completed mileston
 
 ## Current state
 
-The v0.52.0–v0.52.6 storage, mod-management, and character-focused interface work is complete and recorded in the roadmap history. Spatial exploration and interaction are now the active development line. PR #404 implements persistent spatial actors, contextual action/target resolution, and the modular portrait catalogue. Its implementation commit passed automated checks, but desktop and Android landscape playtesting remains outstanding. The radial interaction wheel and dedicated dialogue presentation are tracked separately in #405.
+The v0.52.0–v0.52.6 storage, mod-management, and character-focused interface work is complete and recorded in the roadmap history. Spatial exploration and interaction are now the active development line. PR #404 implements persistent spatial actors, contextual action/target resolution, and the modular portrait catalogue. Its implementation commit passed automated checks, but desktop and Android landscape playtesting remains outstanding. The player-anchored radial interaction wheel is the first presentation slice under #405. Reusable scene transitions and the dedicated close-up dialogue scene with layered portraits remain outstanding.
 
 ## Active milestone
 
