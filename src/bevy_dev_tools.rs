@@ -1735,6 +1735,11 @@ fn developer_tools_input(
                                 let (map, scenario) = generate_world_lab_session(state.world_lab);
                                 state.world_lab_cursor = Some(map.entry);
                                 clear_world_lab_holds(&mut state);
+                                let actor_ids = scenario
+                                    .actors
+                                    .iter()
+                                    .map(|actor| (actor.entity_id, actor.kind))
+                                    .collect::<Vec<_>>();
                                 state.world_lab_scenario = Some(scenario);
                                 bevy_spatial::set_sandbox_map(&mut spatial, map);
                                 bevy_spatial::set_sandbox_actor_entities(&mut spatial, &actor_ids);
