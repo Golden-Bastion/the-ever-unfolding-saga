@@ -48,6 +48,8 @@ const JOYSTICK_THUMB_RADIUS_PX: f32 = 20.0;
 const JOYSTICK_THUMB_TRAVEL_PX: f32 = 36.0;
 const CAMERA_LERP_SPEED: f32 = 8.0;
 const CAMERA_DEAD_ZONE_FRACTION: f32 = 0.15;
+const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
+const MAX_MOVEMENT_STEP_DISTANCE: f32 = PLAYER_COLLISION_HALF_EXTENT * 0.5;
 const DEPTH_STEP: f32 = 0.08;
 const GROUND_TERRAIN_DEPTH: f32 = -1.0;
 const WALL_TOP_DEPTH_BIAS: f32 = 0.002;
@@ -1075,11 +1077,10 @@ fn update_spatial_world(
             .logical_viewport_size()
             .unwrap_or(Vec2::ZERO);
         let current = transform.translation.truncate();
-        let dead_zone_target = camera_target_with_dead_zone(target, current, viewport);
-        let camera_target = clamp_camera_target(dead_zone_target, map, viewport);
-        let amount = (CAMERA_LERP_SPEED * time.delta_secs()).clamp(0.0, 1.0);
-        transform.translation.x += (camera_target.x - transform.translation.x) * amount;
-        transform.translation.y += (camera_target.y - transform.translation.y) * amount;
+        let camera_position =
+            camera_follow_position(target, current, viewport, map, time.delta_secs());
+        transform.translation.x = camera_position.x;
+        transform.translation.y = camera_position.y;
     }
 }
 
@@ -2251,6 +2252,27 @@ fn camera_target_with_dead_zone(player: Vec2, camera: Vec2, viewport: Vec2) -> V
     camera + correction
 }
 
+fn camera_follow_position(
+    player: Vec2,
+    camera: Vec2,
+    viewport: Vec2,
+    map: &LocalMap,
+    delta_secs: f32,
+) -> Vec2 {
+    let target = clamp_camera_target(
+        camera_target_with_dead_zone(player, camera, viewport),
+        map,
+        viewport,
+    );
+    let elapsed = if delta_secs.is_finite() {
+        delta_secs.max(0.0)
+    } else {
+        0.0
+    };
+    let amount = (1.0 - (-CAMERA_LERP_SPEED * elapsed).exp()).clamp(0.0, 1.0);
+    clamp_camera_target(camera.lerp(target, amount), map, viewport)
+}
+
 fn clamp_camera_axis(target: f32, min: f32, max: f32, viewport_half_extent: f32) -> f32 {
     let lower = min + viewport_half_extent;
     let upper = max - viewport_half_extent;
@@ -2366,19 +2388,44 @@ fn advance_position(
     delta_secs: f32,
     speed_pixels_per_second: f32,
 ) -> Vec2 {
-    if world_units_per_pixel.length_squared() == 0.0 {
+    if !world_units_per_pixel.is_finite()
+        || world_units_per_pixel.length_squared() == 0.0
+        || !delta_secs.is_finite()
+        || delta_secs <= 0.0
+        || !speed_pixels_per_second.is_finite()
+        || speed_pixels_per_second <= 0.0
+    {
         return position;
     }
-    let delta = world_units_per_pixel * speed_pixels_per_second * delta_secs.clamp(0.0, 0.1);
+
+    let elapsed = delta_secs.min(MAX_MOVEMENT_FRAME_DELTA_SECONDS);
+    let delta = world_units_per_pixel * speed_pixels_per_second * elapsed;
+    let max_axis_distance = delta.abs().max_element();
+    if max_axis_distance <= f32::EPSILON {
+        return position;
+    }
+
+    // Keep collision checks frequent enough that a slow frame cannot step over
+    // a narrow blocked footprint. Axis-separated resolution still permits
+    // sliding along walls and props.
+    let steps = (max_axis_distance / MAX_MOVEMENT_STEP_DISTANCE)
+        .ceil()
+        .max(1.0) as usize;
+    let step = delta / steps as f32;
     let mut result = position;
-    let candidate_x = result.x + delta.x;
-    if is_position_walkable(map, Vec2::new(candidate_x, result.y)) {
-        result.x = candidate_x;
+
+    for _ in 0..steps {
+        let candidate_x = result.x + step.x;
+        if is_position_walkable(map, Vec2::new(candidate_x, result.y)) {
+            result.x = candidate_x;
+        }
+
+        let candidate_y = result.y + step.y;
+        if is_position_walkable(map, Vec2::new(result.x, candidate_y)) {
+            result.y = candidate_y;
+        }
     }
-    let candidate_y = result.y + delta.y;
-    if is_position_walkable(map, Vec2::new(result.x, candidate_y)) {
-        result.y = candidate_y;
-    }
+
     result
 }
 
