@@ -76,9 +76,10 @@ pub(crate) fn install(app: &mut App) {
 }
 
 #[derive(Resource, Default)]
-struct PortraitImageCache {
+pub(crate) struct PortraitImageCache {
     images: HashMap<String, Handle<Image>>,
-    missing: HashSet<String>,
+    pub(crate) missing: HashSet<String>,
+    pub(crate) failures: HashMap<String, String>,
 }
 
 #[derive(Component)]
@@ -803,6 +804,7 @@ fn load_portrait_layer_image(
                     "Could not load portrait layer {} ({}): {}",
                     layer.id, layer.asset, error
                 );
+                cache.failures.insert(layer.asset.clone(), error);
             }
             None
         }
@@ -810,7 +812,7 @@ fn load_portrait_layer_image(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_character_portrait(
+pub(crate) fn render_character_portrait(
     commands: &mut Commands,
     parent: Entity,
     name: &str,

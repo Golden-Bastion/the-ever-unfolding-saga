@@ -1,14 +1,16 @@
 #[test]
-fn start_options_index_accounts_for_load_slot() {
+fn start_menu_indices_account_for_developer_tools_and_load_slot() {
     let mut lifecycle = super::LifecycleState::default();
-    assert_eq!(super::start_option_count(&lifecycle), 3);
-    assert_eq!(super::start_options_index(&lifecycle), 1);
+    assert_eq!(super::start_option_count(&lifecycle), 4);
+    assert_eq!(super::start_developer_tools_index(&lifecycle), 1);
+    assert_eq!(super::start_options_index(&lifecycle), 2);
 
     lifecycle
         .save_files
         .push(std::path::PathBuf::from("save.json"));
-    assert_eq!(super::start_option_count(&lifecycle), 4);
-    assert_eq!(super::start_options_index(&lifecycle), 2);
+    assert_eq!(super::start_option_count(&lifecycle), 5);
+    assert_eq!(super::start_developer_tools_index(&lifecycle), 2);
+    assert_eq!(super::start_options_index(&lifecycle), 3);
 }
 
 use super::*;
@@ -72,11 +74,31 @@ fn options_activation_keeps_navigation_on_the_options_screen() {
     };
 
     lifecycle.phase = LifecyclePhase::Start;
-    lifecycle.selected = 1;
+    lifecycle.selected = 2;
 
     super::activate_selection(&mut lifecycle, &mut navigation);
 
     assert_eq!(navigation.current_screen, Some(ScreenId::Options));
+    assert_eq!(navigation.return_screen, Some(ScreenId::Lifecycle));
+}
+
+#[test]
+fn developer_tools_activation_opens_without_starting_a_campaign() {
+    let mut lifecycle = LifecycleState::default();
+    let mut navigation = NavigationState {
+        current_screen: Some(ScreenId::Lifecycle),
+        return_screen: None,
+        selected: 0,
+    };
+
+    lifecycle.phase = LifecyclePhase::Start;
+    lifecycle.selected = super::start_developer_tools_index(&lifecycle);
+
+    let transition = super::activate_selection(&mut lifecycle, &mut navigation);
+
+    assert_eq!(transition, None);
+    assert_eq!(lifecycle.phase, LifecyclePhase::Start);
+    assert_eq!(navigation.current_screen, Some(ScreenId::DeveloperTools));
     assert_eq!(navigation.return_screen, Some(ScreenId::Lifecycle));
 }
 
@@ -115,7 +137,9 @@ fn lifecycle_renderer_allows_initial_screen_but_not_dedicated_screen_overwrite()
 #[test]
 fn start_screen_has_expected_options_without_saves() {
     let state = LifecycleState::default();
-    assert_eq!(start_option_count(&state), 3);
+    assert_eq!(start_option_count(&state), 4);
+    assert_eq!(start_developer_tools_index(&state), 1);
+    assert_eq!(start_options_index(&state), 2);
     assert!(!start_has_load(&state));
 }
 
