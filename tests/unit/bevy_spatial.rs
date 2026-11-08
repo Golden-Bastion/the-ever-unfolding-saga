@@ -460,6 +460,7 @@ fn radial_wheel_scale_eases_between_open_and_closed_states() {
         selected: 0,
         phase: InteractionWheelPhase::Opening,
         elapsed: 0.0,
+        selection_elapsed: INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS,
         pending: None,
     };
     assert!((interaction_wheel_scale(&opening) - 0.78).abs() < 0.001);
@@ -484,4 +485,87 @@ fn same_target_actions_have_distinct_wheel_identities() {
         label: "Examine — Mira".into(),
     };
     assert_ne!(talk.stable_key(), examine.stable_key());
+}
+
+
+#[test]
+fn radial_wheel_selection_feedback_pulses_smoothly() {
+    assert_eq!(interaction_wheel_entry_scale(false, 0.0), 1.0);
+    assert_eq!(interaction_wheel_entry_scale(true, 0.0), 1.0);
+
+    let midpoint = interaction_wheel_entry_scale(
+        true,
+        INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS * 0.5,
+    );
+    assert!(midpoint > 1.0);
+    assert!(midpoint <= 1.091);
+
+    let settled = interaction_wheel_entry_scale(
+        true,
+        INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS,
+    );
+    assert!((settled - 1.0).abs() < 0.001);
+}
+
+#[test]
+fn radial_wheel_size_and_anchor_adapt_to_landscape_viewports() {
+    assert_eq!(interaction_wheel_size(Vec2::new(1280.0, 720.0)), 300.0);
+    assert_eq!(interaction_wheel_size(Vec2::new(800.0, 360.0)), 300.0);
+    assert_eq!(interaction_wheel_size(Vec2::new(320.0, 260.0)), 244.0);
+
+    let viewport = Vec2::new(320.0, 260.0);
+    let size = interaction_wheel_size(viewport);
+    let top_left = interaction_wheel_root_position(Vec2::ZERO, viewport, size);
+    let bottom_right = interaction_wheel_root_position(viewport, viewport, size);
+
+    assert_eq!(top_left, Vec2::splat(8.0));
+    assert!(bottom_right.x + size <= viewport.x - 8.0);
+    assert!(bottom_right.y + size <= viewport.y - 8.0);
+}
+
+#[test]
+fn crowded_radial_wheels_use_two_rings_without_clipping_entries() {
+    for count in 9..=14 {
+        let size = INTERACTION_WHEEL_SIZE_PX;
+        for index in 0..count {
+            let layout = interaction_wheel_entry_layout(index, count, size);
+            assert!(layout.position.x >= 0.0, "entry {index} of {count} clips left");
+            assert!(layout.position.y >= 0.0, "entry {index} of {count} clips top");
+            assert!(
+                layout.position.x + layout.width <= size,
+                "entry {index} of {count} clips right"
+            );
+            assert!(
+                layout.position.y + INTERACTION_WHEEL_BUTTON_HEIGHT_PX <= size,
+                "entry {index} of {count} clips bottom"
+            );
+
+            let expected_radius = if index < INTERACTION_WHEEL_OUTER_RING_ENTRIES {
+                INTERACTION_WHEEL_OUTER_RING_RADIUS_PX
+            } else {
+                INTERACTION_WHEEL_INNER_RING_RADIUS_PX
+            };
+            assert!((layout.center_offset.length() - expected_radius).abs() < 0.01);
+        }
+    }
+}
+
+#[test]
+fn crowded_wheel_directional_selection_matches_visible_cardinal_entries() {
+    assert_eq!(
+        interaction_wheel_index_for_direction(9, Vec2::Y),
+        Some(0)
+    );
+    assert_eq!(
+        interaction_wheel_index_for_direction(9, Vec2::X),
+        Some(2)
+    );
+    assert_eq!(
+        interaction_wheel_index_for_direction(9, Vec2::NEG_Y),
+        Some(4)
+    );
+    assert_eq!(
+        interaction_wheel_index_for_direction(9, Vec2::NEG_X),
+        Some(6)
+    );
 }
