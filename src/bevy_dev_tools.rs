@@ -1242,23 +1242,59 @@ fn refresh_world_lab_fixtures(state: &mut DeveloperToolsState) {
     state.dirty = true;
 }
 
+fn clear_world_lab_holds(state: &mut DeveloperToolsState) {
+    state.world_lab_held_prop = None;
+    state.world_lab_held_point_of_interest = None;
+    state.world_lab_held_passage = None;
+    state.world_lab_held_actor = None;
+}
+
 fn activate_world_lab_map(
     state: &mut DeveloperToolsState,
     spatial: &mut SpatialExplorationState,
     navigation: &mut NavigationState,
-    map: LocalMap,
+    mut map: LocalMap,
     name: &str,
 ) {
+    clear_world_lab_holds(state);
     state.world_lab_cursor = Some(map.entry);
-    state.world_lab_held_prop = None;
-    state.world_lab_held_point_of_interest = None;
+    state.world_lab.seed = map.seed;
+    state.world_lab_scenario = restore_world_lab_scenario(&map);
+    if let Some(scenario) = state.world_lab_scenario.as_ref() {
+        if let Some(index) = scenario
+            .world
+            .locations
+            .iter()
+            .position(|location| location.id == scenario.location_id)
+        {
+            state.world_lab.location_index = index;
+        }
+        let location_ids = scenario
+            .world
+            .locations
+            .iter()
+            .map(|location| location.id)
+            .collect::<HashSet<_>>();
+        let actor_ids = scenario
+            .actors
+            .iter()
+            .map(|actor| (actor.entity_id, actor.kind))
+            .collect::<HashSet<_>>();
+        map.exits.retain(|exit| location_ids.contains(&exit.target_location_id));
+        map.interactables.retain(|actor| actor_ids.contains(&(actor.entity_id, actor.kind)));
+        state.world_lab_status = Some(format!(
+            "Loaded fixture: {name}. World graph and actor references were restored from seed {}.",
+            map.seed
+        ));
+    } else {
+        state.world_lab_status = Some(format!(
+            "Loaded fixture: {name}. Its original world graph or entity identities are unavailable; passage and actor authoring require a map generated from a World Lab world."
+        ));
+    }
     bevy_spatial::set_sandbox_map(spatial, map);
     state.world_lab_generated_options = Some(state.world_lab);
-    state.world_lab_status = Some(format!(
-        "Loaded fixture: {name}. The map is ready to edit or play-test."
-    ));
     navigation.current_screen = Some(ScreenId::WorldLab);
-    navigation.selected = 5;
+    navigation.selected = 6;
     state.dirty = true;
 }
 
@@ -1516,10 +1552,9 @@ fn developer_tools_input(
                         }
                         1 => {
                             if bevy_spatial::sandbox_map(&spatial).is_none() {
-                                bevy_spatial::set_sandbox_map(
-                                    &mut spatial,
-                                    generate_world_lab_map(state.world_lab),
-                                );
+                                let (map, scenario) = generate_world_lab_session(state.world_lab);
+                                bevy_spatial::set_sandbox_map(&mut spatial, map);
+                                state.world_lab_scenario = Some(scenario);
                                 state.world_lab_generated_options = Some(state.world_lab);
                                 state.world_lab_status =
                                     Some("A default map is ready to inspect or play-test.".into());
@@ -1581,20 +1616,31 @@ fn developer_tools_input(
                                 );
                             }
                             4 => {
-                                let map = generate_world_lab_map(state.world_lab);
+                                let count = state
+                                    .world_lab_scenario
+                                    .as_ref()
+                                    .map(|scenario| scenario.world.locations.len())
+                                    .unwrap_or_else(|| crate::procedural::WorldGenerationConfig::default().location_count);
+                                state.world_lab.location_index =
+                                    (state.world_lab.location_index + 1) % count.max(1);
+                                state.world_lab_status = Some(
+                                    "World location changed. Generate a map to load its graph and actors.".into(),
+                                );
+                            }
+                            5 => {
+                                let (map, scenario) = generate_world_lab_session(state.world_lab);
                                 state.world_lab_cursor = Some(map.entry);
-                                state.world_lab_held_prop = None;
-                                state.world_lab_held_point_of_interest = None;
+                                clear_world_lab_holds(&mut state);
+                                state.world_lab_scenario = Some(scenario);
                                 bevy_spatial::set_sandbox_map(&mut spatial, map);
                                 state.world_lab_generated_options = Some(state.world_lab);
                                 state.world_lab_status =
-                                    Some("Map generated with the current settings.".into());
+                                    Some("Map generated from the selected world location.".into());
                             }
-                            5 => {
+                            6 => {
                                 if let Some(map) = bevy_spatial::sandbox_map(&spatial) {
                                     state.world_lab_cursor = Some(world_lab_cursor(&state, map));
-                                    state.world_lab_held_prop = None;
-                                    state.world_lab_held_point_of_interest = None;
+                                    clear_world_lab_holds(&mut state);
                                     navigation.current_screen = Some(ScreenId::WorldLabEditor);
                                     navigation.selected = 0;
                                 } else {
@@ -1602,7 +1648,7 @@ fn developer_tools_input(
                                         Some("Generate a map before opening the editor.".into());
                                 }
                             }
-                            6 => {
+                            7 => {
                                 if state.world_lab_generated_options == Some(state.world_lab)
                                     && bevy_spatial::sandbox_map(&spatial).is_some()
                                 {
@@ -1617,24 +1663,24 @@ fn developer_tools_input(
                                     );
                                 }
                             }
-                            7 => export_world_lab_fixture(&mut state, &spatial),
-                            8 => {
+                            8 => export_world_lab_fixture(&mut state, &spatial),
+                            9 => {
                                 refresh_world_lab_fixtures(&mut state);
                                 navigation.current_screen = Some(ScreenId::WorldLabFixtures);
                                 navigation.selected = 0;
                             }
-                            9 => {
+                            10 => {
                                 state.world_lab = WorldLabOptions::default();
-                                let map = generate_world_lab_map(state.world_lab);
+                                let (map, scenario) = generate_world_lab_session(state.world_lab);
                                 state.world_lab_cursor = Some(map.entry);
-                                state.world_lab_held_prop = None;
-                                state.world_lab_held_point_of_interest = None;
+                                clear_world_lab_holds(&mut state);
+                                state.world_lab_scenario = Some(scenario);
                                 bevy_spatial::set_sandbox_map(&mut spatial, map);
                                 state.world_lab_generated_options = Some(state.world_lab);
                                 state.world_lab_status =
                                     Some("Settings reset and map regenerated.".into());
                             }
-                            10 => {
+                            11 => {
                                 navigation.current_screen = Some(ScreenId::DeveloperTools);
                                 navigation.selected = 0;
                             }
@@ -1662,7 +1708,7 @@ fn developer_tools_input(
                             ));
                         } else {
                             navigation.current_screen = Some(ScreenId::WorldLab);
-                            navigation.selected = 8;
+                            navigation.selected = 9;
                             state.dirty = true;
                         }
                     }
@@ -1673,32 +1719,15 @@ fn developer_tools_input(
                             2 => move_world_lab_cursor(&mut state, &spatial, 0, -1),
                             3 => move_world_lab_cursor(&mut state, &spatial, 0, 1),
                             4 => cycle_world_lab_terrain(&mut state, &mut spatial),
-                            5 => {
-                                state.world_lab_prop_kind = Some(
-                                    match state
-                                        .world_lab_prop_kind
-                                        .unwrap_or(SpatialPropKind::Pillar)
-                                    {
-                                        SpatialPropKind::Pillar => SpatialPropKind::Table,
-                                        SpatialPropKind::Table => SpatialPropKind::Pillar,
-                                    },
-                                );
-                                let kind =
-                                    state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
-                                state.world_lab_status = Some(format!(
-                                    "Prop tool set to {}.",
-                                    world_lab_prop_name(kind)
-                                ));
-                            }
+                            5 => cycle_world_lab_selected_value(&mut state),
                             6 => cycle_world_lab_editor_tool(&mut state),
                             7 => place_world_lab_object(&mut state, &mut spatial),
                             8 => pick_up_or_drop_world_lab_object(&mut state, &mut spatial),
                             9 => remove_world_lab_object(&mut state, &mut spatial),
                             10 => {
-                                state.world_lab_held_prop = None;
-                                state.world_lab_held_point_of_interest = None;
+                                clear_world_lab_holds(&mut state);
                                 navigation.current_screen = Some(ScreenId::WorldLab);
-                                navigation.selected = 5;
+                                navigation.selected = 6;
                             }
                             _ => {}
                         }
@@ -1724,15 +1753,14 @@ fn developer_tools_input(
                         state.dirty = true;
                     }
                     ScreenId::WorldLabEditor => {
-                        state.world_lab_held_prop = None;
-                        state.world_lab_held_point_of_interest = None;
+                        clear_world_lab_holds(&mut state);
                         navigation.current_screen = Some(ScreenId::WorldLab);
-                        navigation.selected = 5;
+                        navigation.selected = 6;
                         state.dirty = true;
                     }
                     ScreenId::WorldLabFixtures => {
                         navigation.current_screen = Some(ScreenId::WorldLab);
-                        navigation.selected = 8;
+                        navigation.selected = 9;
                         state.dirty = true;
                     }
                     _ => {}
