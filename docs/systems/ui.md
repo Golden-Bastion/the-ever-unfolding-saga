@@ -4,9 +4,9 @@ The shipped frontend is Bevy. The UI layer is built around renderer-neutral pres
 
 ## Screen architecture
 
-The Bevy frontend uses dedicated screen flows for start, save selection, character creation, gameplay, navigation, the unified pause/navigation menu, Options, NPC dialogue, remains recovery, records, combat, developer console, quit, and death. `NavigationState` tracks the active screen and return destination so nested views can return to the correct parent.
+The Bevy frontend uses dedicated flows for start, save selection, character creation, the gameplay/world view, the unified pause/navigation menu, Options, records, combat, developer console, quit, and death. The spatial exploration scene is the intended primary activity space. NPC dialogue and remains recovery are contextual overlays hosted by that scene rather than a transition to another gameplay screen. `NavigationState` remains responsible for menu and lifecycle navigation; opening a spatial interaction does not change the active `SpatialExploration` screen.
 
-Lifecycle screens are owned by `bevy_lifecycle.rs`. Gameplay and world navigation are owned by `bevy_gameplay.rs`. NPC dialogue and remains recovery are owned by `bevy_interactions.rs`. The Character hub, inventory and quest details, meditation, chronicle details, and journal writing are owned by `bevy_records.rs`. Combat is owned by `bevy_combat.rs`, and the developer console is owned by `bevy_console.rs`.
+Lifecycle screens are owned by `bevy_lifecycle.rs`. The gameplay dashboard and world navigation are owned by `bevy_gameplay.rs`. The spatial world and contextual target detection are owned by `bevy_spatial.rs`; the in-world dialogue/remains overlay state and presentation are owned by `bevy_interactions.rs`, which retains the previous standalone interaction renderer as a compatibility path. The Character hub, inventory and quest details, meditation, chronicle details, and journal writing are owned by `bevy_records.rs`. Combat is owned by `bevy_combat.rs`, and the developer console is owned by `bevy_console.rs`.
 
 ## Presentation boundary
 
@@ -30,9 +30,9 @@ Arrow keys, Home/End, Page Up/Page Down, Enter, Escape, Tab, Backspace, Delete, 
 
 ## Gameplay and results
 
-The gameplay surface is world-first: location art/context occupies the dominant area, the 12-point world clock moves a large detailed sun or moon sprite across the sky from a separate world-art atlas, and atmosphere can move into a short-lived contextual message. A compact top-right HUD carries health and active-condition indicators beside the secondary-navigation control. Primary actions remain below the world presentation, with contextual Investigate/Search Remains actions added only when the authoritative game state makes them available. Recent history is no longer a permanent gameplay panel; full history remains in its dedicated record screen. World navigation is a dedicated state within the gameplay flow.
+The gameplay dashboard is now a transition and utility surface rather than the main activity loop. Its primary actions are Travel, Meditate, and Explore, with Investigate added only when the authoritative threat state permits it. Explore opens the current location's spatial map whether the location is flagged dangerous or safe. Recent history is not a permanent gameplay panel; full history remains in its dedicated record screen. Physical spatial passages still return to the dashboard in this iteration, so connected-map travel is not seamless yet.
 
-NPC dialogue presents people at the current location, availability, faction and memory information, quest offering/turn-in choices, and conversation results. Remains recovery presents available corpses, recovered items, discovered hidden items, and recovery notes while keeping the authoritative corpse mutation in the game legacy module.
+NPCs and searchable remains are positioned in the local map and become contextual targets only when the character is close enough and has a clear approach. One Interact prompt names the nearest valid target. Talking opens a themed overlay over the spatial scene, showing identity, faction, memory, availability, conversation choices, and responses. Searching remains opens the corresponding in-world inspection overlay, followed by the recovery result in the same overlay flow. The overlay has a scrollable content region and a fixed action footer. Character movement pauses while it is open; closing it resumes the same spatial session and position. The underlying interaction and recovery rules remain in the NPC interaction and legacy game modules, including quest offers/turn-ins, turn/time advancement, loot transfer, hidden discoveries, and recovery notes.
 
 Combat presents player/enemy status, encounter events, action choices, and result details through Bevy nodes while the authoritative combat system continues to own resolution and state mutation.
 
@@ -106,3 +106,8 @@ Issue #278 establishes the reusable presentation primitives for the redesigned g
 ## Design direction
 
 Keep screen responsibilities separate from gameplay mechanics. New UI work should reuse frontend-neutral view models and semantic input events rather than introducing renderer-specific dependencies into gameplay rules. Adapt layouts and controls to desktop and mobile, supporting touch, mouse/keyboard, and controllers where practical. Keep spatial gameplay uncluttered, use contextual actions for nearby interactions, and reserve detailed management/information for hierarchical record screens. Avoid maintaining parallel terminal and graphical implementations or undertaking a wholesale UI redesign without a specific need.
+
+
+## Spatial interaction presentation direction
+
+Spatial interaction discovery exposes stable action/target descriptors independently of the UI. The current contextual prompt continues to activate the nearest eligible descriptor until the radial wheel in #405 is implemented. Conversation view data now carries generated portrait-layer selections for both the player and NPC; the existing overlay remains temporary, and the dedicated close-up two-character dialogue scene is future work. The weighted generator is renderer-neutral; the frontend is responsible for loading and compositing its resolved layers.

@@ -1,8 +1,8 @@
-//! First playable local spatial-exploration view for dangerous locations.
+//! World-first local spatial exploration and contextual interaction presentation.
 //!
 //! The renderer-neutral map model and character session remain separate from
-//! Bevy presentation. Persistent maps are synchronized with world state, while
-//! the character's continuous position is synchronized with character state.
+//! Bevy presentation. Persistent maps and actor placements are synchronized with
+//! world state, while the character's continuous position belongs to the session.
 
 use std::collections::HashMap;
 
@@ -18,10 +18,12 @@ use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId, UiButtonActivation,
 };
 use crate::input::InputEvent;
+use crate::interaction_actions::{AvailableInteraction, InteractionActionKind, InteractionTarget};
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
-    configure_map_exits, generate_local_map_with_layout, ExplorationSession, GridPosition,
-    LocalMap, LocalMapConfig, MapExit, SpatialPropKind, Terrain,
+    configure_map_exits, ensure_spatial_entity_placements, generate_local_map_with_layout,
+    ExplorationSession, GridPosition, LocalMap, LocalMapConfig, MapExit, SpatialEntityKind,
+    SpatialPropKind, Terrain,
 };
 
 const TILE_HALF_WIDTH: f32 = 24.0;
@@ -54,6 +56,12 @@ const PLAYER_DEPTH_OFFSET: f32 = 0.04;
 struct SpatialWorldEntity;
 
 #[derive(Component)]
+pub(crate) struct SpatialSceneRoot;
+
+#[derive(Component)]
+struct SpatialActorEntity;
+
+#[derive(Component)]
 struct SpatialPlayer;
 
 #[derive(Component, Clone, Copy)]
@@ -82,8 +90,14 @@ struct SpatialJoystickState {
 struct SpatialInteractionPrompt;
 
 #[derive(Component)]
-struct SpatialExitPrompt {
-    target_location_id: EntityId,
+struct SpatialPromptLabel;
+
+/// Request to start an interaction with a world-owned actor. The scene remains
+/// active; the interaction adapter presents the conversation/search overlay.
+#[derive(Message, Debug, Clone, Copy)]
+pub(crate) enum SpatialInteractionRequest {
+    Talk(EntityId),
+    SearchRemains(EntityId),
 }
 
 #[derive(Resource, Default)]
@@ -93,6 +107,8 @@ struct SpatialRenderAssets {
     player_image: Option<Handle<Image>>,
     passage_image: Option<Handle<Image>>,
     poi_image: Option<Handle<Image>>,
+    npc_image: Option<Handle<Image>>,
+    corpse_image: Option<Handle<Image>>,
     prop_images: [Option<Handle<Image>>; 2],
 }
 
@@ -100,7 +116,6 @@ struct SpatialRenderAssets {
 enum SpatialAction {
     Interact,
     Exit,
-    UseExit(EntityId),
 }
 
 #[derive(Resource, Default)]
@@ -113,7 +128,8 @@ pub(crate) struct SpatialExplorationState {
 }
 
 pub(crate) fn install(app: &mut App) {
-    app.init_resource::<SpatialExplorationState>()
+    app.add_message::<SpatialInteractionRequest>()
+        .init_resource::<SpatialExplorationState>()
         .init_resource::<SpatialJoystickState>()
         .add_systems(Startup, setup_spatial_render_assets)
         .add_systems(
@@ -165,6 +181,12 @@ pub(crate) fn enter(
     if map.exits.is_empty() {
         configure_map_exits(&mut map, &location.exits);
     }
+    if !location.dangerous {
+        let prototype_poi_id = format!("{location_id}.poi.initial_discovery");
+        map.points_of_interest
+            .retain(|poi| poi.id != prototype_poi_id);
+    }
+    sync_map_interactable_placements(&mut map, game, location.id);
     state.maps.insert(location_id.clone(), map);
     let map = state.maps.get(&location_id).expect("map was just inserted");
     let saved_position = game
@@ -208,11 +230,31 @@ pub(crate) fn enter(
         },
     });
     map_mark_discovered(state, position);
-    state.message = Some("The air grows still. Something waits among the ash.".to_string());
+    state.message =
+        Some("Explore the area. Move close to people or objects to interact.".to_string());
     state.dirty = true;
     navigation.return_screen = Some(ScreenId::Gameplay);
     navigation.current_screen = Some(ScreenId::SpatialExploration);
     navigation.selected = 0;
+}
+
+fn sync_map_interactable_placements(map: &mut LocalMap, game: &GameState, location_id: EntityId) {
+    let mut entities = game
+        .npcs
+        .iter()
+        .filter(|npc| npc.location_id == location_id)
+        .map(|npc| (npc.id, SpatialEntityKind::Npc))
+        .chain(
+            game.corpses
+                .iter()
+                .filter(|corpse| corpse.location_id == location_id && !corpse.inventory.is_empty())
+                .map(|corpse| (corpse.id, SpatialEntityKind::Corpse)),
+        )
+        .collect::<Vec<_>>();
+    entities.sort_by_key(|(entity_id, kind)| {
+        (*entity_id, matches!(*kind, SpatialEntityKind::Corpse) as u8)
+    });
+    ensure_spatial_entity_placements(map, &entities);
 }
 
 fn setup_spatial_render_assets(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
@@ -229,6 +271,8 @@ fn setup_spatial_render_assets(mut commands: Commands, mut images: ResMut<Assets
     let player_image = load_spatial_image(&mut images, "spatial/player_ash_warden.png");
     let passage_image = load_spatial_image(&mut images, "spatial/passage.png");
     let poi_image = load_spatial_image(&mut images, "icons/ui/investigate.png");
+    let npc_image = load_spatial_image(&mut images, "icons/ui/character.png");
+    let corpse_image = load_spatial_image(&mut images, "icons/ui/remains.png");
     let prop_images = [
         load_spatial_image(&mut images, "spatial/prop_pillar.png"),
         load_spatial_image(&mut images, "spatial/prop_table.png"),
@@ -240,6 +284,8 @@ fn setup_spatial_render_assets(mut commands: Commands, mut images: ResMut<Assets
         player_image,
         passage_image,
         poi_image,
+        npc_image,
+        corpse_image,
         prop_images,
     });
 }
@@ -263,18 +309,21 @@ fn spatial_input(
     mut queue: ResMut<GameplayInputQueue>,
     mut state: ResMut<SpatialExplorationState>,
     joystick: Res<SpatialJoystickState>,
+    interaction_state: Res<crate::bevy_interactions::BevyInteractionState>,
+    mut requests: MessageWriter<SpatialInteractionRequest>,
     mut activations: MessageReader<UiButtonActivation>,
     action_buttons: Query<&SpatialAction>,
 ) {
+    if lifecycle.phase != LifecyclePhase::Complete
+        || navigation.current_screen != Some(ScreenId::SpatialExploration)
+        || crate::bevy_interactions::spatial_overlay_open(&interaction_state)
+    {
+        return;
+    }
     let activated_buttons = activations
         .read()
         .map(|activation| activation.0)
         .collect::<Vec<_>>();
-    if lifecycle.phase != LifecyclePhase::Complete
-        || navigation.current_screen != Some(ScreenId::SpatialExploration)
-    {
-        return;
-    }
 
     let mut direction = Vec2::ZERO;
     if keyboard.pressed(KeyCode::ArrowUp) || keyboard.pressed(KeyCode::KeyW) {
@@ -320,11 +369,8 @@ fn spatial_input(
         map_mark_discovered(&mut state, next);
     }
 
-    if keyboard.just_pressed(KeyCode::KeyE) || keyboard.just_pressed(KeyCode::Enter) {
-        interact_contextually(&mut state, &mut lifecycle, &mut navigation);
-    }
-    if keyboard.just_pressed(KeyCode::Escape) || keyboard.just_pressed(KeyCode::Backspace) {
-        exit_spatial(&mut state, &mut navigation);
+    if keyboard.just_pressed(KeyCode::KeyE) {
+        interact_contextually(&mut state, &mut lifecycle, &mut navigation, &mut requests);
     }
 
     for button in activated_buttons {
@@ -332,18 +378,23 @@ fn spatial_input(
             continue;
         };
         match *action {
-            SpatialAction::Interact => interact_with_poi(&mut state, &mut lifecycle),
-            SpatialAction::Exit => exit_spatial(&mut state, &mut navigation),
-            SpatialAction::UseExit(target_location_id) => {
-                use_map_exit(&mut state, &mut navigation, target_location_id);
+            SpatialAction::Interact => {
+                interact_contextually(&mut state, &mut lifecycle, &mut navigation, &mut requests)
             }
+            SpatialAction::Exit => exit_spatial(&mut state, &mut navigation),
         }
     }
 
     let events = std::mem::take(&mut queue.0);
     for event in events {
-        if event == InputEvent::Cancel {
-            exit_spatial(&mut state, &mut navigation);
+        match event {
+            InputEvent::Confirm => {
+                interact_contextually(&mut state, &mut lifecycle, &mut navigation, &mut requests);
+            }
+            InputEvent::Cancel | InputEvent::Backspace => {
+                exit_spatial(&mut state, &mut navigation);
+            }
+            _ => {}
         }
     }
 
@@ -404,7 +455,11 @@ fn map_mark_discovered(state: &mut SpatialExplorationState, position: Vec2) {
     }
 }
 
-fn interact_with_poi(state: &mut SpatialExplorationState, lifecycle: &mut LifecycleState) {
+fn interact_with_poi(
+    state: &mut SpatialExplorationState,
+    lifecycle: &mut LifecycleState,
+    poi_id: &str,
+) {
     let Some(session) = state.session.as_ref() else {
         return;
     };
@@ -413,20 +468,20 @@ fn interact_with_poi(state: &mut SpatialExplorationState, lifecycle: &mut Lifecy
     let Some(map) = state.maps.get(&location_id) else {
         return;
     };
-    if map.points_of_interest.is_empty() {
+    let Some(poi) = map.points_of_interest.iter().find(|poi| poi.id == poi_id) else {
         state.message = Some("There is nothing here that answers your attention.".to_string());
         state.dirty = true;
         return;
-    }
-    if !poi_interaction_available(map, position) {
-        state.message = Some("Move closer to the remains and find a clear approach.".to_string());
+    };
+    if !poi_interaction_available_for(map, position, poi) {
+        state.message = Some("Move closer and find a clear approach.".to_string());
         state.dirty = true;
         return;
     }
     let Some(map) = state.maps.get_mut(&location_id) else {
         return;
     };
-    let Some(poi) = map.points_of_interest.first_mut() else {
+    let Some(poi) = map.point_of_interest_mut(poi_id) else {
         return;
     };
     if poi.interacted {
@@ -435,7 +490,6 @@ fn interact_with_poi(state: &mut SpatialExplorationState, lifecycle: &mut Lifecy
         state.dirty = true;
         return;
     }
-
     poi.discovered = true;
     poi.interacted = true;
     let title = poi.title.clone();
@@ -461,23 +515,61 @@ fn interact_contextually(
     state: &mut SpatialExplorationState,
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
+    requests: &mut MessageWriter<SpatialInteractionRequest>,
 ) {
-    let target = state
+    let interaction = state
         .session
         .as_ref()
         .and_then(|session| state.maps.get(&session.location_id))
-        .and_then(|map| nearest_contextual_exit(map, state.position))
-        .map(|exit| exit.target_location_id);
-    if let Some(target_location_id) = target {
-        use_map_exit(state, navigation, target_location_id);
-    } else {
-        interact_with_poi(state, lifecycle);
+        .and_then(|map| {
+            lifecycle.session.as_ref().and_then(|game_session| {
+                available_interactions(map, &game_session.state, state.position)
+                    .into_iter()
+                    .next()
+            })
+        });
+
+    match interaction {
+        Some(AvailableInteraction {
+            action: InteractionActionKind::Talk,
+            target: InteractionTarget::Npc(id),
+            ..
+        }) => {
+            requests.write(SpatialInteractionRequest::Talk(id));
+        }
+        Some(AvailableInteraction {
+            action: InteractionActionKind::SearchRemains,
+            target: InteractionTarget::Corpse(id),
+            ..
+        }) => {
+            requests.write(SpatialInteractionRequest::SearchRemains(id));
+        }
+        Some(AvailableInteraction {
+            action: InteractionActionKind::Examine,
+            target: InteractionTarget::PointOfInterest(id),
+            ..
+        }) => {
+            interact_with_poi(state, lifecycle, &id);
+        }
+        Some(AvailableInteraction {
+            action: InteractionActionKind::Enter,
+            target: InteractionTarget::Passage { id, destination_id },
+            ..
+        }) => {
+            use_map_exit(state, navigation, &id, destination_id);
+        }
+        _ => {
+            state.message =
+                Some("There is nothing within reach that can be approached.".to_string());
+            state.dirty = true;
+        }
     }
 }
 
 fn use_map_exit(
     state: &mut SpatialExplorationState,
     navigation: &mut NavigationState,
+    exit_id: &str,
     target_location_id: EntityId,
 ) {
     let available = state
@@ -487,7 +579,7 @@ fn use_map_exit(
         .is_some_and(|map| {
             map.exits
                 .iter()
-                .find(|exit| exit.target_location_id == target_location_id)
+                .find(|exit| exit.id == exit_id && exit.target_location_id == target_location_id)
                 .is_some_and(|exit| exit_interaction_available(map, state.position, exit))
         });
     if !available {
@@ -747,6 +839,59 @@ fn render_spatial_screen(
         }
     }
 
+    let game = lifecycle.session.as_ref().map(|session| &session.state);
+    for placement in &map.interactables {
+        let exists = game.is_some_and(|game| match placement.kind {
+            SpatialEntityKind::Npc => game.npcs.iter().any(|npc| {
+                npc.id == placement.entity_id && npc.location_id == game.character.location_id
+            }),
+            SpatialEntityKind::Corpse => game.corpses.iter().any(|corpse| {
+                corpse.id == placement.entity_id
+                    && corpse.location_id == game.character.location_id
+                    && !corpse.inventory.is_empty()
+            }),
+        });
+        if !exists {
+            continue;
+        }
+        let image = match placement.kind {
+            SpatialEntityKind::Npc => assets.npc_image.clone(),
+            SpatialEntityKind::Corpse => assets.corpse_image.clone(),
+        };
+        let Some(image) = image else {
+            continue;
+        };
+        let grid_position = Vec2::new(
+            f32::from(placement.position.x) + 0.5,
+            f32::from(placement.position.y) + 0.5,
+        );
+        let projected = map_to_world(grid_position, Some(map));
+        let mut sprite = Sprite::from_image(image);
+        sprite.custom_size = Some(match placement.kind {
+            SpatialEntityKind::Npc => Vec2::new(17.0, 22.0),
+            SpatialEntityKind::Corpse => Vec2::new(21.0, 13.0),
+        });
+        sprite.color = match placement.kind {
+            SpatialEntityKind::Npc => Color::srgb(0.76, 0.80, 0.84),
+            SpatialEntityKind::Corpse => Color::srgb(0.76, 0.43, 0.38),
+        };
+        commands.spawn((
+            SpatialWorldEntity,
+            SpatialActorEntity,
+            sprite,
+            Transform::from_xyz(
+                projected.x,
+                projected.y
+                    + if placement.kind == SpatialEntityKind::Npc {
+                        11.0
+                    } else {
+                        5.0
+                    },
+                depth_for_position(grid_position) + PLAYER_DEPTH_OFFSET - 0.005,
+            ),
+        ));
+    }
+
     let player_ground_position = session_position(&state);
     let player_position = map_to_world(player_ground_position, Some(map));
     if let Some(image) = assets.player_image.clone() {
@@ -769,6 +914,7 @@ fn render_spatial_screen(
     let root = commands
         .spawn((
             BevyScreenRoot,
+            SpatialSceneRoot,
             Node {
                 width: percent(100),
                 height: percent(100),
@@ -803,11 +949,11 @@ fn render_spatial_screen(
                 .location_by_id(session.state.character.location_id)
         })
         .map(|location| location.name.to_uppercase())
-        .unwrap_or_else(|| "DANGEROUS LOCATION".to_string());
+        .unwrap_or_else(|| "UNKNOWN LOCATION".to_string());
     spawn_label(
         &mut commands,
         header,
-        format!("{location_name} - ASHEN GROUND"),
+        format!("{location_name} - LOCAL EXPLORATION"),
     );
 
     // Keep essential character status anchored to the spatial view. All values
@@ -903,7 +1049,10 @@ fn render_spatial_screen(
     #[cfg(target_os = "android")]
     spawn_virtual_joystick(&mut commands, root);
 
-    let interaction_display = if poi_interaction_available(map, session_position(&state)) {
+    let interaction_available = lifecycle.session.as_ref().is_some_and(|game_session| {
+        nearest_interaction_target(map, &game_session.state, session_position(&state)).is_some()
+    });
+    let interaction_display = if interaction_available {
         Display::Flex
     } else {
         Display::None
@@ -911,38 +1060,10 @@ fn render_spatial_screen(
     spawn_control(
         &mut commands,
         footer,
-        if map
-            .points_of_interest
-            .first()
-            .is_some_and(|poi| poi.interacted)
-        {
-            "Examine again"
-        } else {
-            "Examine"
-        },
+        "Interact",
         SpatialAction::Interact,
         interaction_display,
     );
-    for exit in &map.exits {
-        let destination_name = lifecycle
-            .session
-            .as_ref()
-            .and_then(|game_session| {
-                game_session
-                    .state
-                    .world
-                    .location_by_id(exit.target_location_id)
-            })
-            .map(|location| location.name.clone())
-            .unwrap_or_else(|| "connected location".to_string());
-        spawn_control(
-            &mut commands,
-            footer,
-            format!("Passage to {destination_name}"),
-            SpatialAction::UseExit(exit.target_location_id),
-            Display::None,
-        );
-    }
     state.dirty = false;
 }
 
@@ -1081,9 +1202,6 @@ fn spawn_control(
     if matches!(action, SpatialAction::Interact) {
         entity.insert(SpatialInteractionPrompt);
     }
-    if let SpatialAction::UseExit(target_location_id) = action {
-        entity.insert(SpatialExitPrompt { target_location_id });
-    }
     let entity = entity.id();
     let text = commands
         .spawn((
@@ -1092,6 +1210,9 @@ fn spawn_control(
             TextColor(bevy_presentation::THEME_TEXT),
         ))
         .id();
+    if matches!(action, SpatialAction::Interact) {
+        commands.entity(text).insert(SpatialPromptLabel);
+    }
     commands.entity(entity).add_child(text);
     commands.entity(parent).add_child(entity);
     entity
@@ -1141,7 +1262,7 @@ fn update_spatial_context_prompt(
     navigation: Res<NavigationState>,
     lifecycle: Res<LifecycleState>,
     mut poi_prompts: Query<&mut Node, With<SpatialInteractionPrompt>>,
-    mut exit_prompts: Query<(&SpatialExitPrompt, &mut Node), Without<SpatialInteractionPrompt>>,
+    mut prompt_labels: Query<&mut Text, With<SpatialPromptLabel>>,
 ) {
     if lifecycle.phase != LifecyclePhase::Complete
         || navigation.current_screen != Some(ScreenId::SpatialExploration)
@@ -1152,34 +1273,27 @@ fn update_spatial_context_prompt(
         .session
         .as_ref()
         .and_then(|session| state.maps.get(&session.location_id));
+    let game = lifecycle.session.as_ref().map(|session| &session.state);
     let position = session_position(&state);
-    let poi_available = current_map.is_some_and(|map| poi_interaction_available(map, position));
-    let poi_display = if poi_available {
+    let target = current_map
+        .zip(game)
+        .and_then(|(map, game)| nearest_interaction_target(map, game, position));
+    let interaction_display = if target.is_some() {
         Display::Flex
     } else {
         Display::None
     };
     for mut node in &mut poi_prompts {
-        if node.display != poi_display {
-            node.display = poi_display;
+        if node.display != interaction_display {
+            node.display = interaction_display;
         }
     }
-
-    for (prompt, mut node) in &mut exit_prompts {
-        let available = current_map.is_some_and(|map| {
-            map.exits
-                .iter()
-                .find(|exit| exit.target_location_id == prompt.target_location_id)
-                .is_some_and(|exit| exit_interaction_available(map, position, exit))
-        });
-        let display = if available {
-            Display::Flex
-        } else {
-            Display::None
-        };
-        if node.display != display {
-            node.display = display;
-        }
+    let label = target
+        .as_ref()
+        .map(interaction_prompt_label)
+        .unwrap_or_else(|| "Interact".to_string());
+    for mut text in &mut prompt_labels {
+        *text = Text::new(label.clone());
     }
 }
 
@@ -1318,27 +1432,120 @@ fn clamp_camera_target(target: Vec2, map: &LocalMap, viewport: Vec2) -> Vec2 {
     )
 }
 
-fn nearest_contextual_exit(map: &LocalMap, position: Vec2) -> Option<&MapExit> {
-    let exit = nearest_available_exit(map, position)?;
-    if poi_interaction_available(map, position)
-        && poi_distance_px(map, position)
-            .is_some_and(|distance| distance < exit_distance_px(map, position, exit))
-    {
-        None
-    } else {
-        Some(exit)
+pub(crate) fn available_interactions(
+    map: &LocalMap,
+    game: &GameState,
+    position: Vec2,
+) -> Vec<AvailableInteraction> {
+    let mut candidates = Vec::new();
+
+    for poi in &map.points_of_interest {
+        if !poi_interaction_available_for(map, position, poi) {
+            continue;
+        }
+        let Some(distance) = poi_distance_px_for(map, position, poi) else {
+            continue;
+        };
+        let item = AvailableInteraction {
+            action: InteractionActionKind::Examine,
+            target: InteractionTarget::PointOfInterest(poi.id.clone()),
+            label: format!("Examine — {}", poi.title),
+        };
+        candidates.push((distance, 2_u8, item.target.stable_key(), item));
     }
+
+    for placement in &map.interactables {
+        let target_position = Vec2::new(
+            f32::from(placement.position.x) + 0.5,
+            f32::from(placement.position.y) + 0.5,
+        );
+        let distance =
+            map_to_world(position, Some(map)).distance(map_to_world(target_position, Some(map)));
+        if distance > INTERACTION_RANGE_PX || !has_line_of_sight(map, position, target_position) {
+            continue;
+        }
+        let (priority, item) = match placement.kind {
+            SpatialEntityKind::Npc => {
+                let Some(npc) = game.npcs.iter().find(|npc| {
+                    npc.id == placement.entity_id && npc.location_id == game.character.location_id
+                }) else {
+                    continue;
+                };
+                (
+                    0_u8,
+                    AvailableInteraction {
+                        action: InteractionActionKind::Talk,
+                        target: InteractionTarget::Npc(npc.id),
+                        label: format!("Talk — {}", npc.name),
+                    },
+                )
+            }
+            SpatialEntityKind::Corpse => {
+                let Some(corpse) = game.corpses.iter().find(|corpse| {
+                    corpse.id == placement.entity_id
+                        && corpse.location_id == game.character.location_id
+                        && !corpse.inventory.is_empty()
+                }) else {
+                    continue;
+                };
+                (
+                    1_u8,
+                    AvailableInteraction {
+                        action: InteractionActionKind::SearchRemains,
+                        target: InteractionTarget::Corpse(corpse.id),
+                        label: format!("Search — {}", corpse.former_name),
+                    },
+                )
+            }
+        };
+        candidates.push((distance, priority, item.target.stable_key(), item));
+    }
+
+    for exit in &map.exits {
+        if !exit_interaction_available(map, position, exit) {
+            continue;
+        }
+        let label = game
+            .world
+            .location_by_id(exit.target_location_id)
+            .map(|location| format!("Enter — {}", location.name))
+            .unwrap_or_else(|| "Use passage".to_string());
+        let item = AvailableInteraction {
+            action: InteractionActionKind::Enter,
+            target: InteractionTarget::Passage {
+                id: exit.id.clone(),
+                destination_id: exit.target_location_id,
+            },
+            label,
+        };
+        candidates.push((
+            exit_distance_px(map, position, exit),
+            3_u8,
+            item.target.stable_key(),
+            item,
+        ));
+    }
+
+    candidates.sort_by(|a, b| {
+        a.0.total_cmp(&b.0)
+            .then(a.1.cmp(&b.1))
+            .then_with(|| a.2.cmp(&b.2))
+    });
+    candidates.into_iter().map(|(_, _, _, item)| item).collect()
 }
 
-fn nearest_available_exit(map: &LocalMap, position: Vec2) -> Option<&MapExit> {
-    map.exits
-        .iter()
-        .filter(|exit| exit_interaction_available(map, position, exit))
-        .min_by(|left, right| {
-            exit_distance_px(map, position, left)
-                .partial_cmp(&exit_distance_px(map, position, right))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        })
+fn nearest_interaction_target(
+    map: &LocalMap,
+    game: &GameState,
+    position: Vec2,
+) -> Option<AvailableInteraction> {
+    available_interactions(map, game, position)
+        .into_iter()
+        .next()
+}
+
+fn interaction_prompt_label(interaction: &AvailableInteraction) -> String {
+    interaction.label.clone()
 }
 
 fn exit_distance_px(map: &LocalMap, position: Vec2, exit: &MapExit) -> f32 {
@@ -1363,8 +1570,14 @@ fn exit_interaction_available(map: &LocalMap, position: Vec2, exit: &MapExit) ->
     has_line_of_sight(map, position, target)
 }
 
-fn poi_distance_px(map: &LocalMap, position: Vec2) -> Option<f32> {
-    let poi = map.points_of_interest.first()?;
+fn poi_distance_px_for(
+    map: &LocalMap,
+    position: Vec2,
+    poi: &crate::spatial::PointOfInterest,
+) -> Option<f32> {
+    if !map.contains(poi.position) {
+        return None;
+    }
     let target = Vec2::new(
         f32::from(poi.position.x) + 0.5,
         f32::from(poi.position.y) + 0.5,
@@ -1372,11 +1585,14 @@ fn poi_distance_px(map: &LocalMap, position: Vec2) -> Option<f32> {
     Some(map_to_world(position, Some(map)).distance(map_to_world(target, Some(map))))
 }
 
-fn poi_interaction_available(map: &LocalMap, position: Vec2) -> bool {
-    let Some(poi) = map.points_of_interest.first() else {
-        return false;
-    };
-    if poi_distance_px(map, position).is_none_or(|distance| distance > INTERACTION_RANGE_PX) {
+fn poi_interaction_available_for(
+    map: &LocalMap,
+    position: Vec2,
+    poi: &crate::spatial::PointOfInterest,
+) -> bool {
+    if poi_distance_px_for(map, position, poi)
+        .is_none_or(|distance| distance > INTERACTION_RANGE_PX)
+    {
         return false;
     }
     let target = Vec2::new(

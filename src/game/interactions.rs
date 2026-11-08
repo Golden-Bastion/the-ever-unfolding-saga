@@ -1,6 +1,10 @@
+use crate::character_appearance::{actor_appearance_seed, generate_character_portrait};
 use crate::game::{quests, state_effects};
 use crate::model::{EntityId, Faction, GameState, Quest};
-use crate::presentation::{ConversationView, NpcView, TalkView};
+use crate::presentation::{
+    CharacterPortraitLayerView, CharacterPortraitView, CharacterView, ConversationView, NpcView,
+    TalkView,
+};
 
 pub(crate) fn npc_ids_at_location(state: &GameState, location_id: EntityId) -> Vec<EntityId> {
     state
@@ -62,6 +66,22 @@ fn build_talk_view(state: &GameState) -> TalkView {
     }
 }
 
+fn portrait_view(
+    layers: Vec<crate::character_appearance::CharacterPortraitLayer>,
+) -> CharacterPortraitView {
+    CharacterPortraitView {
+        layers: layers
+            .into_iter()
+            .map(|layer| CharacterPortraitLayerView {
+                id: layer.id,
+                slot: layer.slot,
+                asset: layer.asset,
+                layer: layer.layer,
+            })
+            .collect(),
+    }
+}
+
 fn build_conversation_view(state: &GameState, npc_index: usize) -> ConversationView {
     let npc = &state.npcs[npc_index];
     let npc_view = NpcView {
@@ -76,11 +96,34 @@ fn build_conversation_view(state: &GameState, npc_index: usize) -> ConversationV
         }),
     };
     let npc_name = npc_view.display_name();
-    let portrait = state
-        .campaign_content
-        .as_ref()
+    let content = state.campaign_content.as_ref();
+    let portrait = content
         .and_then(|content| content.portrait_for(&npc.name))
         .map(str::to_string);
+    let parts = content
+        .map(|content| content.character_parts.as_slice())
+        .unwrap_or(&[]);
+    let world_seed = state
+        .world
+        .generation
+        .map(|generation| generation.seed)
+        .unwrap_or(state.world.id);
+    let npc_tags = content
+        .map(|content| content.appearance_tags_for(&npc.name))
+        .unwrap_or(&[]);
+    let player_layers = generate_character_portrait(
+        parts,
+        actor_appearance_seed(world_seed, state.character.id),
+        &[],
+    );
+    let npc_layers =
+        generate_character_portrait(parts, actor_appearance_seed(world_seed, npc.id), npc_tags);
+    let player = CharacterView {
+        name: state.character.name.clone(),
+        title: state.character.title.clone(),
+        hp: state.character.hp,
+        max_hp: state.character.max_hp,
+    };
     let memory = npc
         .memory
         .iter()
@@ -99,7 +142,10 @@ fn build_conversation_view(state: &GameState, npc_index: usize) -> ConversationV
     }
 
     ConversationView {
+        player,
+        player_portrait: portrait_view(player_layers),
         npc: npc_view,
+        npc_portrait: portrait_view(npc_layers),
         portrait,
         memory,
         options,

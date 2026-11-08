@@ -401,5 +401,112 @@
         }
       ]
     }
+  ],
+  "character_parts": [
+    {
+      "id": "portrait.body.warden",
+      "slot": "body",
+      "asset": "characters/parts/body/warden.png",
+      "weight": 3,
+      "layer": 10
+    },
+    {
+      "id": "portrait.body.traveler",
+      "slot": "body",
+      "asset": "characters/parts/body/traveler.png",
+      "weight": 3,
+      "layer": 10
+    },
+    {
+      "id": "portrait.body.shroud",
+      "slot": "body",
+      "asset": "characters/parts/body/shroud.png",
+      "weight": 1,
+      "layer": 10
+    },
+    {
+      "id": "portrait.face.ashen",
+      "slot": "face",
+      "asset": "characters/parts/face/ashen.png",
+      "weight": 2,
+      "layer": 20
+    },
+    {
+      "id": "portrait.face.olive",
+      "slot": "face",
+      "asset": "characters/parts/face/olive.png",
+      "weight": 2,
+      "layer": 20
+    },
+    {
+      "id": "portrait.face.pale",
+      "slot": "face",
+      "asset": "characters/parts/face/pale.png",
+      "weight": 1,
+      "layer": 20
+    },
+    {
+      "id": "portrait.hair.charcoal_short",
+      "slot": "hair",
+      "asset": "characters/parts/hair/charcoal_short.png",
+      "weight": 3,
+      "layer": 30
+    },
+    {
+      "id": "portrait.hair.silver_long",
+      "slot": "hair",
+      "asset": "characters/parts/hair/silver_long.png",
+      "weight": 2,
+      "layer": 30
+    },
+    {
+      "id": "portrait.hair.russet_cropped",
+      "slot": "hair",
+      "asset": "characters/parts/hair/russet_cropped.png",
+      "weight": 1,
+      "layer": 30
+    },
+    {
+      "id": "portrait.headgear.hood",
+      "slot": "headgear",
+      "asset": "characters/parts/headgear/hood.png",
+      "weight": 2,
+      "layer": 40
+    },
+    {
+      "id": "portrait.headgear.circlet",
+      "slot": "headgear",
+      "asset": "characters/parts/headgear/circlet.png",
+      "weight": 1,
+      "layer": 40
+    },
+    {
+      "id": "portrait.headgear.cap",
+      "slot": "headgear",
+      "asset": "characters/parts/headgear/cap.png",
+      "weight": 1,
+      "layer": 40
+    },
+    {
+      "id": "portrait.accessory.scarf",
+      "slot": "accessory",
+      "asset": "characters/parts/accessory/scarf.png",
+      "weight": 2,
+      "layer": 15
+    },
+    {
+      "id": "portrait.accessory.pendant",
+      "slot": "accessory",
+      "asset": "characters/parts/accessory/pendant.png",
+      "weight": 2,
+      "layer": 15
+    },
+    {
+      "id": "portrait.accessory.fur_collar",
+      "slot": "accessory",
+      "asset": "characters/parts/accessory/fur_collar.png",
+      "weight": 1,
+      "layer": 15
+    }
   ]
 }

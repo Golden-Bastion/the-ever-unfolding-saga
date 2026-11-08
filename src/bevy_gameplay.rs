@@ -36,16 +36,13 @@ enum PauseAction {
 enum GameplayAction {
     Travel,
     Meditate,
-    Talk,
     Explore,
     Investigate,
-    SearchRemains,
 }
 
-const PRIMARY_GAMEPLAY_ACTIONS: [GameplayAction; 4] = [
+const PRIMARY_GAMEPLAY_ACTIONS: [GameplayAction; 3] = [
     GameplayAction::Travel,
     GameplayAction::Meditate,
-    GameplayAction::Talk,
     GameplayAction::Explore,
 ];
 
@@ -470,53 +467,13 @@ fn activate_selection(
                         }
                     }
                 }
-                GameplayAction::SearchRemains => {
-                    gameplay.selected = 0;
-                    gameplay.message = None;
-                    gameplay.dirty = true;
-                    open_dedicated_screen(navigation_state, ScreenId::Remains);
-                }
                 GameplayAction::Meditate => {
                     reset_dashboard_selection(gameplay);
                     open_dedicated_screen(navigation_state, ScreenId::Meditation);
                 }
-                GameplayAction::Talk => {
-                    reset_dashboard_selection(gameplay);
-                    open_dedicated_screen(navigation_state, ScreenId::Talk);
-                }
                 GameplayAction::Explore => {
-                    if session
-                        .state
-                        .world
-                        .location_is_dangerous(session.state.character.location_id)
-                    {
-                        crate::bevy_spatial::enter(spatial_state, &session.state, navigation_state);
-                        gameplay.message = None;
-                    } else {
-                        gameplay.message = session
-                            .state
-                            .campaign_content
-                            .clone()
-                            .unwrap_or_else(crate::content::load_campaign_content)
-                            .atmospheres
-                            .iter()
-                            .find(|entry| {
-                                session
-                                    .state
-                                    .world
-                                    .location_by_id(session.state.character.location_id)
-                                    .map(|location| entry.location_name == location.name)
-                                    .unwrap_or(false)
-                            })
-                            .map(|entry| entry.text.clone())
-                            .or_else(|| {
-                                session
-                                    .state
-                                    .world
-                                    .location_by_id(session.state.character.location_id)
-                                    .map(|location| location.description.clone())
-                            });
-                    }
+                    crate::bevy_spatial::enter(spatial_state, &session.state, navigation_state);
+                    gameplay.message = None;
                     gameplay.dirty = true;
                 }
             }
@@ -1032,21 +989,18 @@ fn gameplay_action_visuals(action: GameplayAction) -> (&'static str, &'static st
     match action {
         GameplayAction::Travel => ("travel", "Travel"),
         GameplayAction::Meditate => ("meditate", "Meditate"),
-        GameplayAction::Talk => ("talk", "Talk"),
         GameplayAction::Explore => ("explore", "Explore"),
         GameplayAction::Investigate => ("investigate", "Investigate"),
-        GameplayAction::SearchRemains => ("remains", "Search remains"),
     }
 }
 
 fn dashboard_actions(state: &crate::model::GameState) -> Vec<GameplayAction> {
     let mut actions = PRIMARY_GAMEPLAY_ACTIONS.to_vec();
-    for entry in menu::build_main_menu(state) {
-        match entry.action {
-            menu::GameAction::InvestigateThreat => actions.push(GameplayAction::Investigate),
-            menu::GameAction::SearchRemains => actions.push(GameplayAction::SearchRemains),
-            _ => {}
-        }
+    if menu::build_main_menu(state)
+        .iter()
+        .any(|entry| matches!(entry.action, menu::GameAction::InvestigateThreat))
+    {
+        actions.push(GameplayAction::Investigate);
     }
     actions
 }

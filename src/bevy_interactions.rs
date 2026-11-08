@@ -9,6 +9,7 @@ use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId,
 };
+use crate::bevy_spatial::{SpatialInteractionRequest, SpatialSceneRoot};
 use crate::game::{interactions, legacy};
 use crate::input::InputEvent;
 use crate::model::EntityId;
@@ -29,6 +30,8 @@ pub(crate) struct BevyInteractionState {
     npc_id: Option<EntityId>,
     result: Option<RemainsResultView>,
     message: Option<String>,
+    spatial_overlay: bool,
+    corpse_id: Option<EntityId>,
     dirty: bool,
 }
 
@@ -40,6 +43,8 @@ impl Default for BevyInteractionState {
             npc_id: None,
             result: None,
             message: None,
+            spatial_overlay: false,
+            corpse_id: None,
             dirty: true,
         }
     }
@@ -48,14 +53,58 @@ impl Default for BevyInteractionState {
 pub(crate) fn install(app: &mut App) {
     app.init_resource::<BevyInteractionState>().add_systems(
         Update,
-        (sync_screen, interaction_input, render_if_active).chain(),
+        (
+            read_spatial_requests,
+            sync_screen,
+            interaction_input,
+            render_if_active,
+        )
+            .chain(),
     );
+}
+
+#[derive(Component)]
+struct SpatialInteractionOverlayRoot;
+
+pub(crate) fn spatial_overlay_open(state: &BevyInteractionState) -> bool {
+    state.spatial_overlay
+}
+
+fn read_spatial_requests(
+    mut requests: MessageReader<SpatialInteractionRequest>,
+    mut state: ResMut<BevyInteractionState>,
+    mut navigation: ResMut<NavigationState>,
+) {
+    if navigation.current_screen != Some(ScreenId::SpatialExploration) {
+        requests.clear();
+        return;
+    }
+    for request in requests.read() {
+        match request {
+            SpatialInteractionRequest::Talk(npc_id) => {
+                state.screen = InteractionScreen::Conversation;
+                state.npc_id = Some(*npc_id);
+                state.corpse_id = None;
+            }
+            SpatialInteractionRequest::SearchRemains(corpse_id) => {
+                state.screen = InteractionScreen::Remains;
+                state.npc_id = None;
+                state.corpse_id = Some(*corpse_id);
+            }
+        }
+        state.selected = 0;
+        state.result = None;
+        state.message = None;
+        state.spatial_overlay = true;
+        state.dirty = true;
+        navigation.selected = 0;
+    }
 }
 
 fn is_interaction_screen(screen: Option<ScreenId>) -> bool {
     matches!(
         screen,
-        Some(ScreenId::Talk | ScreenId::Conversation | ScreenId::Remains | ScreenId::RemainsResult)
+        Some(ScreenId::Talk | ScreenId::Conversation | ScreenId::RemainsResult)
     )
 }
 
@@ -64,6 +113,15 @@ fn sync_screen(
     navigation: Res<NavigationState>,
     mut state: ResMut<BevyInteractionState>,
 ) {
+    if navigation.current_screen == Some(ScreenId::SpatialExploration) {
+        return;
+    }
+    if state.spatial_overlay {
+        state.spatial_overlay = false;
+        state.corpse_id = None;
+        state.message = None;
+        state.dirty = true;
+    }
     if lifecycle.phase != LifecyclePhase::Complete
         || !is_interaction_screen(navigation.current_screen)
     {
@@ -76,7 +134,6 @@ fn sync_screen(
     let target = match screen {
         ScreenId::Talk => InteractionScreen::Talk,
         ScreenId::Conversation => InteractionScreen::Conversation,
-        ScreenId::Remains => InteractionScreen::Remains,
         ScreenId::RemainsResult => InteractionScreen::RemainsResult,
         _ => return,
     };
@@ -95,6 +152,33 @@ fn selection_count(state: &BevyInteractionState, lifecycle: &LifecycleState) -> 
     let Some(session) = lifecycle.session.as_ref() else {
         return 1;
     };
+    if state.spatial_overlay {
+        if state.message.is_some() {
+            return 1;
+        }
+        return match state.screen {
+            InteractionScreen::Conversation => state
+                .npc_id
+                .and_then(|npc_id| interactions::npc_index_by_id(&session.state, npc_id))
+                .and_then(|npc_index| {
+                    interactions::build_conversation_view_for_bevy(&session.state, npc_index)
+                })
+                .filter(|view| view.available)
+                .map(|view| view.options.len() + 1)
+                .unwrap_or(1),
+            InteractionScreen::Remains => state
+                .corpse_id
+                .filter(|corpse_id| {
+                    legacy::build_remains_view_for_bevy(&session.state)
+                        .remains
+                        .iter()
+                        .any(|remains| remains.id == *corpse_id && !remains.items.is_empty())
+                })
+                .map(|_| 2)
+                .unwrap_or(1),
+            InteractionScreen::RemainsResult | InteractionScreen::Talk => 1,
+        };
+    }
     match state.screen {
         InteractionScreen::Talk => {
             interactions::build_talk_view_for_bevy(&session.state)
@@ -151,8 +235,10 @@ fn move_to_end(
 fn close_to_gameplay(state: &mut BevyInteractionState, navigation: &mut NavigationState) {
     state.selected = 0;
     state.npc_id = None;
+    state.corpse_id = None;
     state.result = None;
     state.message = None;
+    state.spatial_overlay = false;
     state.dirty = true;
     navigation.current_screen = Some(ScreenId::Gameplay);
     navigation.return_screen = None;
@@ -165,8 +251,10 @@ fn interaction_input(
     mut navigation: ResMut<NavigationState>,
     mut input_queue: ResMut<GameplayInputQueue>,
 ) {
+    let spatial_overlay =
+        navigation.current_screen == Some(ScreenId::SpatialExploration) && state.spatial_overlay;
     if lifecycle.phase != LifecyclePhase::Complete
-        || !is_interaction_screen(navigation.current_screen)
+        || (!spatial_overlay && !is_interaction_screen(navigation.current_screen))
         || input_queue.0.is_empty()
     {
         return;
@@ -185,9 +273,108 @@ fn interaction_input(
             InputEvent::End => move_to_end(&mut state, &lifecycle, &mut navigation),
             InputEvent::PageUp => move_selection(&mut state, &lifecycle, &mut navigation, -5),
             InputEvent::PageDown => move_selection(&mut state, &lifecycle, &mut navigation, 5),
+            InputEvent::Confirm if spatial_overlay => {
+                activate_spatial_overlay(&mut lifecycle, &mut state, &mut navigation)
+            }
+            InputEvent::Cancel if spatial_overlay => {
+                close_spatial_overlay(&mut state, &mut navigation)
+            }
             InputEvent::Confirm => activate(&mut lifecycle, &mut state, &mut navigation),
             InputEvent::Cancel => cancel(&mut state, &mut navigation),
             _ => {}
+        }
+    }
+}
+
+fn close_spatial_overlay(state: &mut BevyInteractionState, navigation: &mut NavigationState) {
+    state.spatial_overlay = false;
+    state.selected = 0;
+    state.npc_id = None;
+    state.corpse_id = None;
+    state.result = None;
+    state.message = None;
+    state.dirty = true;
+    navigation.selected = 0;
+}
+
+fn activate_spatial_overlay(
+    lifecycle: &mut LifecycleState,
+    state: &mut BevyInteractionState,
+    navigation: &mut NavigationState,
+) {
+    if state.message.is_some() {
+        state.message = None;
+        state.selected = 0;
+        navigation.selected = 0;
+        state.dirty = true;
+        return;
+    }
+    let Some(session) = lifecycle.session.as_mut() else {
+        close_spatial_overlay(state, navigation);
+        return;
+    };
+
+    match state.screen {
+        InteractionScreen::Conversation => {
+            let Some(npc_id) = state.npc_id else {
+                close_spatial_overlay(state, navigation);
+                return;
+            };
+            let available_choice = interactions::npc_index_by_id(&session.state, npc_id)
+                .and_then(|npc_index| {
+                    interactions::build_conversation_view_for_bevy(&session.state, npc_index)
+                })
+                .is_some_and(|view| view.available && state.selected < view.options.len());
+            if !available_choice {
+                close_spatial_overlay(state, navigation);
+                return;
+            }
+            let messages = interactions::perform_conversation_choice(
+                &mut session.state,
+                npc_id,
+                state.selected,
+            );
+            state.message = Some(messages.join("\n"));
+            state.selected = 0;
+            navigation.selected = 0;
+            state.dirty = true;
+        }
+        InteractionScreen::Remains => {
+            if state.selected > 0 {
+                close_spatial_overlay(state, navigation);
+                return;
+            }
+            let Some(corpse_id) = state.corpse_id else {
+                close_spatial_overlay(state, navigation);
+                return;
+            };
+            let view = legacy::build_remains_view_for_bevy(&session.state);
+            let Some(selection) = view
+                .remains
+                .iter()
+                .filter(|remains| !remains.items.is_empty())
+                .position(|remains| remains.id == corpse_id)
+            else {
+                state.message = Some("These remains have already been searched.".to_string());
+                state.dirty = true;
+                return;
+            };
+            match legacy::search_remains_for_bevy(&mut session.state, selection) {
+                Ok(result) => {
+                    state.result = Some(result);
+                    state.screen = InteractionScreen::RemainsResult;
+                    state.selected = 0;
+                    navigation.selected = 0;
+                    state.dirty = true;
+                }
+                Err(error) => {
+                    state.message = Some(error);
+                    state.dirty = true;
+                }
+            }
+        }
+        InteractionScreen::RemainsResult | InteractionScreen::Talk => {
+            close_spatial_overlay(state, navigation)
         }
     }
 }
@@ -313,11 +500,36 @@ fn render_if_active(
     navigation: Res<NavigationState>,
     mut state: ResMut<BevyInteractionState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
+    spatial_roots: Query<Entity, With<SpatialSceneRoot>>,
+    overlay_roots: Query<Entity, With<SpatialInteractionOverlayRoot>>,
 ) {
-    if lifecycle.phase != LifecyclePhase::Complete
-        || !is_interaction_screen(navigation.current_screen)
-        || !state.dirty
-    {
+    if lifecycle.phase != LifecyclePhase::Complete {
+        return;
+    }
+    if navigation.current_screen == Some(ScreenId::SpatialExploration) {
+        if !state.dirty {
+            return;
+        }
+        for root in &overlay_roots {
+            commands.entity(root).despawn();
+        }
+        if state.spatial_overlay {
+            let Some(parent) = spatial_roots.iter().next() else {
+                // The spatial scene may be entering in this frame. Keep the
+                // request dirty so the overlay is attached once its root exists.
+                return;
+            };
+            let Some(session) = lifecycle.session.as_ref() else {
+                state.spatial_overlay = false;
+                state.dirty = false;
+                return;
+            };
+            render_spatial_interaction_overlay(&mut commands, parent, &session.state, &state);
+        }
+        state.dirty = false;
+        return;
+    }
+    if !is_interaction_screen(navigation.current_screen) || !state.dirty {
         return;
     }
     for root in &roots {
@@ -360,6 +572,268 @@ fn render_if_active(
         }
     }
     state.dirty = false;
+}
+
+fn render_spatial_interaction_overlay(
+    commands: &mut Commands,
+    parent: Entity,
+    game: &crate::model::GameState,
+    state: &BevyInteractionState,
+) {
+    let overlay = commands
+        .spawn((
+            SpatialInteractionOverlayRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                right: bevy::ui::Val::Px(14.0),
+                bottom: bevy::ui::Val::Px(14.0),
+                width: percent(44),
+                min_width: px(240),
+                max_width: px(560),
+                max_height: percent(76),
+                min_height: px(150),
+                padding: UiRect::all(px(12)),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(8),
+                border: UiRect::all(px(1)),
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+        ))
+        .id();
+    commands.entity(parent).add_child(overlay);
+    let content = bevy_presentation::spawn_scrollable_list(commands, overlay);
+    let footer = bevy_presentation::spawn_option_footer(commands, overlay);
+
+    match state.screen {
+        InteractionScreen::Conversation => {
+            let view = state
+                .npc_id
+                .and_then(|npc_id| interactions::npc_index_by_id(game, npc_id))
+                .and_then(|npc_index| {
+                    interactions::build_conversation_view_for_bevy(game, npc_index)
+                });
+            render_conversation_content(
+                commands,
+                content,
+                footer,
+                view.as_ref(),
+                state.selected,
+                state.message.as_deref(),
+            );
+        }
+        InteractionScreen::Remains => {
+            let view = legacy::build_remains_view_for_bevy(game);
+            render_spatial_remains_content(
+                commands,
+                content,
+                footer,
+                &view,
+                state.corpse_id,
+                state.selected,
+                state.message.as_deref(),
+            );
+        }
+        InteractionScreen::RemainsResult => {
+            render_remains_result_content(commands, content, footer, state.result.as_ref());
+        }
+        InteractionScreen::Talk => {
+            bevy_presentation::spawn_muted_label(
+                commands,
+                content,
+                "There is no conversation to continue.",
+            );
+            let button =
+                bevy_presentation::spawn_action_button(commands, footer, 0, "back", "Close");
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
+    }
+}
+
+fn render_conversation_content(
+    commands: &mut Commands,
+    parent: Entity,
+    footer: Entity,
+    view: Option<&ConversationView>,
+    selected: usize,
+    message: Option<&str>,
+) {
+    let Some(view) = view else {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            parent,
+            "That person can no longer be found.",
+        );
+        let button = bevy_presentation::spawn_action_button(commands, footer, 0, "back", "Close");
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
+        return;
+    };
+
+    bevy_presentation::spawn_label(commands, parent, view.npc.display_name());
+    if let Some(faction) = &view.npc.faction_name {
+        bevy_presentation::spawn_muted_label(commands, parent, format!("Faction: {faction}"));
+    }
+    if let Some(portrait) = &view.portrait {
+        bevy_presentation::spawn_muted_label(commands, parent, portrait.clone());
+    }
+    if let Some(memory) = &view.memory {
+        bevy_presentation::spawn_muted_label(commands, parent, format!("Memory: {memory}"));
+    }
+
+    if let Some(message) = message {
+        for line in message.lines() {
+            bevy_presentation::spawn_muted_label(commands, parent, line);
+        }
+        let button =
+            bevy_presentation::spawn_action_button(commands, footer, 0, "continue", "Continue");
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
+    } else if !view.available {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            parent,
+            view.unavailable_message
+                .as_deref()
+                .unwrap_or("They are unavailable right now."),
+        );
+        let button = bevy_presentation::spawn_action_button(commands, footer, 0, "back", "Leave");
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
+    } else {
+        for (index, option) in view.options.iter().enumerate() {
+            let button =
+                bevy_presentation::spawn_action_button(commands, footer, index, "choice", option);
+            if index == selected {
+                commands
+                    .entity(button)
+                    .insert(bevy_presentation::UiSelected);
+            }
+        }
+        let back_index = view.options.len();
+        let button =
+            bevy_presentation::spawn_action_button(commands, footer, back_index, "back", "Leave");
+        if selected == back_index {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
+    }
+}
+
+fn render_spatial_remains_content(
+    commands: &mut Commands,
+    parent: Entity,
+    footer: Entity,
+    view: &RemainsView,
+    corpse_id: Option<EntityId>,
+    selected: usize,
+    message: Option<&str>,
+) {
+    let remains = corpse_id.and_then(|id| {
+        view.remains
+            .iter()
+            .find(|remains| remains.id == id && !remains.items.is_empty())
+    });
+    let Some(remains) = remains else {
+        bevy_presentation::spawn_muted_label(commands, parent, "These remains are no longer here.");
+        let button = bevy_presentation::spawn_action_button(commands, footer, 0, "back", "Leave");
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
+        return;
+    };
+
+    bevy_presentation::spawn_label(commands, parent, remains.label.clone());
+    bevy_presentation::spawn_muted_label(commands, parent, format!("At {}", view.location_name));
+    if remains.scavenged {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            parent,
+            "Someone has already picked through these remains.",
+        );
+    }
+    for item in &remains.items {
+        bevy_presentation::spawn_label(commands, parent, item.name.clone());
+        if !item.description.is_empty() {
+            bevy_presentation::spawn_muted_label(commands, parent, item.description.clone());
+        }
+    }
+    if let Some(message) = message {
+        bevy_presentation::spawn_muted_label(commands, parent, message);
+        let button =
+            bevy_presentation::spawn_action_button(commands, footer, 0, "continue", "Continue");
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
+    } else {
+        let search = bevy_presentation::spawn_action_button(
+            commands,
+            footer,
+            0,
+            "remains",
+            "Search remains",
+        );
+        if selected == 0 {
+            commands
+                .entity(search)
+                .insert(bevy_presentation::UiSelected);
+        }
+        let leave = bevy_presentation::spawn_action_button(commands, footer, 1, "back", "Leave");
+        if selected == 1 {
+            commands.entity(leave).insert(bevy_presentation::UiSelected);
+        }
+    }
+}
+
+fn render_remains_result_content(
+    commands: &mut Commands,
+    parent: Entity,
+    footer: Entity,
+    result: Option<&RemainsResultView>,
+) {
+    let Some(result) = result else {
+        bevy_presentation::spawn_muted_label(commands, parent, "Nothing was recovered.");
+        let button =
+            bevy_presentation::spawn_action_button(commands, footer, 0, "continue", "Continue");
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
+        return;
+    };
+    bevy_presentation::spawn_label(
+        commands,
+        parent,
+        format!(
+            "{} the {} at {}",
+            result.former_name, result.former_title, result.location_name
+        ),
+    );
+    for item in &result.items {
+        bevy_presentation::spawn_label(commands, parent, format!("Recovered: {}", item.name));
+        if !item.description.is_empty() {
+            bevy_presentation::spawn_muted_label(commands, parent, item.description.clone());
+        }
+    }
+    if let Some(item) = &result.hidden_item {
+        bevy_presentation::spawn_label(commands, parent, format!("Discovered: {}", item.name));
+        bevy_presentation::spawn_muted_label(commands, parent, item.description.clone());
+    }
+    for note in &result.notes {
+        bevy_presentation::spawn_muted_label(commands, parent, note.clone());
+    }
+    let button =
+        bevy_presentation::spawn_action_button(commands, footer, 0, "continue", "Continue");
+    commands
+        .entity(button)
+        .insert(bevy_presentation::UiSelected);
 }
 
 fn render_talk(commands: &mut Commands, view: &TalkView, selected: usize) {

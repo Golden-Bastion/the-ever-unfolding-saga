@@ -37,3 +37,12 @@ Campaign content is runtime data rather than save data. Saves keep persistent wo
 ## Design direction
 
 Keep campaign data declarative and stable-ID based. Put reusable content in data files and keep game code responsible for generic behavior rather than embedding campaign-specific definitions in control flow.
+
+
+## Modular character illustrations
+
+Campaign content may define reusable `character_parts`. The bundled campaign includes a 15-part starter catalogue spanning body, face, hair, headgear, and accessory slots. Every layer is a transparent 64×96 PNG aligned to a shared portrait canvas. Each part has a stable ID, slot, mod-aware PNG asset reference, selection weight, draw layer, and optional required/excluded appearance tags. NPC definitions may specify optional `appearance_tags`; the player and NPC use the same renderer-neutral weighted generator.
+
+The generator selects one compatible part per slot from a deterministic seed derived from the world generation seed and the actor's persistent entity ID. The same actor therefore retains the same composition across redraws and save/load without storing Bevy handles or selected asset paths in saves. Mods may add parts or replace a definition by stable ID; assets are resolved through the normal mod-aware loader. Incompatible or missing slots are omitted, and the legacy ASCII portrait remains a temporary fallback.
+
+The content and generator layers do not load images or depend on Bevy. A frontend composes the returned assets in their declared draw order.
