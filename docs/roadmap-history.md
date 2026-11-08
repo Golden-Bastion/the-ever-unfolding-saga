@@ -800,3 +800,11 @@ src/
 - Added spatial-scene re-entry detection so its rendered entities and HUD are rebuilt after another dedicated screen replaces the screen root; the existing local map and continuous player position remain authoritative.
 - Kept the current HUD and action layout unchanged. Spatial access to records, meditation, combat, and system navigation remains a separate design/implementation step under #421.
 - Bumped the project version to 0.52.25.
+
+### v0.52.26: Spatial pause menu access
+- Reused the unified Gameplay pause/navigation menu as an overlay above spatial exploration, preserving the active map and continuous player position instead of returning to the transitional dashboard.
+- Routed desktop Escape and Android system Back to open the menu; Back while the menu is open resumes the same spatial session. Character and Options child screens return to the paused spatial menu, and Quit cancellation returns to that same context.
+- Kept the spatial Leave control as a separate explicit transition to the compatibility dashboard.
+- Paused spatial movement, animation advancement, camera following, and Android virtual-joystick input while the menu is open.
+- Added regression tests for spatial pause entry/exit, parent-screen retention, and input-screen gating.
+- Bumped the project and Android fallback versions to 0.52.26. Desktop and Android landscape playtesting remains outstanding.
