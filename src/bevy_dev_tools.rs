@@ -254,7 +254,8 @@ fn developer_tools_input(
                         2 => cycle_current_slot(&mut state, -1),
                         3 => cycle_current_slot(&mut state, 1),
                         4 => {
-                            if let Some(slot) = state.slots.get_mut(state.selected_slot) {
+                            let selected_slot = state.selected_slot;
+                            if let Some(slot) = state.slots.get_mut(selected_slot) {
                                 slot.visible = !slot.visible;
                                 state.dirty = true;
                             }
