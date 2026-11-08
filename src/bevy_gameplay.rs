@@ -206,7 +206,10 @@ fn celestial_source_rects(size: UVec2) -> Option<(Rect, Rect)> {
     ))
 }
 
-fn accepts_gameplay_input(current_screen: Option<ScreenId>, gameplay_screen: GameplayScreen) -> bool {
+fn accepts_gameplay_input(
+    current_screen: Option<ScreenId>,
+    gameplay_screen: GameplayScreen,
+) -> bool {
     current_screen == Some(ScreenId::Gameplay)
         || (current_screen == Some(ScreenId::SpatialExploration)
             && gameplay_screen == GameplayScreen::Pause)
@@ -276,7 +279,12 @@ fn gameplay_input(
                 }
                 GameplayScreen::Pause => {
                     let return_screen = pause_parent_screen(navigation_state.current_screen);
-                    close_pause(&mut gameplay, &mut runtime_state, &mut navigation_state, return_screen);
+                    close_pause(
+                        &mut gameplay,
+                        &mut runtime_state,
+                        &mut navigation_state,
+                        return_screen,
+                    );
                     if return_screen == ScreenId::SpatialExploration {
                         spatial_state.request_presentation_refresh();
                     }
@@ -378,23 +386,43 @@ fn close_pause(
     gameplay.dirty = true;
     runtime_state.set_paused(false);
     navigation_state.current_screen = Some(return_screen);
-    navigation_state.selected = if return_screen == ScreenId::SpatialExploration { 0 } else { gameplay.selected };
+    navigation_state.selected = if return_screen == ScreenId::SpatialExploration {
+        0
+    } else {
+        gameplay.selected
+    };
 }
 
 fn sync_pause_menu_selection(
     navigation_state: Res<NavigationState>,
     gameplay: Res<GameplayState>,
     mut commands: Commands,
-    buttons: Query<(Entity, &PauseMenuChoice, Option<&bevy_presentation::UiSelected>)>,
+    buttons: Query<(
+        Entity,
+        &PauseMenuChoice,
+        Option<&bevy_presentation::UiSelected>,
+    )>,
 ) {
     if gameplay.screen != GameplayScreen::Pause
-        || !matches!(navigation_state.current_screen, Some(ScreenId::Gameplay | ScreenId::SpatialExploration))
-    { return; }
+        || !matches!(
+            navigation_state.current_screen,
+            Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
+        )
+    {
+        return;
+    }
     for (entity, choice, selected) in &buttons {
         let should_select = choice.0 == gameplay.pause_selected;
         if should_select != selected.is_some() {
-            if should_select { commands.entity(entity).insert(bevy_presentation::UiSelected); }
-            else { commands.entity(entity).remove::<bevy_presentation::UiSelected>(); }
+            if should_select {
+                commands
+                    .entity(entity)
+                    .insert(bevy_presentation::UiSelected);
+            } else {
+                commands
+                    .entity(entity)
+                    .remove::<bevy_presentation::UiSelected>();
+            }
         }
     }
 }
@@ -446,7 +474,9 @@ fn activate_selection(
                 PauseAction::Resume => {
                     let return_screen = pause_parent_screen(navigation_state.current_screen);
                     close_pause(gameplay, runtime_state, navigation_state, return_screen);
-                    if return_screen == ScreenId::SpatialExploration { spatial_state.request_presentation_refresh(); }
+                    if return_screen == ScreenId::SpatialExploration {
+                        spatial_state.request_presentation_refresh();
+                    }
                 }
                 PauseAction::Character => {
                     gameplay.dirty = true;
@@ -1152,7 +1182,11 @@ fn sky_visual(time_points: u32) -> SkyVisual {
     }
 }
 
-pub(crate) fn render_spatial_pause_overlay(commands: &mut Commands, parent: Entity, selected: usize) {
+pub(crate) fn render_spatial_pause_overlay(
+    commands: &mut Commands,
+    parent: Entity,
+    selected: usize,
+) {
     let actions = pause_actions();
     render_pause(commands, parent, &actions, selected);
 }

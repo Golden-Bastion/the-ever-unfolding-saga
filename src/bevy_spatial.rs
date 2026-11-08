@@ -176,7 +176,9 @@ pub(crate) struct SpatialExplorationState {
 }
 
 impl SpatialExplorationState {
-    pub(crate) fn request_presentation_refresh(&mut self) { self.dirty = true; }
+    pub(crate) fn request_presentation_refresh(&mut self) {
+        self.dirty = true;
+    }
 }
 
 pub(crate) fn sandbox_map(state: &SpatialExplorationState) -> Option<&LocalMap> {
@@ -648,14 +650,23 @@ fn spatial_input(
                 open_interaction_wheel(&mut state, &lifecycle);
             }
             InputEvent::Cancel | InputEvent::Backspace if !state.sandbox_mode => {
-                crate::bevy_gameplay::open_pause(&mut gameplay, &mut runtime_state, &mut navigation);
+                crate::bevy_gameplay::open_pause(
+                    &mut gameplay,
+                    &mut runtime_state,
+                    &mut navigation,
+                );
                 state.dirty = true;
             }
             InputEvent::Cancel | InputEvent::Backspace => exit_spatial(&mut state, &mut navigation),
             InputEvent::OpenSecondaryNavigation if !state.sandbox_mode => {
-                if state.interaction_wheel.is_some() { close_interaction_wheel(&mut state, None); }
-                else {
-                    crate::bevy_gameplay::open_pause(&mut gameplay, &mut runtime_state, &mut navigation);
+                if state.interaction_wheel.is_some() {
+                    close_interaction_wheel(&mut state, None);
+                } else {
+                    crate::bevy_gameplay::open_pause(
+                        &mut gameplay,
+                        &mut runtime_state,
+                        &mut navigation,
+                    );
                     state.dirty = true;
                 }
             }
@@ -1131,10 +1142,14 @@ fn update_spatial_world(
     world_entities: Query<Entity, With<SpatialWorldEntity>>,
 ) {
     if navigation.current_screen != Some(ScreenId::SpatialExploration) {
-        for entity in &world_entities { commands.entity(entity).despawn(); }
+        for entity in &world_entities {
+            commands.entity(entity).despawn();
+        }
         return;
     }
-    if runtime_state.is_paused() { return; }
+    if runtime_state.is_paused() {
+        return;
+    }
     let Some(location_id) = state
         .session
         .as_ref()
@@ -1615,10 +1630,18 @@ fn render_spatial_screen(
         Display::None
     };
     spawn_control(
-        &mut commands, footer, "Interact", SpatialAction::Interact, interaction_display,
+        &mut commands,
+        footer,
+        "Interact",
+        SpatialAction::Interact,
+        interaction_display,
     );
     if gameplay.screen == crate::bevy_gameplay::GameplayScreen::Pause {
-        crate::bevy_gameplay::render_spatial_pause_overlay(&mut commands, root, gameplay.pause_selected);
+        crate::bevy_gameplay::render_spatial_pause_overlay(
+            &mut commands,
+            root,
+            gameplay.pause_selected,
+        );
     }
     state.dirty = false;
 }
