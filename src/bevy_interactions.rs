@@ -551,6 +551,7 @@ fn cancel(state: &mut BevyInteractionState, navigation: &mut NavigationState) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_if_active(
     mut commands: Commands,
     lifecycle: Res<LifecycleState>,
