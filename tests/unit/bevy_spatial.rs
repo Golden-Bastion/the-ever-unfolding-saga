@@ -920,6 +920,7 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
         f32::from(exit.position.y) + 0.5,
     );
     spatial.session.as_mut().unwrap().position = exit.position;
+    let source_location_id = lifecycle.session.as_ref().unwrap().state.character.location_id;
 
     use_map_exit(
         &mut spatial,
@@ -935,8 +936,7 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
         .get(&destination_key)
         .expect("first arrival should create the destination map");
     assert!(destination_map.exits.iter().any(|map_exit| {
-        map_exit.target_location_id == game.character.location_id
-            && map_exit.target_location_id != destination_id
+        map_exit.target_location_id == source_location_id
     }));
     assert!(game
         .world
