@@ -148,3 +148,54 @@ fn fixture_names_cannot_create_paths_outside_the_fixture_directory() {
         .starts_with("unsafe-name"));
     fs::remove_dir_all(directory).unwrap();
 }
+
+
+#[test]
+fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
+    let mut map = generate_local_map(73, "location.10", LocalMapConfig::default());
+    let edge = GridPosition {
+        x: map.width - 1,
+        y: 1,
+    };
+    assert!(map.set_terrain(edge, Terrain::Floor));
+    map.exits.push(MapExit {
+        id: "location.10.exit.20".into(),
+        position: edge,
+        target_location_id: 20,
+    });
+    let actor = GridPosition { x: 1, y: 1 };
+    assert!(map.set_terrain(actor, Terrain::Floor));
+    map.interactables.push(SpatialEntityPlacement {
+        entity_id: 101,
+        kind: SpatialEntityKind::Npc,
+        position: actor,
+    });
+    validate_local_map(&map).expect("real identities should validate in a fixture");
+
+    let mut duplicate_passage = map.clone();
+    let second_edge = GridPosition {
+        x: 0,
+        y: 1,
+    };
+    assert!(duplicate_passage.set_terrain(second_edge, Terrain::Floor));
+    duplicate_passage.exits.push(MapExit {
+        id: "location.10.exit.20.duplicate".into(),
+        position: second_edge,
+        target_location_id: 20,
+    });
+    assert!(validate_local_map(&duplicate_passage)
+        .unwrap_err()
+        .contains("passage destinations"));
+
+    let mut duplicate_actor = map.clone();
+    let second_actor_cell = GridPosition { x: 2, y: 1 };
+    assert!(duplicate_actor.set_terrain(second_actor_cell, Terrain::Floor));
+    duplicate_actor.interactables.push(SpatialEntityPlacement {
+        entity_id: 101,
+        kind: SpatialEntityKind::Corpse,
+        position: second_actor_cell,
+    });
+    assert!(validate_local_map(&duplicate_actor)
+        .unwrap_err()
+        .contains("non-zero unique entity IDs"));
+}
