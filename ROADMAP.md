@@ -12,7 +12,7 @@ The v0.52.0–v0.52.6 storage, mod-management, and character-focused interface w
 
 The current Gameplay dashboard is a transitional hub, not the intended permanent gameplay surface. Issue #421 tracks the migration of its useful functions—world context, travel, Explore/Investigate, meditation, character records, and system/menu access—into discoverable spatial HUD controls, contextual interactions, overlays, and focused record screens. The dashboard must remain available until those functions have replacements that work on desktop and Android landscape. The spatial scene should remain the primary context when opening and closing ordinary overlays where appropriate; safe-location activities must remain convenient rather than requiring unnecessary movement.
 
-The first foundation refinement makes movement collision checks resilient to brief frame drops and makes camera smoothing frame-rate independent while enforcing map bounds after smoothing. This is an incremental foundation pass, not a claim that the spatial-first migration is complete.
+The first foundation refinement makes movement collision checks resilient to brief frame drops and makes camera smoothing frame-rate independent while enforcing map bounds after smoothing. The reusable spatial sprite-animation layer now defines four directional idle/walk clips, frame-rate-independent playback, and a mod-aware sprite-sheet contract with a static-sprite fallback while the art is pending. The Ash Warden sheet is currently an empty placeholder; visible directional animation is not complete until valid 80×96 artwork is supplied and verified in-game. This is an incremental foundation pass, not a claim that the spatial-first migration is complete.
 
 ## Developer tools
 
@@ -26,7 +26,7 @@ Character Workshop manually assembles currently available modular portrait parts
 
 ## Active milestone
 
-**v0.52.x — Spatial exploration and interaction** (prototype #353; actor and interaction foundation #404; presentation follow-up #405; world-topology design #365)
+**v0.53.0 — Spatial exploration and directional character animation foundation** (prototype #353; actor and interaction foundation #404; presentation follow-up #405; world-topology design #365)
 
 The renderer-neutral local-map model, deterministic generation, Bevy exploration view, continuous movement, blocked-terrain collision, camera tracking, depth ordering, and world-persistent map state are implemented. The prototype includes desktop keyboard movement, an Android virtual joystick, first-pass pixel-art terrain and character assets, basic prop collision and occlusion, and the authored Old Shrine chamber layout (#381). The exact active exploration position and session remain character-specific, while established local maps and their lasting changes persist with the world.
 
