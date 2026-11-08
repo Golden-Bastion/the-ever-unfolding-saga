@@ -487,23 +487,18 @@ fn same_target_actions_have_distinct_wheel_identities() {
     assert_ne!(talk.stable_key(), examine.stable_key());
 }
 
-
 #[test]
 fn radial_wheel_selection_feedback_pulses_smoothly() {
     assert_eq!(interaction_wheel_entry_scale(false, 0.0), 1.0);
     assert_eq!(interaction_wheel_entry_scale(true, 0.0), 1.0);
 
-    let midpoint = interaction_wheel_entry_scale(
-        true,
-        INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS * 0.5,
-    );
+    let midpoint =
+        interaction_wheel_entry_scale(true, INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS * 0.5);
     assert!(midpoint > 1.0);
     assert!(midpoint <= 1.091);
 
-    let settled = interaction_wheel_entry_scale(
-        true,
-        INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS,
-    );
+    let settled =
+        interaction_wheel_entry_scale(true, INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS);
     assert!((settled - 1.0).abs() < 0.001);
 }
 
@@ -529,8 +524,14 @@ fn crowded_radial_wheels_use_two_rings_without_clipping_entries() {
         for size in [INTERACTION_WHEEL_SIZE_PX, 244.0] {
             for index in 0..count {
                 let layout = interaction_wheel_entry_layout(index, count, size);
-                assert!(layout.position.x >= 0.0, "entry {index} of {count} clips left at {size}");
-                assert!(layout.position.y >= 0.0, "entry {index} of {count} clips top at {size}");
+                assert!(
+                    layout.position.x >= 0.0,
+                    "entry {index} of {count} clips left at {size}"
+                );
+                assert!(
+                    layout.position.y >= 0.0,
+                    "entry {index} of {count} clips top at {size}"
+                );
                 assert!(
                     layout.position.x + layout.width <= size,
                     "entry {index} of {count} clips right at {size}"
@@ -552,14 +553,8 @@ fn crowded_radial_wheels_use_two_rings_without_clipping_entries() {
 }
 #[test]
 fn crowded_wheel_directional_selection_matches_visible_cardinal_entries() {
-    assert_eq!(
-        interaction_wheel_index_for_direction(9, Vec2::Y),
-        Some(0)
-    );
-    assert_eq!(
-        interaction_wheel_index_for_direction(9, Vec2::X),
-        Some(2)
-    );
+    assert_eq!(interaction_wheel_index_for_direction(9, Vec2::Y), Some(0));
+    assert_eq!(interaction_wheel_index_for_direction(9, Vec2::X), Some(2));
     assert_eq!(
         interaction_wheel_index_for_direction(9, Vec2::NEG_Y),
         Some(4)

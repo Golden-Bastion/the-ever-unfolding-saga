@@ -704,7 +704,10 @@ fn update_spatial_wheel_animation(
     mut navigation: ResMut<NavigationState>,
     mut requests: MessageWriter<SpatialInteractionRequest>,
     mut wheel_roots: Query<&mut UiTransform, With<SpatialInteractionWheelRoot>>,
-    mut wheel_entries: Query<(&SpatialWheelEntry, &mut UiTransform), Without<SpatialInteractionWheelRoot>>,
+    mut wheel_entries: Query<
+        (&SpatialWheelEntry, &mut UiTransform),
+        Without<SpatialInteractionWheelRoot>,
+    >,
 ) {
     let mut finished_close = false;
     let mut pending = None;
@@ -1526,22 +1529,14 @@ fn interaction_wheel_index_for_direction(count: usize, direction: Vec2) -> Optio
     }
     let direction = direction.normalize();
     (0..count).max_by(|left, right| {
-        let left_score = interaction_wheel_entry_layout(
-            *left,
-            count,
-            INTERACTION_WHEEL_SIZE_PX,
-        )
-        .center_offset
-        .normalize_or_zero()
-        .dot(direction);
-        let right_score = interaction_wheel_entry_layout(
-            *right,
-            count,
-            INTERACTION_WHEEL_SIZE_PX,
-        )
-        .center_offset
-        .normalize_or_zero()
-        .dot(direction);
+        let left_score = interaction_wheel_entry_layout(*left, count, INTERACTION_WHEEL_SIZE_PX)
+            .center_offset
+            .normalize_or_zero()
+            .dot(direction);
+        let right_score = interaction_wheel_entry_layout(*right, count, INTERACTION_WHEEL_SIZE_PX)
+            .center_offset
+            .normalize_or_zero()
+            .dot(direction);
         left_score.total_cmp(&right_score)
     })
 }
@@ -1553,8 +1548,6 @@ fn interaction_wheel_entry_scale(selected: bool, elapsed: f32) -> f32 {
     let progress = (elapsed / INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS).clamp(0.0, 1.0);
     1.0 + 0.09 * (std::f32::consts::PI * progress).sin()
 }
-
-
 
 fn spawn_interaction_wheel(
     commands: &mut Commands,
@@ -1693,11 +1686,7 @@ fn spawn_interaction_wheel_entry(
     commands.entity(parent).add_child(button);
 }
 
-fn spawn_interaction_wheel_close_button(
-    commands: &mut Commands,
-    parent: Entity,
-    size: f32,
-) {
+fn spawn_interaction_wheel_close_button(commands: &mut Commands, parent: Entity, size: f32) {
     let close_size = 44.0 * (size / INTERACTION_WHEEL_SIZE_PX);
     let close = commands
         .spawn((
@@ -1735,8 +1724,6 @@ fn spawn_interaction_wheel_close_button(
     commands.entity(close).add_child(label);
     commands.entity(parent).add_child(close);
 }
-
-
 
 fn interaction_wheel_scale(wheel: &SpatialInteractionWheel) -> f32 {
     let progress = (wheel.elapsed / INTERACTION_WHEEL_ANIMATION_SECONDS).clamp(0.0, 1.0);
