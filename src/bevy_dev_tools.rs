@@ -297,14 +297,149 @@ fn reset_combination(state: &mut DeveloperToolsState) {
     state.dirty = true;
 }
 
-fn generate_world_lab_map(options: WorldLabOptions) -> LocalMap {
+fn generate_world_lab_game(seed: u64) -> GameState {
+    let content = load_campaign_content_report().content;
+    let config = crate::procedural::WorldGenerationConfig::default();
+    let mut world = crate::procedural::generate_world("World Lab", seed, config);
+    world.generation = Some(WorldGenerationMetadata {
+        seed,
+        region_count: config.region_count,
+        location_count: config.location_count,
+        extra_edges: config.extra_edges,
+    });
+    crate::procedural::place_authored_content(&mut world, &content);
+    let character = world.spawn_character("World Lab Tester".into(), "Observer".into());
+    let mut game = GameState {
+        world,
+        character,
+        threat: ThreatState::default(),
+        corpses: Vec::new(),
+        factions: Vec::new(),
+        npcs: Vec::new(),
+        quests: Vec::new(),
+        last_announced_location_id: None,
+        rng_state: seed,
+        campaign_content: Some(content),
+    };
+    crate::game::world::bootstrap_campaign_content(&mut game);
+    game
+}
+
+fn world_lab_actor_catalog(game: &GameState, location_id: u64) -> Vec<WorldLabActor> {
+    let mut actors = game
+        .npcs
+        .iter()
+        .filter(|npc| npc.location_id == location_id)
+        .map(|npc| WorldLabActor {
+            entity_id: npc.id,
+            kind: SpatialEntityKind::Npc,
+            label: format!("{} — {}", npc.name, npc.title),
+        })
+        .collect::<Vec<_>>();
+    actors.extend(
+        game.corpses
+            .iter()
+            .filter(|corpse| corpse.location_id == location_id && !corpse.inventory.is_empty())
+            .map(|corpse| WorldLabActor {
+                entity_id: corpse.id,
+                kind: SpatialEntityKind::Corpse,
+                label: format!("Remains of {}", corpse.former_name),
+            }),
+    );
+    actors.sort_by_key(|actor| actor.entity_id);
+    actors
+}
+
+fn generate_world_lab_session(options: WorldLabOptions) -> (LocalMap, WorldLabScenario) {
+    let game = generate_world_lab_game(options.seed);
+    let location_index = options.location_index.min(game.world.locations.len().saturating_sub(1));
+    let location = game.world.locations[location_index].clone();
     let (width, height) = WORLD_LAB_SIZES[options.size_index.min(WORLD_LAB_SIZES.len() - 1)];
-    generate_local_map_with_layout(
+    let layout = if options.shrine_layout {
+        Some("shrine_chamber")
+    } else {
+        location.spatial_layout.as_deref()
+    };
+    let mut map = generate_local_map_with_layout(
         options.seed,
-        "developer.world_lab",
+        format!("location.{}", location.id),
         LocalMapConfig { width, height },
-        options.shrine_layout.then_some("shrine_chamber"),
-    )
+        layout,
+    );
+    configure_map_exits(&mut map, &location.exits);
+
+    let discoveries = game
+        .campaign_content
+        .as_ref()
+        .and_then(|content| {
+            content
+                .world
+                .locations
+                .iter()
+                .find(|content_location| content_location.name == location.name)
+        })
+        .map(|content_location| {
+            content_location
+                .spatial_discoveries
+                .iter()
+                .map(|discovery| SpatialDiscoveryDefinition {
+                    id: discovery.id.clone(),
+                    title: discovery.title.clone(),
+                    description: discovery.description.clone(),
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    apply_authored_spatial_discoveries(&mut map, &discoveries);
+
+    let scenario = WorldLabScenario {
+        world: game.world.clone(),
+        location_id: location.id,
+        actors: world_lab_actor_catalog(&game, location.id),
+    };
+    (map, scenario)
+}
+
+fn generate_world_lab_map(options: WorldLabOptions) -> LocalMap {
+    generate_world_lab_session(options).0
+}
+
+fn restore_world_lab_scenario(map: &LocalMap) -> Option<WorldLabScenario> {
+    let location_id = map.location_id.strip_prefix("location.")?.parse::<u64>().ok()?;
+    let game = generate_world_lab_game(map.seed);
+    game.world.location_by_id(location_id)?;
+
+    let mut scenario = WorldLabScenario {
+        world: game.world.clone(),
+        location_id,
+        actors: world_lab_actor_catalog(&game, location_id),
+    };
+    let valid_destinations = scenario
+        .world
+        .locations
+        .iter()
+        .map(|location| location.id)
+        .filter(|id| *id != location_id)
+        .collect::<Vec<_>>();
+    let targets = map
+        .exits
+        .iter()
+        .map(|exit| exit.target_location_id)
+        .filter(|target| valid_destinations.contains(target))
+        .collect::<Vec<_>>();
+    if let Some(source) = scenario.world.location_by_id_mut(location_id) {
+        source.exits = targets.clone();
+    }
+    for location in &mut scenario.world.locations {
+        if location.id == location_id {
+            continue;
+        }
+        location.exits.retain(|target| *target != location_id);
+        if targets.contains(&location.id) {
+            location.exits.push(location_id);
+        }
+    }
+    Some(scenario)
 }
 
 fn world_lab_map_preview(map: &LocalMap) -> String {
@@ -316,6 +451,17 @@ fn world_lab_map_preview_with_cursor(
     cursor: Option<GridPosition>,
     held_prop_id: Option<&str>,
     held_point_of_interest_id: Option<&str>,
+) -> String {
+    world_lab_map_preview_with_all_holds(map, cursor, held_prop_id, held_point_of_interest_id, None, None)
+}
+
+fn world_lab_map_preview_with_all_holds(
+    map: &LocalMap,
+    cursor: Option<GridPosition>,
+    held_prop_id: Option<&str>,
+    held_point_of_interest_id: Option<&str>,
+    held_passage_id: Option<&str>,
+    held_actor_id: Option<u64>,
 ) -> String {
     let mut preview = String::with_capacity(usize::from(map.width) * (usize::from(map.height) + 1));
     for y in 0..map.height {
@@ -334,6 +480,17 @@ fn world_lab_map_preview_with_cursor(
                     'Q'
                 } else {
                     '?'
+                }
+            } else if let Some(exit) = map.exits.iter().find(|exit| exit.position == position) {
+                if held_passage_id == Some(exit.id.as_str()) { 'D' } else { 'E' }
+            } else if let Some(actor) = map.interactables.iter().find(|actor| actor.position == position) {
+                if held_actor_id == Some(actor.entity_id) {
+                    'A'
+                } else {
+                    match actor.kind {
+                        SpatialEntityKind::Npc => 'N',
+                        SpatialEntityKind::Corpse => 'C',
+                    }
                 }
             } else if let Some(prop) = map
                 .props
@@ -382,17 +539,25 @@ fn world_lab_editor_tool_name(tool: WorldLabEditorTool) -> &'static str {
     match tool {
         WorldLabEditorTool::Prop => "Prop",
         WorldLabEditorTool::PointOfInterest => "Point of Interest",
+        WorldLabEditorTool::Passage => "Passage",
+        WorldLabEditorTool::Actor => "Actor",
     }
 }
 
 fn cycle_world_lab_editor_tool(state: &mut DeveloperToolsState) {
-    if state.world_lab_held_prop.is_some() || state.world_lab_held_point_of_interest.is_some() {
+    if state.world_lab_held_prop.is_some()
+        || state.world_lab_held_point_of_interest.is_some()
+        || state.world_lab_held_passage.is_some()
+        || state.world_lab_held_actor.is_some()
+    {
         state.world_lab_status = Some("Drop the held object before switching editor tools.".into());
         return;
     }
     state.world_lab_editor_tool = match state.world_lab_editor_tool {
         WorldLabEditorTool::Prop => WorldLabEditorTool::PointOfInterest,
-        WorldLabEditorTool::PointOfInterest => WorldLabEditorTool::Prop,
+        WorldLabEditorTool::PointOfInterest => WorldLabEditorTool::Passage,
+        WorldLabEditorTool::Passage => WorldLabEditorTool::Actor,
+        WorldLabEditorTool::Actor => WorldLabEditorTool::Prop,
     };
     state.world_lab_status = Some(format!(
         "Editor tool set to {}.",
