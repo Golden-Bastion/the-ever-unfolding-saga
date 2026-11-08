@@ -3,8 +3,8 @@ plugins {
 }
 
 def androidAbi = System.getenv("ANDROID_ABI") ?: "arm64-v8a"
-def androidVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.52.22"
-def androidVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "5222001").toInteger()
+def androidVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.52.23"
+def androidVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "5223001").toInteger()
 
 def signingStoreFile = System.getenv("ANDROID_KEYSTORE_FILE")
 def signingStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")

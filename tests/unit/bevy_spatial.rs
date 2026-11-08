@@ -180,6 +180,38 @@ fn camera_dead_zone_moves_only_by_the_excess_offset() {
 }
 
 #[test]
+fn camera_follow_is_consistent_across_frame_rates() {
+    let map = generate_local_map(4, "location.camera_follow_test", LocalMapConfig::default());
+    let player = Vec2::new(200.0, 100.0);
+    let viewport = Vec2::new(320.0, 180.0);
+
+    let mut camera_30 = Vec2::ZERO;
+    for _ in 0..30 {
+        camera_30 = camera_follow_position(player, camera_30, viewport, &map, 1.0 / 30.0);
+    }
+
+    let mut camera_60 = Vec2::ZERO;
+    for _ in 0..60 {
+        camera_60 = camera_follow_position(player, camera_60, viewport, &map, 1.0 / 60.0);
+    }
+
+    assert!(
+        camera_30.distance(camera_60) < 0.001,
+        "30 FPS and 60 FPS camera paths should converge identically: {camera_30:?} vs {camera_60:?}"
+    );
+}
+
+#[test]
+fn camera_follow_clamps_the_smoothed_position_to_map_bounds() {
+    let map = generate_local_map(4, "location.camera_bounds_test", LocalMapConfig::default());
+    let viewport = Vec2::new(320.0, 180.0);
+    let camera = Vec2::new(10_000.0, -10_000.0);
+    let followed = camera_follow_position(Vec2::ZERO, camera, viewport, &map, 0.0);
+
+    assert_eq!(followed, clamp_camera_target(camera, &map, viewport));
+}
+
+#[test]
 fn camera_bounds_center_maps_smaller_than_the_viewport() {
     let map = generate_local_map(
         4,
@@ -441,6 +473,47 @@ fn movement_is_continuous_within_walkable_tiles() {
     let moved = advance_position(&map, start, world_units_per_pixel, 0.1, PLAYER_SPEED);
     assert!(moved.x > start.x);
     assert!((moved.x - start.x - 0.4).abs() < 0.001);
+}
+
+#[test]
+fn movement_catches_up_through_short_frame_drops() {
+    let mut map = generate_local_map(
+        4,
+        "location.movement_stutter_test",
+        LocalMapConfig::default(),
+    );
+    map.props.clear();
+    for x in map.entry.x..=map.entry.x + 2 {
+        map.set_terrain(GridPosition { x, y: map.entry.y }, Terrain::Floor);
+    }
+
+    let start = Vec2::new(f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
+    let world_units_per_pixel = Vec2::X / 45.0;
+    let moved = advance_position(&map, start, world_units_per_pixel, 0.2, PLAYER_SPEED);
+
+    assert!((moved.x - start.x - 0.8).abs() < 0.001);
+    assert_eq!(moved.y, start.y);
+}
+
+#[test]
+fn movement_substeps_do_not_allow_crossing_blocked_terrain_after_a_slow_frame() {
+    let mut map = generate_local_map(
+        4,
+        "location.movement_collision_stutter_test",
+        LocalMapConfig::default(),
+    );
+    map.props.clear();
+    let start = Vec2::new(f32::from(map.entry.x) + 0.8, f32::from(map.entry.y) + 0.5);
+    let wall = GridPosition {
+        x: map.entry.x + 1,
+        y: map.entry.y,
+    };
+    map.set_terrain(wall, Terrain::Wall);
+    let world_units_per_pixel = Vec2::X / 45.0;
+    let moved = advance_position(&map, start, world_units_per_pixel, 0.2, PLAYER_SPEED);
+
+    assert!(moved.x <= start.x);
+    assert_eq!(moved.y, start.y);
 }
 
 #[test]
