@@ -8,6 +8,7 @@ pub const GAME_DIRECTORY_NAME: &str = "The Ever-Unfolding Saga";
 pub const SAVES_DIRECTORY_NAME: &str = "saves";
 pub const MODS_DIRECTORY_NAME: &str = "mods";
 pub const IMPORTS_DIRECTORY_NAME: &str = "imports";
+pub const DEVELOPER_FIXTURES_DIRECTORY_NAME: &str = "developer_fixtures";
 
 static GAME_PATHS: OnceLock<GamePaths> = OnceLock::new();
 
@@ -17,6 +18,8 @@ pub struct GamePaths {
     pub saves_dir: PathBuf,
     pub mods_dir: PathBuf,
     pub imports_dir: PathBuf,
+    pub developer_fixtures_dir: PathBuf,
+    pub spatial_fixture_imports_dir: PathBuf,
     #[cfg(target_os = "android")]
     pub save_imports_dir: PathBuf,
     #[cfg(target_os = "android")]
@@ -37,6 +40,8 @@ impl GamePaths {
         let saves_dir = root.join(SAVES_DIRECTORY_NAME);
         let mods_dir = root.join(MODS_DIRECTORY_NAME);
         let imports_dir = root.join(IMPORTS_DIRECTORY_NAME);
+        let developer_fixtures_dir = root.join(DEVELOPER_FIXTURES_DIRECTORY_NAME);
+        let spatial_fixture_imports_dir = imports_dir.join("spatial_fixtures");
         #[cfg(target_os = "android")]
         let save_imports_dir = imports_dir.join("saves");
         #[cfg(target_os = "android")]
@@ -47,6 +52,8 @@ impl GamePaths {
             root.as_path(),
             saves_dir.as_path(),
             mods_dir.as_path(),
+            developer_fixtures_dir.as_path(),
+            spatial_fixture_imports_dir.as_path(),
             #[cfg(target_os = "android")]
             save_imports_dir.as_path(),
             #[cfg(target_os = "android")]
@@ -71,6 +78,8 @@ impl GamePaths {
             saves_dir,
             mods_dir,
             imports_dir,
+            developer_fixtures_dir,
+            spatial_fixture_imports_dir,
             #[cfg(target_os = "android")]
             save_imports_dir,
             #[cfg(target_os = "android")]

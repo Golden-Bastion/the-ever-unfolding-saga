@@ -372,6 +372,7 @@ pub enum ScreenId {
     CharacterWorkshop,
     WorldLab,
     WorldLabEditor,
+    WorldLabFixtures,
     Gameplay,
     Character,
     Meditation,
