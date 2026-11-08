@@ -53,8 +53,12 @@ const WALL_TOP_DEPTH_BIAS: f32 = 0.002;
 const WALL_FACE_DEPTH_BIAS: f32 = -0.002;
 const PLAYER_DEPTH_OFFSET: f32 = 0.04;
 const INTERACTION_WHEEL_ANIMATION_SECONDS: f32 = 0.16;
+const INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS: f32 = 0.18;
 const INTERACTION_WHEEL_SIZE_PX: f32 = 300.0;
 const INTERACTION_WHEEL_BUTTON_HEIGHT_PX: f32 = 48.0;
+const INTERACTION_WHEEL_OUTER_RING_ENTRIES: usize = 8;
+const INTERACTION_WHEEL_OUTER_RING_RADIUS_PX: f32 = 112.0;
+const INTERACTION_WHEEL_INNER_RING_RADIUS_PX: f32 = 58.0;
 
 #[derive(Component)]
 struct SpatialWorldEntity;
@@ -97,6 +101,7 @@ struct SpatialInteractionWheel {
     selected: usize,
     phase: InteractionWheelPhase,
     elapsed: f32,
+    selection_elapsed: f32,
     pending: Option<AvailableInteraction>,
 }
 
@@ -595,6 +600,7 @@ fn open_interaction_wheel(state: &mut SpatialExplorationState, lifecycle: &Lifec
         selected: 0,
         phase: InteractionWheelPhase::Opening,
         elapsed: 0.0,
+        selection_elapsed: INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS,
         pending: None,
     });
 }
@@ -610,7 +616,10 @@ fn close_interaction_wheel(state: &mut SpatialExplorationState, selected: Option
         let Some(interaction) = wheel.entries.get(index).cloned() else {
             return;
         };
-        wheel.selected = index;
+        if wheel.selected != index {
+            wheel.selected = index;
+            wheel.selection_elapsed = 0.0;
+        }
         wheel.pending = Some(interaction);
     } else {
         wheel.pending = None;
@@ -638,7 +647,10 @@ fn move_interaction_wheel_selection(state: &mut SpatialExplorationState, directi
         return;
     }
     if let Some(selected) = interaction_wheel_index_for_direction(wheel.entries.len(), direction) {
-        wheel.selected = selected;
+        if wheel.selected != selected {
+            wheel.selected = selected;
+            wheel.selection_elapsed = 0.0;
+        }
     }
 }
 
@@ -692,11 +704,17 @@ fn update_spatial_wheel_animation(
     mut navigation: ResMut<NavigationState>,
     mut requests: MessageWriter<SpatialInteractionRequest>,
     mut wheel_roots: Query<&mut UiTransform, With<SpatialInteractionWheelRoot>>,
+    mut wheel_entries: Query<
+        (&SpatialWheelEntry, &mut UiTransform),
+        Without<SpatialInteractionWheelRoot>,
+    >,
 ) {
     let mut finished_close = false;
     let mut pending = None;
     if let Some(wheel) = state.interaction_wheel.as_mut() {
         wheel.elapsed += time.delta_secs();
+        wheel.selection_elapsed = (wheel.selection_elapsed + time.delta_secs())
+            .min(INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS);
         if wheel.phase == InteractionWheelPhase::Opening
             && wheel.elapsed >= INTERACTION_WHEEL_ANIMATION_SECONDS
         {
@@ -711,6 +729,12 @@ fn update_spatial_wheel_animation(
         let scale = interaction_wheel_scale(wheel);
         for mut transform in &mut wheel_roots {
             transform.scale = Vec2::splat(scale);
+        }
+        for (entry, mut transform) in &mut wheel_entries {
+            transform.scale = Vec2::splat(interaction_wheel_entry_scale(
+                entry.0 == wheel.selected,
+                wheel.selection_elapsed,
+            ));
         }
     }
 
@@ -1352,14 +1376,18 @@ fn spatial_player_screen_position(
     })
 }
 
-fn interaction_wheel_root_position(anchor: Vec2, viewport: Vec2) -> Vec2 {
+fn interaction_wheel_size(viewport: Vec2) -> f32 {
+    (viewport.min_element() - 16.0).clamp(96.0, INTERACTION_WHEEL_SIZE_PX)
+}
+
+fn interaction_wheel_root_position(anchor: Vec2, viewport: Vec2, size: f32) -> Vec2 {
     let maximum = Vec2::new(
-        (viewport.x - INTERACTION_WHEEL_SIZE_PX - 8.0).max(8.0),
-        (viewport.y - INTERACTION_WHEEL_SIZE_PX - 8.0).max(8.0),
+        (viewport.x - size - 8.0).max(8.0),
+        (viewport.y - size - 8.0).max(8.0),
     );
     Vec2::new(
-        (anchor.x - INTERACTION_WHEEL_SIZE_PX * 0.5).clamp(8.0, maximum.x),
-        (anchor.y - INTERACTION_WHEEL_SIZE_PX * 0.5).clamp(8.0, maximum.y),
+        (anchor.x - size * 0.5).clamp(8.0, maximum.x),
+        (anchor.y - size * 0.5).clamp(8.0, maximum.y),
     )
 }
 
@@ -1399,11 +1427,13 @@ fn sync_spatial_interaction_wheel(
     let Some(parent) = spatial_roots.iter().next() else {
         return;
     };
+    let size = interaction_wheel_size(viewport);
     spawn_interaction_wheel(
         &mut commands,
         parent,
         wheel,
-        interaction_wheel_root_position(anchor, viewport),
+        interaction_wheel_root_position(anchor, viewport, size),
+        size,
     );
 }
 
@@ -1425,19 +1455,98 @@ fn update_spatial_wheel_anchor(
     else {
         return;
     };
-    let root_position = interaction_wheel_root_position(anchor, viewport);
+    let size = interaction_wheel_size(viewport);
+    let root_position = interaction_wheel_root_position(anchor, viewport, size);
     for mut node in &mut wheel_roots {
         node.left = px(root_position.x);
         node.top = px(root_position.y);
+        node.width = px(size);
+        node.height = px(size);
     }
 }
 
-fn interaction_wheel_entry_position(index: usize, count: usize, button_width: f32) -> Vec2 {
-    let angle = -std::f32::consts::FRAC_PI_2 + std::f32::consts::TAU * index as f32 / count as f32;
-    let radius = 102.0;
-    let center = Vec2::splat(INTERACTION_WHEEL_SIZE_PX * 0.5);
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct InteractionWheelEntryLayout {
+    position: Vec2,
+    center_offset: Vec2,
+    width: f32,
+}
+
+fn interaction_wheel_entry_layout(
+    index: usize,
+    count: usize,
+    wheel_size: f32,
+) -> InteractionWheelEntryLayout {
+    let scale = wheel_size / INTERACTION_WHEEL_SIZE_PX;
+    let (ring_index, ring_count, radius, width, angle_offset) =
+        if count <= INTERACTION_WHEEL_OUTER_RING_ENTRIES {
+            let button_width = if count <= 4 {
+                104.0
+            } else if count <= 6 {
+                92.0
+            } else {
+                78.0
+            };
+            let scaled_width = (button_width * scale).max(48.0);
+            let radius = (102.0 * scale).min(wheel_size * 0.5 - scaled_width * 0.5 - 8.0);
+            (index, count, radius, scaled_width, 0.0)
+        } else if index < INTERACTION_WHEEL_OUTER_RING_ENTRIES {
+            (
+                index,
+                INTERACTION_WHEEL_OUTER_RING_ENTRIES,
+                INTERACTION_WHEEL_OUTER_RING_RADIUS_PX * scale,
+                (58.0 * scale).max(48.0),
+                0.0,
+            )
+        } else {
+            let inner_count = count - INTERACTION_WHEEL_OUTER_RING_ENTRIES;
+            (
+                index - INTERACTION_WHEEL_OUTER_RING_ENTRIES,
+                inner_count,
+                INTERACTION_WHEEL_INNER_RING_RADIUS_PX * scale,
+                (48.0 * scale).max(44.0),
+                std::f32::consts::FRAC_PI_8,
+            )
+        };
+
+    let angle = -std::f32::consts::FRAC_PI_2
+        + angle_offset
+        + std::f32::consts::TAU * ring_index as f32 / ring_count as f32;
     let offset = Vec2::new(angle.cos(), angle.sin()) * radius;
-    center + offset - Vec2::new(button_width * 0.5, INTERACTION_WHEEL_BUTTON_HEIGHT_PX * 0.5)
+    let height = INTERACTION_WHEEL_BUTTON_HEIGHT_PX;
+    let center = Vec2::splat(wheel_size * 0.5);
+    let position = center + offset - Vec2::new(width * 0.5, height * 0.5);
+    InteractionWheelEntryLayout {
+        position,
+        center_offset: Vec2::new(offset.x, -offset.y),
+        width,
+    }
+}
+
+fn interaction_wheel_index_for_direction(count: usize, direction: Vec2) -> Option<usize> {
+    if count == 0 || direction.length_squared() <= f32::EPSILON {
+        return None;
+    }
+    let direction = direction.normalize();
+    (0..count).max_by(|left, right| {
+        let left_score = interaction_wheel_entry_layout(*left, count, INTERACTION_WHEEL_SIZE_PX)
+            .center_offset
+            .normalize_or_zero()
+            .dot(direction);
+        let right_score = interaction_wheel_entry_layout(*right, count, INTERACTION_WHEEL_SIZE_PX)
+            .center_offset
+            .normalize_or_zero()
+            .dot(direction);
+        left_score.total_cmp(&right_score)
+    })
+}
+
+fn interaction_wheel_entry_scale(selected: bool, elapsed: f32) -> f32 {
+    if !selected {
+        return 1.0;
+    }
+    let progress = (elapsed / INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS).clamp(0.0, 1.0);
+    1.0 + 0.09 * (std::f32::consts::PI * progress).sin()
 }
 
 fn spawn_interaction_wheel(
@@ -1445,7 +1554,9 @@ fn spawn_interaction_wheel(
     parent: Entity,
     wheel: &SpatialInteractionWheel,
     position: Vec2,
+    size: f32,
 ) {
+    let scale = size / INTERACTION_WHEEL_SIZE_PX;
     let root = commands
         .spawn((
             SpatialInteractionWheelRoot,
@@ -1453,8 +1564,8 @@ fn spawn_interaction_wheel(
                 position_type: PositionType::Absolute,
                 left: px(position.x),
                 top: px(position.y),
-                width: px(INTERACTION_WHEEL_SIZE_PX),
-                height: px(INTERACTION_WHEEL_SIZE_PX),
+                width: px(size),
+                height: px(size),
                 ..default()
             },
             UiTransform::from_scale(Vec2::splat(interaction_wheel_scale(wheel))),
@@ -1463,13 +1574,13 @@ fn spawn_interaction_wheel(
         .id();
     commands.entity(parent).add_child(root);
 
-    let ring_size = 224.0;
+    let ring_size = 224.0 * scale;
     let ring = commands
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                left: px((INTERACTION_WHEEL_SIZE_PX - ring_size) * 0.5),
-                top: px((INTERACTION_WHEEL_SIZE_PX - ring_size) * 0.5),
+                left: px((size - ring_size) * 0.5),
+                top: px((size - ring_size) * 0.5),
                 width: px(ring_size),
                 height: px(ring_size),
                 border: UiRect::all(px(1)),
@@ -1483,27 +1594,23 @@ fn spawn_interaction_wheel(
     commands.entity(root).add_child(ring);
 
     let count = wheel.entries.len();
-    let button_width = if count <= 4 {
-        104.0
-    } else if count <= 6 {
-        92.0
-    } else {
-        78.0
-    };
     for (index, interaction) in wheel.entries.iter().enumerate() {
-        let entry_position = interaction_wheel_entry_position(index, count, button_width);
+        let layout = interaction_wheel_entry_layout(index, count, size);
         spawn_interaction_wheel_entry(
             commands,
             root,
             index,
             &interaction.label,
-            entry_position,
-            button_width,
+            layout.position,
+            layout.width,
+            wheel.selected == index,
+            wheel.selection_elapsed,
         );
     }
-    spawn_interaction_wheel_close_button(commands, root);
+    spawn_interaction_wheel_close_button(commands, root, size);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_interaction_wheel_entry(
     commands: &mut Commands,
     parent: Entity,
@@ -1511,35 +1618,58 @@ fn spawn_interaction_wheel_entry(
     label: &str,
     position: Vec2,
     width: f32,
+    selected: bool,
+    selection_elapsed: f32,
 ) {
     let button = commands
         .spawn((
             Button,
             Hovered::default(),
             bevy_presentation::UiTouchTargetShape::MinimumBounds {
-                width: width as u16,
+                width: width.max(48.0) as u16,
                 height: INTERACTION_WHEEL_BUTTON_HEIGHT_PX as u16,
             },
             SpatialControlButton,
             SpatialWheelEntry(index),
             SpatialAction::SelectInteraction(index),
+            UiTransform::from_scale(Vec2::splat(interaction_wheel_entry_scale(
+                selected,
+                selection_elapsed,
+            ))),
             Node {
                 position_type: PositionType::Absolute,
                 left: px(position.x),
                 top: px(position.y),
                 width: px(width),
                 height: px(INTERACTION_WHEEL_BUTTON_HEIGHT_PX),
-                padding: UiRect::axes(px(5), px(4)),
+                padding: UiRect::axes(px(4), px(4)),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 border: UiRect::all(px(1)),
                 border_radius: BorderRadius::all(px(5)),
                 ..default()
             },
-            BorderColor::all(bevy_presentation::THEME_BORDER),
-            BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+            BorderColor::all(if selected {
+                bevy_presentation::THEME_ACCENT
+            } else {
+                bevy_presentation::THEME_BORDER
+            }),
+            BackgroundColor(if selected {
+                bevy_presentation::THEME_SELECTED
+            } else {
+                bevy_presentation::THEME_SURFACE_STRONG
+            }),
         ))
         .id();
+    let font_size = if width < 56.0 {
+        0.56
+    } else if width < 70.0 {
+        0.62
+    } else if width < 90.0 {
+        0.68
+    } else {
+        0.78
+    };
     let text = commands
         .spawn((
             Text::new(label.to_string()),
@@ -1548,7 +1678,7 @@ fn spawn_interaction_wheel_entry(
                 ..default()
             },
             TextLayout::new(Justify::Center, LineBreak::WordOrCharacter),
-            TextFont::from_font_size(FontSize::Rem(if width < 90.0 { 0.68 } else { 0.78 })),
+            TextFont::from_font_size(FontSize::Rem(font_size)),
             TextColor(bevy_presentation::THEME_TEXT),
         ))
         .id();
@@ -1556,7 +1686,8 @@ fn spawn_interaction_wheel_entry(
     commands.entity(parent).add_child(button);
 }
 
-fn spawn_interaction_wheel_close_button(commands: &mut Commands, parent: Entity) {
+fn spawn_interaction_wheel_close_button(commands: &mut Commands, parent: Entity, size: f32) {
+    let close_size = 44.0 * (size / INTERACTION_WHEEL_SIZE_PX);
     let close = commands
         .spawn((
             Button,
@@ -1569,10 +1700,10 @@ fn spawn_interaction_wheel_close_button(commands: &mut Commands, parent: Entity)
             SpatialAction::CloseWheel,
             Node {
                 position_type: PositionType::Absolute,
-                left: px((INTERACTION_WHEEL_SIZE_PX - 44.0) * 0.5),
-                top: px((INTERACTION_WHEEL_SIZE_PX - 44.0) * 0.5),
-                width: px(44),
-                height: px(44),
+                left: px((size - close_size) * 0.5),
+                top: px((size - close_size) * 0.5),
+                width: px(close_size),
+                height: px(close_size),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 border: UiRect::all(px(1)),
@@ -1602,22 +1733,6 @@ fn interaction_wheel_scale(wheel: &SpatialInteractionWheel) -> f32 {
         InteractionWheelPhase::Open => 1.0,
         InteractionWheelPhase::Closing => 1.0 - 0.22 * eased,
     }
-}
-
-fn interaction_wheel_index_for_direction(count: usize, direction: Vec2) -> Option<usize> {
-    if count == 0 || direction.length_squared() <= f32::EPSILON {
-        return None;
-    }
-    let direction = direction.normalize();
-    (0..count).max_by(|left, right| {
-        let angle_for = |index: usize| {
-            std::f32::consts::FRAC_PI_2 - std::f32::consts::TAU * index as f32 / count as f32
-        };
-        let left_score = Vec2::new(angle_for(*left).cos(), angle_for(*left).sin()).dot(direction);
-        let right_score =
-            Vec2::new(angle_for(*right).cos(), angle_for(*right).sin()).dot(direction);
-        left_score.total_cmp(&right_score)
-    })
 }
 
 fn spawn_control(
