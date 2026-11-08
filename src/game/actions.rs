@@ -37,7 +37,10 @@ pub(crate) fn travel_to(
     target_id: crate::model::EntityId,
 ) -> std::io::Result<()> {
     if !has_reciprocal_location_connection(state, target_id) {
-        return Ok(());
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Travel requires a reciprocal world-graph connection.",
+        ));
     }
 
     state_effects::advance_time(state, 2);
