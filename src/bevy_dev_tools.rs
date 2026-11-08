@@ -859,7 +859,7 @@ fn render_if_active(
         state.rendered_screen = None;
         return;
     };
-    if state.rendered_screen == Some(screen) && !state.dirty {
+    if state.rendered_screen == Some(screen) && !state.dirty && !spatial.is_changed() {
         return;
     }
 
