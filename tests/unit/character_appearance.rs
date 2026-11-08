@@ -90,3 +90,45 @@ fn incompatible_slots_are_omitted_gracefully() {
     assert_eq!(chosen.len(), 1);
     assert_eq!(chosen[0].id, "hair.one");
 }
+
+#[test]
+fn player_portrait_uses_explicit_part_ids_in_draw_order() {
+    let parts = vec![
+        part("hair.default", "hair", 1, 20, &[], &[]),
+        part("face.default", "face", 1, 10, &[], &[]),
+        part("face.player", "face", 1, 10, &[], &[]),
+        part("hair.player", "hair", 1, 20, &[], &[]),
+    ];
+    let chosen = resolve_character_portrait(
+        &parts,
+        &["hair.player".to_string(), "face.player".to_string()],
+    );
+    assert_eq!(
+        chosen.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
+        vec!["face.player", "hair.player"]
+    );
+}
+
+#[test]
+fn player_portrait_defaults_and_missing_parts_are_stable() {
+    let parts = vec![
+        part("hair.z", "hair", 1, 20, &[], &[]),
+        part("face.z", "face", 1, 10, &[], &[]),
+        part("hair.a", "hair", 0, 20, &[], &[]),
+        part("face.a", "face", 1, 10, &[], &[]),
+        part("face.tagged", "face", 1, 10, &["royal"], &[]),
+    ];
+    let defaults = default_character_appearance_ids(&parts);
+    assert_eq!(defaults, vec!["face.a", "hair.a"]);
+    assert_eq!(
+        resolve_character_portrait(&parts, &[]),
+        resolve_character_portrait(&parts, &["removed.mod.part".to_string()])
+    );
+    assert_eq!(
+        resolve_character_portrait(&parts, &defaults)
+            .iter()
+            .map(|layer| layer.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["face.a", "hair.a"]
+    );
+}

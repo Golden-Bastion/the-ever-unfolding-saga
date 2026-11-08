@@ -1,4 +1,6 @@
-use crate::character_appearance::{actor_appearance_seed, generate_character_portrait};
+use crate::character_appearance::{
+    actor_appearance_seed, generate_character_portrait, resolve_character_portrait,
+};
 use crate::game::{quests, state_effects};
 use crate::model::{EntityId, Faction, GameState, Quest};
 use crate::presentation::{
@@ -111,11 +113,7 @@ fn build_conversation_view(state: &GameState, npc_index: usize) -> ConversationV
     let npc_tags = content
         .map(|content| content.appearance_tags_for(&npc.name))
         .unwrap_or(&[]);
-    let player_layers = generate_character_portrait(
-        parts,
-        actor_appearance_seed(world_seed, state.character.id),
-        &[],
-    );
+    let player_layers = resolve_character_portrait(parts, &state.character.appearance_parts);
     let npc_layers =
         generate_character_portrait(parts, actor_appearance_seed(world_seed, npc.id), npc_tags);
     let player = CharacterView {

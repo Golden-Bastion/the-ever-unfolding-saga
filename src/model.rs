@@ -135,6 +135,9 @@ pub struct Character {
     pub id: EntityId,
     pub name: String,
     pub title: String,
+    /// Stable modular portrait-part IDs selected during character creation.
+    #[serde(default)]
+    pub appearance_parts: Vec<String>,
     pub hp: i32,
     pub max_hp: i32,
     pub location_id: EntityId,
@@ -444,6 +447,7 @@ impl Character {
             id,
             name,
             title,
+            appearance_parts: Vec::new(),
             hp: 10,
             max_hp: 10,
             location_id,
@@ -590,7 +594,9 @@ pub fn create_new_state(
     });
     crate::procedural::place_authored_content(&mut world, &content);
     world.record_history(0, "A new world stirs beneath ash and ruin.");
-    let character = world.spawn_character(character_name, title);
+    let mut character = world.spawn_character(character_name, title);
+    character.appearance_parts =
+        crate::character_appearance::default_character_appearance_ids(&content.character_parts);
     world.record_history(
         0,
         format!("{} entered the world.", character.display_name()),
@@ -621,7 +627,8 @@ pub fn create_inherited_state(
         .clone()
         .unwrap_or_else(load_campaign_content);
     content.seed_world(&mut world);
-    let character = world.spawn_character(character_name, title);
+    let mut character = world.spawn_character(character_name, title);
+    character.appearance_parts = state.character.appearance_parts.clone();
     let turn = world.history.last().map(|entry| entry.turn).unwrap_or(0);
     world.record_history(
         turn,

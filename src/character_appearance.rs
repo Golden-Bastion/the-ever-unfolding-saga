@@ -1,7 +1,7 @@
-//! Deterministic, renderer-neutral assembly of character illustration parts.
+//! Renderer-neutral assembly of character illustration parts.
 //!
-//! The catalogue is campaign content; actors resolve their appearance from a
-//! stable seed. Image loading and compositing remain frontend responsibilities.
+//! NPCs use deterministic weighted selection; the player resolves explicitly
+//! selected stable part IDs. Image loading and compositing remain frontend work.
 
 use std::collections::{BTreeMap, HashSet};
 
@@ -14,6 +14,66 @@ pub(crate) struct CharacterPortraitLayer {
     pub slot: String,
     pub asset: String,
     pub layer: i32,
+}
+
+/// Stable, non-random defaults used for new players and saves created before
+/// player appearance selection existed. One valid part is chosen per slot.
+pub(crate) fn default_character_appearance_ids(parts: &[CharacterPartContent]) -> Vec<String> {
+    selectable_player_parts(parts)
+        .values()
+        .filter_map(|candidates| candidates.first().map(|part| part.id.clone()))
+        .collect()
+}
+
+/// Resolve a player's explicitly selected part IDs without invoking NPC portrait
+/// generation. Missing IDs fall back to the first valid part in their slot so
+/// old saves and saves with unavailable mod content still render consistently.
+pub(crate) fn resolve_character_portrait(
+    parts: &[CharacterPartContent],
+    selected_ids: &[String],
+) -> Vec<CharacterPortraitLayer> {
+    let selected_ids = selected_ids.iter().map(String::as_str).collect::<HashSet<_>>();
+    let mut selected = Vec::new();
+    for (slot, candidates) in selectable_player_parts(parts) {
+        let chosen = candidates
+            .iter()
+            .find(|part| selected_ids.contains(part.id.as_str()))
+            .copied()
+            .or_else(|| candidates.first().copied());
+        let Some(chosen) = chosen else {
+            continue;
+        };
+        selected.push(CharacterPortraitLayer {
+            id: chosen.id.clone(),
+            slot,
+            asset: chosen.asset.clone(),
+            layer: chosen.layer,
+        });
+    }
+    selected.sort_by(|left, right| {
+        left.layer
+            .cmp(&right.layer)
+            .then_with(|| left.slot.cmp(&right.slot))
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    selected
+}
+
+fn selectable_player_parts(
+    parts: &[CharacterPartContent],
+) -> BTreeMap<String, Vec<&CharacterPartContent>> {
+    let mut slots = BTreeMap::<String, Vec<&CharacterPartContent>>::new();
+    for part in parts.iter().filter(|part| {
+        !part.id.trim().is_empty()
+            && !part.asset.trim().is_empty()
+            && part.requires_tags.is_empty()
+    }) {
+        slots.entry(part.slot.clone()).or_default().push(part);
+    }
+    for candidates in slots.values_mut() {
+        candidates.sort_by(|left, right| left.id.cmp(&right.id));
+    }
+    slots
 }
 
 pub(crate) fn actor_appearance_seed(world_seed: u64, actor_id: u64) -> u64 {
