@@ -460,7 +460,11 @@ impl LocalMap {
             .into_iter()
             .filter(|cell| *cell != self.entry && *cell != position)
             .all(|cell| {
-                !self.points_of_interest.iter().any(|point| point.position == cell)
+                !self
+                    .exits
+                    .iter()
+                    .any(|exit| Some(exit.id.as_str()) != ignored_exit_id && exit.position == cell)
+                    && !self.points_of_interest.iter().any(|point| point.position == cell)
                     && !self.interactables.iter().any(|actor| actor.position == cell)
                     && !self.props.iter().any(|prop| prop.footprint_contains(cell, self.width))
             })
