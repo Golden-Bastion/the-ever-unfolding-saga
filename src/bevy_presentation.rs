@@ -14,7 +14,7 @@ use bevy::input_focus::{
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{EditableText, Justify, LineBreak, TextCursorStyle, TextLayout};
-use bevy::ui::Pressed;
+use bevy::ui::{Pressed, UiTransform};
 use bevy::ui_widgets::{Activate, Button};
 use bevy::window::PrimaryWindow;
 use std::collections::{HashMap, HashSet};
@@ -381,6 +381,75 @@ pub enum ScreenId {
     Feedback,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PresentationTransitionPhase {
+    Entering,
+    Active,
+    Exiting,
+    Finished,
+}
+
+/// A reusable scale transition for scene roots and contextual views.
+#[derive(Component, Debug, Clone, Copy)]
+pub(crate) struct PresentationTransition {
+    phase: PresentationTransitionPhase,
+    elapsed: f32,
+    duration: f32,
+    start_scale: f32,
+    end_scale: f32,
+}
+
+impl PresentationTransition {
+    pub(crate) fn entering() -> Self {
+        Self { phase: PresentationTransitionPhase::Entering, elapsed: 0.0, duration: 0.18, start_scale: 0.96, end_scale: 1.0 }
+    }
+
+    pub(crate) fn begin_exit(&mut self, current_scale: f32) {
+        if matches!(self.phase, PresentationTransitionPhase::Exiting | PresentationTransitionPhase::Finished) {
+            return;
+        }
+        self.phase = PresentationTransitionPhase::Exiting;
+        self.elapsed = 0.0;
+        self.duration = 0.16;
+        self.start_scale = current_scale;
+        self.end_scale = 0.96;
+    }
+
+    pub(crate) fn is_finished(&self) -> bool {
+        self.phase == PresentationTransitionPhase::Finished
+    }
+}
+
+fn presentation_transition_scale(start: f32, end: f32, progress: f32) -> f32 {
+    let progress = progress.clamp(0.0, 1.0);
+    let eased = progress * progress * (3.0 - 2.0 * progress);
+    start + (end - start) * eased
+}
+
+pub(crate) fn update_presentation_transitions(
+    time: Res<Time>,
+    mut transitions: Query<(&mut PresentationTransition, &mut UiTransform)>,
+) {
+    for (mut transition, mut transform) in &mut transitions {
+        if matches!(transition.phase, PresentationTransitionPhase::Active | PresentationTransitionPhase::Finished) {
+            continue;
+        }
+        transition.elapsed += time.delta_secs();
+        let progress = (transition.elapsed / transition.duration.max(f32::EPSILON)).clamp(0.0, 1.0);
+        transform.scale = Vec2::splat(presentation_transition_scale(transition.start_scale, transition.end_scale, progress));
+        if progress >= 1.0 {
+            match transition.phase {
+                PresentationTransitionPhase::Entering => {
+                    transition.phase = PresentationTransitionPhase::Active;
+                    transform.scale = Vec2::ONE;
+                }
+                PresentationTransitionPhase::Exiting => transition.phase = PresentationTransitionPhase::Finished,
+                PresentationTransitionPhase::Active | PresentationTransitionPhase::Finished => {}
+            }
+        }
+    }
+}
+
 fn screen_padding() -> Val {
     responsive_vmin(3.333)
 }
@@ -421,6 +490,7 @@ pub(crate) fn muted_font_size() -> FontSize {
 }
 
 pub fn install(app: &mut App) {
+    app.add_systems(Update, update_presentation_transitions);
     app.add_message::<UiButtonActivation>()
         .add_observer(queue_button_activation)
         .init_resource::<SemanticInputQueue>()
