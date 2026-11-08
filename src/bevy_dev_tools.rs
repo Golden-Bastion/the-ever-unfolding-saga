@@ -1198,15 +1198,15 @@ fn world_lab_cell_details(map: &LocalMap, position: GridPosition) -> String {
             markers.push(format!("point of interest: {}", poi.title));
         }
     }
-    if map.exits.iter().any(|exit| exit.position == position) {
-        markers.push("passage".to_string());
+    for exit in map.exits.iter().filter(|exit| exit.position == position) {
+        markers.push(format!("passage to world location {}", exit.target_location_id));
     }
-    if map
-        .interactables
-        .iter()
-        .any(|actor| actor.position == position)
-    {
-        markers.push("actor".to_string());
+    for actor in map.interactables.iter().filter(|actor| actor.position == position) {
+        let kind = match actor.kind {
+            SpatialEntityKind::Npc => "NPC",
+            SpatialEntityKind::Corpse => "searchable remains",
+        };
+        markers.push(format!("{kind} entity {}", actor.entity_id));
     }
     if let Some(prop) = map
         .props
@@ -2053,6 +2053,21 @@ fn render_world_lab(
         controls,
         format!("World seed: {}", state.world_lab.seed),
     );
+    if let Some(scenario) = state.world_lab_scenario.as_ref() {
+        if let Some(location) = scenario.world.locations.get(state.world_lab.location_index) {
+            bevy_presentation::spawn_muted_label(
+                commands,
+                controls,
+                format!(
+                    "World location {}/{}: {} (ID {})",
+                    state.world_lab.location_index + 1,
+                    scenario.world.locations.len(),
+                    location.name,
+                    location.id
+                ),
+            );
+        }
+    }
     bevy_presentation::spawn_muted_label(
         commands,
         controls,
@@ -2085,12 +2100,14 @@ fn render_world_lab(
             commands,
             controls,
             format!(
-                "Generated map seed: {} | {} tiles | {} walls | {} props | {} points of interest",
+                "Generated map seed: {} | {} tiles | {} walls | {} props | {} discoveries | {} passages | {} actor placements",
                 map.seed,
                 tile_count,
                 walls,
                 map.props.len(),
-                map.points_of_interest.len()
+                map.points_of_interest.len(),
+                map.exits.len(),
+                map.interactables.len()
             ),
         );
     } else {
@@ -2123,7 +2140,7 @@ fn render_world_lab(
         bevy_presentation::spawn_muted_label(
             commands,
             preview_panel,
-            "Legend: @ entry · ? point of interest · P prop · # wall · . floor · : ash · % rubble",
+            "Legend: @ entry · ? discovery · E passage · N NPC · C remains · P prop · # wall · . floor · : ash · % rubble",
         );
         if map_is_current {
             bevy_presentation::spawn_muted_label(
@@ -2162,7 +2179,7 @@ fn render_world_lab_editor(
     bevy_presentation::spawn_muted_label(
         commands,
         root,
-        "Changes affect only this temporary map. Entries, actors, and passages stay protected; choose Prop or Point of Interest to author objects.",
+        "Changes affect only this temporary map. Edit terrain, props, discoveries, passages to connected world locations, and placements for real sandbox NPCs/remains.",
     );
 
     let controls = bevy_presentation::spawn_panel(commands, root);
@@ -2182,13 +2199,46 @@ fn render_world_lab_editor(
                 world_lab_editor_tool_name(state.world_lab_editor_tool)
             ),
         );
-        if state.world_lab_editor_tool == WorldLabEditorTool::Prop {
-            let prop_kind = state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
-            bevy_presentation::spawn_muted_label(
-                commands,
-                controls,
-                format!("Prop type: {}", world_lab_prop_name(prop_kind)),
-            );
+        match state.world_lab_editor_tool {
+            WorldLabEditorTool::Prop => {
+                let prop_kind = state.world_lab_prop_kind.unwrap_or(SpatialPropKind::Pillar);
+                bevy_presentation::spawn_muted_label(
+                    commands,
+                    controls,
+                    format!("Prop type: {}", world_lab_prop_name(prop_kind)),
+                );
+            }
+            WorldLabEditorTool::Passage => {
+                if let Some((destination_id, destination_name)) = selected_world_lab_destination(state) {
+                    bevy_presentation::spawn_muted_label(
+                        commands,
+                        controls,
+                        format!("Selected destination: {destination_name} (world location {destination_id})"),
+                    );
+                } else {
+                    bevy_presentation::spawn_muted_label(
+                        commands,
+                        controls,
+                        "No unconnected destination is available. Remove an existing passage to make that route available again.",
+                    );
+                }
+            }
+            WorldLabEditorTool::Actor => {
+                if let Some(actor) = selected_world_lab_actor(state) {
+                    bevy_presentation::spawn_muted_label(
+                        commands,
+                        controls,
+                        format!("Selected world actor: {} (entity {})", actor.label, actor.entity_id),
+                    );
+                } else {
+                    bevy_presentation::spawn_muted_label(
+                        commands,
+                        controls,
+                        "No NPC or searchable remains are available at this location.",
+                    );
+                }
+            }
+            WorldLabEditorTool::PointOfInterest => {}
         }
         if let Some(held_id) = state.world_lab_held_prop.as_deref() {
             if let Some(prop) = map.props.iter().find(|prop| prop.id == held_id) {
@@ -2218,6 +2268,34 @@ fn render_world_lab_editor(
                 );
             }
         }
+        if let Some(held_id) = state.world_lab_held_passage.as_deref() {
+            if let Some(exit) = map.exits.iter().find(|exit| exit.id == held_id) {
+                bevy_presentation::spawn_muted_label(
+                    commands,
+                    controls,
+                    format!(
+                        "Moving passage to location {} from ({}, {}). Choose another edge cell and drop it.",
+                        exit.target_location_id, exit.position.x, exit.position.y
+                    ),
+                );
+            }
+        }
+        if let Some((entity_id, kind)) = state.world_lab_held_actor {
+            let label = state
+                .world_lab_scenario
+                .as_ref()
+                .and_then(|scenario| scenario.actors.iter().find(|actor| actor.entity_id == entity_id))
+                .map(|actor| actor.label.as_str())
+                .unwrap_or(match kind {
+                    SpatialEntityKind::Npc => "NPC",
+                    SpatialEntityKind::Corpse => "searchable remains",
+                });
+            bevy_presentation::spawn_muted_label(
+                commands,
+                controls,
+                format!("Moving {label} (entity {entity_id}). Choose a free cell and drop it."),
+            );
+        }
     } else {
         bevy_presentation::spawn_muted_label(commands, controls, "No temporary map is available.");
     }
@@ -2240,16 +2318,18 @@ fn render_world_lab_editor(
         let cursor = world_lab_cursor(state, map);
         bevy_presentation::spawn_muted_label(
             commands, preview_panel,
-            "Legend: X cursor · H held prop · Q held discovery · @ entry · ? discovery · P prop · # wall · . floor · : ash · % rubble",
+            "Legend: X cursor · H prop · Q discovery · D passage · A actor · @ entry · ? discovery · E passage · N NPC · C remains · P prop · # wall · . floor · : ash · % rubble",
         );
         bevy_presentation::spawn_muted_label(
             commands,
             preview_panel,
-            world_lab_map_preview_with_cursor(
+            world_lab_map_preview_with_all_holds(
                 map,
                 Some(cursor),
                 state.world_lab_held_prop.as_deref(),
                 state.world_lab_held_point_of_interest.as_deref(),
+                state.world_lab_held_passage.as_deref(),
+                state.world_lab_held_actor.map(|(entity_id, _)| entity_id),
             ),
         );
     } else {
