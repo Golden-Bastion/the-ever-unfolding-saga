@@ -57,9 +57,9 @@ This is the first HUD layer, not the complete reference layout. Combat telegraph
 
 ## Player animation
 
-The spatial renderer uses a small renderer-independent animation player. The Ash Warden sheet contract is a row-major 5×4 grid of 16×24 frames (80×96 total): north, east, south, and west rows; one idle frame followed by four looping walk frames. Clip definitions keep the first frame, frame count, frame duration, and looping behavior together outside the Bevy renderer. The default walk frame duration is 0.12 seconds at full movement input; lower movement input slows playback without changing the authoritative movement speed or collision rules. Playback accumulates frame delta, not update count. The four rows represent screen-facing directions in the three-quarter view. Blocked movement can update facing but does not play a walk cycle, and stopping returns to the same direction's idle frame.
+The spatial renderer uses a small renderer-independent animation player. The player sprite sheet contract is a row-major 5×4 grid of 16×24 frames (80×96 total): north, east, south, and west rows; one idle frame followed by four looping walk frames. Clip definitions keep the first frame, frame count, frame duration, and looping behavior together outside the Bevy renderer. The default walk frame duration is 0.12 seconds at full movement input; lower movement input slows playback without changing the authoritative movement speed or collision rules. Playback accumulates frame delta, not update count. The four rows represent screen-facing directions in the three-quarter view. Blocked movement can update facing but does not play a walk cycle, and stopping returns to the same direction's idle frame.
 
-The sheet uses the mod-aware asset resolver. Until `spatial/player_ash_warden_animated.png` contains a valid 80×96 PNG, the renderer keeps using `spatial/player_ash_warden.png`; the committed animation file is intentionally zero bytes and is treated as unavailable artwork, so the static fallback remains active.
+The sheet uses the mod-aware asset resolver. Until `spatial/player_oathbound_animated.png` contains a valid 80×96 PNG, the renderer keeps using `spatial/player_oathbound.png`; the committed animation file is intentionally zero bytes and is treated as unavailable artwork, so the static fallback remains active.
 
 ## Camera behavior
 

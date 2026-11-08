@@ -87,7 +87,7 @@ impl Default for LifecycleState {
             creation_tab: 0,
             world_name: "The Ashen Crown".to_string(),
             character_name: String::new(),
-            character_title: "Ash Walker".to_string(),
+            character_title: "The Oathbound".to_string(),
             appearance_slots: Vec::new(),
             selected_appearance_slot: 0,
             pending_state: None,
@@ -728,7 +728,7 @@ impl LifecycleState {
 
     fn effective_character_name(&self) -> &str {
         if self.character_name.trim().is_empty() {
-            "Wanderer"
+            "Elias"
         } else {
             self.character_name.trim()
         }
@@ -736,7 +736,7 @@ impl LifecycleState {
 
     fn effective_character_title(&self) -> &str {
         if self.character_title.trim().is_empty() {
-            "Ash Walker"
+            "The Oathbound"
         } else {
             self.character_title.trim()
         }

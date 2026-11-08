@@ -10,7 +10,7 @@ pub(crate) const PLAYER_ANIMATION_COLUMNS: u32 = 5;
 pub(crate) const PLAYER_ANIMATION_ROWS: u32 = 4;
 pub(crate) const PLAYER_ANIMATION_SHEET_WIDTH: u32 = 80;
 pub(crate) const PLAYER_ANIMATION_SHEET_HEIGHT: u32 = 96;
-pub(crate) const PLAYER_ANIMATION_SHEET_REFERENCE: &str = "spatial/player_ash_warden_animated.png";
+pub(crate) const PLAYER_ANIMATION_SHEET_REFERENCE: &str = "spatial/player_oathbound_animated.png";
 
 const DEFAULT_IDLE_FRAME_DURATION_SECONDS: f32 = 0.16;
 const DEFAULT_WALK_FRAME_DURATION_SECONDS: f32 = 0.12;
@@ -142,7 +142,7 @@ impl Default for PlayerAnimation {
 impl PlayerAnimation {
     fn new(idle_clip: AnimationClip, walk_clip: AnimationClip) -> Self {
         Self {
-            // The existing static Ash Warden sprite is the forward-facing pose.
+            // The existing static player sprite is the forward-facing pose.
             facing: PlayerFacing::South,
             moving: false,
             elapsed_seconds: 0.0,

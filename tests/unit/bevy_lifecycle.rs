@@ -178,7 +178,7 @@ fn default_creation_values_match_legacy_flow() {
     assert_eq!(state.world_name, "The Ashen Crown");
     assert_eq!(state.creation_tab, 0);
     assert!(state.character_name.is_empty());
-    assert_eq!(state.character_title, "Ash Walker");
+    assert_eq!(state.character_title, "The Oathbound");
 }
 
 #[test]
@@ -242,8 +242,9 @@ fn creation_confirmation_advances_through_world_character_and_start_tabs() {
 fn empty_creation_values_keep_the_existing_effective_defaults() {
     let mut lifecycle = LifecycleState::default();
     assert_eq!(lifecycle.effective_world_name(), "The Ashen Crown");
-    assert_eq!(lifecycle.effective_character_name(), "Wanderer");
-    assert_eq!(lifecycle.effective_character_title(), "Ash Walker");
+    assert!(lifecycle.character_name.is_empty());
+    assert_eq!(lifecycle.effective_character_name(), "Elias");
+    assert_eq!(lifecycle.effective_character_title(), "The Oathbound");
 
     lifecycle.world_name = "  My World  ".to_string();
     lifecycle.character_name = "  My Character  ".to_string();

@@ -416,7 +416,7 @@ fn setup_spatial_render_assets(
         load_spatial_image(&mut images, "spatial/wall_face_left.png"),
         load_spatial_image(&mut images, "spatial/wall_face_right.png"),
     ];
-    let player_image = load_spatial_image(&mut images, "spatial/player_ash_warden.png");
+    let player_image = load_spatial_image(&mut images, "spatial/player_oathbound.png");
     let player_animation_image =
         load_spatial_image(&mut images, PLAYER_ANIMATION_SHEET_REFERENCE).and_then(|image| {
             let valid = images.get(&image).is_some_and(|image| {
