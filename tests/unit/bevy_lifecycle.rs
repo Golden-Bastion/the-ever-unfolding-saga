@@ -74,7 +74,7 @@ fn options_activation_keeps_navigation_on_the_options_screen() {
     };
 
     lifecycle.phase = LifecyclePhase::Start;
-    lifecycle.selected = 1;
+    lifecycle.selected = 2;
 
     super::activate_selection(&mut lifecycle, &mut navigation);
 
@@ -117,7 +117,9 @@ fn lifecycle_renderer_allows_initial_screen_but_not_dedicated_screen_overwrite()
 #[test]
 fn start_screen_has_expected_options_without_saves() {
     let state = LifecycleState::default();
-    assert_eq!(start_option_count(&state), 3);
+    assert_eq!(start_option_count(&state), 4);
+    assert_eq!(start_developer_tools_index(&state), 1);
+    assert_eq!(start_options_index(&state), 2);
     assert!(!start_has_load(&state));
 }
 
