@@ -1681,9 +1681,10 @@ fn render_spatial_screen(
         Display::None
     };
     let investigation_available = !state.sandbox_mode
-        && lifecycle.session.as_ref().is_some_and(|game_session| {
-            spatial_investigation_available(&game_session.state)
-        });
+        && lifecycle
+            .session
+            .as_ref()
+            .is_some_and(|game_session| spatial_investigation_available(&game_session.state));
     spawn_control(
         &mut commands,
         footer,
