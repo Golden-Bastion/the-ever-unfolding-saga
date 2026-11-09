@@ -192,6 +192,31 @@ pub(crate) struct NavigationView {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct WorldMapNodeView {
+    pub location: LocationView,
+    pub region_id: u64,
+    pub explored: bool,
+    pub current: bool,
+    pub reachable: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct WorldMapRouteView {
+    pub from_id: u64,
+    pub to_id: u64,
+    pub bidirectional: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct WorldMapView {
+    pub current_location: Option<LocationView>,
+    pub nodes: Vec<WorldMapNodeView>,
+    pub routes: Vec<WorldMapRouteView>,
+    /// Destinations directly reachable from the current location, in travel-selection order.
+    pub destinations: Vec<LocationView>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct TalkView {
     pub npcs: Vec<NpcView>,
 }
