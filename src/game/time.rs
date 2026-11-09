@@ -49,7 +49,10 @@ pub(crate) fn time_display(points: u32, day: u32) -> String {
 
 
 /// Format the current two-hour world-time portion as a 24-hour clock readout.
+///
+/// The cycle starts at 02:00 in slot zero and returns to 00:00 at the
+/// "Midnight" slot (eleven), matching the existing named world-time portions.
 pub(crate) fn clock_display(points: u32) -> String {
-    let hour = (points % 12) * 2;
+    let hour = ((points % 12 + 1) % 12) * 2;
     format!("{hour:02}:00")
 }
