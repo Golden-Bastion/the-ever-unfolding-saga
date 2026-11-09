@@ -822,7 +822,7 @@ fn spatial_entry_announces_location_without_persisting_it_in_the_header() {
         spatial.message.as_deref(),
         Some("Explore the area. Move close to people or objects to interact.")
     );
-    assert_eq!(spatial_header_label(false, 0), "LOCAL EXPLORATION");
+    assert_eq!(spatial_header_label(false, 0), None);
 }
 
 #[test]
@@ -843,8 +843,8 @@ fn spatial_location_notice_expires_without_erasing_regular_feedback() {
 #[test]
 fn sandbox_header_keeps_its_world_lab_identity() {
     assert_eq!(
-        spatial_header_label(true, 91),
-        "WORLD LAB - PLAY TEST / SEED 91"
+        spatial_header_label(true, 91).as_deref(),
+        Some("WORLD LAB - PLAY TEST / SEED 91")
     );
 }
 
