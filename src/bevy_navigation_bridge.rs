@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use crate::bevy_gameplay::{GameplayScreen, GameplayState};
 use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{GameplayInputQueue, NavigationState, ScreenId};
-use crate::bevy_spatial::{self, SpatialExplorationState};
+use crate::bevy_spatial::SpatialExplorationState;
 use crate::input::InputEvent;
 
 #[derive(Resource, Default)]
@@ -42,7 +42,7 @@ fn bridge_navigation(
         navigation.return_screen,
     ) {
         if let Some(session) = lifecycle.session.as_ref() {
-            spatial::enter(&mut spatial_state, &session.state, &mut navigation);
+            crate::bevy_spatial::enter(&mut spatial_state, &session.state, &mut navigation);
         }
     }
 
