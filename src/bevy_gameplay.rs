@@ -697,7 +697,7 @@ fn activate_selection(
                             .unwrap_or_else(|| "an unknown location".to_string());
                         let message = if session.state.character.location_id != target_id {
                             Some(format!(
-                                "Fast travel was interrupted at {current_location}; danger blocks the rest of the route."
+                                "Fast travel paused at {current_location}; an encounter or danger interrupted the journey."
                             ))
                         } else {
                             session
