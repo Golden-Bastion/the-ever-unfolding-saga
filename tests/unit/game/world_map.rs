@@ -75,13 +75,8 @@ fn map_shows_current_location_and_its_immediate_routes_without_revealing_the_wor
     assert!(view.nodes.iter().filter(|node| node.reachable).count() == 2);
     assert!(!ids.contains(&13));
     assert!(!ids.contains(&14));
-    assert_eq!(
-        view.destinations
-            .iter()
-            .map(|location| location.id)
-            .collect::<Vec<_>>(),
-        vec![11, 12]
-    );
+    assert!(view.fast_travel_destinations.is_empty());
+    assert!(view.nodes.iter().all(|node| node.fast_travel_index.is_none()));
 }
 
 #[test]
@@ -113,6 +108,55 @@ fn explored_locations_extend_the_map_by_one_route_without_exposing_the_frontier_
             .explored
     );
     assert!(!ids.contains(&14));
+}
+
+#[test]
+fn previously_visited_locations_become_fast_travel_targets_along_known_routes() {
+    let mut state = test_state();
+    state.world.local_maps.push(explored_map(11));
+    state.world.local_maps.push(explored_map(13));
+
+    let view = build_view(&state);
+
+    let destinations = view
+        .fast_travel_destinations
+        .iter()
+        .map(|destination| (destination.location.id, destination.route_steps))
+        .collect::<Vec<_>>();
+    assert_eq!(destinations, vec![(11, 1), (13, 2)]);
+    assert_eq!(
+        view.nodes
+            .iter()
+            .find(|node| node.location.id == 11)
+            .unwrap()
+            .fast_travel_index,
+        Some(0)
+    );
+    assert_eq!(
+        view.nodes
+            .iter()
+            .find(|node| node.location.id == 13)
+            .unwrap()
+            .fast_travel_steps,
+        Some(2)
+    );
+}
+
+#[test]
+fn unvisited_frontier_locations_are_visible_but_not_fast_travel_targets() {
+    let mut state = test_state();
+    state.world.local_maps.push(explored_map(11));
+
+    let view = build_view(&state);
+    let frontier = view
+        .nodes
+        .iter()
+        .find(|node| node.location.id == 13)
+        .unwrap();
+
+    assert!(!frontier.explored);
+    assert!(frontier.fast_travel_index.is_none());
+    assert!(frontier.fast_travel_steps.is_none());
 }
 
 #[test]
