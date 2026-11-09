@@ -1,0 +1,73 @@
+{
+    "schema_version": 1,
+    "frame_width": 32,
+    "frame_height": 48,
+    "columns": 6,
+    "rows": 8,
+    "directions": {
+        "north": {
+            "idle": {
+                "row": 0,
+                "first_column": 0,
+                "frame_count": 4,
+                "frame_duration_ms": 250,
+                "looping": true
+            },
+            "walk": {
+                "row": 1,
+                "first_column": 0,
+                "frame_count": 6,
+                "frame_duration_ms": 120,
+                "looping": true
+            }
+        },
+        "east": {
+            "idle": {
+                "row": 2,
+                "first_column": 0,
+                "frame_count": 4,
+                "frame_duration_ms": 250,
+                "looping": true
+            },
+            "walk": {
+                "row": 3,
+                "first_column": 0,
+                "frame_count": 6,
+                "frame_duration_ms": 120,
+                "looping": true
+            }
+        },
+        "south": {
+            "idle": {
+                "row": 4,
+                "first_column": 0,
+                "frame_count": 4,
+                "frame_duration_ms": 250,
+                "looping": true
+            },
+            "walk": {
+                "row": 5,
+                "first_column": 0,
+                "frame_count": 6,
+                "frame_duration_ms": 120,
+                "looping": true
+            }
+        },
+        "west": {
+            "idle": {
+                "row": 6,
+                "first_column": 0,
+                "frame_count": 4,
+                "frame_duration_ms": 250,
+                "looping": true
+            },
+            "walk": {
+                "row": 7,
+                "first_column": 0,
+                "frame_count": 6,
+                "frame_duration_ms": 120,
+                "looping": true
+            }
+        }
+    }
+}
