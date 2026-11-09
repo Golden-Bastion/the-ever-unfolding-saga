@@ -185,13 +185,6 @@ pub(crate) struct HistoryView {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct NavigationView {
-    pub current_location: Option<LocationView>,
-    pub destinations: Vec<LocationView>,
-    pub art: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct WorldMapNodeView {
     pub location: LocationView,
     pub region_id: u64,
