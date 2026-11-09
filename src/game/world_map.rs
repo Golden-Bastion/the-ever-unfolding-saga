@@ -65,12 +65,7 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
     let fast_travel_indices = fast_travel_destinations
         .iter()
         .enumerate()
-        .map(|(index, destination)| {
-            (
-                destination.location.id,
-                (index, destination.route_steps),
-            )
-        })
+        .map(|(index, destination)| (destination.location.id, (index, destination.route_steps)))
         .collect::<HashMap<_, _>>();
 
     let nodes = state
