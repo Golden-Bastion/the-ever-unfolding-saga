@@ -12,7 +12,13 @@ The first version intentionally avoids representing geographical terrain. It vis
 - Connections are drawn only when the corresponding source location's authoritative `exits` list contains the destination. Reciprocal connections are identified separately from one-way connections.
 - The map does not reveal unrelated unvisited locations or pretend that map nodes have geographical distance, direction, terrain, or scale.
 - The current region and current location are shown explicitly above the graph. Region names are also attached to their location nodes.
-- The route list beneath the graph contains only direct destinations from the current location. Choosing one uses the existing spatial travel transition; the map does not independently change world state.
+- Locations with established local maps are previously visited places. These are the only destinations eligible for fast travel.
+- The map marks a visited destination as fast-travelable only when a shortest path exists from the current location using reciprocal world-graph connections whose intermediate locations have also been visited.
+- Fast travel executes the normal travel action for every route hop. Each hop advances the world clock and turn, records history, synchronizes quests, and runs arrival events.
+- A death, active threat, or consequential arrival event interrupts a multi-hop journey at that stop. The player resumes ordinary spatial play there; fast travel never skips over an encounter or event.
+- Visible but unvisited frontier locations cannot be selected for fast travel. They must be reached through ordinary movement and physical passages in spatial gameplay.
+- Choosing a fast-travelable map node is the fast-travel action; there is no separate destination-only Travel screen.
+- Physical passage use remains the normal travel path inside spatial gameplay. It continues to validate the immediate reciprocal connection and enters the destination's local map without invoking fast travel.
 
 Visibility is currently derived from `World.local_maps` and the current location. This is an interim discovery rule, not the final definition of cartography or fog of war.
 
@@ -20,7 +26,7 @@ Visibility is currently derived from `World.local_maps` and the current location
 
 The graph layout is computed when the map is rendered. A breadth-first traversal from the current location places nodes in columns by graph distance; nodes within a column are ordered deterministically by region name and stable location ID. The resulting pixel positions exist only in the presentation layer.
 
-The world model must not receive temporary x/y coordinates, route bends, visual grouping offsets, map zoom, or other renderer-specific layout state. The renderer consumes stable location identities, region identities/names, exploration flags, and route endpoints. It must never make a displayed line authoritative for travel.
+The world model must not receive temporary x/y coordinates, route bends, visual grouping offsets, map zoom, or other renderer-specific layout state. The renderer consumes stable location identities, region identities/names, exploration flags, fast-travel eligibility, and route endpoints. It must never make a displayed line authoritative for travel.
 
 This boundary allows the interim graph layout to be discarded or replaced without migrating saves or changing the authoritative travel model.
 
@@ -47,6 +53,6 @@ Keep the current division between:
 1. **World data:** stable region/location identities, local-map persistence, and authoritative route edges.
 2. **World-map view:** a renderer-neutral summary of visible locations, their region context, exploration state, and route endpoints.
 3. **Presentation:** temporary graph layout, line routing, visual states, and controls.
-4. **Travel:** the existing gameplay transition and eligibility rules.
+4. **Travel:** ordinary movement and physical-passage transitions remain authoritative in spatial gameplay; fast travel finds a path through previously visited locations and invokes the normal travel action for each hop.
 
-When macro-geography arrives, add geography to the world-generation/topology layer and derive a geography-aware map presentation from it. The current screen entry point, stable route/location identities, and travel transition should remain reusable. Remove temporary graph layout only when the geography-backed representation can supply a coherent map; do not migrate interim pixel positions into world saves.
+When macro-geography arrives, add geography to the world-generation/topology layer and derive a geography-aware map presentation from it. The current map screen entry point, stable route/location identities, fast-travel eligibility, and travel action should remain reusable. Remove temporary graph layout only when the geography-backed representation can supply a coherent map; do not migrate interim pixel positions into world saves.
