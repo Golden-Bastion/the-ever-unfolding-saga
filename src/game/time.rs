@@ -47,7 +47,6 @@ pub(crate) fn time_display(points: u32, day: u32) -> String {
     )
 }
 
-
 /// Format the current two-hour world-time portion as a 24-hour clock readout.
 ///
 /// The cycle starts at 02:00 in slot zero and returns to 00:00 at the

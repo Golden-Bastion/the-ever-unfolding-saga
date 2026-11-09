@@ -1427,7 +1427,6 @@ fn spatial_investigation_is_available_only_for_a_threat_at_the_current_location(
     assert!(!spatial_investigation_available(&game));
 }
 
-
 #[test]
 fn spatial_clock_formats_the_existing_two_hour_world_time_steps() {
     for (slot, expected) in [

@@ -1617,12 +1617,7 @@ fn render_spatial_screen(
     commands.entity(header).add_child(header_context);
     spawn_label(&mut commands, header_context, location_heading);
     if let Some(time_points) = time_points {
-        spawn_spatial_time_indicator(
-            &mut commands,
-            header_context,
-            time_points,
-            &celestial_art,
-        );
+        spawn_spatial_time_indicator(&mut commands, header_context, time_points, &celestial_art);
     }
 
     let vitals = commands
