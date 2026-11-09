@@ -1407,8 +1407,14 @@ fn build_world_map_layout(view: &WorldMapView) -> WorldMapLayout {
     }
     for route in &view.routes {
         if node_ids.contains(&route.from_id) && node_ids.contains(&route.to_id) {
-            adjacency.entry(route.from_id).or_default().push(route.to_id);
-            adjacency.entry(route.to_id).or_default().push(route.from_id);
+            adjacency
+                .entry(route.from_id)
+                .or_default()
+                .push(route.to_id);
+            adjacency
+                .entry(route.to_id)
+                .or_default()
+                .push(route.from_id);
         }
     }
     for neighbours in adjacency.values_mut() {
@@ -1432,12 +1438,7 @@ fn build_world_map_layout(view: &WorldMapView) -> WorldMapLayout {
     remaining.sort_unstable();
     for id in remaining {
         if !distances.contains_key(&id) {
-            assign_world_map_component(
-                id,
-                next_component_column,
-                &adjacency,
-                &mut distances,
-            );
+            assign_world_map_component(id, next_component_column, &adjacency, &mut distances);
             next_component_column = distances.values().copied().max().unwrap_or(0) + 1;
         }
     }
@@ -1486,8 +1487,7 @@ fn build_world_map_layout(view: &WorldMapView) -> WorldMapLayout {
                 column,
                 left: WORLD_MAP_PADDING
                     + column as f32 * (WORLD_MAP_NODE_WIDTH + WORLD_MAP_COLUMN_GAP),
-                top: WORLD_MAP_PADDING
-                    + row as f32 * (WORLD_MAP_NODE_HEIGHT + WORLD_MAP_ROW_GAP),
+                top: WORLD_MAP_PADDING + row as f32 * (WORLD_MAP_NODE_HEIGHT + WORLD_MAP_ROW_GAP),
             });
         }
     }
@@ -1717,19 +1717,9 @@ fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldM
             );
         } else {
             let (left, right, left_y, right_y) = if from.left <= to.left {
-                (
-                    from.left + WORLD_MAP_NODE_WIDTH,
-                    to.left,
-                    from_y,
-                    to_y,
-                )
+                (from.left + WORLD_MAP_NODE_WIDTH, to.left, from_y, to_y)
             } else {
-                (
-                    to.left + WORLD_MAP_NODE_WIDTH,
-                    from.left,
-                    to_y,
-                    from_y,
-                )
+                (to.left + WORLD_MAP_NODE_WIDTH, from.left, to_y, from_y)
             };
             let midpoint = (left + right) / 2.0;
             spawn_world_map_segment(
@@ -1817,11 +1807,7 @@ fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldM
             ))
             .id();
         commands.entity(canvas).add_child(card);
-        bevy_presentation::spawn_muted_label(
-            commands,
-            card,
-            node.location.region_name.clone(),
-        );
+        bevy_presentation::spawn_muted_label(commands, card, node.location.region_name.clone());
         bevy_presentation::spawn_label(commands, card, node.location.name.clone());
         let detail = if node.location.dangerous {
             format!("{status}  ·  DANGEROUS")

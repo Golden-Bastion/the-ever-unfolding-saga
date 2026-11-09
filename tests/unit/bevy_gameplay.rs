@@ -201,13 +201,55 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
     let second = build_world_map_layout(&view);
 
     assert_eq!(first, second);
-    assert_eq!(first.nodes.iter().find(|node| node.location_id == 10).unwrap().column, 0);
-    assert_eq!(first.nodes.iter().find(|node| node.location_id == 11).unwrap().column, 1);
-    assert_eq!(first.nodes.iter().find(|node| node.location_id == 12).unwrap().column, 1);
-    assert_eq!(first.nodes.iter().find(|node| node.location_id == 13).unwrap().column, 2);
+    assert_eq!(
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 10)
+            .unwrap()
+            .column,
+        0
+    );
+    assert_eq!(
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 11)
+            .unwrap()
+            .column,
+        1
+    );
+    assert_eq!(
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 12)
+            .unwrap()
+            .column,
+        1
+    );
+    assert_eq!(
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 13)
+            .unwrap()
+            .column,
+        2
+    );
     assert_ne!(
-        first.nodes.iter().find(|node| node.location_id == 11).unwrap().top,
-        first.nodes.iter().find(|node| node.location_id == 12).unwrap().top
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 11)
+            .unwrap()
+            .top,
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 12)
+            .unwrap()
+            .top
     );
 }
 

@@ -65,14 +65,21 @@ fn map_shows_current_location_and_its_immediate_routes_without_revealing_the_wor
 
     let view = build_view(&state);
 
-    let ids = view.nodes.iter().map(|node| node.location.id).collect::<Vec<_>>();
+    let ids = view
+        .nodes
+        .iter()
+        .map(|node| node.location.id)
+        .collect::<Vec<_>>();
     assert_eq!(ids, vec![10, 11, 12]);
     assert!(view.nodes.iter().any(|node| node.current && node.explored));
     assert!(view.nodes.iter().filter(|node| node.reachable).count() == 2);
     assert!(!ids.contains(&13));
     assert!(!ids.contains(&14));
     assert_eq!(
-        view.destinations.iter().map(|location| location.id).collect::<Vec<_>>(),
+        view.destinations
+            .iter()
+            .map(|location| location.id)
+            .collect::<Vec<_>>(),
         vec![11, 12]
     );
 }
@@ -84,10 +91,27 @@ fn explored_locations_extend_the_map_by_one_route_without_exposing_the_frontier_
 
     let view = build_view(&state);
 
-    let ids = view.nodes.iter().map(|node| node.location.id).collect::<Vec<_>>();
+    let ids = view
+        .nodes
+        .iter()
+        .map(|node| node.location.id)
+        .collect::<Vec<_>>();
     assert_eq!(ids, vec![10, 11, 12, 13]);
-    assert!(view.nodes.iter().find(|node| node.location.id == 11).unwrap().explored);
-    assert!(!view.nodes.iter().find(|node| node.location.id == 13).unwrap().explored);
+    assert!(
+        view.nodes
+            .iter()
+            .find(|node| node.location.id == 11)
+            .unwrap()
+            .explored
+    );
+    assert!(
+        !view
+            .nodes
+            .iter()
+            .find(|node| node.location.id == 13)
+            .unwrap()
+            .explored
+    );
     assert!(!ids.contains(&14));
 }
 
@@ -97,14 +121,21 @@ fn map_routes_are_derived_only_from_established_graph_edges() {
     state.world.local_maps.push(explored_map(11));
 
     let view = build_view(&state);
-    let mut routes = view.routes.iter()
+    let mut routes = view
+        .routes
+        .iter()
         .map(|route| (route.from_id, route.to_id, route.bidirectional))
         .collect::<Vec<_>>();
     routes.sort_unstable();
 
     assert_eq!(routes, vec![(10, 11, true), (10, 12, true), (11, 13, true)]);
     assert_eq!(
-        view.nodes.iter().find(|node| node.location.id == 13).unwrap().location.region_name,
+        view.nodes
+            .iter()
+            .find(|node| node.location.id == 13)
+            .unwrap()
+            .location
+            .region_name,
         "Ashen Vale"
     );
 }
@@ -117,7 +148,9 @@ fn map_does_not_invent_reciprocal_connections_for_one_way_routes() {
     state.world.local_maps.push(explored_map(11));
 
     let view = build_view(&state);
-    let route = view.routes.iter()
+    let route = view
+        .routes
+        .iter()
         .find(|route| route.from_id == 11 && route.to_id == 13)
         .expect("the one-way route should be present");
 
