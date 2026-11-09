@@ -76,7 +76,10 @@ fn map_shows_current_location_and_its_immediate_routes_without_revealing_the_wor
     assert!(!ids.contains(&13));
     assert!(!ids.contains(&14));
     assert!(view.fast_travel_destinations.is_empty());
-    assert!(view.nodes.iter().all(|node| node.fast_travel_index.is_none()));
+    assert!(view
+        .nodes
+        .iter()
+        .all(|node| node.fast_travel_index.is_none()));
 }
 
 #[test]
