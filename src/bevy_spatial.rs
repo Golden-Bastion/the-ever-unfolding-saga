@@ -216,12 +216,8 @@ fn advance_location_notice(state: &mut SpatialExplorationState, delta_seconds: f
     }
 }
 
-fn spatial_header_label(sandbox_mode: bool, map_seed: u64) -> String {
-    if sandbox_mode {
-        format!("WORLD LAB - PLAY TEST / SEED {map_seed}")
-    } else {
-        "LOCAL EXPLORATION".to_string()
-    }
+fn spatial_header_label(sandbox_mode: bool, map_seed: u64) -> Option<String> {
+    sandbox_mode.then(|| format!("WORLD LAB - PLAY TEST / SEED {map_seed}"))
 }
 
 pub(crate) fn sandbox_map(state: &SpatialExplorationState) -> Option<&LocalMap> {
@@ -1625,7 +1621,7 @@ fn render_spatial_screen(
             ))
             .id();
         // This is deliberately the first UI child: it tints the world sprites
-        // while leaving the exploration label, status, and control surfaces above it.
+        // while leaving the header, status, and control surfaces above it.
         commands.entity(root).add_child(atmosphere);
     }
 
@@ -1639,7 +1635,6 @@ fn render_spatial_screen(
         })
         .id();
     commands.entity(root).add_child(header);
-    let location_heading = spatial_header_label(state.sandbox_mode, map.seed);
     let header_context = commands
         .spawn(Node {
             max_width: percent(48),
@@ -1651,7 +1646,9 @@ fn render_spatial_screen(
         })
         .id();
     commands.entity(header).add_child(header_context);
-    spawn_label(&mut commands, header_context, location_heading);
+    if let Some(heading) = spatial_header_label(state.sandbox_mode, map.seed) {
+        spawn_label(&mut commands, header_context, heading);
+    }
     if let Some(time_points) = time_points {
         spawn_spatial_time_indicator(&mut commands, header_context, time_points, &celestial_art);
     }
