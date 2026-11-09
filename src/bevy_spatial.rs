@@ -155,6 +155,7 @@ struct SpatialRenderAssets {
 #[derive(Component, Clone, Copy)]
 enum SpatialAction {
     Interact,
+    Investigate,
     Exit,
     SelectInteraction(usize),
     CloseWheel,
@@ -173,6 +174,7 @@ pub(crate) struct SpatialExplorationState {
     dirty: bool,
     last_navigation_screen: Option<ScreenId>,
     player_animation: PlayerAnimation,
+    last_threat_available: Option<bool>,
 }
 
 impl SpatialExplorationState {
@@ -278,6 +280,7 @@ pub(crate) fn install(app: &mut App) {
                 update_spatial_world,
                 update_spatial_context_prompt,
                 update_spatial_control_feedback,
+                refresh_spatial_investigation_control,
                 render_spatial_screen,
                 sync_spatial_interaction_wheel,
                 update_spatial_wheel_anchor,
@@ -510,6 +513,7 @@ fn spatial_input(
     mut navigation: ResMut<NavigationState>,
     mut gameplay: ResMut<crate::bevy_gameplay::GameplayState>,
     mut runtime_state: ResMut<crate::bevy_gameplay::GameplayRuntimeState>,
+    mut combat_state: ResMut<crate::bevy_combat::CombatState>,
     mut queue: ResMut<GameplayInputQueue>,
     mut state: ResMut<SpatialExplorationState>,
     joystick: Res<SpatialJoystickState>,
@@ -545,6 +549,26 @@ fn spatial_input(
                 open_interaction_wheel(&mut state, &lifecycle);
             }
             SpatialAction::Interact => {}
+            SpatialAction::Investigate => {
+                let result = lifecycle.session.as_mut().map(|session| {
+                    if spatial_investigation_available(&session.state) {
+                        crate::bevy_combat::begin(&mut session.state, &mut combat_state)
+                    } else {
+                        Err("There is no active threat to investigate.".to_string())
+                    }
+                });
+                match result {
+                    Some(Ok(())) => {
+                        navigation.open_screen(ScreenId::Combat);
+                        state.interaction_wheel = None;
+                    }
+                    Some(Err(message)) => {
+                        state.message = Some(message);
+                        state.dirty = true;
+                    }
+                    None => {}
+                }
+            }
             SpatialAction::Exit => exit_spatial(&mut state, &mut navigation),
             SpatialAction::SelectInteraction(index) => {
                 close_interaction_wheel(&mut state, Some(index));
@@ -1656,6 +1680,21 @@ fn render_spatial_screen(
     } else {
         Display::None
     };
+    let investigation_available = !state.sandbox_mode
+        && lifecycle.session.as_ref().is_some_and(|game_session| {
+            spatial_investigation_available(&game_session.state)
+        });
+    spawn_control(
+        &mut commands,
+        footer,
+        "Investigate",
+        SpatialAction::Investigate,
+        if investigation_available {
+            Display::Flex
+        } else {
+            Display::None
+        },
+    );
     spawn_control(
         &mut commands,
         footer,
@@ -2259,6 +2298,32 @@ fn format_condition_summary(conditions: &[Condition]) -> String {
             .collect::<Vec<_>>()
             .join(", ");
         format!("Conditions: {names}")
+    }
+}
+
+fn spatial_investigation_available(game: &GameState) -> bool {
+    game.threat.active
+        && game
+            .threat
+            .source_location_id
+            .is_none_or(|source| source == game.character.location_id)
+}
+
+fn refresh_spatial_investigation_control(
+    lifecycle: Res<LifecycleState>,
+    navigation: Res<NavigationState>,
+    mut state: ResMut<SpatialExplorationState>,
+) {
+    if navigation.current_screen != Some(ScreenId::SpatialExploration) || state.sandbox_mode {
+        return;
+    }
+    let available = lifecycle
+        .session
+        .as_ref()
+        .is_some_and(|session| spatial_investigation_available(&session.state));
+    if state.last_threat_available != Some(available) {
+        state.last_threat_available = Some(available);
+        state.dirty = true;
     }
 }
 
