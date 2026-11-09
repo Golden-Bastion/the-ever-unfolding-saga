@@ -840,3 +840,12 @@ src/
 - Rebuilt the spatial presentation when the authoritative day/time changes so the sky indicator and environmental treatment cannot drift apart.
 - Added regression tests for the 24-hour time mapping and day-phase lighting bands.
 - Bumped Rust and Android version metadata to 0.52.30. Desktop and Android landscape visual validation remains outstanding.
+
+
+### v0.52.31: Spatial lifecycle hand-off and character-context verification
+- Routed completed character creation, inheritance, and successful save loading directly into spatial exploration instead of the transitional Gameplay dashboard.
+- Kept save-warning confirmation in the lifecycle screen until the player explicitly accepts the warning and loading completes.
+- Preserved the explicit spatial Leave route to the compatibility dashboard; the dashboard itself is not retired in this increment.
+- Added lifecycle bridge regression tests for successful completion, pending save warnings, and invalid routing conditions.
+- Added Character hub regression coverage for all five tabs and nested inventory, quest, chronicle, and journal Back paths preserving the original spatial parent.
+- Bumped Rust and Android version metadata to 0.52.31. Desktop and Android landscape validation remains deferred until the spatial migration work is complete.
