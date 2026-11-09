@@ -10,9 +10,9 @@ The placements below follow the project's established direction: keep frequent a
 
 The current spatial screen provides:
 
-- Current location name and a local-exploration heading.
+- A generic local-exploration heading; a newly entered location name appears only in a brief arrival notice.
 - Character name, level, health, and active-condition summary.
-- A status/message strip for movement, discovery, and arrival feedback.
+- A status/message strip for movement and discovery feedback, with a temporary arrival notice for the current location.
 - An Interact control that opens the player-anchored radial action wheel when eligible targets exist.
 - An explicit Leave control.
 - Desktop movement through WASD/arrow keys and interaction through E/Confirm.
@@ -26,7 +26,7 @@ The spatial screen already rebuilds its presentation after returning from a dedi
 
 | Existing function | Current owner and behavior | Proposed spatial home | Migration status |
 |---|---|---|---|
-| Current location and region | WorldView and LocationView; the dashboard shows location context. | Spatial header and local environment. The spatial header already identifies the current location; region/detail can remain secondary context rather than a permanent panel. | Partially present. |
+| Current location and region | WorldView and LocationView; the dashboard shows location context. | Keep the location name out of the persistent spatial header and announce it briefly on entry or travel. A future focused World Map should show the current region and current location together. | Temporary location announcement implemented; World Map remains future work. |
 | Time and day/night | WorldView and the world clock expose day and 12 two-hour time portions; the dashboard already maps those portions to a sky palette and the mod-aware sun/moon atlas. | Reuse the same sky phases in a compact horizon-and-celestial display with a 24-hour readout. Apply restrained warm dawn/dusk and cool night colour washes to the spatial environment, keeping the HUD above the wash. | Implemented in v0.52.30; both the environmental treatment and compact sky/clock are driven by authoritative world time. |
 | Character vitals | bevy_gameplay.rs renders the dashboard vitals; bevy_spatial.rs already reads authoritative character data for the spatial vitals panel. | Keep the compact spatial vitals panel. Do not create a second HUD copy or independent values. | Present in spatial exploration. |
 | Transient feedback and messages | bevy_feedback.rs presents level-up and quest-reward feedback and remembers the screen to which it should return. Spatial movement/discovery/arrival uses the spatial status message. | Keep short local feedback in the spatial status area; use the existing feedback overlay for consequential results and choices. | Existing mechanisms support the spatial context. |
@@ -64,10 +64,11 @@ The spatial interface must route into existing gameplay behavior rather than rep
 5. **Threat/investigation presentation (implemented in v0.52.29).** Show Investigate beside Interact only while an active threat belongs to the current location; start the existing Combat flow through `bevy_combat::begin`.
 6. **Time and day/night presentation (implemented in v0.52.30).** Reuse the existing 12-part world clock and sun/moon atlas for a compact spatial sky display and 24-hour readout. Apply a subtle environment-wide dawn/dusk/night colour wash beneath the HUD; do not add a second time simulation or copy the dashboard's large sky composition.
 7. **Lifecycle hand-off (implemented in v0.52.31).** New character creation, inheritance, and successful save loading enter spatial exploration directly. Keep the explicit Leave route as a temporary compatibility path to the Gameplay dashboard.
-8. **Retirement review.** Remove the dashboard and its transition-only Leave path only after the function audit has been implemented and validated on desktop and Android landscape.
+8. **Region and location context (partially implemented).** Announce the current location briefly on entry or travel rather than displaying its name permanently. Keep the region/location hierarchy for a future focused World Map that shows both names; do not add a permanent region panel to the spatial HUD.
+9. **Retirement review.** Remove the dashboard and its transition-only Leave path only after the function audit has been implemented and validated on desktop and Android landscape.
 
 ## Remaining migration work
 
-The time-of-day presentation and lifecycle hand-off are implemented. The existing world clock remains authoritative; no time advancement, save format, or gameplay rule has been changed. New lives and successful save loads now enter the spatial scene directly, while the explicit Leave control still provides a temporary route to the compatibility dashboard.
+The time-of-day presentation and lifecycle hand-off are implemented. The existing world clock remains authoritative; no time advancement, save format, or gameplay rule has been changed. New lives and successful save loads now enter the spatial scene directly, while the explicit Leave control still provides a temporary route to the compatibility dashboard. Location names now appear as brief arrival notices rather than permanent header text.
 
-The dashboard is not retired. The current location's wider region context is still only partially represented in the spatial header, and the final dashboard-retirement review must account for all remaining functions and wait until desktop/Android landscape validation is performed after implementation work is complete.
+The dashboard is not retired. A future focused World Map is the planned home for showing the current region and current location together; that map is not implemented yet. Keep region detail out of the persistent HUD. The final dashboard-retirement review must account for all remaining functions and wait until desktop/Android landscape validation is performed after implementation work is complete.
