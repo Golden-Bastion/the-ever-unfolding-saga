@@ -2,7 +2,7 @@
 
 This document audits the useful functions currently exposed by the Gameplay dashboard and pause/navigation flow, then assigns each one a proposed home in the spatial-first experience. It is the implementation map for issue [#421](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/421).
 
-**Status:** function audit complete; the unified pause menu, destination-list travel, and safe-only meditation entry are available over spatial exploration; the remaining dashboard functions are still being migrated.
+**Status:** function audit complete; the unified pause menu, destination-list travel, safe-only meditation entry, and contextual threat investigation are available over spatial exploration; the remaining dashboard functions are still being migrated.
 
 The placements below follow the project's established direction: keep frequent actions contextual, make deliberate activities convenient, and put detailed information and infrequent system operations in focused screens. They are architectural assignments, not approval of a specific button layout or visual design.
 
@@ -33,7 +33,7 @@ The spatial screen already rebuilds its presentation after returning from a dedi
 | Travel to a connected local area | bevy_spatial.rs exposes physical passages as contextual targets and transitions through the existing world graph. | Keep physical passages in the world and discoverable through the interaction wheel. | Present in spatial exploration. |
 | Travel through the destination list | navigation::build_view builds the current location and its connected destinations; the Gameplay Travel action opens that selection flow. | Make the existing destination selector available from the spatial pause menu. Keep travel out of the persistent HUD and preserve physical passages as an in-world alternative. | Available from the spatial pause menu; uses the existing graph and travel action. |
 | Explore the current location | The Gameplay Explore action calls bevy_spatial::enter. | Treat this as a transition into the primary gameplay context, not as a permanent action inside that context. After the dashboard is retired, loading/starting an active character should enter the appropriate spatial context directly. | Current entry still depends on the dashboard. |
-| Investigate an active threat | The dashboard exposes Investigate only when the authoritative threat state allows it; activation uses bevy_combat::begin and opens the existing Combat screen. | Surface it contextually when the threat is active. Continue to call the authoritative combat entry point; do not invent a separate investigation/combat ruleset or a spatial threat actor solely to host a button. | Current action exists outside spatial play; exact spatial presentation remains open. |
+| Investigate an active threat | The dashboard exposes Investigate only when the authoritative threat state allows it; activation uses bevy_combat::begin and opens the existing Combat screen. | Show an Investigate control beside Interact only while an active threat belongs to the current location. Continue to call the authoritative combat entry point; do not invent a separate investigation/combat ruleset or a spatial threat actor solely to host a button. | Available beside Interact while an eligible threat is active. |
 | Meditate | bevy_records.rs owns the Meditation screen and checks the authoritative safe-to-meditate rule and available targets. | Offer Meditate in the spatial pause menu only while the authoritative safe-to-meditate check passes. Open the existing dedicated screen and return to the same paused spatial context. | Available through the spatial pause menu when safe. |
 | Character records | bevy_records.rs owns the Character hub and its General, Reputation, Inventory, Quests, and Journal tabs. | Open the existing Character hub as a dedicated screen from the spatial pause menu. Its Back action returns to the same paused spatial scene. Do not split Inventory, Quests, or Journal into unrelated permanent HUD panels. | Available through the spatial pause menu. |
 | Talk, search remains, examine, and enter passages | bevy_spatial.rs and interaction_actions.rs discover eligible nearby action/target pairs; the radial wheel presents them. bevy_interactions.rs handles dialogue and remains overlays. | Keep these as proximity- and eligibility-driven contextual actions. They should not return as detached dashboard buttons. | Present in spatial exploration. |
@@ -61,7 +61,7 @@ The spatial interface must route into existing gameplay behavior rather than rep
 2. **Travel entry (implemented in v0.52.27).** The spatial pause menu opens the existing destination selector. Selection uses the existing travel action, persists the source map, and enters the destination's spatial map; Back returns to the pause menu. Physical passages remain available in the world.
 3. **Meditation entry (implemented in v0.52.28).** The spatial pause menu shows Meditate only when the authoritative safe-to-meditate check passes; the existing screen and target rules remain unchanged.
 4. **Character entry (available through the v0.52.26 pause menu).** Verify all Character tabs and detail screens return to the exact paused spatial context.
-5. **Threat/investigation presentation.** Decide how an active threat is communicated in spatial exploration, then expose the existing Investigate action when eligible.
+5. **Threat/investigation presentation (implemented in v0.52.29).** Show Investigate beside Interact only while an active threat belongs to the current location; start the existing Combat flow through `bevy_combat::begin`.
 6. **Lifecycle hand-off.** Only after the spatial menu and entry points cover the required functions should new/load/start/quit flows be adjusted to make spatial exploration the normal active-character shell.
 7. **Retirement review.** Remove the dashboard and its transition-only Leave path only after the function audit has been implemented and validated on desktop and Android landscape.
 
@@ -69,7 +69,6 @@ The spatial interface must route into existing gameplay behavior rather than rep
 
 The following points affect how the remaining dashboard functions are exposed and should be settled before implementing their spatial entry points:
 
-- **Threat presentation:** should an active threat produce a contextual Investigate prompt, or be represented through another spatial indicator? The action should only appear when the existing threat state makes it valid.
 - **Time presentation:** should time-of-day be communicated through environmental lighting/sky treatment, a small cue, or both? The dashboard's large sky composition should not simply be copied over the spatial view.
 
 The pause-menu integration and destination-list travel entry do not retire the dashboard. It remains the compatibility fallback until the other required functions have implemented and validated spatial replacements.

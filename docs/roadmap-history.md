@@ -824,3 +824,10 @@ src/
 - Kept meditation target selection, safety validation, recovery, time advancement, and persistence in the existing action and records systems.
 - Added regression coverage for safe-only visibility, non-spatial exclusion, menu ordering, and conditional menu sizing.
 - Bumped the project and Android fallback versions to 0.52.28. Desktop and Android landscape playtesting remains outstanding.
+
+
+### v0.52.29: Contextual investigation in spatial exploration
+- Added an Investigate control beside Interact while an active threat belongs to the current location.
+- Reused the authoritative `bevy_combat::begin` entry point and existing Combat screen; no spatial threat actor or parallel combat rules were introduced.
+- Added regression coverage for inactive, current-location, and other-location threat availability.
+- Bumped Rust and Android version metadata to 0.52.29. Desktop and Android landscape playtesting remains outstanding.

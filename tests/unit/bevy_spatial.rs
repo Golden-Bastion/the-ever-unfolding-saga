@@ -1393,3 +1393,36 @@ fn returning_to_spatial_exploration_requests_a_scene_rebuild() {
         Some(ScreenId::Gameplay)
     ));
 }
+
+#[test]
+fn spatial_investigation_is_available_only_for_a_threat_at_the_current_location() {
+    let mut game = crate::model::create_new_state(
+        "Investigation Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    assert!(!spatial_investigation_available(&game));
+
+    let current_location = game.character.location_id;
+    game.threat.activate(
+        current_location,
+        "A nearby threat".to_string(),
+        "Something stirs nearby.".to_string(),
+    );
+    assert!(spatial_investigation_available(&game));
+
+    let other_location = game
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id != current_location)
+        .expect("generated world should contain another location")
+        .id;
+    game.threat.activate(
+        other_location,
+        "A distant threat".to_string(),
+        "Something stirs elsewhere.".to_string(),
+    );
+    assert!(!spatial_investigation_available(&game));
+}
