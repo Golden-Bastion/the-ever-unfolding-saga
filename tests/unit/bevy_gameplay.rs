@@ -164,7 +164,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                     ..Default::default()
                 },
                 region_id: 1,
-                explored: false,
+                explored: true,
                 current: false,
                 reachable: true,
                 fast_travel_index: Some(1),
