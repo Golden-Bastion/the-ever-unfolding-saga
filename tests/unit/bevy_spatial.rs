@@ -801,6 +801,111 @@ fn connected_spatial_fixture() -> (
     )
 }
 
+fn extend_known_spatial_route(
+    lifecycle: &mut LifecycleState,
+    middle_id: EntityId,
+    dangerous_middle: bool,
+) -> EntityId {
+    let game = &mut lifecycle.session.as_mut().unwrap().state;
+    let middle = game
+        .world
+        .location_by_id_mut(middle_id)
+        .expect("known intermediate location should exist");
+    middle.dangerous = dangerous_middle;
+    let region_id = middle.region_id;
+    let destination_id = game.world.allocate_id();
+    game.world.locations.push(crate::model::Location {
+        id: destination_id,
+        name: "Remote Hollow".into(),
+        description: "A familiar place farther along the old road.".into(),
+        region_id,
+        dangerous: false,
+        corpse_ids: Vec::new(),
+        exits: vec![middle_id],
+        spatial_layout: None,
+    });
+    game.world
+        .location_by_id_mut(middle_id)
+        .expect("known intermediate location should still exist")
+        .exits
+        .push(destination_id);
+    if let Some(region) = game
+        .world
+        .regions
+        .iter_mut()
+        .find(|region| region.id == region_id)
+    {
+        region.location_ids.push(destination_id);
+    }
+    let map = generate_local_map(
+        92,
+        format!("location.{destination_id}"),
+        LocalMapConfig::default(),
+    );
+    game.world.local_maps.push(map);
+    destination_id
+}
+
+#[test]
+fn map_fast_travel_follows_multiple_known_route_steps_and_restores_the_final_map() {
+    let (mut lifecycle, mut spatial, mut navigation, middle_id, _) = connected_spatial_fixture();
+    let target_id = extend_known_spatial_route(&mut lifecycle, middle_id, false);
+    let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
+    let before_time = lifecycle.session.as_ref().unwrap().state.world.time_points;
+
+    fast_travel_to_known_location(&mut spatial, &mut lifecycle, &mut navigation, target_id)
+        .expect("known destinations should be reachable through the visited route graph");
+
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    let target_key = format!("location.{target_id}");
+    assert_eq!(game.character.location_id, target_id);
+    assert_eq!(game.character.turn, before_turn + 2);
+    assert_eq!(game.world.time_points, before_time + 4);
+    assert_eq!(spatial.session.as_ref().unwrap().location_id, target_key);
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+    assert!(spatial
+        .location_notice
+        .as_deref()
+        .is_some_and(|message| message.contains("Remote Hollow")));
+    assert!(game
+        .world
+        .local_maps
+        .iter()
+        .any(|map| map.location_id == target_key));
+}
+
+#[test]
+fn map_fast_travel_stops_at_an_intermediate_dangerous_location() {
+    let (mut lifecycle, mut spatial, mut navigation, middle_id, _) = connected_spatial_fixture();
+    let target_id = extend_known_spatial_route(&mut lifecycle, middle_id, true);
+    let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
+    let before_time = lifecycle.session.as_ref().unwrap().state.world.time_points;
+
+    fast_travel_to_known_location(&mut spatial, &mut lifecycle, &mut navigation, target_id)
+        .expect("the route should stop safely at the dangerous intermediate location");
+
+    let game = &lifecycle.session.as_ref().unwrap().state;
+    assert_eq!(game.character.location_id, middle_id);
+    assert_eq!(game.character.turn, before_turn + 1);
+    assert_eq!(game.world.time_points, before_time + 2);
+    assert!(game.threat.active);
+    assert!(spatial
+        .message
+        .as_deref()
+        .is_some_and(|message| message.contains("interrupted")));
+    assert_eq!(
+        spatial.session.as_ref().unwrap().location_id,
+        format!("location.{middle_id}")
+    );
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
+}
+
 #[test]
 fn spatial_entry_announces_location_without_persisting_it_in_the_header() {
     let game = crate::model::create_new_state(
@@ -1121,7 +1226,7 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
 }
 
 #[test]
-fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map() {
+fn known_location_fast_travel_saves_the_source_map_and_restores_the_destination_map() {
     let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
         connected_spatial_fixture();
     let source_entry = spatial.maps[&source_key].entry;
@@ -1137,7 +1242,7 @@ fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map
     spatial.session.as_mut().unwrap().position = source_entry;
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
 
-    travel_to_destination(
+    fast_travel_to_known_location(
         &mut spatial,
         &mut lifecycle,
         &mut navigation,
@@ -1171,7 +1276,7 @@ fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map
 }
 
 #[test]
-fn destination_list_travel_rejects_a_stale_connection_without_leaving_spatial_play() {
+fn known_location_fast_travel_rejects_a_stale_connection_without_leaving_spatial_play() {
     let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
         connected_spatial_fixture();
     let source_location_id = lifecycle
@@ -1193,14 +1298,17 @@ fn destination_list_travel_rejects_a_stale_connection_without_leaving_spatial_pl
         .retain(|target| *target != destination_id);
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
 
-    let result = travel_to_destination(
+    let result = fast_travel_to_known_location(
         &mut spatial,
         &mut lifecycle,
         &mut navigation,
         destination_id,
     );
 
-    assert_eq!(result, Err("That route is no longer available."));
+    assert_eq!(
+        result,
+        Err("That location is not reachable through known routes.")
+    );
     let game = &lifecycle.session.as_ref().unwrap().state;
     assert_eq!(game.character.location_id, source_location_id);
     assert_eq!(game.character.turn, before_turn);

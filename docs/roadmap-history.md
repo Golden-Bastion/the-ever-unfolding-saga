@@ -857,3 +857,14 @@ src/
 - Kept region and current-location hierarchy out of the permanent HUD and recorded a focused World Map showing both names as future work.
 - Added regression coverage for initial entry, notice expiration, sandbox heading identity, and both physical-passage and destination-list travel announcements.
 - Bumped Rust and Android version metadata to 0.52.32. Integrated desktop and Android landscape validation remains deferred until the spatial migration work is complete.
+
+
+### v0.52.33: Spatial World Map and fast travel
+- Added a focused World Map to the spatial pause menu and compatibility Gameplay hub, showing current region/location, previously visited locations, immediate frontier exits, and authoritative graph connections.
+- Made visited map nodes directly selectable as fast-travel targets when connected through reciprocal routes made entirely of visited locations. Each hop uses the normal travel action, preserving time, turns, history, quests, and arrival effects; death, danger, or consequential arrival events interrupt the journey at that stop.
+- Kept unexplored frontier nodes visible but non-selectable for fast travel; they must be reached through ordinary spatial gameplay and physical passages.
+- Removed the separate destination-only Travel screen, its renderer-neutral navigation view/module, and the old pause-menu Travel entry. Normal physical-passage travel remains in spatial gameplay.
+- Kept graph layout presentation-only and deterministic; no geographical coordinates or map positions were added to world data or saves.
+- Documented the interim map's view/layout/fast-travel boundaries and the future continuous geography-backed map requirements under issue #365.
+- Added map discovery/fast-travel tests, multi-hop and interruption coverage, and deterministic graph-layout regression coverage.
+- Bumped Rust and Android version metadata to 0.52.33. Desktop and Android landscape visual validation remains deferred until the spatial migration work is complete.

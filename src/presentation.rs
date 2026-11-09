@@ -185,10 +185,36 @@ pub(crate) struct HistoryView {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct NavigationView {
+pub(crate) struct WorldMapNodeView {
+    pub location: LocationView,
+    pub region_id: u64,
+    pub explored: bool,
+    pub current: bool,
+    pub reachable: bool,
+    pub fast_travel_index: Option<usize>,
+    pub fast_travel_steps: Option<usize>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct WorldMapDestinationView {
+    pub location: LocationView,
+    pub route_steps: usize,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct WorldMapRouteView {
+    pub from_id: u64,
+    pub to_id: u64,
+    pub bidirectional: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct WorldMapView {
     pub current_location: Option<LocationView>,
-    pub destinations: Vec<LocationView>,
-    pub art: Option<String>,
+    pub nodes: Vec<WorldMapNodeView>,
+    pub routes: Vec<WorldMapRouteView>,
+    /// Previously visited destinations reachable through the explored reciprocal route graph.
+    pub fast_travel_destinations: Vec<WorldMapDestinationView>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

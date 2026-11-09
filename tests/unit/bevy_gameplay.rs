@@ -106,7 +106,7 @@ fn gameplay_input_accepts_only_gameplay_and_an_active_spatial_pause_menu() {
     ));
     assert!(accepts_gameplay_input(
         Some(ScreenId::SpatialExploration),
-        GameplayScreen::Navigation
+        GameplayScreen::WorldMap
     ));
     assert!(!accepts_gameplay_input(
         Some(ScreenId::SpatialExploration),
@@ -116,6 +116,178 @@ fn gameplay_input_accepts_only_gameplay_and_an_active_spatial_pause_menu() {
         Some(ScreenId::Character),
         GameplayScreen::Pause
     ));
+}
+
+#[test]
+fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance() {
+    let view = WorldMapView {
+        current_location: Some(crate::presentation::LocationView {
+            id: 10,
+            name: "Crossroads".to_string(),
+            region_name: "Ashen Vale".to_string(),
+            ..Default::default()
+        }),
+        nodes: vec![
+            crate::presentation::WorldMapNodeView {
+                location: crate::presentation::LocationView {
+                    id: 10,
+                    name: "Crossroads".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                region_id: 1,
+                explored: true,
+                current: true,
+                reachable: false,
+                fast_travel_index: None,
+                fast_travel_steps: None,
+            },
+            crate::presentation::WorldMapNodeView {
+                location: crate::presentation::LocationView {
+                    id: 11,
+                    name: "Old Shrine".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                region_id: 1,
+                explored: true,
+                current: false,
+                reachable: true,
+                fast_travel_index: Some(0),
+                fast_travel_steps: Some(1),
+            },
+            crate::presentation::WorldMapNodeView {
+                location: crate::presentation::LocationView {
+                    id: 12,
+                    name: "Cinder Hamlet".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                region_id: 1,
+                explored: true,
+                current: false,
+                reachable: true,
+                fast_travel_index: Some(1),
+                fast_travel_steps: Some(1),
+            },
+            crate::presentation::WorldMapNodeView {
+                location: crate::presentation::LocationView {
+                    id: 13,
+                    name: "Sunken Watch".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                region_id: 1,
+                explored: false,
+                current: false,
+                reachable: false,
+                fast_travel_index: None,
+                fast_travel_steps: None,
+            },
+        ],
+        routes: vec![
+            crate::presentation::WorldMapRouteView {
+                from_id: 10,
+                to_id: 11,
+                bidirectional: true,
+            },
+            crate::presentation::WorldMapRouteView {
+                from_id: 10,
+                to_id: 12,
+                bidirectional: true,
+            },
+            crate::presentation::WorldMapRouteView {
+                from_id: 11,
+                to_id: 13,
+                bidirectional: false,
+            },
+        ],
+        fast_travel_destinations: vec![
+            crate::presentation::WorldMapDestinationView {
+                location: crate::presentation::LocationView {
+                    id: 11,
+                    name: "Old Shrine".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                route_steps: 1,
+            },
+            crate::presentation::WorldMapDestinationView {
+                location: crate::presentation::LocationView {
+                    id: 12,
+                    name: "Cinder Hamlet".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                route_steps: 1,
+            },
+        ],
+    };
+
+    let first = build_world_map_layout(&view);
+    let second = build_world_map_layout(&view);
+
+    assert_eq!(first, second);
+    assert_eq!(
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 10)
+            .unwrap()
+            .column,
+        0
+    );
+    assert_eq!(
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 11)
+            .unwrap()
+            .column,
+        1
+    );
+    assert_eq!(
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 12)
+            .unwrap()
+            .column,
+        1
+    );
+    assert_eq!(
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 13)
+            .unwrap()
+            .column,
+        2
+    );
+    assert_ne!(
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 11)
+            .unwrap()
+            .top,
+        first
+            .nodes
+            .iter()
+            .find(|node| node.location_id == 12)
+            .unwrap()
+            .top
+    );
+}
+
+#[test]
+fn spatial_and_compatibility_gameplay_map_actions_use_the_same_map_label() {
+    assert_eq!(pause_action_visuals(PauseAction::Map), ("travel", "Map"));
+    assert_eq!(
+        gameplay_action_visuals(GameplayAction::Map),
+        ("travel", "Map")
+    );
+    assert_eq!(PRIMARY_GAMEPLAY_ACTIONS[0], GameplayAction::Map);
 }
 
 #[test]
@@ -200,7 +372,7 @@ fn spatial_pause_menu_places_travel_and_safe_meditation_before_character_actions
         pause_actions_from(true, true, true).as_slice(),
         [
             PauseAction::Resume,
-            PauseAction::Travel,
+            PauseAction::Map,
             PauseAction::Meditate,
             PauseAction::Character,
             PauseAction::NewGame,

@@ -1,9 +1,10 @@
 use crate::game::state_effects::{self, add_or_refresh_condition};
-use crate::model::{Condition, EntityId, GameState};
+use crate::model::{Condition, EntityId, GameState, HistoryEntryType};
 use crate::persistence::save_game;
 use crate::presentation::{
     CharacterView, MeditationResultView, MeditationTargetView, MeditationView,
 };
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
 const MEDITATION_TARGETS: [(u32, &str); 8] = [
@@ -30,6 +31,98 @@ pub(crate) fn has_reciprocal_location_connection(state: &GameState, target_id: E
 
     current_location.exits.contains(&target_id)
         && target_location.exits.contains(&current_location.id)
+}
+
+fn is_known_location(state: &GameState, location_id: EntityId) -> bool {
+    let stable_id = format!("location.{location_id}");
+    state
+        .world
+        .local_maps
+        .iter()
+        .any(|map| map.location_id == stable_id)
+}
+
+/// Find a shortest route to a previously visited location using only reciprocal
+/// connections between locations whose local maps have already been established.
+/// The returned IDs are ordered hops and exclude the current location.
+pub(crate) fn find_known_travel_path(
+    state: &GameState,
+    target_id: EntityId,
+) -> Option<Vec<EntityId>> {
+    let start_id = state.character.location_id;
+    if target_id == start_id || !is_known_location(state, target_id) {
+        return None;
+    }
+
+    let mut queue = VecDeque::from([start_id]);
+    let mut visited = HashSet::from([start_id]);
+    let mut previous = HashMap::<EntityId, EntityId>::new();
+
+    while let Some(source_id) = queue.pop_front() {
+        let source = state.world.location_by_id(source_id)?;
+        let mut exits = source.exits.clone();
+        exits.sort_unstable();
+        exits.dedup();
+
+        for next_id in exits {
+            if visited.contains(&next_id)
+                || !is_known_location(state, next_id)
+                || !state
+                    .world
+                    .location_by_id(next_id)
+                    .is_some_and(|next| next.exits.contains(&source_id))
+            {
+                continue;
+            }
+
+            visited.insert(next_id);
+            previous.insert(next_id, source_id);
+            if next_id == target_id {
+                let mut path = Vec::new();
+                let mut cursor = target_id;
+                while cursor != start_id {
+                    path.push(cursor);
+                    cursor = *previous.get(&cursor)?;
+                }
+                path.reverse();
+                return Some(path);
+            }
+            queue.push_back(next_id);
+        }
+    }
+
+    None
+}
+
+/// Fast travel skips local movement but follows the known reciprocal route
+/// network and applies the normal travel action for every hop. A death or active
+/// threat at an intermediate arrival interrupts the journey at that location.
+pub(crate) fn fast_travel_to(
+    state: &mut GameState,
+    target_id: EntityId,
+) -> std::io::Result<Vec<EntityId>> {
+    let path = find_known_travel_path(state, target_id).ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Fast travel is only available to known locations connected by explored routes.",
+        )
+    })?;
+
+    let mut traveled = Vec::with_capacity(path.len());
+    for location_id in path {
+        let previous_turn = state.character.turn;
+        travel_to(state, location_id)?;
+        traveled.push(location_id);
+
+        let arrival_event =
+            state.world.history.iter().any(|entry| {
+                entry.turn > previous_turn && entry.entry_type == HistoryEntryType::Event
+            });
+        if !state.character.alive || state.threat.active || arrival_event {
+            break;
+        }
+    }
+    Ok(traveled)
 }
 
 pub(crate) fn travel_to(
