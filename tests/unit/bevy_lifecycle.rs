@@ -374,7 +374,6 @@ fn appearance_creation_tab_cycles_parts_and_slots_and_persists_the_selection() {
     assert_eq!(state.character.appearance_parts, selected);
 }
 
-
 #[test]
 fn lifecycle_complete_action_reflects_pending_save_confirmation() {
     assert_eq!(complete_action_visuals(true), ("explore", "Continue"));

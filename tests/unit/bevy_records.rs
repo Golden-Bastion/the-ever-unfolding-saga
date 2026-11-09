@@ -70,7 +70,6 @@ fn character_tab_back_action_follows_tab_content() {
     );
 }
 
-
 #[test]
 fn all_character_tabs_return_to_the_spatial_invoking_screen() {
     for tab in CharacterTab::ALL {
@@ -89,7 +88,10 @@ fn all_character_tabs_return_to_the_spatial_invoking_screen() {
         assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
         cancel(&mut navigation, &mut records_state);
 
-        assert_eq!(navigation.current_screen, Some(ScreenId::SpatialExploration));
+        assert_eq!(
+            navigation.current_screen,
+            Some(ScreenId::SpatialExploration)
+        );
         assert_eq!(navigation.return_screen, None);
     }
 }
@@ -118,7 +120,10 @@ fn character_detail_and_journal_editor_back_paths_keep_spatial_parent() {
 
         records_state.screen = RecordScreen::Character;
         cancel(&mut navigation, &mut records_state);
-        assert_eq!(navigation.current_screen, Some(ScreenId::SpatialExploration));
+        assert_eq!(
+            navigation.current_screen,
+            Some(ScreenId::SpatialExploration)
+        );
         assert_eq!(navigation.return_screen, None);
     }
 }

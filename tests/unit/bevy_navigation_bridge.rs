@@ -18,7 +18,6 @@ fn gameplay_reentry_resets_selection_for_normal_gameplay() {
     ));
 }
 
-
 #[test]
 fn completed_new_or_loaded_session_enters_spatial_exploration() {
     assert!(should_enter_spatial_exploration(
