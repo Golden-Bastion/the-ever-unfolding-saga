@@ -851,7 +851,7 @@ src/
 - Bumped Rust and Android version metadata to 0.52.31. Desktop and Android landscape validation remains deferred until the spatial migration work is complete.
 
 ### v0.52.32: Transient spatial location identity
-- Removed the current location name from the persistent spatial header, replacing it with a generic local-exploration label.
+- Removed the redundant generic exploration label from the normal spatial header, leaving the compact time indicator on its own; the World Lab retains its seed heading.
 - Added a four-second arrival notice when entering spatial exploration or traveling to another location; the normal spatial status feedback becomes visible again when the notice expires.
 - Preserved travel outcome feedback separately from the temporary location announcement.
 - Kept region and current-location hierarchy out of the permanent HUD and recorded a focused World Map showing both names as future work.
