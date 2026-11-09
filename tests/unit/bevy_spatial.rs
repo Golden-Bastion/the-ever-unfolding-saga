@@ -1200,7 +1200,7 @@ fn known_location_fast_travel_rejects_a_stale_connection_without_leaving_spatial
         destination_id,
     );
 
-    assert_eq!(result, Err("That route is no longer available."));
+    assert_eq!(result, Err("That location is not reachable through known routes."));
     let game = &lifecycle.session.as_ref().unwrap().state;
     assert_eq!(game.character.location_id, source_location_id);
     assert_eq!(game.character.turn, before_turn);
