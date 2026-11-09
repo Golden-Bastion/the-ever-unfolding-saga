@@ -10,7 +10,7 @@ The placements below follow the project's established direction: keep frequent a
 
 The current spatial screen provides:
 
-- A generic local-exploration heading; a newly entered location name appears only in a brief arrival notice.
+- No generic heading is shown during normal spatial play; the compact time-of-day indicator stands on its own. A location name appears only in a brief arrival notice on entry or travel.
 - Character name, level, health, and active-condition summary.
 - A status/message strip for movement and discovery feedback, with a temporary arrival notice for the current location.
 - An Interact control that opens the player-anchored radial action wheel when eligible targets exist.
