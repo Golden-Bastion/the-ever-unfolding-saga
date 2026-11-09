@@ -1121,7 +1121,7 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
 }
 
 #[test]
-fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map() {
+fn known_location_fast_travel_saves_the_source_map_and_restores_the_destination_map() {
     let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
         connected_spatial_fixture();
     let source_entry = spatial.maps[&source_key].entry;
@@ -1137,7 +1137,7 @@ fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map
     spatial.session.as_mut().unwrap().position = source_entry;
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
 
-    travel_to_destination(
+    fast_travel_to_known_location(
         &mut spatial,
         &mut lifecycle,
         &mut navigation,
@@ -1171,7 +1171,7 @@ fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map
 }
 
 #[test]
-fn destination_list_travel_rejects_a_stale_connection_without_leaving_spatial_play() {
+fn known_location_fast_travel_rejects_a_stale_connection_without_leaving_spatial_play() {
     let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
         connected_spatial_fixture();
     let source_location_id = lifecycle
@@ -1193,7 +1193,7 @@ fn destination_list_travel_rejects_a_stale_connection_without_leaving_spatial_pl
         .retain(|target| *target != destination_id);
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
 
-    let result = travel_to_destination(
+    let result = fast_travel_to_known_location(
         &mut spatial,
         &mut lifecycle,
         &mut navigation,
