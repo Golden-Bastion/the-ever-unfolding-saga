@@ -27,7 +27,7 @@ The spatial screen already rebuilds its presentation after returning from a dedi
 | Existing function | Current owner and behavior | Proposed spatial home | Migration status |
 |---|---|---|---|
 | Current location and region | WorldView and LocationView; the dashboard shows location context. | Spatial header and local environment. The spatial header already identifies the current location; region/detail can remain secondary context rather than a permanent panel. | Partially present. |
-| Time and day/night | WorldView provides time, day, and time_points; the dashboard derives its sky treatment from those values. | Environmental presentation or a compact time cue, not another large information panel. | Not represented in the spatial HUD yet. |
+| Time and day/night | WorldView and the world clock expose day and 12 two-hour time portions; the dashboard already maps those portions to a sky palette and the mod-aware sun/moon atlas. | Reuse the same sky phases in a compact horizon-and-celestial display with a 24-hour readout. Apply restrained warm dawn/dusk and cool night colour washes to the spatial environment, keeping the HUD above the wash. | Implemented in v0.52.30; both the environmental treatment and compact sky/clock are driven by authoritative world time. |
 | Character vitals | bevy_gameplay.rs renders the dashboard vitals; bevy_spatial.rs already reads authoritative character data for the spatial vitals panel. | Keep the compact spatial vitals panel. Do not create a second HUD copy or independent values. | Present in spatial exploration. |
 | Transient feedback and messages | bevy_feedback.rs presents level-up and quest-reward feedback and remembers the screen to which it should return. Spatial movement/discovery/arrival uses the spatial status message. | Keep short local feedback in the spatial status area; use the existing feedback overlay for consequential results and choices. | Existing mechanisms support the spatial context. |
 | Travel to a connected local area | bevy_spatial.rs exposes physical passages as contextual targets and transitions through the existing world graph. | Keep physical passages in the world and discoverable through the interaction wheel. | Present in spatial exploration. |
@@ -62,13 +62,12 @@ The spatial interface must route into existing gameplay behavior rather than rep
 3. **Meditation entry (implemented in v0.52.28).** The spatial pause menu shows Meditate only when the authoritative safe-to-meditate check passes; the existing screen and target rules remain unchanged.
 4. **Character entry (available through the v0.52.26 pause menu).** Verify all Character tabs and detail screens return to the exact paused spatial context.
 5. **Threat/investigation presentation (implemented in v0.52.29).** Show Investigate beside Interact only while an active threat belongs to the current location; start the existing Combat flow through `bevy_combat::begin`.
-6. **Lifecycle hand-off.** Only after the spatial menu and entry points cover the required functions should new/load/start/quit flows be adjusted to make spatial exploration the normal active-character shell.
-7. **Retirement review.** Remove the dashboard and its transition-only Leave path only after the function audit has been implemented and validated on desktop and Android landscape.
+6. **Time and day/night presentation (implemented in v0.52.30).** Reuse the existing 12-part world clock and sun/moon atlas for a compact spatial sky display and 24-hour readout. Apply a subtle environment-wide dawn/dusk/night colour wash beneath the HUD; do not add a second time simulation or copy the dashboard's large sky composition.
+7. **Lifecycle hand-off.** Only after the spatial menu and entry points cover the required functions should new/load/start/quit flows be adjusted to make spatial exploration the normal active-character shell.
+8. **Retirement review.** Remove the dashboard and its transition-only Leave path only after the function audit has been implemented and validated on desktop and Android landscape.
 
-## Remaining design decisions before further HUD work
+## Remaining migration work
 
-The following points affect how the remaining dashboard functions are exposed and should be settled before implementing their spatial entry points:
+The time-of-day presentation direction is now implemented. The existing world clock remains authoritative; no time advancement, save format, or gameplay rule has been changed by this presentation work.
 
-- **Time presentation:** should time-of-day be communicated through environmental lighting/sky treatment, a small cue, or both? The dashboard's large sky composition should not simply be copied over the spatial view.
-
-The pause-menu integration and destination-list travel entry do not retire the dashboard. It remains the compatibility fallback until the other required functions have implemented and validated spatial replacements.
+The pause-menu integration, destination-list travel, meditation, investigation, and time presentation do not retire the dashboard. Character-entry verification, lifecycle hand-off, the remaining dashboard functions, and final desktop/Android landscape validation are still required before the compatibility dashboard and Leave transition can be removed.
