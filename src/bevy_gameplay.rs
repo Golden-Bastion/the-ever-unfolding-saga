@@ -4,7 +4,7 @@
 //! into Bevy UI. It does not reimplement gameplay simulation.
 
 use bevy::prelude::*;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 use crate::bevy_combat::CombatState;
 use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
@@ -13,7 +13,7 @@ use crate::bevy_presentation::{
 };
 use crate::game::{actions, menu, navigation};
 use crate::input::InputEvent;
-use crate::presentation::{ConditionView, NavigationView, WorldView};
+use crate::presentation::{ConditionView, NavigationView, WorldMapView, WorldView};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum GameplayScreen {
@@ -25,7 +25,7 @@ pub(crate) enum GameplayScreen {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PauseAction {
     Resume,
-    Travel,
+    Map,
     Meditate,
     Character,
     NewGame,
@@ -531,7 +531,7 @@ fn activate_selection(
                     gameplay.dirty = true;
                     open_dedicated_screen(navigation_state, ScreenId::Meditation);
                 }
-                PauseAction::Travel => {
+                PauseAction::Map => {
                     gameplay.screen = GameplayScreen::Navigation;
                     gameplay.selected = 0;
                     gameplay.message = None;
@@ -1358,7 +1358,7 @@ fn render_pause(commands: &mut Commands, parent: Entity, actions: &[PauseAction]
 fn pause_action_visuals(action: PauseAction) -> (&'static str, &'static str) {
     match action {
         PauseAction::Resume => ("resume", "Resume"),
-        PauseAction::Travel => ("travel", "Travel"),
+        PauseAction::Map => ("travel", "Map"),
         PauseAction::Meditate => ("meditate", "Meditate"),
         PauseAction::Character => ("character", "Character"),
         PauseAction::NewGame => ("new-game", "New Game"),
