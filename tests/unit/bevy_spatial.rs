@@ -1431,19 +1431,19 @@ fn spatial_investigation_is_available_only_for_a_threat_at_the_current_location(
 #[test]
 fn spatial_clock_formats_the_existing_two_hour_world_time_steps() {
     for (slot, expected) in [
-        (0, "00:00"),
-        (1, "02:00"),
-        (2, "04:00"),
-        (3, "06:00"),
-        (4, "08:00"),
-        (5, "10:00"),
-        (6, "12:00"),
-        (7, "14:00"),
-        (8, "16:00"),
-        (9, "18:00"),
-        (10, "20:00"),
-        (11, "22:00"),
-        (12, "00:00"),
+        (0, "02:00"),
+        (1, "04:00"),
+        (2, "06:00"),
+        (3, "08:00"),
+        (4, "10:00"),
+        (5, "12:00"),
+        (6, "14:00"),
+        (7, "16:00"),
+        (8, "18:00"),
+        (9, "20:00"),
+        (10, "22:00"),
+        (11, "00:00"),
+        (12, "02:00"),
     ] {
         assert_eq!(crate::game::time::clock_display(slot), expected);
     }
