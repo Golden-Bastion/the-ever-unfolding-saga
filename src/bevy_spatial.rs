@@ -1178,7 +1178,7 @@ pub(crate) fn fast_travel_to_known_location(
     enter(state, game_state, navigation);
     if let Some(location) = interrupted_location {
         state.message = Some(format!(
-            "Fast travel was interrupted at {location}; danger blocks the rest of the route."
+            "Fast travel paused at {location}; an encounter or danger interrupted the journey."
         ));
         state.dirty = true;
     } else if let Some(outcome) = arrival_outcome {
