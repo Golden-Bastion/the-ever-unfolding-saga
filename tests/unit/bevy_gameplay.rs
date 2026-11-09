@@ -119,6 +119,104 @@ fn gameplay_input_accepts_only_gameplay_and_an_active_spatial_pause_menu() {
 }
 
 #[test]
+fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance() {
+    let view = WorldMapView {
+        current_location: Some(crate::presentation::LocationView {
+            id: 10,
+            name: "Crossroads".to_string(),
+            region_name: "Ashen Vale".to_string(),
+            ..Default::default()
+        }),
+        nodes: vec![
+            crate::presentation::WorldMapNodeView {
+                location: crate::presentation::LocationView {
+                    id: 10,
+                    name: "Crossroads".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                region_id: 1,
+                explored: true,
+                current: true,
+                reachable: false,
+            },
+            crate::presentation::WorldMapNodeView {
+                location: crate::presentation::LocationView {
+                    id: 11,
+                    name: "Old Shrine".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                region_id: 1,
+                explored: true,
+                current: false,
+                reachable: true,
+            },
+            crate::presentation::WorldMapNodeView {
+                location: crate::presentation::LocationView {
+                    id: 12,
+                    name: "Cinder Hamlet".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                region_id: 1,
+                explored: false,
+                current: false,
+                reachable: true,
+            },
+            crate::presentation::WorldMapNodeView {
+                location: crate::presentation::LocationView {
+                    id: 13,
+                    name: "Sunken Watch".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                region_id: 1,
+                explored: false,
+                current: false,
+                reachable: false,
+            },
+        ],
+        routes: vec![
+            crate::presentation::WorldMapRouteView {
+                from_id: 10,
+                to_id: 11,
+                bidirectional: true,
+            },
+            crate::presentation::WorldMapRouteView {
+                from_id: 10,
+                to_id: 12,
+                bidirectional: true,
+            },
+            crate::presentation::WorldMapRouteView {
+                from_id: 11,
+                to_id: 13,
+                bidirectional: false,
+            },
+        ],
+        destinations: Vec::new(),
+    };
+
+    let first = build_world_map_layout(&view);
+    let second = build_world_map_layout(&view);
+
+    assert_eq!(first, second);
+    assert_eq!(first.nodes.iter().find(|node| node.location_id == 10).unwrap().column, 0);
+    assert_eq!(first.nodes.iter().find(|node| node.location_id == 11).unwrap().column, 1);
+    assert_eq!(first.nodes.iter().find(|node| node.location_id == 12).unwrap().column, 1);
+    assert_eq!(first.nodes.iter().find(|node| node.location_id == 13).unwrap().column, 2);
+    assert_ne!(
+        first.nodes.iter().find(|node| node.location_id == 11).unwrap().top,
+        first.nodes.iter().find(|node| node.location_id == 12).unwrap().top
+    );
+}
+
+#[test]
+fn spatial_map_action_uses_map_label_and_existing_travel_icon() {
+    assert_eq!(pause_action_visuals(PauseAction::Map), ("travel", "Map"));
+}
+
+#[test]
 fn animate_world_clouds_does_not_move_clouds_while_paused() {
     let mut app = App::new();
     app.insert_resource(Time::<()>::default());
@@ -200,7 +298,7 @@ fn spatial_pause_menu_places_travel_and_safe_meditation_before_character_actions
         pause_actions_from(true, true, true).as_slice(),
         [
             PauseAction::Resume,
-            PauseAction::Travel,
+            PauseAction::Map,
             PauseAction::Meditate,
             PauseAction::Character,
             PauseAction::NewGame,
