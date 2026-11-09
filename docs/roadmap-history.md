@@ -857,3 +857,12 @@ src/
 - Kept region and current-location hierarchy out of the permanent HUD and recorded a focused World Map showing both names as future work.
 - Added regression coverage for initial entry, notice expiration, sandbox heading identity, and both physical-passage and destination-list travel announcements.
 - Bumped Rust and Android version metadata to 0.52.32. Integrated desktop and Android landscape validation remains deferred until the spatial migration work is complete.
+
+
+### v0.52.33: Spatial World Map foundation
+- Added a focused World Map to the spatial pause menu, showing the current region/location, explored locations with established local maps, their immediate frontier exits, and authoritative graph connections.
+- Kept graph layout presentation-only and deterministic; no geographical coordinates or map positions were added to world data or saves.
+- Reused the existing direct-destination selection and spatial travel transition; renamed the spatial pause entry from Travel to Map while retaining legacy dashboard Travel.
+- Documented the interim map's view/layout/travel boundaries and the future continuous geography-backed map requirements under issue #365.
+- Added world-map discovery/route tests and deterministic graph-layout regression coverage.
+- Bumped Rust and Android version metadata to 0.52.33. Desktop and Android landscape visual validation remains deferred until the spatial migration work is complete.
