@@ -1117,6 +1117,18 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
 fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map() {
     let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
         connected_spatial_fixture();
+    // Keep this persistence test independent of random travel-arrival events.
+    lifecycle
+        .session
+        .as_mut()
+        .expect("game session should exist")
+        .state
+        .campaign_content
+        .as_mut()
+        .expect("campaign content should be loaded")
+        .events
+        .retain(|event| event.trigger != "travel_arrival");
+
     let source_entry = spatial.maps[&source_key].entry;
     spatial
         .maps
