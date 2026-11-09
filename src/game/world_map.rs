@@ -22,12 +22,12 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         .world
         .local_maps
         .iter()
-        .map(|map| map.location_id.as_str())
+        .map(|map| map.location_id.clone())
         .collect::<HashSet<_>>();
 
     let is_explored = |location_id: u64| {
         let stable_id = format!("location.{location_id}");
-        explored_ids.contains(stable_id.as_str())
+        explored_ids.contains(&stable_id)
     };
 
     let mut visible_ids = HashSet::from([current.id]);
@@ -65,21 +65,26 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
             let Some(target) = state.world.location_by_id(*target_id) else {
                 continue;
             };
-            let (from_id, to_id) = if source.id <= target.id {
+            let (first_id, second_id) = if source.id <= target.id {
                 (source.id, target.id)
             } else {
                 (target.id, source.id)
             };
             let bidirectional = target.exits.contains(&source.id);
-            if let Some(existing) = routes
-                .iter_mut()
-                .find(|route| route.from_id == from_id && route.to_id == to_id)
-            {
+            if let Some(existing) = routes.iter_mut().find(|route| {
+                let key = if route.from_id <= route.to_id {
+                    (route.from_id, route.to_id)
+                } else {
+                    (route.to_id, route.from_id)
+                };
+                key == (first_id, second_id)
+            }) {
                 existing.bidirectional |= bidirectional;
             } else {
                 routes.push(WorldMapRouteView {
-                    from_id,
-                    to_id,
+                    // Retain the actual source -> destination orientation for one-way routes.
+                    from_id: source.id,
+                    to_id: target.id,
                     bidirectional,
                 });
             }
