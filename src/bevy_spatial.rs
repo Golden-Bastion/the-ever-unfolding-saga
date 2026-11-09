@@ -52,6 +52,7 @@ const JOYSTICK_THUMB_RADIUS_PX: f32 = 20.0;
 #[cfg(target_os = "android")]
 const JOYSTICK_THUMB_TRAVEL_PX: f32 = 36.0;
 const CAMERA_LERP_SPEED: f32 = 8.0;
+const LOCATION_NOTICE_DURATION_SECONDS: f32 = 4.0;
 const CAMERA_DEAD_ZONE_FRACTION: f32 = 0.15;
 const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
 const MAX_MOVEMENT_STEP_DISTANCE: f32 = PLAYER_COLLISION_HALF_EXTENT * 0.5;
@@ -167,6 +168,8 @@ pub(crate) struct SpatialExplorationState {
     session: Option<ExplorationSession>,
     position: Vec2,
     message: Option<String>,
+    location_notice: Option<String>,
+    location_notice_remaining_seconds: f32,
     interaction_wheel: Option<SpatialInteractionWheel>,
     sandbox_map: Option<LocalMap>,
     sandbox_actor_entities: Vec<(EntityId, SpatialEntityKind)>,
@@ -181,6 +184,43 @@ pub(crate) struct SpatialExplorationState {
 impl SpatialExplorationState {
     pub(crate) fn request_presentation_refresh(&mut self) {
         self.dirty = true;
+    }
+}
+
+fn announce_location(state: &mut SpatialExplorationState, location_name: &str) {
+    state.location_notice = Some(format!("You arrive at {location_name}."));
+    state.location_notice_remaining_seconds = LOCATION_NOTICE_DURATION_SECONDS;
+    state.dirty = true;
+}
+
+fn advance_location_notice(state: &mut SpatialExplorationState, delta_seconds: f32) {
+    if state.location_notice.is_none() {
+        return;
+    }
+
+    let elapsed = if delta_seconds.is_finite() {
+        delta_seconds.max(0.0)
+    } else {
+        0.0
+    };
+    if elapsed == 0.0 {
+        return;
+    }
+
+    state.location_notice_remaining_seconds =
+        (state.location_notice_remaining_seconds - elapsed).max(0.0);
+    if state.location_notice_remaining_seconds <= f32::EPSILON {
+        state.location_notice = None;
+        state.location_notice_remaining_seconds = 0.0;
+        state.dirty = true;
+    }
+}
+
+fn spatial_header_label(sandbox_mode: bool, map_seed: u64) -> String {
+    if sandbox_mode {
+        format!("WORLD LAB - PLAY TEST / SEED {map_seed}")
+    } else {
+        "LOCAL EXPLORATION".to_string()
     }
 }
 
@@ -238,6 +278,8 @@ pub(crate) fn start_sandbox_playtest(
     });
     state.interaction_wheel = None;
     state.sandbox_mode = true;
+    state.location_notice = None;
+    state.location_notice_remaining_seconds = 0.0;
     state.message =
         Some("Play-test the generated space. Back returns to the World Lab editor.".to_string());
     state.dirty = true;
@@ -267,6 +309,17 @@ fn refresh_spatial_scene_on_reentry(
     state.last_navigation_screen = navigation.current_screen;
 }
 
+fn update_spatial_location_notice(
+    time: Res<Time>,
+    navigation: Res<NavigationState>,
+    mut state: ResMut<SpatialExplorationState>,
+) {
+    if navigation.current_screen != Some(ScreenId::SpatialExploration) {
+        return;
+    }
+    advance_location_notice(&mut state, time.delta_secs());
+}
+
 pub(crate) fn install(app: &mut App) {
     app.add_message::<SpatialInteractionRequest>()
         .init_resource::<SpatialExplorationState>()
@@ -276,6 +329,7 @@ pub(crate) fn install(app: &mut App) {
             Update,
             (
                 refresh_spatial_scene_on_reentry,
+                update_spatial_location_notice,
                 spatial_input,
                 update_spatial_wheel_animation,
                 update_spatial_world,
@@ -406,6 +460,7 @@ pub(crate) fn enter(
     map_mark_discovered(state, position);
     state.message =
         Some("Explore the area. Move close to people or objects to interact.".to_string());
+    announce_location(state, &location.name);
     state.dirty = true;
     navigation.return_screen = Some(ScreenId::Gameplay);
     navigation.current_screen = Some(ScreenId::SpatialExploration);
@@ -1121,11 +1176,6 @@ fn travel_to_location(
         return Err(invalid_route_message);
     }
 
-    let destination_name = game_state
-        .world
-        .location_by_id(target_location_id)
-        .map(|location| location.name.clone())
-        .unwrap_or_else(|| "the destination".to_string());
     let arrival_outcome = game_state
         .world
         .history
@@ -1144,13 +1194,10 @@ fn travel_to_location(
     }
 
     enter(state, game_state, navigation);
-    let mut message = format!("You arrive at {destination_name}.");
     if let Some(outcome) = arrival_outcome {
-        message.push(' ');
-        message.push_str(&outcome);
+        state.message = Some(outcome);
+        state.dirty = true;
     }
-    state.message = Some(message);
-    state.dirty = true;
     lifecycle.mark_dirty();
     sync_spatial_to_game(state, lifecycle);
     Ok(())
@@ -1158,6 +1205,8 @@ fn travel_to_location(
 
 fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut NavigationState) {
     state.message = None;
+    state.location_notice = None;
+    state.location_notice_remaining_seconds = 0.0;
     state.interaction_wheel = None;
     state.dirty = true;
     if state.sandbox_mode {
@@ -1574,7 +1623,7 @@ fn render_spatial_screen(
             ))
             .id();
         // This is deliberately the first UI child: it tints the world sprites
-        // while leaving the location, status, and control surfaces above it.
+        // while leaving the exploration label, status, and control surfaces above it.
         commands.entity(root).add_child(atmosphere);
     }
 
@@ -1588,22 +1637,7 @@ fn render_spatial_screen(
         })
         .id();
     commands.entity(root).add_child(header);
-    let location_heading = if state.sandbox_mode {
-        format!("WORLD LAB - PLAY TEST / SEED {}", map.seed)
-    } else {
-        let location_name = lifecycle
-            .session
-            .as_ref()
-            .and_then(|session| {
-                session
-                    .state
-                    .world
-                    .location_by_id(session.state.character.location_id)
-            })
-            .map(|location| location.name.to_uppercase())
-            .unwrap_or_else(|| "UNKNOWN LOCATION".to_string());
-        format!("{location_name} - LOCAL EXPLORATION")
-    };
+    let location_heading = spatial_header_label(state.sandbox_mode, map.seed);
     let header_context = commands
         .spawn(Node {
             max_width: percent(48),
@@ -1703,8 +1737,9 @@ fn render_spatial_screen(
         &mut commands,
         status,
         state
-            .message
+            .location_notice
             .as_deref()
+            .or(state.message.as_deref())
             .unwrap_or("Move carefully. The walls are not all stone."),
     );
 
