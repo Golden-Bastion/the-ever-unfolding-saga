@@ -114,9 +114,10 @@ pub(crate) fn fast_travel_to(
         travel_to(state, location_id)?;
         traveled.push(location_id);
 
-        let arrival_event = state.world.history.iter().any(|entry| {
-            entry.turn > previous_turn && entry.entry_type == HistoryEntryType::Event
-        });
+        let arrival_event =
+            state.world.history.iter().any(|entry| {
+                entry.turn > previous_turn && entry.entry_type == HistoryEntryType::Event
+            });
         if !state.character.alive || state.threat.active || arrival_event {
             break;
         }

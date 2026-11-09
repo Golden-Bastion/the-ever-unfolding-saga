@@ -242,8 +242,7 @@ fn fast_travel_pauses_at_a_consequential_arrival_event() {
     assert_eq!(traveled, vec![middle_id]);
     assert_eq!(game.character.location_id, middle_id);
     assert!(game.world.history.iter().any(|entry| {
-        entry.turn > initial_turn
-            && entry.entry_type == crate::model::HistoryEntryType::Event
+        entry.turn > initial_turn && entry.entry_type == crate::model::HistoryEntryType::Event
     }));
 }
 
