@@ -46,7 +46,7 @@ The spatial screen already rebuilds its presentation after returning from a dedi
 
 The spatial interface must route into existing gameplay behavior rather than reproduce it:
 
-- Travel continues to use the location graph and existing travel actions. Physical passages remain distinct from destination-list navigation.
+- Fast travel uses only previously visited locations and reciprocal paths made from visited locations, applying the existing travel action per hop. Physical passages remain the ordinary travel method in spatial gameplay.
 - Meditation continues to enforce the safe-location and target rules in the action layer.
 - Investigation continues to begin through the existing combat adapter and authoritative combat system.
 - Character records continue to use the existing Character hub and tab/detail navigation.
@@ -58,7 +58,7 @@ The spatial interface must route into existing gameplay behavior rather than rep
 ## Recommended implementation order
 
 1. **Spatial system-menu access (implemented in v0.52.26).** Escape/Android Back opens the existing pause menu over the spatial scene; Back dismisses it to the same map and player position. The Leave control remains a separate explicit action.
-2. **Travel entry (implemented in v0.52.27).** The spatial pause menu opens the existing destination selector. Selection uses the existing travel action, persists the source map, and enters the destination's spatial map; Back returns to the pause menu. Physical passages remain available in the world.
+2. **Travel entry (superseded by map fast travel in v0.52.33).** The original spatial pause-menu destination selector has been removed. The World Map now allows fast travel to previously visited places through visited reciprocal routes; every hop uses the existing travel action. Back returns to the pause menu. Unvisited places must be reached through spatial movement and physical passages.
 3. **Meditation entry (implemented in v0.52.28).** The spatial pause menu shows Meditate only when the authoritative safe-to-meditate check passes; the existing screen and target rules remain unchanged.
 4. **Character entry (verified in v0.52.31).** Keep the Character hub and all nested inventory, quest, chronicle, and journal flows attached to their spatial invoking context; regression tests cover every top-level tab and nested Back path.
 5. **Threat/investigation presentation (implemented in v0.52.29).** Show Investigate beside Interact only while an active threat belongs to the current location; start the existing Combat flow through `bevy_combat::begin`.
