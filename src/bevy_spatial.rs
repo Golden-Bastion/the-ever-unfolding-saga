@@ -312,9 +312,11 @@ fn refresh_spatial_scene_on_reentry(
 fn update_spatial_location_notice(
     time: Res<Time>,
     navigation: Res<NavigationState>,
+    runtime_state: Res<crate::bevy_gameplay::GameplayRuntimeState>,
     mut state: ResMut<SpatialExplorationState>,
 ) {
-    if navigation.current_screen != Some(ScreenId::SpatialExploration) {
+    if navigation.current_screen != Some(ScreenId::SpatialExploration) || runtime_state.is_paused()
+    {
         return;
     }
     advance_location_notice(&mut state, time.delta_secs());
