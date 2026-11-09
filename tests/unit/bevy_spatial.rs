@@ -722,6 +722,13 @@ fn connected_spatial_fixture() -> (
         "Ash".into(),
         "Wanderer".into(),
     );
+    // Spatial travel tests cover passage and map behavior, not random arrival events.
+    game.campaign_content
+        .as_mut()
+        .expect("campaign content should be loaded")
+        .events
+        .retain(|event| event.trigger != "travel_arrival");
+
     let source_location_id = game.character.location_id;
     let source_location = game
         .world
