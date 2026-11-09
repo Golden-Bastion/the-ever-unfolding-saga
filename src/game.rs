@@ -8,6 +8,7 @@ pub(crate) mod interactions_core;
 pub(crate) mod legacy;
 pub(crate) mod menu;
 pub(crate) mod navigation;
+pub(crate) mod world_map;
 pub(crate) mod quests;
 pub(crate) mod records;
 pub(crate) mod state_effects;
