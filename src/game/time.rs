@@ -46,3 +46,10 @@ pub(crate) fn time_display(points: u32, day: u32) -> String {
         top, bottom, indicator, day, label
     )
 }
+
+
+/// Format the current two-hour world-time portion as a 24-hour clock readout.
+pub(crate) fn clock_display(points: u32) -> String {
+    let hour = (points % 12) * 2;
+    format!("{hour:02}:00")
+}
