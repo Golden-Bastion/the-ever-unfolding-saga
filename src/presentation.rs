@@ -198,6 +198,14 @@ pub(crate) struct WorldMapNodeView {
     pub explored: bool,
     pub current: bool,
     pub reachable: bool,
+    pub fast_travel_index: Option<usize>,
+    pub fast_travel_steps: Option<usize>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct WorldMapDestinationView {
+    pub location: LocationView,
+    pub route_steps: usize,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -212,8 +220,8 @@ pub(crate) struct WorldMapView {
     pub current_location: Option<LocationView>,
     pub nodes: Vec<WorldMapNodeView>,
     pub routes: Vec<WorldMapRouteView>,
-    /// Destinations directly reachable from the current location, in travel-selection order.
-    pub destinations: Vec<LocationView>,
+    /// Previously visited destinations reachable through the explored reciprocal route graph.
+    pub fast_travel_destinations: Vec<WorldMapDestinationView>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
