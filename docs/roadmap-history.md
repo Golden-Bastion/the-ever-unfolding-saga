@@ -831,3 +831,12 @@ src/
 - Reused the authoritative `bevy_combat::begin` entry point and existing Combat screen; no spatial threat actor or parallel combat rules were introduced.
 - Added regression coverage for inactive, current-location, and other-location threat availability.
 - Bumped Rust and Android version metadata to 0.52.29. Desktop and Android landscape playtesting remains outstanding.
+
+
+### v0.52.30: Spatial time-of-day presentation
+- Reused the authoritative 12-part world clock and existing mod-aware sun/moon atlas in a compact spatial sky indicator beside the location heading.
+- Added a small 24-hour readout using the simulation's two-hour time steps; the display does not imply minute-level precision.
+- Applied restrained warm dawn/dusk and cool night colour washes to the spatial environment beneath the HUD, preserving the readability of controls and status surfaces.
+- Rebuilt the spatial presentation when the authoritative day/time changes so the sky indicator and environmental treatment cannot drift apart.
+- Added regression tests for the 24-hour time mapping and day-phase lighting bands.
+- Bumped Rust and Android version metadata to 0.52.30. Desktop and Android landscape visual validation remains outstanding.
