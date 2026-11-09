@@ -218,6 +218,36 @@ fn fast_travel_cannot_use_one_way_connections() {
 }
 
 #[test]
+fn fast_travel_pauses_at_a_consequential_arrival_event() {
+    let (mut game, middle_id, destination_id) = fast_travel_fixture(false, true, true);
+    game.campaign_content
+        .as_mut()
+        .expect("campaign content should exist")
+        .events
+        .push(crate::content::definitions::EventContent {
+            id: "test.fast_travel_arrival".into(),
+            trigger: "travel_arrival".into(),
+            weight: 1,
+            chance_percent: Some(100),
+            cooldown_turns: None,
+            conditions: None,
+            effects: vec![crate::content::definitions::EventEffectContent::Message {
+                text: "A traveller calls from the roadside.".into(),
+            }],
+        });
+    let initial_turn = game.character.turn;
+
+    let traveled = fast_travel_to(&mut game, destination_id).unwrap();
+
+    assert_eq!(traveled, vec![middle_id]);
+    assert_eq!(game.character.location_id, middle_id);
+    assert!(game.world.history.iter().any(|entry| {
+        entry.turn > initial_turn
+            && entry.entry_type == crate::model::HistoryEntryType::Event
+    }));
+}
+
+#[test]
 fn fast_travel_stops_at_an_intermediate_threat_instead_of_bypassing_it() {
     let (mut game, middle_id, destination_id) = fast_travel_fixture(true, true, true);
     let initial_turn = game.character.turn;
