@@ -1,4 +1,7 @@
-use super::{fast_travel_to, find_known_travel_path, has_reciprocal_location_connection, travel_to, MEDITATION_TARGETS};
+use super::{
+    fast_travel_to, find_known_travel_path, has_reciprocal_location_connection, travel_to,
+    MEDITATION_TARGETS,
+};
 use crate::model::{GameState, Location};
 use crate::spatial::{GridPosition, LocalMap, Terrain};
 
@@ -81,7 +84,6 @@ fn travel_requires_reciprocal_world_graph_connections() {
     assert_eq!(game.character.location_id, destination_id);
     assert_eq!(game.character.turn, initial_turn + 1);
 }
-
 
 fn fast_travel_fixture(
     dangerous_middle: bool,
