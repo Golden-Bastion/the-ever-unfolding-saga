@@ -80,10 +80,12 @@ fn all_character_tabs_return_to_the_spatial_invoking_screen() {
         };
         navigation.open_screen(ScreenId::Character);
 
-        let mut records_state = RecordScreenState::default();
-        records_state.active_navigation = Some(ScreenId::Character);
-        records_state.screen = RecordScreen::Character;
-        records_state.character_tab = tab;
+        let mut records_state = RecordScreenState {
+            active_navigation: Some(ScreenId::Character),
+            screen: RecordScreen::Character,
+            character_tab: tab,
+            ..Default::default()
+        };
 
         assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
         cancel(&mut navigation, &mut records_state);
@@ -109,9 +111,11 @@ fn character_detail_and_journal_editor_back_paths_keep_spatial_parent() {
             return_screen: Some(ScreenId::SpatialExploration),
             selected: 0,
         };
-        let mut records_state = RecordScreenState::default();
-        records_state.active_navigation = Some(ScreenId::Character);
-        records_state.screen = screen;
+        let mut records_state = RecordScreenState {
+            active_navigation: Some(ScreenId::Character),
+            screen,
+            ..Default::default()
+        };
 
         cancel(&mut navigation, &mut records_state);
 
