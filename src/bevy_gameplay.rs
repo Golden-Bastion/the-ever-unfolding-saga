@@ -1374,10 +1374,155 @@ fn render_navigation(commands: &mut Commands, view: &NavigationView, selected: u
     render_navigation_content(commands, panel, view, selected, None);
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct WorldMapNodePlacement {
+    location_id: u64,
+    column: usize,
+    left: f32,
+    top: f32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct WorldMapLayout {
+    nodes: Vec<WorldMapNodePlacement>,
+    width: f32,
+    height: f32,
+}
+
+const WORLD_MAP_NODE_WIDTH: f32 = 204.0;
+const WORLD_MAP_NODE_HEIGHT: f32 = 84.0;
+const WORLD_MAP_COLUMN_GAP: f32 = 104.0;
+const WORLD_MAP_ROW_GAP: f32 = 30.0;
+const WORLD_MAP_PADDING: f32 = 28.0;
+
+fn build_world_map_layout(view: &WorldMapView) -> WorldMapLayout {
+    let node_ids = view
+        .nodes
+        .iter()
+        .map(|node| node.location.id)
+        .collect::<HashSet<_>>();
+    let mut adjacency = HashMap::<u64, Vec<u64>>::new();
+    for id in &node_ids {
+        adjacency.entry(*id).or_default();
+    }
+    for route in &view.routes {
+        if node_ids.contains(&route.from_id) && node_ids.contains(&route.to_id) {
+            adjacency.entry(route.from_id).or_default().push(route.to_id);
+            adjacency.entry(route.to_id).or_default().push(route.from_id);
+        }
+    }
+    for neighbours in adjacency.values_mut() {
+        neighbours.sort_unstable();
+        neighbours.dedup();
+    }
+
+    let mut distances = HashMap::<u64, usize>::new();
+    if let Some(current_id) = view.current_location.as_ref().map(|location| location.id) {
+        if node_ids.contains(&current_id) {
+            assign_world_map_component(current_id, 0, &adjacency, &mut distances);
+        }
+    }
+
+    let mut next_component_column = distances.values().copied().max().unwrap_or(0) + 1;
+    let mut remaining = view
+        .nodes
+        .iter()
+        .map(|node| node.location.id)
+        .collect::<Vec<_>>();
+    remaining.sort_unstable();
+    for id in remaining {
+        if !distances.contains_key(&id) {
+            assign_world_map_component(
+                id,
+                next_component_column,
+                &adjacency,
+                &mut distances,
+            );
+            next_component_column = distances.values().copied().max().unwrap_or(0) + 1;
+        }
+    }
+
+    let nodes_by_id = view
+        .nodes
+        .iter()
+        .map(|node| (node.location.id, node))
+        .collect::<HashMap<_, _>>();
+    let mut columns = BTreeMap::<usize, Vec<u64>>::new();
+    for (id, column) in &distances {
+        columns.entry(*column).or_default().push(*id);
+    }
+    for ids in columns.values_mut() {
+        ids.sort_by(|left, right| {
+            let left_node = nodes_by_id[left];
+            let right_node = nodes_by_id[right];
+            left_node
+                .location
+                .region_name
+                .cmp(&right_node.location.region_name)
+                .then_with(|| left.cmp(right))
+        });
+    }
+
+    let max_column = columns.keys().copied().max().unwrap_or(0);
+    let max_rows = columns.values().map(Vec::len).max().unwrap_or(1);
+    let width = WORLD_MAP_PADDING * 2.0
+        + (max_column + 1) as f32 * WORLD_MAP_NODE_WIDTH
+        + max_column as f32 * WORLD_MAP_COLUMN_GAP;
+    let height = (WORLD_MAP_PADDING * 2.0
+        + max_rows as f32 * WORLD_MAP_NODE_HEIGHT
+        + max_rows.saturating_sub(1) as f32 * WORLD_MAP_ROW_GAP)
+        .max(300.0);
+
+    let mut placements = Vec::with_capacity(view.nodes.len());
+    for (column, ids) in columns {
+        for (row, location_id) in ids.into_iter().enumerate() {
+            placements.push(WorldMapNodePlacement {
+                location_id,
+                column,
+                left: WORLD_MAP_PADDING
+                    + column as f32 * (WORLD_MAP_NODE_WIDTH + WORLD_MAP_COLUMN_GAP),
+                top: WORLD_MAP_PADDING
+                    + row as f32 * (WORLD_MAP_NODE_HEIGHT + WORLD_MAP_ROW_GAP),
+            });
+        }
+    }
+    placements.sort_by_key(|node| node.location_id);
+
+    WorldMapLayout {
+        nodes: placements,
+        width,
+        height,
+    }
+}
+
+fn assign_world_map_component(
+    start: u64,
+    start_column: usize,
+    adjacency: &HashMap<u64, Vec<u64>>,
+    distances: &mut HashMap<u64, usize>,
+) {
+    if distances.contains_key(&start) {
+        return;
+    }
+    let mut queue = VecDeque::from([start]);
+    distances.insert(start, start_column);
+    while let Some(current) = queue.pop_front() {
+        let next_column = distances[&current] + 1;
+        if let Some(neighbours) = adjacency.get(&current) {
+            for neighbour in neighbours {
+                if !distances.contains_key(neighbour) {
+                    distances.insert(*neighbour, next_column);
+                    queue.push_back(*neighbour);
+                }
+            }
+        }
+    }
+}
+
 pub(crate) fn render_spatial_navigation_overlay(
     commands: &mut Commands,
     parent: Entity,
-    view: &NavigationView,
+    view: &WorldMapView,
     selected: usize,
     message: Option<&str>,
 ) {
@@ -1385,15 +1530,17 @@ pub(crate) fn render_spatial_navigation_overlay(
     commands
         .entity(overlay)
         .insert(BackgroundColor(bevy_presentation::THEME_OVERLAY));
+
     let surface = commands
         .spawn((
             bevy_presentation::UiSurface,
             bevy_presentation::TouchScrollablePanel,
             Node {
-                width: percent(60),
+                width: percent(92),
                 min_width: px(280),
-                max_width: px(620),
-                max_height: percent(90),
+                max_width: px(1120),
+                height: percent(92),
+                max_height: percent(94),
                 min_height: px(0),
                 padding: UiRect::all(bevy_presentation::responsive_surface_padding()),
                 flex_direction: FlexDirection::Column,
@@ -1407,8 +1554,292 @@ pub(crate) fn render_spatial_navigation_overlay(
         ))
         .id();
     commands.entity(overlay).add_child(surface);
-    bevy_presentation::spawn_label(commands, surface, "WORLD NAVIGATION");
-    render_navigation_content(commands, surface, view, selected, message);
+
+    bevy_presentation::spawn_label(commands, surface, "WORLD MAP");
+    if let Some(current) = &view.current_location {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            surface,
+            format!("CURRENT REGION  ·  {}", current.region_name),
+        );
+        bevy_presentation::spawn_label(commands, surface, current.name.clone());
+    } else {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            surface,
+            "Your current location can no longer be resolved.",
+        );
+    }
+    bevy_presentation::spawn_muted_label(
+        commands,
+        surface,
+        "Known places and established routes",
+    );
+    if let Some(message) = message {
+        bevy_presentation::spawn_muted_label(commands, surface, message);
+    }
+
+    render_world_map_graph(commands, surface, view);
+
+    bevy_presentation::spawn_label(commands, surface, "ROUTES FROM HERE");
+    if view.destinations.is_empty() {
+        bevy_presentation::spawn_muted_label(commands, surface, "No known routes lead onward.");
+    } else {
+        for (index, destination) in view.destinations.iter().enumerate() {
+            let button = bevy_presentation::spawn_action_button(
+                commands,
+                surface,
+                index,
+                "travel",
+                destination.name.clone(),
+            );
+            commands.entity(button).insert(GameplayMenuChoice {
+                screen: GameplayScreen::Navigation,
+                index,
+            });
+            if index == selected {
+                commands
+                    .entity(button)
+                    .insert(bevy_presentation::UiSelected);
+            }
+        }
+    }
+
+    let back_index = view.destinations.len();
+    let button =
+        bevy_presentation::spawn_action_button(commands, surface, back_index, "back", "Back");
+    commands.entity(button).insert(GameplayMenuChoice {
+        screen: GameplayScreen::Navigation,
+        index: back_index,
+    });
+    if selected == back_index {
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
+    }
+}
+
+fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldMapView) {
+    let layout = build_world_map_layout(view);
+    let viewport_height = layout.height.clamp(300.0, 460.0);
+    let viewport = commands
+        .spawn((
+            bevy_presentation::TouchScrollablePanel,
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                height: px(viewport_height),
+                max_height: px(460.0),
+                padding: UiRect::all(px(6)),
+                overflow: Overflow::scroll(),
+                border: UiRect::all(px(1)),
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(bevy_presentation::THEME_PANEL),
+        ))
+        .id();
+    commands.entity(parent).add_child(viewport);
+
+    let canvas = commands
+        .spawn((
+            Node {
+                width: px(layout.width),
+                height: px(layout.height),
+                min_width: px(layout.width),
+                position_type: PositionType::Relative,
+                flex_shrink: 0.0,
+                ..default()
+            },
+            BackgroundColor(bevy_presentation::THEME_PANEL),
+        ))
+        .id();
+    commands.entity(viewport).add_child(canvas);
+
+    let placement_by_id = layout
+        .nodes
+        .iter()
+        .map(|placement| (placement.location_id, placement))
+        .collect::<HashMap<_, _>>();
+    let node_by_id = view
+        .nodes
+        .iter()
+        .map(|node| (node.location.id, node))
+        .collect::<HashMap<_, _>>();
+
+    for route in &view.routes {
+        let (Some(from), Some(to)) = (
+            placement_by_id.get(&route.from_id),
+            placement_by_id.get(&route.to_id),
+        ) else {
+            continue;
+        };
+        let line_color = if route.bidirectional {
+            Color::srgba(0.52, 0.42, 0.29, 0.76)
+        } else {
+            Color::srgba(0.72, 0.62, 0.46, 0.88)
+        };
+        let from_y = from.top + WORLD_MAP_NODE_HEIGHT / 2.0;
+        let to_y = to.top + WORLD_MAP_NODE_HEIGHT / 2.0;
+        if from.column == to.column {
+            let rail_x = from.left + WORLD_MAP_NODE_WIDTH + 18.0;
+            spawn_world_map_segment(
+                commands,
+                canvas,
+                from.left + WORLD_MAP_NODE_WIDTH,
+                from_y - 1.5,
+                18.0,
+                3.0,
+                line_color,
+            );
+            spawn_world_map_segment(
+                commands,
+                canvas,
+                rail_x - 1.5,
+                from_y.min(to_y),
+                3.0,
+                (to_y - from_y).abs().max(3.0),
+                line_color,
+            );
+            spawn_world_map_segment(
+                commands,
+                canvas,
+                to.left + WORLD_MAP_NODE_WIDTH,
+                to_y - 1.5,
+                18.0,
+                3.0,
+                line_color,
+            );
+        } else {
+            let (left, right, left_y, right_y) = if from.left <= to.left {
+                (
+                    from.left + WORLD_MAP_NODE_WIDTH,
+                    to.left,
+                    from_y,
+                    to_y,
+                )
+            } else {
+                (
+                    to.left + WORLD_MAP_NODE_WIDTH,
+                    from.left,
+                    to_y,
+                    from_y,
+                )
+            };
+            let midpoint = (left + right) / 2.0;
+            spawn_world_map_segment(
+                commands,
+                canvas,
+                left,
+                left_y - 1.5,
+                (midpoint - left).max(2.0),
+                3.0,
+                line_color,
+            );
+            spawn_world_map_segment(
+                commands,
+                canvas,
+                midpoint - 1.5,
+                left_y.min(right_y),
+                3.0,
+                (right_y - left_y).abs().max(3.0),
+                line_color,
+            );
+            spawn_world_map_segment(
+                commands,
+                canvas,
+                midpoint,
+                right_y - 1.5,
+                (right - midpoint).max(2.0),
+                3.0,
+                line_color,
+            );
+        }
+    }
+
+    for placement in &layout.nodes {
+        let Some(node) = node_by_id.get(&placement.location_id) else {
+            continue;
+        };
+        let (border, background, status) = if node.current {
+            (
+                bevy_presentation::THEME_ACCENT,
+                bevy_presentation::THEME_SELECTED,
+                "CURRENT LOCATION",
+            )
+        } else if node.explored {
+            (
+                bevy_presentation::THEME_BORDER,
+                bevy_presentation::THEME_SURFACE,
+                "EXPLORED",
+            )
+        } else {
+            (
+                bevy_presentation::THEME_BORDER,
+                bevy_presentation::THEME_SURFACE_STRONG,
+                "UNEXPLORED",
+            )
+        };
+        let card = commands
+            .spawn((
+                Node {
+                    width: px(WORLD_MAP_NODE_WIDTH),
+                    height: px(WORLD_MAP_NODE_HEIGHT),
+                    position_type: PositionType::Absolute,
+                    left: px(placement.left),
+                    top: px(placement.top),
+                    padding: UiRect::all(px(8)),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: px(2),
+                    border: UiRect::all(px(1)),
+                    overflow: Overflow::clip(),
+                    ..default()
+                },
+                BorderColor::all(border),
+                BackgroundColor(background),
+            ))
+            .id();
+        commands.entity(canvas).add_child(card);
+        bevy_presentation::spawn_muted_label(
+            commands,
+            card,
+            node.location.region_name.clone(),
+        );
+        bevy_presentation::spawn_label(commands, card, node.location.name.clone());
+        let detail = if node.location.dangerous {
+            format!("{status}  ·  DANGEROUS")
+        } else if node.reachable && !node.current {
+            format!("{status}  ·  ROUTE FROM HERE")
+        } else {
+            status.to_string()
+        };
+        bevy_presentation::spawn_muted_label(commands, card, detail);
+    }
+}
+
+fn spawn_world_map_segment(
+    commands: &mut Commands,
+    parent: Entity,
+    left: f32,
+    top: f32,
+    width: f32,
+    height: f32,
+    color: Color,
+) {
+    let segment = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(left),
+                top: px(top),
+                width: px(width.max(1.0)),
+                height: px(height.max(1.0)),
+                ..default()
+            },
+            BackgroundColor(color),
+        ))
+        .id();
+    commands.entity(parent).add_child(segment);
 }
 
 fn render_navigation_content(
