@@ -11,12 +11,16 @@ fn manifest_defines_the_approved_frame_grid_and_animation_clips() {
     assert_eq!(config.columns(), 6);
     assert_eq!(config.rows(), 8);
     assert_eq!(config.sheet_dimensions(), (192, 384));
-    assert_eq!(PLAYER_ANIMATION_SHEET_REFERENCE, "spatial/player_oathbound_animated.png");
-    assert_eq!(PLAYER_ANIMATION_MANIFEST_REFERENCE, "spatial/player_oathbound_animated.json");
+    assert_eq!(
+        PLAYER_ANIMATION_SHEET_REFERENCE,
+        "spatial/player_oathbound_animated.png"
+    );
+    assert_eq!(
+        PLAYER_ANIMATION_MANIFEST_REFERENCE,
+        "spatial/player_oathbound_animated.json"
+    );
 
-    for (direction_index, idle_row, walk_row) in [
-        (0, 0, 1), (1, 2, 3), (2, 4, 5), (3, 6, 7),
-    ] {
+    for (direction_index, idle_row, walk_row) in [(0, 0, 1), (1, 2, 3), (2, 4, 5), (3, 6, 7)] {
         let clips = config.directions[direction_index];
         assert_eq!(clips.idle.row, idle_row);
         assert_eq!(clips.idle.first_column, 0);
@@ -87,8 +91,12 @@ fn walk_cycle_is_independent_of_update_frequency_and_loops() {
     let mut thirty = PlayerAnimation::default();
     sixty.set_motion(0.0, 1.0, true, 1.0);
     thirty.set_motion(0.0, 1.0, true, 1.0);
-    for _ in 0..60 { sixty.advance(0.005); }
-    for _ in 0..30 { thirty.advance(0.01); }
+    for _ in 0..60 {
+        sixty.advance(0.005);
+    }
+    for _ in 0..30 {
+        thirty.advance(0.01);
+    }
     assert_eq!(sixty.frame_index(), thirty.frame_index());
     assert_eq!(sixty.frame_index(), 8);
     sixty.advance(0.42);

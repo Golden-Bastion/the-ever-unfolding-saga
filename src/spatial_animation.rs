@@ -5,8 +5,7 @@
 
 use serde::Deserialize;
 
-pub(crate) const PLAYER_ANIMATION_SHEET_REFERENCE: &str =
-    "spatial/player_oathbound_animated.png";
+pub(crate) const PLAYER_ANIMATION_SHEET_REFERENCE: &str = "spatial/player_oathbound_animated.png";
 pub(crate) const PLAYER_ANIMATION_MANIFEST_REFERENCE: &str =
     "spatial/player_oathbound_animated.json";
 
@@ -72,7 +71,13 @@ impl AnimationClip {
         frame_duration_seconds: f32,
         looping: bool,
     ) -> Self {
-        Self { row, first_column, frame_count, frame_duration_seconds, looping }
+        Self {
+            row,
+            first_column,
+            frame_count,
+            frame_duration_seconds,
+            looping,
+        }
     }
 
     fn from_manifest(
@@ -90,7 +95,8 @@ impl AnimationClip {
         if definition.frame_count == 0 {
             return Err(format!("{name} animation must contain at least one frame"));
         }
-        let end_column = definition.first_column
+        let end_column = definition
+            .first_column
             .checked_add(definition.frame_count)
             .ok_or_else(|| format!("{name} animation column range overflows"))?;
         if end_column > columns {
@@ -177,14 +183,20 @@ impl PlayerAnimationConfig {
                 manifest.schema_version, MANIFEST_SCHEMA_VERSION
             ));
         }
-        if manifest.frame_width == 0 || manifest.frame_height == 0
-            || manifest.columns == 0 || manifest.rows == 0
+        if manifest.frame_width == 0
+            || manifest.frame_height == 0
+            || manifest.columns == 0
+            || manifest.rows == 0
         {
             return Err("player animation frame and atlas dimensions must be non-zero".to_string());
         }
-        manifest.frame_width.checked_mul(manifest.columns)
+        manifest
+            .frame_width
+            .checked_mul(manifest.columns)
             .ok_or_else(|| "player animation sheet width overflows".to_string())?;
-        manifest.frame_height.checked_mul(manifest.rows)
+        manifest
+            .frame_height
+            .checked_mul(manifest.rows)
             .ok_or_else(|| "player animation sheet height overflows".to_string())?;
 
         let definitions = [
@@ -197,10 +209,16 @@ impl PlayerAnimationConfig {
         let mut clips = Vec::with_capacity(4);
         for (direction, definitions) in definitions {
             let idle = AnimationClip::from_manifest(
-                definitions.idle, manifest.columns, manifest.rows, &format!("{direction}.idle")
+                definitions.idle,
+                manifest.columns,
+                manifest.rows,
+                &format!("{direction}.idle"),
             )?;
             let walk = AnimationClip::from_manifest(
-                definitions.walk, manifest.columns, manifest.rows, &format!("{direction}.walk")
+                definitions.walk,
+                manifest.columns,
+                manifest.rows,
+                &format!("{direction}.walk"),
             )?;
             rows.push(idle.row);
             rows.push(walk.row);
@@ -211,10 +229,13 @@ impl PlayerAnimationConfig {
         unique_rows.sort_unstable();
         unique_rows.dedup();
         if unique_rows.len() != rows.len() {
-            return Err("each directional idle and walk clip must use its own atlas row".to_string());
+            return Err(
+                "each directional idle and walk clip must use its own atlas row".to_string(),
+            );
         }
 
-        let directions: [DirectionAnimationClips; 4] = clips.try_into()
+        let directions: [DirectionAnimationClips; 4] = clips
+            .try_into()
             .map_err(|_| "player animation manifest must define four directions".to_string())?;
         Ok(Self {
             frame_width: manifest.frame_width,
@@ -225,18 +246,34 @@ impl PlayerAnimationConfig {
         })
     }
 
-    pub(crate) const fn frame_width(self) -> u32 { self.frame_width }
-    pub(crate) const fn frame_height(self) -> u32 { self.frame_height }
-    pub(crate) const fn columns(self) -> u32 { self.columns }
-    pub(crate) const fn rows(self) -> u32 { self.rows }
+    pub(crate) const fn frame_width(self) -> u32 {
+        self.frame_width
+    }
+    pub(crate) const fn frame_height(self) -> u32 {
+        self.frame_height
+    }
+    pub(crate) const fn columns(self) -> u32 {
+        self.columns
+    }
+    pub(crate) const fn rows(self) -> u32 {
+        self.rows
+    }
 
     pub(crate) const fn sheet_dimensions(self) -> (u32, u32) {
-        (self.frame_width * self.columns, self.frame_height * self.rows)
+        (
+            self.frame_width * self.columns,
+            self.frame_height * self.rows,
+        )
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PlayerFacing { North, East, South, West }
+enum PlayerFacing {
+    North,
+    East,
+    South,
+    West,
+}
 
 impl PlayerFacing {
     const fn index(self) -> usize {
@@ -249,10 +286,14 @@ impl PlayerFacing {
     }
 
     fn from_screen_direction(x: f32, y: f32, previous: Self) -> Option<Self> {
-        if !x.is_finite() || !y.is_finite() { return None; }
+        if !x.is_finite() || !y.is_finite() {
+            return None;
+        }
         let horizontal = x.abs();
         let vertical = y.abs();
-        if horizontal == 0.0 && vertical == 0.0 { return None; }
+        if horizontal == 0.0 && vertical == 0.0 {
+            return None;
+        }
         if horizontal > vertical {
             return Some(if x < 0.0 { Self::West } else { Self::East });
         }
@@ -289,7 +330,9 @@ pub(crate) struct PlayerAnimation {
 }
 
 impl Default for PlayerAnimation {
-    fn default() -> Self { Self::new(PlayerAnimationConfig::default()) }
+    fn default() -> Self {
+        Self::new(PlayerAnimationConfig::default())
+    }
 }
 
 impl PlayerAnimation {
@@ -343,7 +386,9 @@ impl PlayerAnimation {
         if delta_seconds > 0.0 {
             let speed_scale = if self.moving { self.speed_scale } else { 1.0 };
             self.elapsed_seconds += delta_seconds * speed_scale;
-            if !self.elapsed_seconds.is_finite() { self.elapsed_seconds = 0.0; }
+            if !self.elapsed_seconds.is_finite() {
+                self.elapsed_seconds = 0.0;
+            }
             let cycle_duration = clip.frame_duration_seconds * clip.frame_count as f32;
             if clip.looping {
                 self.elapsed_seconds = self.elapsed_seconds.rem_euclid(cycle_duration);
@@ -364,11 +409,17 @@ impl PlayerAnimation {
 
     fn active_clip(&self) -> AnimationClip {
         let direction = self.config.directions[self.facing.index()];
-        if self.moving { direction.walk } else { direction.idle }
+        if self.moving {
+            direction.walk
+        } else {
+            direction.idle
+        }
     }
 
     #[cfg(test)]
-    fn facing(&self) -> PlayerFacing { self.facing }
+    fn facing(&self) -> PlayerFacing {
+        self.facing
+    }
 }
 
 #[cfg(test)]

@@ -505,8 +505,7 @@ fn setup_spatial_render_assets(
         load_spatial_image(&mut images, "spatial/wall_face_right.png"),
     ];
     let player_image = load_spatial_image(&mut images, "spatial/player_oathbound.png");
-    let (expected_sheet_width, expected_sheet_height) =
-        player_animation_config.sheet_dimensions();
+    let (expected_sheet_width, expected_sheet_height) = player_animation_config.sheet_dimensions();
     let player_animation_image =
         load_spatial_image(&mut images, PLAYER_ANIMATION_SHEET_REFERENCE).and_then(|image| {
             let valid = images.get(&image).is_some_and(|image| {
@@ -571,12 +570,10 @@ fn load_spatial_image(images: &mut Assets<Image>, reference: &str) -> Option<Han
 }
 
 fn load_player_animation_config() -> PlayerAnimationConfig {
-    let manifest = crate::mod_manager::resolve_asset_reference(
-        PLAYER_ANIMATION_MANIFEST_REFERENCE,
-    )
-    .map_err(|error| error.to_string())
-    .and_then(|path| fs::read_to_string(path).map_err(|error| error.to_string()))
-    .and_then(|json| PlayerAnimationConfig::from_json(&json));
+    let manifest = crate::mod_manager::resolve_asset_reference(PLAYER_ANIMATION_MANIFEST_REFERENCE)
+        .map_err(|error| error.to_string())
+        .and_then(|path| fs::read_to_string(path).map_err(|error| error.to_string()))
+        .and_then(|json| PlayerAnimationConfig::from_json(&json));
 
     match manifest {
         Ok(config) => config,
