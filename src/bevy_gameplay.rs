@@ -1456,9 +1456,14 @@ fn build_world_map_layout(view: &WorldMapView) -> WorldMapLayout {
             let left_node = nodes_by_id[left];
             let right_node = nodes_by_id[right];
             left_node
-                .location
-                .region_name
-                .cmp(&right_node.location.region_name)
+                .region_id
+                .cmp(&right_node.region_id)
+                .then_with(|| {
+                    left_node
+                        .location
+                        .region_name
+                        .cmp(&right_node.location.region_name)
+                })
                 .then_with(|| left.cmp(right))
         });
     }
@@ -1755,6 +1760,18 @@ fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldM
                 line_color,
             );
         }
+        if !route.bidirectional {
+            let (marker, left, top) = if from.column < to.column {
+                (">", to.left - 10.0, to_y - 9.0)
+            } else if from.column > to.column {
+                ("<", to.left + WORLD_MAP_NODE_WIDTH - 2.0, to_y - 9.0)
+            } else if from.top < to.top {
+                ("v", from.left + WORLD_MAP_NODE_WIDTH + 12.0, to_y - 9.0)
+            } else {
+                ("^", from.left + WORLD_MAP_NODE_WIDTH + 12.0, to_y - 9.0)
+            };
+            spawn_world_map_direction_marker(commands, canvas, marker, left, top, line_color);
+        }
     }
 
     for placement in &layout.nodes {
@@ -1815,6 +1832,33 @@ fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldM
         };
         bevy_presentation::spawn_muted_label(commands, card, detail);
     }
+}
+
+fn spawn_world_map_direction_marker(
+    commands: &mut Commands,
+    parent: Entity,
+    marker: &str,
+    left: f32,
+    top: f32,
+    color: Color,
+) {
+    let marker = commands
+        .spawn((
+            Text::new(marker),
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(left),
+                top: px(top),
+                width: px(12.0),
+                height: px(18.0),
+                ..default()
+            },
+            bevy_presentation::TextContent,
+            TextFont::from_font_size(14.0),
+            TextColor(color),
+        ))
+        .id();
+    commands.entity(parent).add_child(marker);
 }
 
 fn spawn_world_map_segment(
