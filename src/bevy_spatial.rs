@@ -1120,19 +1120,74 @@ fn use_map_exit(
     }
 }
 
-pub(crate) fn travel_to_destination(
+pub(crate) fn fast_travel_to_known_location(
     state: &mut SpatialExplorationState,
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
     target_location_id: EntityId,
 ) -> Result<(), &'static str> {
-    travel_to_location(
-        state,
-        lifecycle,
-        navigation,
-        target_location_id,
-        "That route is no longer available.",
-    )
+    sync_spatial_to_game(state, lifecycle);
+    let Some(old_turn) = lifecycle
+        .session
+        .as_ref()
+        .map(|session| session.state.character.turn)
+    else {
+        return Err("The current world session is unavailable.");
+    };
+
+    let traveled = lifecycle
+        .session
+        .as_mut()
+        .map(|session| crate::game::actions::fast_travel_to(&mut session.state, target_location_id))
+        .ok_or("The current world session is unavailable.")?
+        .map_err(|_| "That location is not reachable through known routes.")?;
+    if traveled.is_empty() {
+        return Err("That location is not reachable through known routes.");
+    }
+
+    let Some(game_state) = lifecycle.session.as_ref().map(|session| &session.state) else {
+        return Err("The current world session is unavailable.");
+    };
+    let current_location_id = game_state.character.location_id;
+    let reached_destination = current_location_id == target_location_id;
+    let arrival_outcome = game_state
+        .world
+        .history
+        .iter()
+        .rev()
+        .find(|entry| entry.turn > old_turn && entry.outcome.is_some())
+        .and_then(|entry| entry.outcome.clone());
+    let alive = game_state.character.alive;
+    let interrupted_location = if !reached_destination {
+        game_state
+            .world
+            .location_by_id(current_location_id)
+            .map(|location| location.name.clone())
+    } else {
+        None
+    };
+
+    if !alive {
+        lifecycle.phase = LifecyclePhase::Death;
+        lifecycle.selected = 0;
+        lifecycle.mark_dirty();
+        exit_spatial(state, navigation);
+        return Ok(());
+    }
+
+    enter(state, game_state, navigation);
+    if let Some(location) = interrupted_location {
+        state.message = Some(format!(
+            "Fast travel was interrupted at {location}; danger blocks the rest of the route."
+        ));
+        state.dirty = true;
+    } else if let Some(outcome) = arrival_outcome {
+        state.message = Some(outcome);
+        state.dirty = true;
+    }
+    lifecycle.mark_dirty();
+    sync_spatial_to_game(state, lifecycle);
+    Ok(())
 }
 
 fn travel_to_location(
