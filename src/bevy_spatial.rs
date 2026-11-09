@@ -1776,9 +1776,7 @@ fn render_spatial_screen(
         }
     }
 
-    if !state.sandbox_mode
-        && gameplay.screen == crate::bevy_gameplay::GameplayScreen::Dashboard
-    {
+    if !state.sandbox_mode && gameplay.screen == crate::bevy_gameplay::GameplayScreen::Dashboard {
         bevy_presentation::spawn_menu_button(&mut commands, header, "menu");
     }
 

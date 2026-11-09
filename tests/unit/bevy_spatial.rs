@@ -1649,8 +1649,5 @@ fn spatial_pause_button_long_press_opens_console_with_spatial_return_context() {
     open_spatial_developer_console(&mut state, &mut navigation);
 
     assert_eq!(navigation.current_screen, Some(ScreenId::Console));
-    assert_eq!(
-        navigation.return_screen,
-        Some(ScreenId::SpatialExploration)
-    );
+    assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
 }

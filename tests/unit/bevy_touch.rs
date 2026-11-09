@@ -9,8 +9,14 @@ fn developer_console_long_press_uses_a_deliberate_threshold() {
 
 #[test]
 fn pause_button_gesture_is_available_in_gameplay_and_spatial_exploration() {
-    assert!(menu_button_screen_active(Some(crate::bevy_presentation::ScreenId::Gameplay)));
-    assert!(menu_button_screen_active(Some(crate::bevy_presentation::ScreenId::SpatialExploration)));
-    assert!(!menu_button_screen_active(Some(crate::bevy_presentation::ScreenId::Console)));
+    assert!(menu_button_screen_active(Some(
+        crate::bevy_presentation::ScreenId::Gameplay
+    )));
+    assert!(menu_button_screen_active(Some(
+        crate::bevy_presentation::ScreenId::SpatialExploration
+    )));
+    assert!(!menu_button_screen_active(Some(
+        crate::bevy_presentation::ScreenId::Console
+    )));
     assert!(!menu_button_screen_active(None));
 }

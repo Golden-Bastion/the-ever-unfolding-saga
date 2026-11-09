@@ -56,7 +56,10 @@ pub(crate) fn install(app: &mut App) {
 }
 
 fn console_shortcut_screen_active(screen: Option<ScreenId>) -> bool {
-    matches!(screen, Some(ScreenId::Gameplay | ScreenId::SpatialExploration))
+    matches!(
+        screen,
+        Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
+    )
 }
 
 fn open_shortcut(

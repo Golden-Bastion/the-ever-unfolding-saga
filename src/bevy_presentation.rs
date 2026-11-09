@@ -404,7 +404,10 @@ pub enum ScreenId {
 }
 
 pub(crate) fn menu_button_screen_active(screen: Option<ScreenId>) -> bool {
-    matches!(screen, Some(ScreenId::Gameplay | ScreenId::SpatialExploration))
+    matches!(
+        screen,
+        Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
