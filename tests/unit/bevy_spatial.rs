@@ -795,6 +795,60 @@ fn connected_spatial_fixture() -> (
 }
 
 #[test]
+fn spatial_entry_announces_location_without_persisting_it_in_the_header() {
+    let game = crate::model::create_new_state(
+        "Location Notice Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let location_name = game
+        .world
+        .location_by_id(game.character.location_id)
+        .expect("starting location should exist")
+        .name
+        .clone();
+    let mut spatial = SpatialExplorationState::default();
+    let mut navigation = NavigationState::default();
+
+    enter(&mut spatial, &game, &mut navigation);
+
+    let expected_notice = format!("You arrive at {location_name}.");
+    assert_eq!(
+        spatial.location_notice.as_deref(),
+        Some(expected_notice.as_str())
+    );
+    assert_eq!(
+        spatial.message.as_deref(),
+        Some("Explore the area. Move close to people or objects to interact.")
+    );
+    assert_eq!(spatial_header_label(false, 0), None);
+}
+
+#[test]
+fn spatial_location_notice_expires_without_erasing_regular_feedback() {
+    let mut spatial = SpatialExplorationState::default();
+    announce_location(&mut spatial, "Connected Clearing");
+    spatial.message = Some("A distant bell rings.".to_string());
+
+    advance_location_notice(&mut spatial, LOCATION_NOTICE_DURATION_SECONDS - 0.5);
+    assert!(spatial.location_notice.is_some());
+
+    advance_location_notice(&mut spatial, 0.5);
+    assert_eq!(spatial.location_notice, None);
+    assert_eq!(spatial.location_notice_remaining_seconds, 0.0);
+    assert_eq!(spatial.message.as_deref(), Some("A distant bell rings."));
+}
+
+#[test]
+fn sandbox_header_keeps_its_world_lab_identity() {
+    assert_eq!(
+        spatial_header_label(true, 91).as_deref(),
+        Some("WORLD LAB - PLAY TEST / SEED 91")
+    );
+}
+
+#[test]
 fn physical_passage_travel_keeps_spatial_mode_and_restores_destination_map() {
     let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
         connected_spatial_fixture();
@@ -869,6 +923,10 @@ fn physical_passage_travel_keeps_spatial_mode_and_restores_destination_map() {
         })
     );
     assert!(spatial
+        .location_notice
+        .as_deref()
+        .is_some_and(|message| message.contains("Connected Clearing")));
+    assert!(!spatial
         .message
         .as_deref()
         .is_some_and(|message| message.contains("Connected Clearing")));
@@ -1096,9 +1154,13 @@ fn destination_list_travel_saves_the_source_map_and_restores_the_destination_map
         Some(ScreenId::SpatialExploration)
     );
     assert!(spatial
+        .location_notice
+        .as_deref()
+        .is_some_and(|message| message.contains("Connected Clearing")));
+    assert!(!spatial
         .message
         .as_deref()
-        .is_some_and(|message| { message.contains("Connected Clearing") }));
+        .is_some_and(|message| message.contains("Connected Clearing")));
 }
 
 #[test]
