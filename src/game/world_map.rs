@@ -4,10 +4,12 @@
 //! Its visible graph is based on locations whose local maps have been established,
 //! plus their immediate exits. Presentation code arranges these stable identities.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::model::{GameState, Location};
-use crate::presentation::{LocationView, WorldMapNodeView, WorldMapRouteView, WorldMapView};
+use crate::presentation::{
+    LocationView, WorldMapDestinationView, WorldMapNodeView, WorldMapRouteView, WorldMapView,
+};
 
 pub(crate) fn build_view(state: &GameState) -> WorldMapView {
     let Some(current) = state.world.location_by_id(state.character.location_id) else {
@@ -39,17 +41,57 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
     }
     visible_ids.retain(|id| state.world.location_by_id(*id).is_some());
 
+    let mut fast_travel_destinations = state
+        .world
+        .locations
+        .iter()
+        .filter(|location| location.id != current.id && is_explored(location.id))
+        .filter_map(|location| {
+            crate::game::actions::find_known_travel_path(state, location.id).map(|path| {
+                WorldMapDestinationView {
+                    location: location_view(state, location, &campaign),
+                    route_steps: path.len(),
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    fast_travel_destinations.sort_by(|left, right| {
+        left.location
+            .region_name
+            .cmp(&right.location.region_name)
+            .then_with(|| left.location.name.cmp(&right.location.name))
+            .then_with(|| left.location.id.cmp(&right.location.id))
+    });
+    let fast_travel_indices = fast_travel_destinations
+        .iter()
+        .enumerate()
+        .map(|(index, destination)| {
+            (
+                destination.location.id,
+                (index, destination.route_steps),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
     let nodes = state
         .world
         .locations
         .iter()
         .filter(|location| visible_ids.contains(&location.id))
-        .map(|location| WorldMapNodeView {
-            location: location_view(state, location, &campaign),
-            region_id: location.region_id,
-            explored: location.id == current.id || is_explored(location.id),
-            current: location.id == current.id,
-            reachable: current.exits.contains(&location.id),
+        .map(|location| {
+            let fast_travel = fast_travel_indices.get(&location.id).copied();
+            WorldMapNodeView {
+                location: location_view(state, location, &campaign),
+                region_id: location.region_id,
+                explored: location.id == current.id || is_explored(location.id),
+                current: location.id == current.id,
+                reachable: crate::game::actions::has_reciprocal_location_connection(
+                    state,
+                    location.id,
+                ),
+                fast_travel_index: fast_travel.map(|(index, _)| index),
+                fast_travel_steps: fast_travel.map(|(_, steps)| steps),
+            }
         })
         .collect();
 
@@ -92,18 +134,12 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
     }
 
     let current_location = Some(location_view(state, current, &campaign));
-    let destinations = current
-        .exits
-        .iter()
-        .filter_map(|id| state.world.location_by_id(*id))
-        .map(|location| location_view(state, location, &campaign))
-        .collect();
 
     WorldMapView {
         current_location,
         nodes,
         routes,
-        destinations,
+        fast_travel_destinations,
     }
 }
 
