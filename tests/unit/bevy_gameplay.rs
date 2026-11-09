@@ -106,7 +106,7 @@ fn gameplay_input_accepts_only_gameplay_and_an_active_spatial_pause_menu() {
     ));
     assert!(accepts_gameplay_input(
         Some(ScreenId::SpatialExploration),
-        GameplayScreen::Navigation
+        GameplayScreen::WorldMap
     ));
     assert!(!accepts_gameplay_input(
         Some(ScreenId::SpatialExploration),
@@ -139,6 +139,8 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                 explored: true,
                 current: true,
                 reachable: false,
+                fast_travel_index: None,
+                fast_travel_steps: None,
             },
             crate::presentation::WorldMapNodeView {
                 location: crate::presentation::LocationView {
@@ -151,6 +153,8 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                 explored: true,
                 current: false,
                 reachable: true,
+                fast_travel_index: Some(0),
+                fast_travel_steps: Some(1),
             },
             crate::presentation::WorldMapNodeView {
                 location: crate::presentation::LocationView {
@@ -163,6 +167,8 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                 explored: false,
                 current: false,
                 reachable: true,
+                fast_travel_index: Some(1),
+                fast_travel_steps: Some(1),
             },
             crate::presentation::WorldMapNodeView {
                 location: crate::presentation::LocationView {
@@ -175,6 +181,8 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                 explored: false,
                 current: false,
                 reachable: false,
+                fast_travel_index: None,
+                fast_travel_steps: None,
             },
         ],
         routes: vec![
@@ -194,7 +202,26 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                 bidirectional: false,
             },
         ],
-        destinations: Vec::new(),
+        fast_travel_destinations: vec![
+            crate::presentation::WorldMapDestinationView {
+                location: crate::presentation::LocationView {
+                    id: 11,
+                    name: "Old Shrine".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                route_steps: 1,
+            },
+            crate::presentation::WorldMapDestinationView {
+                location: crate::presentation::LocationView {
+                    id: 12,
+                    name: "Cinder Hamlet".to_string(),
+                    region_name: "Ashen Vale".to_string(),
+                    ..Default::default()
+                },
+                route_steps: 1,
+            },
+        ],
     };
 
     let first = build_world_map_layout(&view);
