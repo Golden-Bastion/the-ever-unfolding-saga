@@ -9,6 +9,7 @@ use bevy::prelude::*;
 use crate::bevy_gameplay::{GameplayScreen, GameplayState};
 use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{GameplayInputQueue, NavigationState, ScreenId};
+use crate::bevy_spatial::{self, SpatialExplorationState};
 use crate::input::InputEvent;
 
 #[derive(Resource, Default)]
@@ -26,6 +27,7 @@ fn bridge_navigation(
     gameplay: Res<GameplayState>,
     mut navigation: ResMut<NavigationState>,
     mut gameplay_queue: ResMut<GameplayInputQueue>,
+    mut spatial_state: ResMut<SpatialExplorationState>,
     mut bridge: ResMut<NavigationBridgeState>,
 ) {
     if lifecycle.phase != LifecyclePhase::Complete || lifecycle.session.is_none() {
@@ -33,12 +35,15 @@ fn bridge_navigation(
         return;
     }
 
-    if navigation.current_screen == Some(ScreenId::Lifecycle)
-        && lifecycle.pending_state.is_none()
-        && navigation.return_screen.is_none()
-    {
-        navigation.current_screen = Some(ScreenId::Gameplay);
-        navigation.selected = gameplay.selected;
+    if should_enter_spatial_exploration(
+        navigation.current_screen,
+        lifecycle.session.is_some(),
+        lifecycle.pending_state.is_some(),
+        navigation.return_screen,
+    ) {
+        if let Some(session) = lifecycle.session.as_ref() {
+            spatial::enter(&mut spatial_state, &session.state, &mut navigation);
+        }
     }
 
     if navigation.current_screen != bridge.last_screen {
@@ -51,6 +56,18 @@ fn bridge_navigation(
         }
         bridge.last_screen = navigation.current_screen;
     }
+}
+
+fn should_enter_spatial_exploration(
+    current_screen: Option<ScreenId>,
+    has_session: bool,
+    has_pending_state: bool,
+    return_screen: Option<ScreenId>,
+) -> bool {
+    current_screen == Some(ScreenId::Lifecycle)
+        && has_session
+        && !has_pending_state
+        && return_screen.is_none()
 }
 
 fn should_reset_gameplay_selection(
