@@ -175,6 +175,7 @@ pub(crate) struct SpatialExplorationState {
     last_navigation_screen: Option<ScreenId>,
     player_animation: PlayerAnimation,
     last_threat_available: Option<bool>,
+    last_world_time: Option<(u32, u32)>,
 }
 
 impl SpatialExplorationState {
@@ -1256,16 +1257,33 @@ fn render_spatial_screen(
     navigation: Res<NavigationState>,
     gameplay: Res<crate::bevy_gameplay::GameplayState>,
     assets: Res<SpatialRenderAssets>,
+    celestial_art: Res<crate::bevy_gameplay::CelestialArtAssets>,
     mut state: ResMut<SpatialExplorationState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
     world_entities: Query<Entity, With<SpatialWorldEntity>>,
 ) {
     if (!state.sandbox_mode && lifecycle.phase != LifecyclePhase::Complete)
         || navigation.current_screen != Some(ScreenId::SpatialExploration)
-        || !state.dirty
     {
         return;
     }
+
+    let world_time = if state.sandbox_mode {
+        None
+    } else {
+        lifecycle
+            .session
+            .as_ref()
+            .map(|session| (session.state.world.day, session.state.world.time_points))
+    };
+    if state.last_world_time != world_time {
+        state.last_world_time = world_time;
+        state.dirty = true;
+    }
+    if !state.dirty {
+        return;
+    }
+
     for root in &roots {
         commands.entity(root).despawn();
     }
@@ -1279,6 +1297,7 @@ fn render_spatial_screen(
     let Some(map) = state.maps.get(&session.location_id) else {
         return;
     };
+    let time_points = world_time.map(|(_, points)| points);
 
     for y in 0..map.height {
         for x in 0..map.width {
@@ -1540,6 +1559,25 @@ fn render_spatial_screen(
         ))
         .id();
 
+    if let Some(tint) = time_points.and_then(spatial_environment_tint) {
+        let atmosphere = commands
+            .spawn((
+                Node {
+                    width: percent(100),
+                    height: percent(100),
+                    position_type: PositionType::Absolute,
+                    left: px(0),
+                    top: px(0),
+                    ..default()
+                },
+                BackgroundColor(tint),
+            ))
+            .id();
+        // This is deliberately the first UI child: it tints the world sprites
+        // while leaving the location, status, and control surfaces above it.
+        commands.entity(root).add_child(atmosphere);
+    }
+
     let header = commands
         .spawn(Node {
             width: percent(100),
@@ -1566,7 +1604,26 @@ fn render_spatial_screen(
             .unwrap_or_else(|| "UNKNOWN LOCATION".to_string());
         format!("{location_name} - LOCAL EXPLORATION")
     };
-    spawn_label(&mut commands, header, location_heading);
+    let header_context = commands
+        .spawn(Node {
+            max_width: percent(48),
+            min_width: px(0),
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+            flex_shrink: 1.0,
+            ..default()
+        })
+        .id();
+    commands.entity(header).add_child(header_context);
+    spawn_label(&mut commands, header_context, location_heading);
+    if let Some(time_points) = time_points {
+        spawn_spatial_time_indicator(
+            &mut commands,
+            header_context,
+            time_points,
+            &celestial_art,
+        );
+    }
 
     let vitals = commands
         .spawn((
@@ -2289,6 +2346,94 @@ fn spawn_compact_label(commands: &mut Commands, parent: Entity, label: impl Into
     commands.entity(parent).add_child(label);
 }
 
+fn spawn_spatial_time_indicator(
+    commands: &mut Commands,
+    parent: Entity,
+    time_points: u32,
+    celestial_art: &crate::bevy_gameplay::CelestialArtAssets,
+) {
+    let sky = crate::bevy_gameplay::sky_visual(time_points);
+    let row = commands
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            column_gap: px(7),
+            ..default()
+        })
+        .id();
+    commands.entity(parent).add_child(row);
+
+    let sky_panel = commands
+        .spawn((
+            Node {
+                width: px(88),
+                height: px(40),
+                min_width: px(88),
+                min_height: px(40),
+                position_type: PositionType::Relative,
+                overflow: Overflow::clip(),
+                flex_shrink: 0.0,
+                border: UiRect::all(px(1)),
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(sky.background),
+        ))
+        .id();
+    commands.entity(row).add_child(sky_panel);
+
+    if sky.warm_horizon {
+        commands.entity(sky_panel).with_children(|panel| {
+            panel.spawn((
+                Node {
+                    width: percent(100),
+                    height: px(7),
+                    position_type: PositionType::Absolute,
+                    left: px(0),
+                    bottom: px(0),
+                    ..default()
+                },
+                BackgroundColor(bevy_presentation::THEME_SKY_HORIZON_WARM),
+            ));
+        });
+    }
+
+    if let Some(image) = celestial_art.image.as_ref() {
+        let rect = match sky.celestial {
+            crate::bevy_gameplay::CelestialBody::Sun => celestial_art.sun_rect,
+            crate::bevy_gameplay::CelestialBody::Moon => celestial_art.moon_rect,
+        };
+        if let Some(rect) = rect {
+            let size = px(18);
+            commands.entity(sky_panel).with_children(|panel| {
+                panel.spawn((
+                    Node {
+                        width: size,
+                        height: size,
+                        min_width: size,
+                        min_height: size,
+                        position_type: PositionType::Absolute,
+                        left: percent(sky.celestial_x),
+                        top: percent(sky.celestial_y),
+                        flex_shrink: 0.0,
+                        ..default()
+                    },
+                    ImageNode::new(image.clone()).with_rect(rect),
+                ));
+            });
+        }
+    }
+
+    let readout = commands
+        .spawn((
+            Text::new(crate::game::time::clock_display(time_points)),
+            TextFont::from_font_size(FontSize::Rem(0.82)),
+            TextColor(bevy_presentation::THEME_TEXT),
+        ))
+        .id();
+    commands.entity(row).add_child(readout);
+}
+
 fn format_condition_summary(conditions: &[Condition]) -> String {
     if conditions.is_empty() {
         "Conditions: none".to_string()
@@ -2414,6 +2559,15 @@ fn terrain_image_index(terrain: Terrain) -> usize {
         Terrain::Ash => 1,
         Terrain::Rubble => 2,
         Terrain::Wall => 3,
+    }
+}
+
+fn spatial_environment_tint(time_points: u32) -> Option<Color> {
+    match time_points % 12 {
+        0 | 9..=11 => Some(Color::srgba(0.025, 0.035, 0.11, 0.24)),
+        1 | 2 => Some(Color::srgba(0.42, 0.20, 0.10, 0.10)),
+        7 | 8 => Some(Color::srgba(0.42, 0.15, 0.09, 0.13)),
+        _ => None,
     }
 }
 
