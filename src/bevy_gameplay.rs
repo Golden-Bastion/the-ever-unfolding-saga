@@ -1099,7 +1099,7 @@ fn render_world_context(
 }
 
 fn render_player_hud(commands: &mut Commands, parent: Entity, view: &WorldView) {
-    let controls = commands
+    let hud_container = commands
         .spawn(Node {
             width: percent(100),
             height: percent(100),
@@ -1114,9 +1114,7 @@ fn render_player_hud(commands: &mut Commands, parent: Entity, view: &WorldView) 
             ..default()
         })
         .id();
-    commands.entity(parent).add_child(controls);
-
-    bevy_presentation::spawn_menu_button(commands, controls, "menu");
+    commands.entity(parent).add_child(hud_container);
 
     let hud = commands
         .spawn((
@@ -1136,7 +1134,7 @@ fn render_player_hud(commands: &mut Commands, parent: Entity, view: &WorldView) 
             BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
         ))
         .id();
-    commands.entity(controls).add_child(hud);
+    commands.entity(hud_container).add_child(hud);
 
     bevy_presentation::spawn_health_gauge(commands, hud, view.character.hp, view.character.max_hp);
 

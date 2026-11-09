@@ -748,6 +748,9 @@ fn spatial_input(
                     state.dirty = true;
                 }
             }
+            InputEvent::OpenDeveloperConsole if !state.sandbox_mode => {
+                open_spatial_developer_console(&mut state, &mut navigation);
+            }
             _ => {}
         }
     }
@@ -1256,6 +1259,15 @@ fn travel_to_location(
     Ok(())
 }
 
+fn open_spatial_developer_console(
+    state: &mut SpatialExplorationState,
+    navigation: &mut NavigationState,
+) {
+    state.interaction_wheel = None;
+    state.player_animation.stop();
+    navigation.open_screen(ScreenId::Console);
+}
+
 fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut NavigationState) {
     state.message = None;
     state.location_notice = None;
@@ -1762,6 +1774,12 @@ fn render_spatial_screen(
                 format_condition_summary(&character.conditions),
             );
         }
+    }
+
+    if !state.sandbox_mode
+        && gameplay.screen == crate::bevy_gameplay::GameplayScreen::Dashboard
+    {
+        bevy_presentation::spawn_menu_button(&mut commands, header, "menu");
     }
 
     spawn_control(

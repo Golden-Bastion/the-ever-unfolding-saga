@@ -403,6 +403,10 @@ pub enum ScreenId {
     Feedback,
 }
 
+pub(crate) fn menu_button_screen_active(screen: Option<ScreenId>) -> bool {
+    matches!(screen, Some(ScreenId::Gameplay | ScreenId::SpatialExploration))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PresentationTransitionPhase {
     Entering,
@@ -2132,7 +2136,7 @@ fn contextual_touch_input(
                 console_focus.active = true;
                 console_focus.suppress_next_back = false;
             }
-        } else if menu_button.is_some() && navigation.current_screen == Some(ScreenId::Gameplay) {
+        } else if menu_button.is_some() && menu_button_screen_active(navigation.current_screen) {
             gameplay_queue.0.push(InputEvent::OpenSecondaryNavigation);
         } else if tab.is_some() && navigation.current_screen == Some(ScreenId::Console) {
             gameplay_queue.0.push(InputEvent::Tab);

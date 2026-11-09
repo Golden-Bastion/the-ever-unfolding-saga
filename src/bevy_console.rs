@@ -55,6 +55,10 @@ pub(crate) fn install(app: &mut App) {
         .add_systems(Update, sync_android_console_text_input);
 }
 
+fn console_shortcut_screen_active(screen: Option<ScreenId>) -> bool {
+    matches!(screen, Some(ScreenId::Gameplay | ScreenId::SpatialExploration))
+}
+
 fn open_shortcut(
     keyboard: Res<ButtonInput<KeyCode>>,
     lifecycle: Res<LifecycleState>,
@@ -62,7 +66,7 @@ fn open_shortcut(
 ) {
     if lifecycle.phase == crate::bevy_lifecycle::LifecyclePhase::Complete
         && lifecycle.session.is_some()
-        && navigation.current_screen == Some(ScreenId::Gameplay)
+        && console_shortcut_screen_active(navigation.current_screen)
         && keyboard.just_pressed(KeyCode::Slash)
     {
         navigation.open_screen(ScreenId::Console);
@@ -371,3 +375,7 @@ fn visible_output(view: &ConsoleView) -> Vec<String> {
         ConsoleScrollView::Home => view.output[..VISIBLE_LINES].to_vec(),
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/bevy_console.rs"]
+mod tests;
