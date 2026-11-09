@@ -1578,7 +1578,7 @@ pub(crate) fn render_spatial_navigation_overlay(
     bevy_presentation::spawn_muted_label(
         commands,
         surface,
-        "Known places and established routes",
+        "Known places and established routes  ·  arrows mark one-way routes",
     );
     if let Some(message) = message {
         bevy_presentation::spawn_muted_label(commands, surface, message);
@@ -1764,7 +1764,7 @@ fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldM
             let (marker, left, top) = if from.column < to.column {
                 (">", to.left - 10.0, to_y - 9.0)
             } else if from.column > to.column {
-                ("<", to.left + WORLD_MAP_NODE_WIDTH - 2.0, to_y - 9.0)
+                ("<", to.left + WORLD_MAP_NODE_WIDTH + 2.0, to_y - 9.0)
             } else if from.top < to.top {
                 ("v", from.left + WORLD_MAP_NODE_WIDTH + 12.0, to_y - 9.0)
             } else {
