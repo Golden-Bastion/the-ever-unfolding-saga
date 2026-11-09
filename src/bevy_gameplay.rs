@@ -11,14 +11,14 @@ use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId,
 };
-use crate::game::{actions, menu, navigation};
+use crate::game::{actions, menu, world_map};
 use crate::input::InputEvent;
-use crate::presentation::{ConditionView, NavigationView, WorldMapView, WorldView};
+use crate::presentation::{ConditionView, WorldMapView, WorldView};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum GameplayScreen {
     Dashboard,
-    Navigation,
+    WorldMap,
     Pause,
 }
 
@@ -36,14 +36,14 @@ enum PauseAction {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GameplayAction {
-    Travel,
+    Map,
     Meditate,
     Explore,
     Investigate,
 }
 
 const PRIMARY_GAMEPLAY_ACTIONS: [GameplayAction; 3] = [
-    GameplayAction::Travel,
+    GameplayAction::Map,
     GameplayAction::Meditate,
     GameplayAction::Explore,
 ];
@@ -224,7 +224,7 @@ fn accepts_gameplay_input(
         || (current_screen == Some(ScreenId::SpatialExploration)
             && matches!(
                 gameplay_screen,
-                GameplayScreen::Pause | GameplayScreen::Navigation
+                GameplayScreen::Pause | GameplayScreen::WorldMap
             ))
 }
 
@@ -283,7 +283,7 @@ fn gameplay_input(
                 }
             }
             InputEvent::Cancel | InputEvent::Backspace => match gameplay.screen {
-                GameplayScreen::Navigation => {
+                GameplayScreen::WorldMap => {
                     if navigation_state.current_screen == Some(ScreenId::SpatialExploration) {
                         gameplay.screen = GameplayScreen::Pause;
                         gameplay.selected = 0;
@@ -343,7 +343,7 @@ fn move_selection(
     };
     let count = match gameplay.screen {
         GameplayScreen::Dashboard => dashboard_actions(&session.state).len(),
-        GameplayScreen::Navigation => navigation::build_view(&session.state).destinations.len() + 1,
+        GameplayScreen::WorldMap => world_map::build_view(&session.state).fast_travel_destinations.len() + 1,
         GameplayScreen::Pause => pause_action_count(
             navigation_state.current_screen == Some(ScreenId::SpatialExploration),
             meditation_is_available(lifecycle),
@@ -374,7 +374,7 @@ fn move_selection_to_end(
     };
     let count = match gameplay.screen {
         GameplayScreen::Dashboard => dashboard_actions(&session.state).len(),
-        GameplayScreen::Navigation => navigation::build_view(&session.state).destinations.len() + 1,
+        GameplayScreen::WorldMap => world_map::build_view(&session.state).fast_travel_destinations.len() + 1,
         GameplayScreen::Pause => pause_action_count(
             navigation_state.current_screen == Some(ScreenId::SpatialExploration),
             meditation_is_available(lifecycle),
@@ -439,7 +439,7 @@ fn sync_gameplay_menu_selection(
     }
     let selected_index = match gameplay.screen {
         GameplayScreen::Pause => gameplay.pause_selected,
-        GameplayScreen::Navigation => gameplay.selected,
+        GameplayScreen::WorldMap => gameplay.selected,
         GameplayScreen::Dashboard => return,
     };
     for (entity, choice, selected) in &buttons {
@@ -532,7 +532,7 @@ fn activate_selection(
                     open_dedicated_screen(navigation_state, ScreenId::Meditation);
                 }
                 PauseAction::Map => {
-                    gameplay.screen = GameplayScreen::Navigation;
+                    gameplay.screen = GameplayScreen::WorldMap;
                     gameplay.selected = 0;
                     gameplay.message = None;
                     gameplay.dirty = true;
@@ -588,8 +588,8 @@ fn activate_selection(
                 return;
             };
             match action {
-                GameplayAction::Travel => {
-                    gameplay.screen = GameplayScreen::Navigation;
+                GameplayAction::Map => {
+                    gameplay.screen = GameplayScreen::WorldMap;
                     gameplay.selected = 0;
                     gameplay.message = None;
                     gameplay.dirty = true;
@@ -619,24 +619,35 @@ fn activate_selection(
                 }
             }
         }
-        GameplayScreen::Navigation => {
-            if navigation_state.current_screen == Some(ScreenId::SpatialExploration) {
-                let Some(target_id) = lifecycle.session.as_ref().and_then(|session| {
-                    navigation::build_view(&session.state)
-                        .destinations
-                        .get(gameplay.selected)
-                        .map(|destination| destination.id)
-                }) else {
+        GameplayScreen::WorldMap => {
+            let map_view = lifecycle
+                .session
+                .as_ref()
+                .map(|session| world_map::build_view(&session.state));
+            let Some(destination) = map_view
+                .as_ref()
+                .and_then(|view| view.fast_travel_destinations.get(gameplay.selected))
+            else {
+                if navigation_state.current_screen == Some(ScreenId::SpatialExploration) {
                     gameplay.screen = GameplayScreen::Pause;
                     gameplay.selected = 0;
                     gameplay.message = None;
                     gameplay.dirty = true;
                     navigation_state.selected = gameplay.pause_selected;
                     spatial_state.request_presentation_refresh();
-                    return;
-                };
+                } else {
+                    gameplay.screen = GameplayScreen::Dashboard;
+                    gameplay.selected = 0;
+                    gameplay.message = None;
+                    gameplay.dirty = true;
+                    navigation_state.selected = 0;
+                }
+                return;
+            };
+            let target_id = destination.location.id;
 
-                match crate::bevy_spatial::travel_to_destination(
+            if navigation_state.current_screen == Some(ScreenId::SpatialExploration) {
+                match crate::bevy_spatial::fast_travel_to_known_location(
                     spatial_state,
                     lifecycle,
                     navigation_state,
@@ -665,45 +676,43 @@ fn activate_selection(
                 let Some(session) = lifecycle.session.as_mut() else {
                     return;
                 };
-                let view = navigation::build_view(&session.state);
-                if gameplay.selected >= view.destinations.len() {
-                    gameplay.screen = GameplayScreen::Dashboard;
-                    gameplay.selected = 0;
-                    gameplay.message = None;
-                    gameplay.dirty = true;
-                    navigation_state.selected = 0;
-                    return;
-                }
-                if let Some(destination) = view.destinations.get(gameplay.selected) {
-                    let old_turn = session.state.character.turn;
-                    let target_id = destination.id;
-                    match actions::travel_to(&mut session.state, target_id) {
-                        Ok(()) => {
-                            let message = session
+                let old_turn = session.state.character.turn;
+                match actions::fast_travel_to(&mut session.state, target_id) {
+                    Ok(_) => {
+                        let current_location = session
+                            .state
+                            .world
+                            .location_by_id(session.state.character.location_id)
+                            .map(|location| location.name.clone())
+                            .unwrap_or_else(|| "an unknown location".to_string());
+                        let message = if session.state.character.location_id != target_id {
+                            Some(format!(
+                                "Fast travel was interrupted at {current_location}; danger blocks the rest of the route."
+                            ))
+                        } else {
+                            session
                                 .state
                                 .world
                                 .history
                                 .iter()
                                 .rev()
-                                .find(|entry| entry.turn > old_turn)
-                                .map(|entry| {
-                                    entry.outcome.clone().unwrap_or_else(|| entry.text.clone())
-                                });
-                            if !session.state.character.alive {
-                                lifecycle.phase = LifecyclePhase::Death;
-                                lifecycle.selected = 0;
-                                lifecycle.mark_dirty();
-                            }
-                            gameplay.screen = GameplayScreen::Dashboard;
-                            gameplay.selected = 0;
-                            gameplay.message = message;
-                            gameplay.dirty = true;
+                                .find(|entry| entry.turn > old_turn && entry.outcome.is_some())
+                                .and_then(|entry| entry.outcome.clone())
+                        };
+                        if !session.state.character.alive {
+                            lifecycle.phase = LifecyclePhase::Death;
+                            lifecycle.selected = 0;
+                            lifecycle.mark_dirty();
                         }
-                        Err(_) => {
-                            gameplay.message =
-                                Some("That route is no longer available.".to_string());
-                            gameplay.dirty = true;
-                        }
+                        gameplay.screen = GameplayScreen::Dashboard;
+                        gameplay.selected = 0;
+                        gameplay.message = message;
+                        gameplay.dirty = true;
+                    }
+                    Err(_) => {
+                        gameplay.message =
+                            Some("That location is no longer reachable by known routes.".to_string());
+                        gameplay.dirty = true;
                     }
                 }
             }
@@ -756,11 +765,13 @@ fn render_if_active(
                 gameplay.message.as_deref(),
             );
         }
-        GameplayScreen::Navigation => {
-            render_navigation(
+        GameplayScreen::WorldMap => {
+            let map_view = world_map::build_view(&session.state);
+            render_world_map_screen(
                 &mut commands,
-                &navigation::build_view(&session.state),
+                &map_view,
                 gameplay.selected,
+                gameplay.message.as_deref(),
             );
         }
         GameplayScreen::Pause => {
@@ -1180,7 +1191,7 @@ fn render_action_area(
 
 fn gameplay_action_visuals(action: GameplayAction) -> (&'static str, &'static str) {
     match action {
-        GameplayAction::Travel => ("travel", "Travel"),
+        GameplayAction::Map => ("travel", "Map"),
         GameplayAction::Meditate => ("meditate", "Meditate"),
         GameplayAction::Explore => ("explore", "Explore"),
         GameplayAction::Investigate => ("investigate", "Investigate"),
@@ -1368,10 +1379,15 @@ fn pause_action_visuals(action: PauseAction) -> (&'static str, &'static str) {
     }
 }
 
-fn render_navigation(commands: &mut Commands, view: &NavigationView, selected: usize) {
-    let root = bevy_presentation::spawn_screen(commands, "WORLD NAVIGATION");
+fn render_world_map_screen(
+    commands: &mut Commands,
+    view: &WorldMapView,
+    selected: usize,
+    message: Option<&str>,
+) {
+    let root = bevy_presentation::spawn_screen(commands, "WORLD MAP");
     let panel = bevy_presentation::spawn_panel(commands, root);
-    render_navigation_content(commands, panel, view, selected, None);
+    render_world_map_content(commands, panel, view, selected, message);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1524,7 +1540,7 @@ fn assign_world_map_component(
     }
 }
 
-pub(crate) fn render_spatial_navigation_overlay(
+pub(crate) fn render_spatial_world_map_overlay(
     commands: &mut Commands,
     parent: Entity,
     view: &WorldMapView,
@@ -1560,61 +1576,54 @@ pub(crate) fn render_spatial_navigation_overlay(
         .id();
     commands.entity(overlay).add_child(surface);
 
-    bevy_presentation::spawn_label(commands, surface, "WORLD MAP");
+    render_world_map_content(commands, surface, view, selected, message);
+}
+
+fn render_world_map_content(
+    commands: &mut Commands,
+    panel: Entity,
+    view: &WorldMapView,
+    selected: usize,
+    message: Option<&str>,
+) {
+    bevy_presentation::spawn_label(commands, panel, "WORLD MAP");
     if let Some(current) = &view.current_location {
         bevy_presentation::spawn_muted_label(
             commands,
-            surface,
+            panel,
             format!("CURRENT REGION  ·  {}", current.region_name),
         );
-        bevy_presentation::spawn_label(commands, surface, current.name.clone());
+        bevy_presentation::spawn_label(commands, panel, current.name.clone());
     } else {
         bevy_presentation::spawn_muted_label(
             commands,
-            surface,
+            panel,
             "Your current location can no longer be resolved.",
         );
     }
     bevy_presentation::spawn_muted_label(
         commands,
-        surface,
-        "Known places and established routes  ·  arrows mark one-way routes",
+        panel,
+        "Select a previously visited place to fast-travel. Unexplored places must be reached in the world.",
     );
     if let Some(message) = message {
-        bevy_presentation::spawn_muted_label(commands, surface, message);
+        bevy_presentation::spawn_muted_label(commands, panel, message);
     }
 
-    render_world_map_graph(commands, surface, view);
+    render_world_map_graph(commands, panel, view);
 
-    bevy_presentation::spawn_label(commands, surface, "ROUTES FROM HERE");
-    if view.destinations.is_empty() {
-        bevy_presentation::spawn_muted_label(commands, surface, "No known routes lead onward.");
-    } else {
-        for (index, destination) in view.destinations.iter().enumerate() {
-            let button = bevy_presentation::spawn_action_button(
-                commands,
-                surface,
-                index,
-                "travel",
-                destination.name.clone(),
-            );
-            commands.entity(button).insert(GameplayMenuChoice {
-                screen: GameplayScreen::Navigation,
-                index,
-            });
-            if index == selected {
-                commands
-                    .entity(button)
-                    .insert(bevy_presentation::UiSelected);
-            }
-        }
+    if view.fast_travel_destinations.is_empty() {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            panel,
+            "No previously visited locations are reachable through known routes.",
+        );
     }
-
-    let back_index = view.destinations.len();
+    let back_index = view.fast_travel_destinations.len();
     let button =
-        bevy_presentation::spawn_action_button(commands, surface, back_index, "back", "Back");
+        bevy_presentation::spawn_action_button(commands, panel, back_index, "back", "Back");
     commands.entity(button).insert(GameplayMenuChoice {
-        screen: GameplayScreen::Navigation,
+        screen: GameplayScreen::WorldMap,
         index: back_index,
     });
     if selected == back_index {
@@ -1768,6 +1777,45 @@ fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldM
         let Some(node) = node_by_id.get(&placement.location_id) else {
             continue;
         };
+        if let (Some(index), Some(steps)) = (node.fast_travel_index, node.fast_travel_steps) {
+            let route_label = if steps == 1 { "route step" } else { "route steps" };
+            let detail = format!(
+                "{}  ·  FAST TRAVEL  ·  {} {}",
+                node.location.region_name, steps, route_label
+            );
+            let button = bevy_presentation::spawn_action_button_with_detail(
+                commands,
+                canvas,
+                index,
+                "travel",
+                node.location.name.clone(),
+                detail,
+            );
+            commands.entity(button).insert((
+                Node {
+                    width: px(WORLD_MAP_NODE_WIDTH),
+                    height: px(WORLD_MAP_NODE_HEIGHT),
+                    position_type: PositionType::Absolute,
+                    left: px(placement.left),
+                    top: px(placement.top),
+                    padding: UiRect::all(px(8)),
+                    border: UiRect::all(px(1)),
+                    overflow: Overflow::clip(),
+                    ..default()
+                },
+                GameplayMenuChoice {
+                    screen: GameplayScreen::WorldMap,
+                    index,
+                },
+            ));
+            if selected == index {
+                commands
+                    .entity(button)
+                    .insert(bevy_presentation::UiSelected);
+            }
+            continue;
+        }
+
         let (border, background, status) = if node.current {
             (
                 bevy_presentation::THEME_ACCENT,
@@ -1778,13 +1826,13 @@ fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldM
             (
                 bevy_presentation::THEME_BORDER,
                 bevy_presentation::THEME_SURFACE,
-                "EXPLORED",
+                "KNOWN · NO FAST-TRAVEL ROUTE",
             )
         } else {
             (
                 bevy_presentation::THEME_BORDER,
                 bevy_presentation::THEME_SURFACE_STRONG,
-                "UNEXPLORED",
+                "UNEXPLORED · REACH IN THE WORLD",
             )
         };
         let card = commands
@@ -1811,8 +1859,6 @@ fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldM
         bevy_presentation::spawn_label(commands, card, node.location.name.clone());
         let detail = if node.location.dangerous {
             format!("{status}  ·  DANGEROUS")
-        } else if node.reachable && !node.current {
-            format!("{status}  ·  ROUTE FROM HERE")
         } else {
             status.to_string()
         };
@@ -1872,76 +1918,6 @@ fn spawn_world_map_segment(
     commands.entity(parent).add_child(segment);
 }
 
-fn render_navigation_content(
-    commands: &mut Commands,
-    panel: Entity,
-    view: &NavigationView,
-    selected: usize,
-    message: Option<&str>,
-) {
-    if let Some(current) = &view.current_location {
-        bevy_presentation::spawn_label(commands, panel, current.name.clone());
-        bevy_presentation::spawn_muted_label(
-            commands,
-            panel,
-            format!("Region: {}", current.region_name),
-        );
-        if current.dangerous {
-            bevy_presentation::spawn_muted_label(
-                commands,
-                panel,
-                "Danger: this location is unsafe.",
-            );
-        }
-        if !current.description.trim().is_empty() {
-            bevy_presentation::spawn_muted_label(commands, panel, current.description.clone());
-        }
-    } else {
-        bevy_presentation::spawn_muted_label(
-            commands,
-            panel,
-            "Your current location can no longer be resolved.",
-        );
-    }
-    if let Some(message) = message {
-        bevy_presentation::spawn_muted_label(commands, panel, message);
-    }
-
-    if view.destinations.is_empty() {
-        bevy_presentation::spawn_muted_label(commands, panel, "No known routes lead onward.");
-    } else {
-        for (index, destination) in view.destinations.iter().enumerate() {
-            let button = bevy_presentation::spawn_action_button(
-                commands,
-                panel,
-                index,
-                "travel",
-                destination.name.clone(),
-            );
-            commands.entity(button).insert(GameplayMenuChoice {
-                screen: GameplayScreen::Navigation,
-                index,
-            });
-            if index == selected {
-                commands
-                    .entity(button)
-                    .insert(bevy_presentation::UiSelected);
-            }
-        }
-    }
-    let back_index = view.destinations.len();
-    let button =
-        bevy_presentation::spawn_action_button(commands, panel, back_index, "back", "Back");
-    commands.entity(button).insert(GameplayMenuChoice {
-        screen: GameplayScreen::Navigation,
-        index: back_index,
-    });
-    if selected == back_index {
-        commands
-            .entity(button)
-            .insert(bevy_presentation::UiSelected);
-    }
-}
 
 #[cfg(test)]
 #[path = "../tests/unit/bevy_gameplay.rs"]
