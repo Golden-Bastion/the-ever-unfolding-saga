@@ -1803,7 +1803,7 @@ fn render_spatial_screen(
         }
         crate::bevy_gameplay::GameplayScreen::Navigation => {
             if let Some(game_session) = lifecycle.session.as_ref() {
-                let view = crate::game::navigation::build_view(&game_session.state);
+                let view = crate::game::world_map::build_view(&game_session.state);
                 crate::bevy_gameplay::render_spatial_navigation_overlay(
                     &mut commands,
                     root,
