@@ -489,7 +489,7 @@ fn pause_actions_from(
 ) -> Vec<PauseAction> {
     let mut actions = vec![PauseAction::Resume];
     if spatial_menu {
-        actions.push(PauseAction::Travel);
+        actions.push(PauseAction::Map);
         if meditation_available {
             actions.push(PauseAction::Meditate);
         }
