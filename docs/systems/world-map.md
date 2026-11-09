@@ -1,6 +1,6 @@
 # World Map
 
-The World Map is the focused spatial surface for understanding the current region, current location, known places, and established travel connections. It is opened from the spatial pause menu; it does not replace physical exploration or create a second travel system.
+The World Map is the focused surface for understanding the current region, current location, previously visited places, and established travel connections. It is opened from the spatial pause menu and the compatibility Gameplay hub. It provides fast travel between known locations without replacing ordinary physical exploration or creating a second travel ruleset.
 
 ## Interim implementation: topological route graph
 
