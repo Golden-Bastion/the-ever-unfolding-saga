@@ -49,18 +49,18 @@ const PRIMARY_GAMEPLAY_ACTIONS: [GameplayAction; 3] = [
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CelestialBody {
+pub(crate) enum CelestialBody {
     Sun,
     Moon,
 }
 
 #[derive(Debug, Clone, Copy)]
-struct SkyVisual {
-    background: Color,
-    celestial: CelestialBody,
-    celestial_x: f32,
-    celestial_y: f32,
-    warm_horizon: bool,
+pub(crate) struct SkyVisual {
+    pub(crate) background: Color,
+    pub(crate) celestial: CelestialBody,
+    pub(crate) celestial_x: f32,
+    pub(crate) celestial_y: f32,
+    pub(crate) warm_horizon: bool,
 }
 
 #[derive(Component, Debug, Clone, Copy)]
@@ -81,10 +81,10 @@ struct LocationArtAssets {
 }
 
 #[derive(Resource, Default)]
-struct CelestialArtAssets {
-    image: Option<Handle<Image>>,
-    sun_rect: Option<Rect>,
-    moon_rect: Option<Rect>,
+pub(crate) struct CelestialArtAssets {
+    pub(crate) image: Option<Handle<Image>>,
+    pub(crate) sun_rect: Option<Rect>,
+    pub(crate) moon_rect: Option<Rect>,
 }
 
 impl GameplayRuntimeState {
@@ -1204,7 +1204,7 @@ fn reset_dashboard_selection(gameplay: &mut GameplayState) {
     gameplay.dirty = true;
 }
 
-fn sky_visual(time_points: u32) -> SkyVisual {
+pub(crate) fn sky_visual(time_points: u32) -> SkyVisual {
     match time_points % 12 {
         0 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
