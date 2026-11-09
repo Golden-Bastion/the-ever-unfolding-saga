@@ -1621,7 +1621,7 @@ fn render_world_map_content(
         bevy_presentation::spawn_muted_label(commands, panel, message);
     }
 
-    render_world_map_graph(commands, panel, view);
+    render_world_map_graph(commands, panel, view, selected);
 
     if view.fast_travel_destinations.is_empty() {
         bevy_presentation::spawn_muted_label(
@@ -1644,7 +1644,12 @@ fn render_world_map_content(
     }
 }
 
-fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldMapView) {
+fn render_world_map_graph(
+    commands: &mut Commands,
+    parent: Entity,
+    view: &WorldMapView,
+    selected: usize,
+) {
     let layout = build_world_map_layout(view);
     let viewport_height = layout.height.clamp(300.0, 460.0);
     let viewport = commands
