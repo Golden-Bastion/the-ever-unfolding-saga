@@ -343,7 +343,12 @@ fn move_selection(
     };
     let count = match gameplay.screen {
         GameplayScreen::Dashboard => dashboard_actions(&session.state).len(),
-        GameplayScreen::WorldMap => world_map::build_view(&session.state).fast_travel_destinations.len() + 1,
+        GameplayScreen::WorldMap => {
+            world_map::build_view(&session.state)
+                .fast_travel_destinations
+                .len()
+                + 1
+        }
         GameplayScreen::Pause => pause_action_count(
             navigation_state.current_screen == Some(ScreenId::SpatialExploration),
             meditation_is_available(lifecycle),
@@ -374,7 +379,12 @@ fn move_selection_to_end(
     };
     let count = match gameplay.screen {
         GameplayScreen::Dashboard => dashboard_actions(&session.state).len(),
-        GameplayScreen::WorldMap => world_map::build_view(&session.state).fast_travel_destinations.len() + 1,
+        GameplayScreen::WorldMap => {
+            world_map::build_view(&session.state)
+                .fast_travel_destinations
+                .len()
+                + 1
+        }
         GameplayScreen::Pause => pause_action_count(
             navigation_state.current_screen == Some(ScreenId::SpatialExploration),
             meditation_is_available(lifecycle),
@@ -710,8 +720,9 @@ fn activate_selection(
                         gameplay.dirty = true;
                     }
                     Err(_) => {
-                        gameplay.message =
-                            Some("That location is no longer reachable by known routes.".to_string());
+                        gameplay.message = Some(
+                            "That location is no longer reachable by known routes.".to_string(),
+                        );
                         gameplay.dirty = true;
                     }
                 }
@@ -1778,7 +1789,11 @@ fn render_world_map_graph(commands: &mut Commands, parent: Entity, view: &WorldM
             continue;
         };
         if let (Some(index), Some(steps)) = (node.fast_travel_index, node.fast_travel_steps) {
-            let route_label = if steps == 1 { "route step" } else { "route steps" };
+            let route_label = if steps == 1 {
+                "route step"
+            } else {
+                "route steps"
+            };
             let detail = format!(
                 "{}  ·  FAST TRAVEL  ·  {} {}",
                 node.location.region_name, steps, route_label
@@ -1917,7 +1932,6 @@ fn spawn_world_map_segment(
         .id();
     commands.entity(parent).add_child(segment);
 }
-
 
 #[cfg(test)]
 #[path = "../tests/unit/bevy_gameplay.rs"]
