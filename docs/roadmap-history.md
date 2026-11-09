@@ -876,3 +876,14 @@ src/
 - Kept the desktop slash shortcut available from spatial exploration and retained desktop Escape / Android Back pause-menu navigation.
 - Added regression coverage for menu-button screen eligibility, spatial console return context, and developer-console shortcut availability.
 - Bumped Rust and Android fallback version metadata to 0.52.34.
+
+
+### v0.52.35: Directional player idle/walk animation and asset contract
+- Replaced the one-frame idle/four-frame walk atlas contract with paired idle and walk rows for north, east, south, and west.
+- Defined 32×48 logical frames in a 6-column × 8-row atlas (192×384 total), with four looping idle frames and six looping walk frames per direction.
+- Added a mod-aware JSON manifest for frame dimensions, clip coordinates, per-clip durations, and looping behavior; the renderer validates the manifest and derives its atlas layout from it.
+- Made idle animation advance while the player is stationary and prevented repeated stop/pause calls from resetting the idle cycle.
+- Scaled animated sprites to their manifest-defined frame size while preserving the existing static fallback dimensions, player ground anchor, and collision footprint.
+- Added unit coverage for manifest parsing/validation, row mapping, idle looping, walk looping, movement-speed scaling, and invalid frame deltas.
+- Kept the PNG placeholder empty pending external artwork generation; the static player sprite remains the runtime fallback.
+- Bumped Rust and Android fallback version metadata to 0.52.35.
