@@ -1426,3 +1426,38 @@ fn spatial_investigation_is_available_only_for_a_threat_at_the_current_location(
     );
     assert!(!spatial_investigation_available(&game));
 }
+
+
+#[test]
+fn spatial_clock_formats_the_existing_two_hour_world_time_steps() {
+    for (slot, expected) in [
+        (0, "00:00"),
+        (1, "02:00"),
+        (2, "04:00"),
+        (3, "06:00"),
+        (4, "08:00"),
+        (5, "10:00"),
+        (6, "12:00"),
+        (7, "14:00"),
+        (8, "16:00"),
+        (9, "18:00"),
+        (10, "20:00"),
+        (11, "22:00"),
+        (12, "00:00"),
+    ] {
+        assert_eq!(crate::game::time::clock_display(slot), expected);
+    }
+}
+
+#[test]
+fn spatial_environment_tint_tracks_dawn_day_dusk_and_night() {
+    assert!(spatial_environment_tint(1).is_some());
+    assert!(spatial_environment_tint(2).is_some());
+    assert!(spatial_environment_tint(3).is_none());
+    assert!(spatial_environment_tint(6).is_none());
+    assert!(spatial_environment_tint(7).is_some());
+    assert!(spatial_environment_tint(8).is_some());
+    assert!(spatial_environment_tint(9).is_some());
+    assert!(spatial_environment_tint(0).is_some());
+    assert!(spatial_environment_tint(21).is_some());
+}
