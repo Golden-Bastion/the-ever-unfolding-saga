@@ -5,6 +5,7 @@
 //! world state, while the character's continuous position belongs to the session.
 
 use std::collections::{HashMap, HashSet};
+use std::fs;
 
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
@@ -29,9 +30,8 @@ use crate::spatial::{
     MapExit, SpatialDiscoveryDefinition, SpatialEntityKind, SpatialPropKind, Terrain,
 };
 use crate::spatial_animation::{
-    PlayerAnimation, PLAYER_ANIMATION_COLUMNS, PLAYER_ANIMATION_FRAME_HEIGHT,
-    PLAYER_ANIMATION_FRAME_WIDTH, PLAYER_ANIMATION_ROWS, PLAYER_ANIMATION_SHEET_HEIGHT,
-    PLAYER_ANIMATION_SHEET_REFERENCE, PLAYER_ANIMATION_SHEET_WIDTH,
+    PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,
+    PLAYER_ANIMATION_SHEET_REFERENCE,
 };
 
 const TILE_HALF_WIDTH: f32 = 24.0;
@@ -151,6 +151,7 @@ struct SpatialRenderAssets {
     prop_images: [Option<Handle<Image>>; 2],
     player_animation_image: Option<Handle<Image>>,
     player_animation_layout: Option<Handle<TextureAtlasLayout>>,
+    player_animation_config: PlayerAnimationConfig,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -486,9 +487,13 @@ fn sync_map_interactable_placements(map: &mut LocalMap, game: &GameState, locati
 
 fn setup_spatial_render_assets(
     mut commands: Commands,
+    mut state: ResMut<SpatialExplorationState>,
     mut images: ResMut<Assets<Image>>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
+    let player_animation_config = load_player_animation_config();
+    state.player_animation = PlayerAnimation::new(player_animation_config);
+
     let tile_images = [
         load_spatial_image(&mut images, "spatial/terrain_floor.png"),
         load_spatial_image(&mut images, "spatial/terrain_ash.png"),
@@ -500,28 +505,33 @@ fn setup_spatial_render_assets(
         load_spatial_image(&mut images, "spatial/wall_face_right.png"),
     ];
     let player_image = load_spatial_image(&mut images, "spatial/player_oathbound.png");
+    let (expected_sheet_width, expected_sheet_height) =
+        player_animation_config.sheet_dimensions();
     let player_animation_image =
         load_spatial_image(&mut images, PLAYER_ANIMATION_SHEET_REFERENCE).and_then(|image| {
             let valid = images.get(&image).is_some_and(|image| {
-                image.texture_descriptor.size.width == PLAYER_ANIMATION_SHEET_WIDTH
-                    && image.texture_descriptor.size.height == PLAYER_ANIMATION_SHEET_HEIGHT
+                image.texture_descriptor.size.width == expected_sheet_width
+                    && image.texture_descriptor.size.height == expected_sheet_height
             });
             if valid {
                 Some(image)
             } else {
                 warn!(
                     "Spatial player animation sheet must be {}x{} pixels; using the static player sprite instead",
-                    PLAYER_ANIMATION_SHEET_WIDTH,
-                    PLAYER_ANIMATION_SHEET_HEIGHT
+                    expected_sheet_width,
+                    expected_sheet_height
                 );
                 None
             }
         });
     let player_animation_layout = player_animation_image.as_ref().map(|_| {
         atlas_layouts.add(TextureAtlasLayout::from_grid(
-            UVec2::new(PLAYER_ANIMATION_FRAME_WIDTH, PLAYER_ANIMATION_FRAME_HEIGHT),
-            PLAYER_ANIMATION_COLUMNS,
-            PLAYER_ANIMATION_ROWS,
+            UVec2::new(
+                player_animation_config.frame_width(),
+                player_animation_config.frame_height(),
+            ),
+            player_animation_config.columns(),
+            player_animation_config.rows(),
             None,
             None,
         ))
@@ -546,6 +556,7 @@ fn setup_spatial_render_assets(
         prop_images,
         player_animation_image,
         player_animation_layout,
+        player_animation_config,
     });
 }
 
@@ -556,6 +567,36 @@ fn load_spatial_image(images: &mut Assets<Image>, reference: &str) -> Option<Han
             warn!("Could not load spatial asset {reference}: {error}");
             None
         }
+    }
+}
+
+fn load_player_animation_config() -> PlayerAnimationConfig {
+    let manifest = crate::mod_manager::resolve_asset_reference(
+        PLAYER_ANIMATION_MANIFEST_REFERENCE,
+    )
+    .map_err(|error| error.to_string())
+    .and_then(|path| fs::read_to_string(path).map_err(|error| error.to_string()))
+    .and_then(|json| PlayerAnimationConfig::from_json(&json));
+
+    match manifest {
+        Ok(config) => config,
+        Err(error) => {
+            warn!(
+                "Could not load player animation manifest {PLAYER_ANIMATION_MANIFEST_REFERENCE}: {error}; using built-in animation defaults"
+            );
+            PlayerAnimationConfig::default()
+        }
+    }
+}
+
+fn spatial_player_sprite_size(assets: &SpatialRenderAssets) -> Vec2 {
+    if assets.player_animation_image.is_some() && assets.player_animation_layout.is_some() {
+        Vec2::new(
+            assets.player_animation_config.frame_width() as f32,
+            assets.player_animation_config.frame_height() as f32,
+        )
+    } else {
+        Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT)
     }
 }
 
@@ -1328,6 +1369,7 @@ fn update_spatial_world(
     };
     let position = session_position(&state);
     let target = map_to_world(position, Some(map));
+    let player_sprite_size = spatial_player_sprite_size(&assets);
     for (tile, mut sprite) in &mut tiles {
         let terrain = map.terrain_at(tile.0).unwrap_or(Terrain::Wall);
         if let Some(desired) = assets.tile_images[terrain_image_index(terrain)].clone() {
@@ -1346,7 +1388,7 @@ fn update_spatial_world(
     }
     for (mut transform, mut sprite) in &mut player {
         transform.translation.x = target.x;
-        transform.translation.y = target.y + PLAYER_SPRITE_HEIGHT * 0.5;
+        transform.translation.y = target.y + player_sprite_size.y * 0.5;
         transform.translation.z = depth_for_position(position) + PLAYER_DEPTH_OFFSET;
         if let Some(atlas) = sprite.texture_atlas.as_mut() {
             atlas.index = player_frame;
@@ -1621,6 +1663,7 @@ fn render_spatial_screen(
 
     let player_ground_position = session_position(&state);
     let player_position = map_to_world(player_ground_position, Some(map));
+    let player_sprite_size = spatial_player_sprite_size(&assets);
     let player_sprite = match (
         assets.player_animation_image.clone(),
         assets.player_animation_layout.clone(),
@@ -1633,7 +1676,7 @@ fn render_spatial_screen(
                     index: state.player_animation.frame_index(),
                 },
             );
-            sprite.custom_size = Some(Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT));
+            sprite.custom_size = Some(player_sprite_size);
             Some(sprite)
         }
         _ => assets.player_image.clone().map(|image| {
@@ -1649,7 +1692,7 @@ fn render_spatial_screen(
             sprite,
             Transform::from_xyz(
                 player_position.x,
-                player_position.y + PLAYER_SPRITE_HEIGHT * 0.5,
+                player_position.y + player_sprite_size.y * 0.5,
                 depth_for_position(player_ground_position) + PLAYER_DEPTH_OFFSET,
             ),
         ));
