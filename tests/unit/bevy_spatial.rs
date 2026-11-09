@@ -814,7 +814,10 @@ fn spatial_entry_announces_location_without_persisting_it_in_the_header() {
     enter(&mut spatial, &game, &mut navigation);
 
     let expected_notice = format!("You arrive at {location_name}.");
-    assert_eq!(spatial.location_notice.as_deref(), Some(expected_notice.as_str()));
+    assert_eq!(
+        spatial.location_notice.as_deref(),
+        Some(expected_notice.as_str())
+    );
     assert_eq!(
         spatial.message.as_deref(),
         Some("Explore the area. Move close to people or objects to interact.")
