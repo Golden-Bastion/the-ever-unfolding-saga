@@ -1,5 +1,5 @@
 use crate::game::state_effects::{self, add_or_refresh_condition};
-use crate::model::{Condition, EntityId, GameState};
+use crate::model::{Condition, EntityId, GameState, HistoryEntryType};
 use crate::persistence::save_game;
 use crate::presentation::{
     CharacterView, MeditationResultView, MeditationTargetView, MeditationView,
@@ -110,9 +110,14 @@ pub(crate) fn fast_travel_to(
 
     let mut traveled = Vec::with_capacity(path.len());
     for location_id in path {
+        let previous_turn = state.character.turn;
         travel_to(state, location_id)?;
         traveled.push(location_id);
-        if !state.character.alive || state.threat.active {
+
+        let arrival_event = state.world.history.iter().any(|entry| {
+            entry.turn > previous_turn && entry.entry_type == HistoryEntryType::Event
+        });
+        if !state.character.alive || state.threat.active || arrival_event {
             break;
         }
     }
