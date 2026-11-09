@@ -1665,10 +1665,14 @@ fn render_spatial_screen(
     );
     match gameplay.screen {
         crate::bevy_gameplay::GameplayScreen::Pause => {
+            let meditation_available = lifecycle.session.as_ref().is_some_and(|session| {
+                crate::game::actions::build_meditation_view(&session.state).safe_to_meditate
+            });
             crate::bevy_gameplay::render_spatial_pause_overlay(
                 &mut commands,
                 root,
                 gameplay.pause_selected,
+                meditation_available,
             );
         }
         crate::bevy_gameplay::GameplayScreen::Navigation => {

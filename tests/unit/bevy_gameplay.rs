@@ -150,17 +150,19 @@ fn animate_world_clouds_does_not_move_clouds_while_paused() {
 }
 
 #[test]
-fn pause_action_count_matches_load_visibility_and_spatial_context() {
-    assert_eq!(pause_actions_from(false, false).len(), 5);
-    assert_eq!(pause_actions_from(true, false).len(), 6);
-    assert_eq!(pause_actions_from(false, true).len(), 6);
-    assert_eq!(pause_actions_from(true, true).len(), 7);
+fn pause_action_count_matches_load_visibility_spatial_context_and_safe_meditation() {
+    assert_eq!(pause_actions_from(false, false, false).len(), 5);
+    assert_eq!(pause_actions_from(true, false, false).len(), 6);
+    assert_eq!(pause_actions_from(false, true, false).len(), 6);
+    assert_eq!(pause_actions_from(true, true, false).len(), 7);
+    assert_eq!(pause_actions_from(false, true, true).len(), 7);
+    assert_eq!(pause_actions_from(true, true, true).len(), 8);
 }
 
 #[test]
 fn pause_action_order_keeps_options_before_quit() {
     assert!(matches!(
-        pause_actions_from(true, false).as_slice(),
+        pause_actions_from(true, false, false).as_slice(),
         [
             PauseAction::Resume,
             PauseAction::Character,
@@ -193,12 +195,13 @@ fn gameplay_dashboard_uses_exploration_as_the_main_activity_entry() {
 }
 
 #[test]
-fn spatial_pause_menu_places_travel_before_character_and_system_actions() {
+fn spatial_pause_menu_places_travel_and_safe_meditation_before_character_actions() {
     assert!(matches!(
-        pause_actions_from(true, true).as_slice(),
+        pause_actions_from(true, true, true).as_slice(),
         [
             PauseAction::Resume,
             PauseAction::Travel,
+            PauseAction::Meditate,
             PauseAction::Character,
             PauseAction::NewGame,
             PauseAction::LoadGame,
@@ -206,4 +209,10 @@ fn spatial_pause_menu_places_travel_before_character_and_system_actions() {
             PauseAction::Quit
         ]
     ));
+}
+
+#[test]
+fn meditation_is_hidden_when_unsafe_and_outside_spatial_exploration() {
+    assert!(!pause_actions_from(false, true, false).contains(&PauseAction::Meditate));
+    assert!(!pause_actions_from(false, false, true).contains(&PauseAction::Meditate));
 }
