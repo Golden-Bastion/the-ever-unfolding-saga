@@ -69,3 +69,65 @@ fn character_tab_back_action_follows_tab_content() {
         6
     );
 }
+
+#[test]
+fn all_character_tabs_return_to_the_spatial_invoking_screen() {
+    for tab in CharacterTab::ALL {
+        let mut navigation = NavigationState {
+            current_screen: Some(ScreenId::SpatialExploration),
+            return_screen: None,
+            selected: 3,
+        };
+        navigation.open_screen(ScreenId::Character);
+
+        let mut records_state = RecordScreenState {
+            active_navigation: Some(ScreenId::Character),
+            screen: RecordScreen::Character,
+            character_tab: tab,
+            ..Default::default()
+        };
+
+        assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
+        cancel(&mut navigation, &mut records_state);
+
+        assert_eq!(
+            navigation.current_screen,
+            Some(ScreenId::SpatialExploration)
+        );
+        assert_eq!(navigation.return_screen, None);
+    }
+}
+
+#[test]
+fn character_detail_and_journal_editor_back_paths_keep_spatial_parent() {
+    for screen in [
+        RecordScreen::InventoryDetail,
+        RecordScreen::QuestDetail,
+        RecordScreen::ChronicleDetail,
+        RecordScreen::JournalEntry,
+    ] {
+        let mut navigation = NavigationState {
+            current_screen: Some(ScreenId::Character),
+            return_screen: Some(ScreenId::SpatialExploration),
+            selected: 0,
+        };
+        let mut records_state = RecordScreenState {
+            active_navigation: Some(ScreenId::Character),
+            screen,
+            ..Default::default()
+        };
+
+        cancel(&mut navigation, &mut records_state);
+
+        assert_eq!(navigation.current_screen, Some(ScreenId::Character));
+        assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
+
+        records_state.screen = RecordScreen::Character;
+        cancel(&mut navigation, &mut records_state);
+        assert_eq!(
+            navigation.current_screen,
+            Some(ScreenId::SpatialExploration)
+        );
+        assert_eq!(navigation.return_screen, None);
+    }
+}

@@ -1574,6 +1574,14 @@ fn render_quit(commands: &mut Commands, panel: Entity, lifecycle: &LifecycleStat
     }
 }
 
+fn complete_action_visuals(has_pending_load: bool) -> (&'static str, &'static str) {
+    if has_pending_load {
+        ("explore", "Continue")
+    } else {
+        ("quit", "Quit")
+    }
+}
+
 fn render_complete(commands: &mut Commands, panel: Entity, lifecycle: &LifecycleState) {
     let Some(session) = lifecycle.session.as_ref() else {
         bevy_presentation::spawn_muted_label(commands, panel, "No active life.");
@@ -1593,15 +1601,21 @@ fn render_complete(commands: &mut Commands, panel: Entity, lifecycle: &Lifecycle
             session.state.character.name, session.state.character.title
         ),
     );
+    let has_pending_load = lifecycle.pending_state.is_some();
     bevy_presentation::spawn_muted_label(
         commands,
         panel,
-        "The Bevy gameplay flow will take over this session in the next migration step.",
+        if has_pending_load {
+            "Confirm to load this save and continue into spatial exploration."
+        } else {
+            "The active life is ready to continue in spatial exploration."
+        },
     );
     if let Some(message) = &lifecycle.message {
         bevy_presentation::spawn_muted_label(commands, panel, message);
     }
-    let button = bevy_presentation::spawn_action_button(commands, panel, 0, "quit", "Quit");
+    let (icon, label) = complete_action_visuals(has_pending_load);
+    let button = bevy_presentation::spawn_action_button(commands, panel, 0, icon, label);
     if lifecycle.selected == 0 {
         commands
             .entity(button)
