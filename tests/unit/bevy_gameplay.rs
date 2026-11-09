@@ -283,7 +283,10 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
 #[test]
 fn spatial_and_compatibility_gameplay_map_actions_use_the_same_map_label() {
     assert_eq!(pause_action_visuals(PauseAction::Map), ("travel", "Map"));
-    assert_eq!(gameplay_action_visuals(GameplayAction::Map), ("travel", "Map"));
+    assert_eq!(
+        gameplay_action_visuals(GameplayAction::Map),
+        ("travel", "Map")
+    );
     assert_eq!(PRIMARY_GAMEPLAY_ACTIONS[0], GameplayAction::Map);
 }
 
