@@ -2302,6 +2302,7 @@ fn format_condition_summary(conditions: &[Condition]) -> String {
     }
 }
 
+/// A threat can be investigated from this scene only when it belongs to the active location.
 fn spatial_investigation_available(game: &GameState) -> bool {
     game.threat.active
         && game
