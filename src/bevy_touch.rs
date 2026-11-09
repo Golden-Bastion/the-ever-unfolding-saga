@@ -9,7 +9,8 @@ use bevy::ui::Pressed;
 use bevy::window::PrimaryWindow;
 
 use crate::bevy_presentation::{
-    physical_touch_position, GameplayInputQueue, NavigationState, ScreenId, UiMenuButton,
+    menu_button_screen_active, physical_touch_position, GameplayInputQueue, NavigationState,
+    UiMenuButton,
 };
 const TOUCH_TAP_THRESHOLD: f32 = 12.0;
 const TOUCH_MENU_LONG_PRESS_SECS: f32 = 0.65;
@@ -89,8 +90,8 @@ fn suppress_touch_menu_press(
     }
 }
 
-// A normal tap on the gameplay pause button opens the pause menu; holding it
-// for 650 ms without dragging opens the developer console on touchscreens.
+// A normal tap on the Gameplay or spatial pause button opens the pause menu;
+// holding it for 650 ms without dragging opens the developer console on touchscreens.
 fn should_open_developer_console(elapsed_secs: f32, started_at: f32, dragging: bool) -> bool {
     !dragging && elapsed_secs - started_at >= TOUCH_MENU_LONG_PRESS_SECS
 }
@@ -108,7 +109,7 @@ fn complete_touch_menu(
         return;
     };
 
-    if navigation.current_screen != Some(ScreenId::Gameplay) {
+    if !menu_button_screen_active(navigation.current_screen) {
         state.active = None;
         return;
     }

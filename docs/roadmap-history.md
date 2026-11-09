@@ -868,3 +868,11 @@ src/
 - Documented the interim map's view/layout/fast-travel boundaries and the future continuous geography-backed map requirements under issue #365.
 - Added map discovery/fast-travel tests, multi-hop and interruption coverage, and deterministic graph-layout regression coverage.
 - Bumped Rust and Android version metadata to 0.52.33. Desktop and Android landscape visual validation remains deferred until the spatial migration work is complete.
+
+### v0.52.34: Spatial pause control and developer-console access
+- Moved the existing menu button from the compatibility Gameplay HUD into the spatial exploration header, beside the separate Leave control.
+- Preserved tap-to-pause behavior and the 650 ms touchscreen long-press gesture for opening the developer console; dragging cancels the hold gesture.
+- Routed the long-press console entry through the existing dedicated-screen navigation so closing the console restores the same spatial session and map.
+- Kept the desktop slash shortcut available from spatial exploration and retained desktop Escape / Android Back pause-menu navigation.
+- Added regression coverage for menu-button screen eligibility, spatial console return context, and developer-console shortcut availability.
+- Bumped Rust and Android fallback version metadata to 0.52.34.

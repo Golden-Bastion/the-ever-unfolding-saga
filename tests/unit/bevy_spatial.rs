@@ -1637,3 +1637,17 @@ fn spatial_environment_tint_tracks_dawn_day_dusk_and_night() {
     assert!(spatial_environment_tint(0).is_some());
     assert!(spatial_environment_tint(21).is_some());
 }
+
+#[test]
+fn spatial_pause_button_long_press_opens_console_with_spatial_return_context() {
+    let mut state = SpatialExplorationState::default();
+    let mut navigation = NavigationState {
+        current_screen: Some(ScreenId::SpatialExploration),
+        ..default()
+    };
+
+    open_spatial_developer_console(&mut state, &mut navigation);
+
+    assert_eq!(navigation.current_screen, Some(ScreenId::Console));
+    assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
+}
