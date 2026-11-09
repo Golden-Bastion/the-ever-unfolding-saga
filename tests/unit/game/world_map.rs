@@ -113,6 +113,7 @@ fn map_routes_are_derived_only_from_established_graph_edges() {
 fn map_does_not_invent_reciprocal_connections_for_one_way_routes() {
     let mut state = test_state();
     state.world.locations[1].exits = vec![13];
+    state.world.locations[3].exits.clear();
     state.world.local_maps.push(explored_map(11));
 
     let view = build_view(&state);
