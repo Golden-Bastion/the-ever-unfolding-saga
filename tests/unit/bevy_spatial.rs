@@ -829,7 +829,12 @@ fn extend_known_spatial_route(
         .expect("known intermediate location should still exist")
         .exits
         .push(destination_id);
-    if let Some(region) = game.world.regions.iter_mut().find(|region| region.id == region_id) {
+    if let Some(region) = game
+        .world
+        .regions
+        .iter_mut()
+        .find(|region| region.id == region_id)
+    {
         region.location_ids.push(destination_id);
     }
     let map = generate_local_map(
@@ -848,23 +853,15 @@ fn map_fast_travel_follows_multiple_known_route_steps_and_restores_the_final_map
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
     let before_time = lifecycle.session.as_ref().unwrap().state.world.time_points;
 
-    fast_travel_to_known_location(
-        &mut spatial,
-        &mut lifecycle,
-        &mut navigation,
-        target_id,
-    )
-    .expect("known destinations should be reachable through the visited route graph");
+    fast_travel_to_known_location(&mut spatial, &mut lifecycle, &mut navigation, target_id)
+        .expect("known destinations should be reachable through the visited route graph");
 
     let game = &lifecycle.session.as_ref().unwrap().state;
     let target_key = format!("location.{target_id}");
     assert_eq!(game.character.location_id, target_id);
     assert_eq!(game.character.turn, before_turn + 2);
     assert_eq!(game.world.time_points, before_time + 4);
-    assert_eq!(
-        spatial.session.as_ref().unwrap().location_id,
-        target_key
-    );
+    assert_eq!(spatial.session.as_ref().unwrap().location_id, target_key);
     assert_eq!(
         navigation.current_screen,
         Some(ScreenId::SpatialExploration)
@@ -887,13 +884,8 @@ fn map_fast_travel_stops_at_an_intermediate_dangerous_location() {
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
     let before_time = lifecycle.session.as_ref().unwrap().state.world.time_points;
 
-    fast_travel_to_known_location(
-        &mut spatial,
-        &mut lifecycle,
-        &mut navigation,
-        target_id,
-    )
-    .expect("the route should stop safely at the dangerous intermediate location");
+    fast_travel_to_known_location(&mut spatial, &mut lifecycle, &mut navigation, target_id)
+        .expect("the route should stop safely at the dangerous intermediate location");
 
     let game = &lifecycle.session.as_ref().unwrap().state;
     assert_eq!(game.character.location_id, middle_id);
@@ -1313,7 +1305,10 @@ fn known_location_fast_travel_rejects_a_stale_connection_without_leaving_spatial
         destination_id,
     );
 
-    assert_eq!(result, Err("That location is not reachable through known routes."));
+    assert_eq!(
+        result,
+        Err("That location is not reachable through known routes.")
+    );
     let game = &lifecycle.session.as_ref().unwrap().state;
     assert_eq!(game.character.location_id, source_location_id);
     assert_eq!(game.character.turn, before_turn);
