@@ -1444,7 +1444,7 @@ fn import_world_lab_fixture(
     {
         let Some(source) = rfd::FileDialog::new()
             .set_title("Import a World Lab fixture")
-            .add_filter("TEUS _spatial map fixtures", &["json"])
+            .add_filter("TEUS spatial map fixtures", &["json"])
             .pick_file()
         else {
             state.world_lab_status = Some("Fixture import cancelled.".into());
