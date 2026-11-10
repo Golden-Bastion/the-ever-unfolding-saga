@@ -1340,8 +1340,14 @@ fn update_spatial_world(
     assets: Res<SpatialRenderAssets>,
     mut camera: Query<(&mut Transform, &Camera), (With<Camera2d>, Without<SpatialPlayer>)>,
     mut player: Query<(&mut Transform, &mut Sprite), With<SpatialPlayer>>,
-    mut tiles: Query<(&SpatialTile, &mut Sprite), Without<SpatialWallSide>>,
-    mut wall_sides: Query<(&SpatialWallSide, &mut Sprite), Without<SpatialTile>>,
+    mut tiles: Query<
+        (&SpatialTile, &mut Sprite),
+        (Without<SpatialWallSide>, Without<SpatialPlayer>),
+    >,
+    mut wall_sides: Query<
+        (&SpatialWallSide, &mut Sprite),
+        (Without<SpatialTile>, Without<SpatialPlayer>),
+    >,
     world_entities: Query<Entity, With<SpatialWorldEntity>>,
 ) {
     if navigation.current_screen != Some(ScreenId::SpatialExploration) {
