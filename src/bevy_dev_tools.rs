@@ -26,9 +26,9 @@ use crate::spatial::{
     PointOfInterest, SpatialDiscoveryDefinition, SpatialEntityKind, SpatialEntityPlacement,
     SpatialPropKind, Terrain,
 };
-use crate::spatial_fixtures::{
-    list_spatial_fixtures, load_spatial_fixture, save_spatial_fixture, SpatialFixtureEntry,
-};
+#[cfg(not(target_os = "android"))]
+use crate::spatial_fixtures::load_spatial_fixture;
+use crate::spatial_fixtures::{list_spatial_fixtures, save_spatial_fixture, SpatialFixtureEntry};
 
 const WORKSHOP_ACTIONS: &[(&str, &str)] = &[
     ("back", "Previous part"),
@@ -1435,8 +1435,8 @@ fn export_world_lab_fixture(state: &mut DeveloperToolsState, spatial: &SpatialEx
 
 fn import_world_lab_fixture(
     state: &mut DeveloperToolsState,
-    spatial: &mut SpatialExplorationState,
-    navigation: &mut NavigationState,
+    _spatial: &mut SpatialExplorationState,
+    _navigation: &mut NavigationState,
 ) {
     #[cfg(not(target_os = "android"))]
     {
@@ -1465,8 +1465,8 @@ fn import_world_lab_fixture(
                         ));
                         activate_world_lab_map(
                             state,
-                            spatial,
-                            navigation,
+                            _spatial,
+                            _navigation,
                             fixture.map,
                             &fixture.name,
                         );
