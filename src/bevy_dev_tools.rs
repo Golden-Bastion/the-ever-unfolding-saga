@@ -26,8 +26,10 @@ use crate::spatial::{
     PointOfInterest, SpatialDiscoveryDefinition, SpatialEntityKind, SpatialEntityPlacement,
     SpatialPropKind, Terrain,
 };
+#[cfg(not(target_os = "android"))]
+use crate::spatial_fixtures::load_spatial_fixture;
 use crate::spatial_fixtures::{
-    list_spatial_fixtures, load_spatial_fixture, save_spatial_fixture, SpatialFixtureEntry,
+    list_spatial_fixtures, save_spatial_fixture, SpatialFixtureEntry,
 };
 
 const WORKSHOP_ACTIONS: &[(&str, &str)] = &[
@@ -1435,14 +1437,14 @@ fn export_world_lab_fixture(state: &mut DeveloperToolsState, spatial: &SpatialEx
 
 fn import_world_lab_fixture(
     state: &mut DeveloperToolsState,
-    spatial: &mut SpatialExplorationState,
-    navigation: &mut NavigationState,
+    _spatial: &mut SpatialExplorationState,
+    _navigation: &mut NavigationState,
 ) {
     #[cfg(not(target_os = "android"))]
     {
         let Some(source) = rfd::FileDialog::new()
             .set_title("Import a World Lab fixture")
-            .add_filter("TEUS spatial map fixtures", &["json"])
+            .add_filter("TEUS _spatial map fixtures", &["json"])
             .pick_file()
         else {
             state.world_lab_status = Some("Fixture import cancelled.".into());
@@ -1465,8 +1467,8 @@ fn import_world_lab_fixture(
                         ));
                         activate_world_lab_map(
                             state,
-                            spatial,
-                            navigation,
+                            _spatial,
+                            _navigation,
                             fixture.map,
                             &fixture.name,
                         );
