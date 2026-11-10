@@ -28,9 +28,7 @@ use crate::spatial::{
 };
 #[cfg(not(target_os = "android"))]
 use crate::spatial_fixtures::load_spatial_fixture;
-use crate::spatial_fixtures::{
-    list_spatial_fixtures, save_spatial_fixture, SpatialFixtureEntry,
-};
+use crate::spatial_fixtures::{list_spatial_fixtures, save_spatial_fixture, SpatialFixtureEntry};
 
 const WORKSHOP_ACTIONS: &[(&str, &str)] = &[
     ("back", "Previous part"),
