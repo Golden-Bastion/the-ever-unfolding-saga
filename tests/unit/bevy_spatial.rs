@@ -15,6 +15,21 @@ fn spatial_hud_condition_summary_has_a_clear_empty_state() {
 }
 
 #[test]
+fn spatial_world_update_initializes_with_disjoint_sprite_queries() {
+    let mut app = App::new();
+    app.insert_resource(Time::default())
+        .init_resource::<SpatialExplorationState>()
+        .init_resource::<NavigationState>()
+        .init_resource::<crate::bevy_gameplay::GameplayRuntimeState>()
+        .init_resource::<SpatialRenderAssets>()
+        .add_systems(Update, update_spatial_world);
+
+    // Bevy validates query access during system initialization/execution. This
+    // smoke test catches mutable Sprite query overlaps before platform startup.
+    app.update();
+}
+
+#[test]
 fn moving_sprite_depth_tracks_continuous_ground_position() {
     let center = Vec2::new(7.5, 8.5);
     let behind = Vec2::new(7.1, 8.2);

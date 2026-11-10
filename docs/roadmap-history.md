@@ -887,3 +887,8 @@ src/
 - Added unit coverage for manifest parsing/validation, row mapping, idle looping, walk looping, movement-speed scaling, and invalid frame deltas.
 - Kept the PNG placeholder empty pending external artwork generation; the static player sprite remains the runtime fallback.
 - Bumped Rust and Android fallback version metadata to 0.52.35.
+
+### v0.52.36: Fix spatial exploration startup query conflict
+- Made the mutable floor-tile and wall-side `Sprite` queries explicitly exclude the `SpatialPlayer`, ensuring all three mutable sprite query sets are disjoint.
+- Added a Bevy app smoke test that initializes and runs `update_spatial_world`, guarding against regressions in query access validation.
+- Bumped Rust and Android fallback version metadata to 0.52.36.
