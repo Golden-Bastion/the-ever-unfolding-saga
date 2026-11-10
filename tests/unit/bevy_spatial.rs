@@ -17,7 +17,7 @@ fn spatial_hud_condition_summary_has_a_clear_empty_state() {
 #[test]
 fn spatial_world_update_initializes_with_disjoint_sprite_queries() {
     let mut app = App::new();
-    app.insert_resource(Time::default())
+    app.insert_resource(Time::<()>::default())
         .init_resource::<SpatialExplorationState>()
         .init_resource::<NavigationState>()
         .init_resource::<crate::bevy_gameplay::GameplayRuntimeState>()
