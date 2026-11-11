@@ -7,6 +7,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 
+use bevy::camera::Viewport;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{Justify, LineBreak, TextLayout};
@@ -497,7 +498,7 @@ pub(crate) fn enter(
         Some("Explore the area. Move close to people or objects to interact.".to_string());
     announce_location(state, &location.name);
     state.dirty = true;
-    navigation.return_screen = Some(ScreenId::Gameplay);
+    navigation.return_screen = Some(ScreenId::SpatialExploration);
     navigation.current_screen = Some(ScreenId::SpatialExploration);
     navigation.selected = 0;
 }
