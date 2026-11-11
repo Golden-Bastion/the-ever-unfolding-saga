@@ -312,7 +312,7 @@ fn refresh_spatial_scene_on_reentry(
 fn spatial_camera_viewport_top(scale_factor: f32) -> u32 {
     ((SPATIAL_ROOT_PADDING_PX + SPATIAL_HEADER_HEIGHT_PX + SPATIAL_ROOT_GAP_PX)
         * scale_factor.max(1.0))
-        .round() as u32
+    .round() as u32
 }
 
 fn sync_spatial_camera_viewport(
