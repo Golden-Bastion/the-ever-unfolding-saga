@@ -1360,7 +1360,6 @@ fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut Navigation
         navigation.current_screen = Some(ScreenId::WorldLab);
         navigation.return_screen = None;
         navigation.selected = 0;
-        return;
     }
     // Normal spatial exploration has no Leave path back to the legacy
     // Gameplay dashboard. This function is only used by the World Lab
