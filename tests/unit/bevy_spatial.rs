@@ -956,6 +956,7 @@ fn spatial_entry_announces_location_without_persisting_it_in_the_header() {
         spatial.message.as_deref(),
         Some("Explore the area. Move close to people or objects to interact.")
     );
+    assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
     assert_eq!(spatial_header_label(false, 0), None);
 }
 
