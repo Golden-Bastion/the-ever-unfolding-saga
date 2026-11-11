@@ -1675,7 +1675,6 @@ fn spatial_pause_button_long_press_opens_console_with_spatial_return_context() {
     assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
 }
 
-
 #[test]
 fn celestial_art_regions_select_separate_sun_and_moon_panels() {
     let (sun, moon) = celestial_source_rects(UVec2::new(1_672, 941))

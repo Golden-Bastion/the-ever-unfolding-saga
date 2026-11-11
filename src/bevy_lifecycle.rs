@@ -807,11 +807,7 @@ impl LifecycleState {
 
     pub(crate) fn cancel_quit_confirmation(&mut self, navigation: &mut NavigationState) {
         let return_screen = navigation.return_screen.take();
-        if matches!(
-            return_screen,
-            Some(ScreenId::SpatialExploration)
-        ) && self.session.is_some()
-        {
+        if matches!(return_screen, Some(ScreenId::SpatialExploration)) && self.session.is_some() {
             self.phase = LifecyclePhase::Complete;
             self.selected = 0;
             self.message = None;

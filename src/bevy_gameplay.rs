@@ -87,7 +87,10 @@ fn accepts_gameplay_input(
     menu_screen: GameplayMenuScreen,
 ) -> bool {
     current_screen == Some(ScreenId::SpatialExploration)
-        && matches!(menu_screen, GameplayMenuScreen::Pause | GameplayMenuScreen::WorldMap)
+        && matches!(
+            menu_screen,
+            GameplayMenuScreen::Pause | GameplayMenuScreen::WorldMap
+        )
 }
 
 fn gameplay_input(
@@ -281,11 +284,18 @@ fn meditation_is_available(lifecycle: &LifecycleState) -> bool {
 }
 
 fn pause_action_count(meditation_available: bool) -> usize {
-    pause_actions_from(crate::bevy_lifecycle::has_available_saves(), meditation_available).len()
+    pause_actions_from(
+        crate::bevy_lifecycle::has_available_saves(),
+        meditation_available,
+    )
+    .len()
 }
 
 fn pause_actions(meditation_available: bool) -> Vec<PauseAction> {
-    pause_actions_from(crate::bevy_lifecycle::has_available_saves(), meditation_available)
+    pause_actions_from(
+        crate::bevy_lifecycle::has_available_saves(),
+        meditation_available,
+    )
 }
 
 fn pause_actions_from(has_load: bool, meditation_available: bool) -> Vec<PauseAction> {
@@ -392,18 +402,18 @@ fn activate_selection(
                 navigation_state,
                 target_id,
             ) {
-                    Ok(()) => {
-                        gameplay.screen = GameplayMenuScreen::Closed;
-                        gameplay.selected = 0;
-                        gameplay.pause_selected = 0;
-                        gameplay.message = None;
-                        runtime_state.set_paused(false);
-                        if lifecycle.phase == LifecyclePhase::Death {
-                            navigation_state.current_screen = Some(ScreenId::Lifecycle);
-                            navigation_state.return_screen = None;
-                            navigation_state.selected = lifecycle.selected;
-                        }
+                Ok(()) => {
+                    gameplay.screen = GameplayMenuScreen::Closed;
+                    gameplay.selected = 0;
+                    gameplay.pause_selected = 0;
+                    gameplay.message = None;
+                    runtime_state.set_paused(false);
+                    if lifecycle.phase == LifecyclePhase::Death {
+                        navigation_state.current_screen = Some(ScreenId::Lifecycle);
+                        navigation_state.return_screen = None;
+                        navigation_state.selected = lifecycle.selected;
                     }
+                }
                 Err(message) => {
                     gameplay.message = Some(message.to_string());
                     spatial_state.request_presentation_refresh();

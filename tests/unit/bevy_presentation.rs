@@ -307,6 +307,9 @@ fn dedicated_screen_navigation_uses_its_fallback_without_a_previous_screen() {
         navigation.return_to_previous_screen(ScreenId::SpatialExploration),
         ScreenId::SpatialExploration
     );
-    assert_eq!(navigation.current_screen, Some(ScreenId::SpatialExploration));
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
     assert_eq!(navigation.return_screen, None);
 }

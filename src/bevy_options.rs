@@ -271,9 +271,7 @@ fn options_input(
                 options.pending_remove_id = None;
             }
             InputEvent::Confirm => match options.tab {
-                0 => {
-                    activate_saves_action(&mut options, &mut lifecycle, &mut navigation)
-                }
+                0 => activate_saves_action(&mut options, &mut lifecycle, &mut navigation),
                 1 => activate_mods_action(&mut options, &mut lifecycle, &mut navigation),
                 2 => activate_interface_action(
                     &mut options,
@@ -283,9 +281,7 @@ fn options_input(
                 ),
                 _ => {}
             },
-            InputEvent::Cancel => {
-                close_options(&mut lifecycle, &mut navigation, &mut options)
-            }
+            InputEvent::Cancel => close_options(&mut lifecycle, &mut navigation, &mut options),
             _ => {}
         }
         options.dirty = true;

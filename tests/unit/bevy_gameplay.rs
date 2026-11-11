@@ -10,11 +10,7 @@ fn gameplay_runtime_pause_entry_and_exit_update_runtime_state() {
     assert_eq!(gameplay.screen, GameplayMenuScreen::Pause);
     assert!(runtime.is_paused());
 
-    close_pause(
-        &mut gameplay,
-        &mut runtime,
-        &mut navigation,
-    );
+    close_pause(&mut gameplay, &mut runtime, &mut navigation);
     assert_eq!(gameplay.screen, GameplayMenuScreen::Closed);
     assert!(!runtime.is_paused());
 }
@@ -49,11 +45,7 @@ fn closing_spatial_pause_menu_restores_the_spatial_screen_and_resumes_play() {
         ..default()
     };
     open_pause(&mut gameplay, &mut runtime, &mut navigation);
-    close_pause(
-        &mut gameplay,
-        &mut runtime,
-        &mut navigation,
-    );
+    close_pause(&mut gameplay, &mut runtime, &mut navigation);
     assert_eq!(gameplay.screen, GameplayMenuScreen::Closed);
     assert!(!runtime.is_paused());
     assert_eq!(
