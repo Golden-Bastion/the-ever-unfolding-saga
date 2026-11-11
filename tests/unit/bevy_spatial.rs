@@ -15,6 +15,13 @@ fn spatial_hud_condition_summary_has_a_clear_empty_state() {
 }
 
 #[test]
+fn spatial_camera_viewport_reserves_the_dedicated_header_at_device_scale() {
+    assert_eq!(spatial_camera_viewport_top(1.0), 160);
+    assert_eq!(spatial_camera_viewport_top(2.0), 320);
+    assert_eq!(spatial_camera_viewport_top(3.0), 480);
+}
+
+#[test]
 fn spatial_world_update_initializes_with_disjoint_sprite_queries() {
     let mut app = App::new();
     app.insert_resource(Time::<()>::default())
@@ -949,6 +956,7 @@ fn spatial_entry_announces_location_without_persisting_it_in_the_header() {
         spatial.message.as_deref(),
         Some("Explore the area. Move close to people or objects to interact.")
     );
+    assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
     assert_eq!(spatial_header_label(false, 0), None);
 }
 
