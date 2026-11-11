@@ -12,7 +12,6 @@ use bevy::prelude::*;
 use bevy::text::{Justify, LineBreak, TextLayout};
 use bevy::ui::{Pressed, UiTransform};
 use bevy::ui_widgets::Button;
-#[cfg(target_os = "android")]
 use bevy::window::PrimaryWindow;
 
 use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
@@ -52,6 +51,9 @@ const JOYSTICK_THUMB_RADIUS_PX: f32 = 20.0;
 #[cfg(target_os = "android")]
 const JOYSTICK_THUMB_TRAVEL_PX: f32 = 36.0;
 const CAMERA_LERP_SPEED: f32 = 8.0;
+const SPATIAL_ROOT_PADDING_PX: f32 = 8.0;
+const SPATIAL_ROOT_GAP_PX: f32 = 8.0;
+const SPATIAL_HEADER_HEIGHT_PX: f32 = 144.0;
 const LOCATION_NOTICE_DURATION_SECONDS: f32 = 4.0;
 const CAMERA_DEAD_ZONE_FRACTION: f32 = 0.15;
 const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
@@ -306,6 +308,39 @@ fn refresh_spatial_scene_on_reentry(
     state.last_navigation_screen = navigation.current_screen;
 }
 
+fn spatial_camera_viewport_top(scale_factor: f64) -> u32 {
+    ((SPATIAL_ROOT_PADDING_PX + SPATIAL_HEADER_HEIGHT_PX + SPATIAL_ROOT_GAP_PX) as f64
+        * scale_factor.max(1.0))
+    .round() as u32
+}
+
+fn sync_spatial_camera_viewport(
+    navigation: Res<NavigationState>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut cameras: Query<&mut Camera, With<Camera2d>>,
+) {
+    let viewport = if navigation.current_screen == Some(ScreenId::SpatialExploration) {
+        let Ok(window) = windows.single() else {
+            return;
+        };
+        let top = spatial_camera_viewport_top(window.resolution.scale_factor());
+        let width = window.resolution.physical_width();
+        let height = window.resolution.physical_height();
+        let top = top.min(height.saturating_sub(1));
+        Some(Viewport {
+            physical_position: UVec2::new(0, top),
+            physical_size: UVec2::new(width.max(1), height.saturating_sub(top).max(1)),
+            depth: 0.0..1.0,
+        })
+    } else {
+        None
+    };
+
+    for mut camera in &mut cameras {
+        camera.viewport = viewport.clone();
+    }
+}
+
 fn update_spatial_location_notice(
     time: Res<Time>,
     navigation: Res<NavigationState>,
@@ -331,6 +366,7 @@ pub(crate) fn install(app: &mut App) {
                 update_spatial_location_notice,
                 spatial_input,
                 update_spatial_wheel_animation,
+                sync_spatial_camera_viewport,
                 update_spatial_world,
                 update_spatial_context_prompt,
                 update_spatial_control_feedback,
@@ -1325,9 +1361,9 @@ fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut Navigation
         navigation.selected = 0;
         return;
     }
-    navigation.current_screen = Some(ScreenId::Gameplay);
-    navigation.return_screen = None;
-    navigation.selected = 0;
+    // Normal spatial exploration has no Leave path back to the legacy
+    // Gameplay dashboard. This function is only used by the World Lab
+    // sandbox, which returns to its editor above.
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)] // Bevy systems require independent resources and queries.
@@ -1710,9 +1746,9 @@ fn render_spatial_screen(
                 height: percent(100),
                 min_width: px(0),
                 min_height: px(0),
-                padding: UiRect::all(bevy_presentation::responsive_vmin(2.0)),
+                padding: UiRect::all(px(SPATIAL_ROOT_PADDING_PX)),
                 flex_direction: FlexDirection::Column,
-                row_gap: px(8),
+                row_gap: px(SPATIAL_ROOT_GAP_PX),
                 ..default()
             },
             BackgroundColor(Color::NONE),
@@ -1739,15 +1775,35 @@ fn render_spatial_screen(
     }
 
     let header = commands
+        .spawn((
+            Node {
+                width: percent(100),
+                height: px(SPATIAL_HEADER_HEIGHT_PX),
+                min_height: px(SPATIAL_HEADER_HEIGHT_PX),
+                max_height: px(SPATIAL_HEADER_HEIGHT_PX),
+                padding: UiRect::all(px(8)),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(8),
+                flex_shrink: 0.0,
+                border: UiRect::all(px(1)),
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+        ))
+        .id();
+    commands.entity(root).add_child(header);
+    let header_row = commands
         .spawn(Node {
             width: percent(100),
+            min_height: px(84),
             flex_direction: FlexDirection::Row,
             justify_content: JustifyContent::SpaceBetween,
             align_items: AlignItems::Center,
             ..default()
         })
         .id();
-    commands.entity(root).add_child(header);
+    commands.entity(header).add_child(header_row);
     let header_context = commands
         .spawn(Node {
             max_width: percent(48),
@@ -1758,7 +1814,7 @@ fn render_spatial_screen(
             ..default()
         })
         .id();
-    commands.entity(header).add_child(header_context);
+    commands.entity(header_row).add_child(header_context);
     if let Some(heading) = spatial_header_label(state.sandbox_mode, map.seed) {
         spawn_label(&mut commands, header_context, heading);
     }
@@ -1782,7 +1838,7 @@ fn render_spatial_screen(
             BackgroundColor(bevy_presentation::THEME_SURFACE),
         ))
         .id();
-    commands.entity(header).add_child(vitals);
+    commands.entity(header_row).add_child(vitals);
     if state.sandbox_mode {
         spawn_label(&mut commands, vitals, "TEMPORARY SANDBOX");
         spawn_compact_label(
@@ -1822,33 +1878,34 @@ fn render_spatial_screen(
         }
     }
 
-    if !state.sandbox_mode && gameplay.screen == crate::bevy_gameplay::GameplayScreen::Dashboard {
-        bevy_presentation::spawn_menu_button(&mut commands, header, "menu");
+    if !state.sandbox_mode {
+        // The corner control replaces the old Leave action. Its shared
+        // activation handler preserves tap-to-pause and long-press-to-console.
+        bevy_presentation::spawn_menu_button(&mut commands, header_row, "menu");
+    } else {
+        spawn_control(
+            &mut commands,
+            header_row,
+            "Return to Editor",
+            SpatialAction::Exit,
+            Display::Flex,
+        );
     }
-
-    spawn_control(
-        &mut commands,
-        header,
-        if state.sandbox_mode {
-            "Return to Editor"
-        } else {
-            "Leave"
-        },
-        SpatialAction::Exit,
-        Display::Flex,
-    );
 
     let status = commands
         .spawn((
             Node {
                 width: percent(100),
-                padding: UiRect::all(px(8)),
+                height: px(28),
+                min_height: px(28),
+                padding: UiRect::axes(px(8), px(4)),
+                align_items: AlignItems::Center,
                 ..default()
             },
-            BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+            BackgroundColor(bevy_presentation::THEME_PANEL),
         ))
         .id();
-    commands.entity(root).add_child(status);
+    commands.entity(header).add_child(status);
     spawn_label(
         &mut commands,
         status,
