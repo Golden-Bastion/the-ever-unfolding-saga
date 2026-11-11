@@ -15,6 +15,13 @@ fn spatial_hud_condition_summary_has_a_clear_empty_state() {
 }
 
 #[test]
+fn spatial_camera_viewport_reserves_the_dedicated_header_at_device_scale() {
+    assert_eq!(spatial_camera_viewport_top(1.0), 160);
+    assert_eq!(spatial_camera_viewport_top(2.0), 320);
+    assert_eq!(spatial_camera_viewport_top(3.0), 480);
+}
+
+#[test]
 fn spatial_world_update_initializes_with_disjoint_sprite_queries() {
     let mut app = App::new();
     app.insert_resource(Time::<()>::default())
