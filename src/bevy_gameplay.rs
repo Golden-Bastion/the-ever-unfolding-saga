@@ -7,9 +7,7 @@ use bevy::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
-use crate::bevy_presentation::{
-    self, GameplayInputQueue, NavigationState, ScreenId,
-};
+use crate::bevy_presentation::{self, GameplayInputQueue, NavigationState, ScreenId};
 use crate::game::{actions, world_map};
 use crate::input::InputEvent;
 use crate::presentation::WorldMapView;
