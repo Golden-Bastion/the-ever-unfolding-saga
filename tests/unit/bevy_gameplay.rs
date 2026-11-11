@@ -1,8 +1,6 @@
 use super::*;
 
 #[test]
-#[test]
-#[test]
 fn gameplay_runtime_pause_entry_and_exit_update_runtime_state() {
     let mut gameplay = GameplayMenuState::default();
     let mut runtime = GameplayRuntimeState::default();
@@ -16,7 +14,6 @@ fn gameplay_runtime_pause_entry_and_exit_update_runtime_state() {
         &mut gameplay,
         &mut runtime,
         &mut navigation,
-        ScreenId::SpatialExploration,
     );
     assert_eq!(gameplay.screen, GameplayMenuScreen::Closed);
     assert!(!runtime.is_paused());
@@ -41,10 +38,6 @@ fn spatial_pause_menu_keeps_spatial_exploration_as_its_parent() {
         navigation.current_screen,
         gameplay.screen
     ));
-    assert_eq!(
-        pause_parent_screen(navigation.current_screen),
-        ScreenId::SpatialExploration
-    );
 }
 
 #[test]
@@ -60,7 +53,6 @@ fn closing_spatial_pause_menu_restores_the_spatial_screen_and_resumes_play() {
         &mut gameplay,
         &mut runtime,
         &mut navigation,
-        ScreenId::SpatialExploration,
     );
     assert_eq!(gameplay.screen, GameplayMenuScreen::Closed);
     assert!(!runtime.is_paused());
@@ -253,65 +245,26 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
 }
 
 #[test]
-fn spatial_and_compatibility_gameplay_map_actions_use_the_same_map_label() {
+fn spatial_pause_menu_exposes_the_world_map_action() {
     assert_eq!(pause_action_visuals(PauseAction::Map), ("travel", "Map"));
-    assert_eq!(
-        gameplay_action_visuals(GameplayAction::Map),
-        ("travel", "Map")
-    );
-    assert_eq!(PRIMARY_GAMEPLAY_ACTIONS[0], GameplayAction::Map);
 }
 
 #[test]
-fn animate_world_clouds_does_not_move_clouds_while_paused() {
-    let mut app = App::new();
-    app.insert_resource(Time::<()>::default());
-    app.insert_resource(GameplayRuntimeState { paused: true });
-
-    let entity = app
-        .world_mut()
-        .spawn((
-            WorldCloud {
-                base_x: 42.0,
-                drift: 8.0,
-                speed: 1.0,
-            },
-            Node {
-                left: percent(17.0),
-                ..default()
-            },
-        ))
-        .id();
-
-    app.add_systems(Update, animate_world_clouds);
-    app.update();
-
-    let node = app
-        .world()
-        .get::<Node>(entity)
-        .expect("cloud node should remain");
-    assert_eq!(node.left, percent(17.0));
-}
-
-#[test]
-fn pause_action_count_matches_load_visibility_spatial_context_and_safe_meditation() {
-    assert_eq!(pause_actions_from(false, false, false).len(), 5);
-    assert_eq!(pause_actions_from(true, false, false).len(), 6);
-    assert_eq!(pause_actions_from(false, true, false).len(), 6);
-    assert_eq!(pause_actions_from(true, true, false).len(), 7);
-    assert_eq!(pause_actions_from(false, true, true).len(), 7);
-    assert_eq!(pause_actions_from(true, true, true).len(), 8);
+fn pause_action_count_matches_load_visibility_and_safe_meditation() {
+    assert_eq!(pause_actions_from(false, false).len(), 6);
+    assert_eq!(pause_actions_from(true, false).len(), 7);
+    assert_eq!(pause_actions_from(true, true).len(), 8);
 }
 
 #[test]
 fn pause_action_order_keeps_options_before_quit() {
     assert!(matches!(
-        pause_actions_from(true, false, false).as_slice(),
+        pause_actions_from(false, false).as_slice(),
         [
             PauseAction::Resume,
+            PauseAction::Map,
             PauseAction::Character,
             PauseAction::NewGame,
-            PauseAction::LoadGame,
             PauseAction::Options,
             PauseAction::Quit
         ]
@@ -319,29 +272,9 @@ fn pause_action_order_keeps_options_before_quit() {
 }
 
 #[test]
-fn gameplay_dashboard_uses_exploration_as_the_main_activity_entry() {
-    let state = crate::model::create_new_state(
-        "Test World",
-        crate::model::WorldMode::New,
-        "Ash".to_string(),
-        "Wanderer".to_string(),
-    );
-    let actions = dashboard_actions(&state);
-
-    assert_eq!(
-        &actions[..PRIMARY_GAMEPLAY_ACTIONS.len()],
-        &PRIMARY_GAMEPLAY_ACTIONS
-    );
-    assert_eq!(
-        actions.len(),
-        PRIMARY_GAMEPLAY_ACTIONS.len() + usize::from(state.threat.active)
-    );
-}
-
-#[test]
 fn spatial_pause_menu_places_travel_and_safe_meditation_before_character_actions() {
     assert!(matches!(
-        pause_actions_from(true, true, true).as_slice(),
+        pause_actions_from(true, true).as_slice(),
         [
             PauseAction::Resume,
             PauseAction::Map,
@@ -356,7 +289,6 @@ fn spatial_pause_menu_places_travel_and_safe_meditation_before_character_actions
 }
 
 #[test]
-fn meditation_is_hidden_when_unsafe_and_outside_spatial_exploration() {
-    assert!(!pause_actions_from(false, true, false).contains(&PauseAction::Meditate));
-    assert!(!pause_actions_from(false, false, true).contains(&PauseAction::Meditate));
+fn meditation_is_hidden_when_unsafe() {
+    assert!(!pause_actions_from(true, false).contains(&PauseAction::Meditate));
 }

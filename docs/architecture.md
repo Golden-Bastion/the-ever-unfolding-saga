@@ -60,7 +60,7 @@ src/
 ├── bevy_app.rs              # Bevy app/bootstrap configuration
 ├── bevy_presentation.rs     # shared Bevy UI primitives and semantic input routing
 ├── bevy_lifecycle.rs        # start/load/creation/quit/death lifecycle orchestration
-├── bevy_navigation_bridge.rs # lifecycle completion and gameplay re-entry hand-offs
+├── bevy_navigation_bridge.rs # lifecycle completion and spatial exploration hand-off
 ├── bevy_gameplay.rs         # spatial pause/navigation overlay and interim World Map
 ├── bevy_interactions.rs     # NPC dialogue and remains-recovery screens
 ├── bevy_records.rs          # Character hub, record details, meditation, and journal flows

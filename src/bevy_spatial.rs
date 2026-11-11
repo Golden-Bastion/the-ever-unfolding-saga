@@ -244,18 +244,90 @@ fn advance_location_notice(state: &mut SpatialExplorationState, delta_seconds: f
 
 fn sky_visual(time_points: u32) -> SkyVisual {
     match time_points % 12 {
-        0 => SkyVisual { background: bevy_presentation::THEME_SKY_NIGHT, celestial: CelestialBody::Moon, celestial_x: 78.0, celestial_y: 9.0, warm_horizon: false },
-        1 => SkyVisual { background: bevy_presentation::THEME_SKY_DAWN, celestial: CelestialBody::Moon, celestial_x: 67.0, celestial_y: 11.0, warm_horizon: true },
-        2 => SkyVisual { background: bevy_presentation::THEME_SKY_DAWN, celestial: CelestialBody::Sun, celestial_x: 58.0, celestial_y: 11.0, warm_horizon: true },
-        3 => SkyVisual { background: bevy_presentation::THEME_SKY_DAY, celestial: CelestialBody::Sun, celestial_x: 50.0, celestial_y: 7.0, warm_horizon: false },
-        4 => SkyVisual { background: bevy_presentation::THEME_SKY_DAY, celestial: CelestialBody::Sun, celestial_x: 42.0, celestial_y: 9.0, warm_horizon: false },
-        5 => SkyVisual { background: bevy_presentation::THEME_SKY_DAY, celestial: CelestialBody::Sun, celestial_x: 34.0, celestial_y: 11.0, warm_horizon: false },
-        6 => SkyVisual { background: bevy_presentation::THEME_SKY_DAY, celestial: CelestialBody::Sun, celestial_x: 25.0, celestial_y: 14.0, warm_horizon: false },
-        7 => SkyVisual { background: bevy_presentation::THEME_SKY_DUSK, celestial: CelestialBody::Sun, celestial_x: 17.0, celestial_y: 18.0, warm_horizon: true },
-        8 => SkyVisual { background: bevy_presentation::THEME_SKY_DUSK, celestial: CelestialBody::Moon, celestial_x: 10.0, celestial_y: 13.0, warm_horizon: true },
-        9 => SkyVisual { background: bevy_presentation::THEME_SKY_NIGHT, celestial: CelestialBody::Moon, celestial_x: 21.0, celestial_y: 10.0, warm_horizon: false },
-        10 => SkyVisual { background: bevy_presentation::THEME_SKY_NIGHT, celestial: CelestialBody::Moon, celestial_x: 37.0, celestial_y: 8.0, warm_horizon: false },
-        11 => SkyVisual { background: bevy_presentation::THEME_SKY_NIGHT, celestial: CelestialBody::Moon, celestial_x: 55.0, celestial_y: 8.0, warm_horizon: false },
+        0 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_NIGHT,
+            celestial: CelestialBody::Moon,
+            celestial_x: 78.0,
+            celestial_y: 9.0,
+            warm_horizon: false,
+        },
+        1 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAWN,
+            celestial: CelestialBody::Moon,
+            celestial_x: 67.0,
+            celestial_y: 11.0,
+            warm_horizon: true,
+        },
+        2 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAWN,
+            celestial: CelestialBody::Sun,
+            celestial_x: 58.0,
+            celestial_y: 11.0,
+            warm_horizon: true,
+        },
+        3 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAY,
+            celestial: CelestialBody::Sun,
+            celestial_x: 50.0,
+            celestial_y: 7.0,
+            warm_horizon: false,
+        },
+        4 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAY,
+            celestial: CelestialBody::Sun,
+            celestial_x: 42.0,
+            celestial_y: 9.0,
+            warm_horizon: false,
+        },
+        5 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAY,
+            celestial: CelestialBody::Sun,
+            celestial_x: 34.0,
+            celestial_y: 11.0,
+            warm_horizon: false,
+        },
+        6 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAY,
+            celestial: CelestialBody::Sun,
+            celestial_x: 25.0,
+            celestial_y: 14.0,
+            warm_horizon: false,
+        },
+        7 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DUSK,
+            celestial: CelestialBody::Sun,
+            celestial_x: 17.0,
+            celestial_y: 18.0,
+            warm_horizon: true,
+        },
+        8 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DUSK,
+            celestial: CelestialBody::Moon,
+            celestial_x: 10.0,
+            celestial_y: 13.0,
+            warm_horizon: true,
+        },
+        9 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_NIGHT,
+            celestial: CelestialBody::Moon,
+            celestial_x: 21.0,
+            celestial_y: 10.0,
+            warm_horizon: false,
+        },
+        10 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_NIGHT,
+            celestial: CelestialBody::Moon,
+            celestial_x: 37.0,
+            celestial_y: 8.0,
+            warm_horizon: false,
+        },
+        11 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_NIGHT,
+            celestial: CelestialBody::Moon,
+            celestial_x: 55.0,
+            celestial_y: 8.0,
+            warm_horizon: false,
+        },
         _ => unreachable!(),
     }
 }
@@ -435,7 +507,10 @@ pub(crate) fn install(app: &mut App) {
         .init_resource::<SpatialExplorationState>()
         .init_resource::<SpatialJoystickState>()
         .init_resource::<CelestialArtAssets>()
-        .add_systems(Startup, (setup_spatial_render_assets, load_celestial_art).chain())
+        .add_systems(
+            Startup,
+            (setup_spatial_render_assets, load_celestial_art).chain(),
+        )
         .add_systems(
             Update,
             (
@@ -1437,9 +1512,8 @@ fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut Navigation
         navigation.return_screen = None;
         navigation.selected = 0;
     }
-    // Normal spatial exploration has no Leave path back to the legacy
-    // The normal campaign has no manual exit; this function only serves the World Lab
-    // sandbox, which returns to its editor above.
+    // The campaign has no manual exit; this function only returns a World Lab
+    // playtest to its editor.
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)] // Bevy systems require independent resources and queries.

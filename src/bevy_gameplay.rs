@@ -78,21 +78,16 @@ pub(crate) fn install(app: &mut App) {
         .init_resource::<GameplayRuntimeState>()
         .add_systems(
             Update,
-            (
-                gameplay_input,
-                sync_gameplay_menu_selection,
-            )
-                .chain(),
+            (gameplay_input, sync_gameplay_menu_selection).chain(),
         );
 }
 
-fn accepts_gameplay_input(current_screen: Option<ScreenId>, menu_screen: GameplayMenuScreen) -> bool {
+fn accepts_gameplay_input(
+    current_screen: Option<ScreenId>,
+    menu_screen: GameplayMenuScreen,
+) -> bool {
     current_screen == Some(ScreenId::SpatialExploration)
         && matches!(menu_screen, GameplayMenuScreen::Pause | GameplayMenuScreen::WorldMap)
-}
-
-fn pause_parent_screen(_current_screen: Option<ScreenId>) -> ScreenId {
-    ScreenId::SpatialExploration
 }
 
 fn gameplay_input(
@@ -138,16 +133,8 @@ fn gameplay_input(
                     spatial_state.request_presentation_refresh();
                 }
                 GameplayMenuScreen::Pause => {
-                    let return_screen = pause_parent_screen(navigation_state.current_screen);
-                    close_pause(
-                        &mut gameplay,
-                        &mut runtime_state,
-                        &mut navigation_state,
-                        return_screen,
-                    );
-                    if return_screen == ScreenId::SpatialExploration {
-                        spatial_state.request_presentation_refresh();
-                    }
+                    close_pause(&mut gameplay, &mut runtime_state, &mut navigation_state);
+                    spatial_state.request_presentation_refresh();
                 }
                 GameplayMenuScreen::Closed => {}
             },
@@ -182,10 +169,7 @@ fn move_selection(
                 .len()
                 + 1
         }
-        GameplayMenuScreen::Pause => pause_action_count(
-            navigation_state.current_screen == Some(ScreenId::SpatialExploration),
-            meditation_is_available(lifecycle),
-        ),
+        GameplayMenuScreen::Pause => pause_action_count(meditation_is_available(lifecycle)),
     };
     if count == 0 {
         return;
@@ -217,10 +201,7 @@ fn move_selection_to_end(
                 .len()
                 + 1
         }
-        GameplayMenuScreen::Pause => pause_action_count(
-            navigation_state.current_screen == Some(ScreenId::SpatialExploration),
-            meditation_is_available(lifecycle),
-        ),
+        GameplayMenuScreen::Pause => pause_action_count(meditation_is_available(lifecycle)),
     };
     if count > 0 {
         if gameplay.screen == GameplayMenuScreen::Pause {
@@ -248,16 +229,11 @@ fn close_pause(
     gameplay: &mut GameplayMenuState,
     runtime_state: &mut GameplayRuntimeState,
     navigation_state: &mut NavigationState,
-    return_screen: ScreenId,
 ) {
     gameplay.screen = GameplayMenuScreen::Closed;
     runtime_state.set_paused(false);
-    navigation_state.current_screen = Some(return_screen);
-    navigation_state.selected = if return_screen == ScreenId::SpatialExploration {
-        0
-    } else {
-        gameplay.selected
-    };
+    navigation_state.current_screen = Some(ScreenId::SpatialExploration);
+    navigation_state.selected = 0;
 }
 
 fn sync_gameplay_menu_selection(
@@ -304,34 +280,18 @@ fn meditation_is_available(lifecycle: &LifecycleState) -> bool {
         .is_some_and(|session| actions::build_meditation_view(&session.state).safe_to_meditate)
 }
 
-fn pause_action_count(spatial_menu: bool, meditation_available: bool) -> usize {
-    pause_actions_from(
-        crate::bevy_lifecycle::has_available_saves(),
-        spatial_menu,
-        meditation_available,
-    )
-    .len()
+fn pause_action_count(meditation_available: bool) -> usize {
+    pause_actions_from(crate::bevy_lifecycle::has_available_saves(), meditation_available).len()
 }
 
-fn pause_actions(spatial_menu: bool, meditation_available: bool) -> Vec<PauseAction> {
-    pause_actions_from(
-        crate::bevy_lifecycle::has_available_saves(),
-        spatial_menu,
-        meditation_available,
-    )
+fn pause_actions(meditation_available: bool) -> Vec<PauseAction> {
+    pause_actions_from(crate::bevy_lifecycle::has_available_saves(), meditation_available)
 }
 
-fn pause_actions_from(
-    has_load: bool,
-    spatial_menu: bool,
-    meditation_available: bool,
-) -> Vec<PauseAction> {
-    let mut actions = vec![PauseAction::Resume];
-    if spatial_menu {
-        actions.push(PauseAction::Map);
-        if meditation_available {
-            actions.push(PauseAction::Meditate);
-        }
+fn pause_actions_from(has_load: bool, meditation_available: bool) -> Vec<PauseAction> {
+    let mut actions = vec![PauseAction::Resume, PauseAction::Map];
+    if meditation_available {
+        actions.push(PauseAction::Meditate);
     }
     actions.extend([PauseAction::Character, PauseAction::NewGame]);
     if has_load {
@@ -355,9 +315,7 @@ fn activate_selection(
 ) {
     match gameplay.screen {
         GameplayMenuScreen::Pause => {
-            let spatial_menu =
-                navigation_state.current_screen == Some(ScreenId::SpatialExploration);
-            let actions = pause_actions(spatial_menu, meditation_is_available(lifecycle));
+            let actions = pause_actions(meditation_is_available(lifecycle));
             let Some(action) = actions.get(gameplay.pause_selected).copied() else {
                 gameplay.pause_selected = 0;
                 navigation_state.selected = 0;
@@ -376,11 +334,8 @@ fn activate_selection(
                     spatial_state.request_presentation_refresh();
                 }
                 PauseAction::Resume => {
-                    let return_screen = pause_parent_screen(navigation_state.current_screen);
-                    close_pause(gameplay, runtime_state, navigation_state, return_screen);
-                    if return_screen == ScreenId::SpatialExploration {
-                        spatial_state.request_presentation_refresh();
-                    }
+                    close_pause(gameplay, runtime_state, navigation_state);
+                    spatial_state.request_presentation_refresh();
                 }
                 PauseAction::Character => {
                     open_dedicated_screen(navigation_state, ScreenId::Character);
@@ -406,8 +361,10 @@ fn activate_selection(
                     open_dedicated_screen(navigation_state, ScreenId::Options);
                 }
                 PauseAction::Quit => {
-                    let return_screen = pause_parent_screen(navigation_state.current_screen);
-                    lifecycle.start_quit_confirmation(navigation_state, Some(return_screen));
+                    lifecycle.start_quit_confirmation(
+                        navigation_state,
+                        Some(ScreenId::SpatialExploration),
+                    );
                 }
             }
         }
@@ -463,7 +420,7 @@ pub(crate) fn render_spatial_pause_overlay(
     selected: usize,
     meditation_available: bool,
 ) {
-    let actions = pause_actions(true, meditation_available);
+    let actions = pause_actions(meditation_available);
     render_pause(commands, parent, &actions, selected);
 }
 
