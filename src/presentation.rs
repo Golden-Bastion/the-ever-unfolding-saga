@@ -69,12 +69,6 @@ pub(crate) struct LocationView {
     pub scene_image: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct ThreatView {
-    pub label: String,
-    pub description: String,
-}
-
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum HistoryEntryViewType {
     #[default]
@@ -159,21 +153,6 @@ pub(crate) struct CombatResultView {
     pub combat: CombatView,
     pub result_title: String,
     pub result_note: String,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct WorldView {
-    pub world_name: String,
-    pub time: String,
-    pub time_points: u32,
-    pub day: u32,
-    pub character: CharacterView,
-    pub location: Option<LocationView>,
-    pub art: Option<String>,
-    pub atmosphere: Option<String>,
-    pub conditions: Vec<ConditionView>,
-    pub threat: Option<ThreatView>,
-    pub history: Vec<HistoryEntryView>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

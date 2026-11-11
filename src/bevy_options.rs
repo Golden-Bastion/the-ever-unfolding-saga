@@ -532,12 +532,9 @@ fn close_options(
     options.message = None;
     options.pending_remove_id = None;
     options.dirty = true;
-    match return_screen {
-        ScreenId::Lifecycle => {
-            navigation.selected = lifecycle.selected;
-            lifecycle.mark_dirty();
-        }
-        _ => {}
+    if return_screen == ScreenId::Lifecycle {
+        navigation.selected = lifecycle.selected;
+        lifecycle.mark_dirty();
     }
 }
 

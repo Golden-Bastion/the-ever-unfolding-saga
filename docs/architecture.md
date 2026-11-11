@@ -78,14 +78,12 @@ src/
 │   ├── history_screen.rs    # renderer-neutral history view construction
 │   ├── interactions.rs      # NPC dialogue, quest interaction, faction memory/reputation
 │   ├── legacy.rs            # death, corpses, previous-life recovery
-│   ├── menu.rs              # gameplay action definitions
 │   ├── navigation.rs        # renderer-neutral world navigation views/rules
 │   ├── quests.rs            # quest state and progression rules
 │   ├── records.rs           # renderer-neutral record views and mutations
 │   ├── state_effects.rs     # shared state-effect helpers
 │   ├── time.rs              # time calculations and display values
 │   ├── world.rs              # world bootstrap and loaded-state validation
-│   └── world_view.rs         # renderer-neutral world presentation view construction
 ├── presentation.rs          # frontend-independent presentation/view models
 ├── content.rs               # content module facade
 ├── content/

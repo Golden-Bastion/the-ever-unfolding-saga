@@ -1,4 +1,4 @@
-use super::{CharacterView, HistoryView, InventoryView, MeditationView, NpcView, WorldView};
+use super::{CharacterView, HistoryView, InventoryView, MeditationView, NpcView};
 
 #[test]
 fn display_name_includes_nonempty_title_only() {
@@ -28,17 +28,11 @@ fn display_name_includes_nonempty_title_only() {
 }
 
 #[test]
-fn empty_screen_views_are_frontend_safe() {
-    let world = WorldView::default();
+fn empty_record_and_meditation_views_are_frontend_safe() {
     let history = HistoryView::default();
     let inventory = InventoryView::default();
     let meditation = MeditationView::default();
 
-    assert!(world.world_name.is_empty());
-    assert!(world.time.is_empty());
-    assert!(world.location.is_none());
-    assert!(world.threat.is_none());
-    assert!(world.history.is_empty());
     assert!(history.world_name.is_empty());
     assert!(history.entries.is_empty());
     assert!(inventory.items.is_empty());

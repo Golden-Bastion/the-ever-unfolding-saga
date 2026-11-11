@@ -6,14 +6,12 @@ pub(crate) mod history_screen;
 #[path = "game/interactions.rs"]
 pub(crate) mod interactions_core;
 pub(crate) mod legacy;
-pub(crate) mod menu;
 pub(crate) mod quests;
 pub(crate) mod records;
 pub(crate) mod state_effects;
 pub(crate) mod time;
 pub mod world;
 pub(crate) mod world_map;
-pub(crate) mod world_view;
 
 pub(crate) mod interactions {
     pub(crate) use super::interactions_core::*;
