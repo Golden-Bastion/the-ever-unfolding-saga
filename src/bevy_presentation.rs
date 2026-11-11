@@ -555,7 +555,7 @@ pub fn install(app: &mut App) {
     app.add_systems(Update, android_back_to_semantic_input);
 }
 
-pub pub fn spawn_screen(commands: &mut Commands, title: impl Into<String>) -> Entity {
+pub fn spawn_screen(commands: &mut Commands, title: impl Into<String>) -> Entity {
     commands
         .spawn((
             BevyScreenRoot,
@@ -1056,7 +1056,7 @@ pub fn touch_target_size() -> Val {
     px(UI_TOUCH_TARGET_PX)
 }
 
-pub pub fn spawn_overlay(commands: &mut Commands, parent: Entity) -> Entity {
+pub fn spawn_overlay(commands: &mut Commands, parent: Entity) -> Entity {
     let overlay = commands
         .spawn((
             UiOverlayRoot,
@@ -1499,7 +1499,7 @@ pub fn spawn_action_button_with_detail(
     button
 }
 
-pub pub fn spawn_menu_button(
+pub fn spawn_menu_button(
     commands: &mut Commands,
     parent: Entity,
     icon: impl Into<String>,
@@ -1609,7 +1609,7 @@ pub fn spawn_health_gauge(
     gauge
 }
 
-pub pub fn spawn_context_message(
+pub fn spawn_context_message(
     commands: &mut Commands,
     parent: Entity,
     message: impl Into<String>,
