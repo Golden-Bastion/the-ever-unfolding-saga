@@ -809,7 +809,7 @@ impl LifecycleState {
         let return_screen = navigation.return_screen.take();
         if matches!(
             return_screen,
-            Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
+            Some(ScreenId::SpatialExploration)
         ) && self.session.is_some()
         {
             self.phase = LifecyclePhase::Complete;

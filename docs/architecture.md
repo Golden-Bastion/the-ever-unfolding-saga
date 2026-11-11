@@ -61,7 +61,7 @@ src/
 ├── bevy_presentation.rs     # shared Bevy UI primitives and semantic input routing
 ├── bevy_lifecycle.rs        # start/load/creation/quit/death lifecycle orchestration
 ├── bevy_navigation_bridge.rs # lifecycle completion and gameplay re-entry hand-offs
-├── bevy_gameplay.rs         # gameplay dashboard and world navigation
+├── bevy_gameplay.rs         # spatial pause/navigation overlay and interim World Map
 ├── bevy_interactions.rs     # NPC dialogue and remains-recovery screens
 ├── bevy_records.rs          # Character hub, record details, meditation, and journal flows
 ├── bevy_combat.rs           # combat presentation and interaction
@@ -105,7 +105,7 @@ The exact module list may evolve, but new modules should represent meaningful re
 
 ## Game flow
 
-`main.rs` starts the Bevy application. Bevy lifecycle systems own start/load/creation/quit/death presentation and navigation. The gameplay adapter owns the dashboard and world-navigation interaction, while dedicated Bevy adapters own records, interaction, combat, and console screens.
+`main.rs` starts the Bevy application. Bevy lifecycle systems own start/load/creation/quit/death presentation and navigation. The gameplay-menu adapter owns the spatial pause/navigation overlay and interim World Map, while dedicated Bevy adapters own records, interaction, combat, and console screens.
 
 Gameplay systems operate on the authoritative model and expose renderer-neutral view data where a frontend needs it. Character progression owns experience gain, level advancement, and character-sheet data. Gameplay interactions own NPC dialogue, quest offering/turn-in, faction memory/reputation updates, NPC availability, and remains recovery. Legacy gameplay owns character death, corpse creation, corpse recovery, and previous-life item recovery. Combat is isolated from general action handling. World/bootstrap logic owns world initialization and validation. Persistence serializes and restores state. The developer console owns command/session state while Bevy owns its rendering and input presentation.
 

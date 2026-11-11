@@ -390,7 +390,6 @@ pub enum ScreenId {
     WorldLab,
     WorldLabEditor,
     WorldLabFixtures,
-    Gameplay,
     Character,
     Meditation,
     Talk,
@@ -404,10 +403,7 @@ pub enum ScreenId {
 }
 
 pub(crate) fn menu_button_screen_active(screen: Option<ScreenId>) -> bool {
-    matches!(
-        screen,
-        Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
-    )
+    screen == Some(ScreenId::SpatialExploration)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

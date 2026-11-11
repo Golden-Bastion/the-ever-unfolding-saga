@@ -1590,7 +1590,7 @@ fn returning_to_spatial_exploration_requests_a_scene_rebuild() {
     ));
     assert!(!should_refresh_spatial_scene(
         Some(ScreenId::SpatialExploration),
-        Some(ScreenId::Gameplay)
+        Some(ScreenId::Character)
     ));
 }
 
@@ -1673,4 +1673,31 @@ fn spatial_pause_button_long_press_opens_console_with_spatial_return_context() {
 
     assert_eq!(navigation.current_screen, Some(ScreenId::Console));
     assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
+}
+
+
+#[test]
+fn celestial_art_regions_select_separate_sun_and_moon_panels() {
+    let (sun, moon) = celestial_source_rects(UVec2::new(1_672, 941))
+        .expect("landscape celestial atlas should be accepted");
+
+    assert!(sun.min.x >= 0.0);
+    assert!(sun.max.x < moon.min.x);
+    assert!(moon.max.x <= 1_672.0);
+    assert!(sun.min.y >= 0.0);
+    assert_eq!(sun.min.y, moon.min.y);
+    assert_eq!(sun.max.y, moon.max.y);
+    assert!(moon.max.y <= 941.0);
+}
+
+#[test]
+fn celestial_art_regions_reject_non_landscape_images() {
+    assert!(celestial_source_rects(UVec2::new(512, 1024)).is_none());
+    assert!(celestial_source_rects(UVec2::new(1, 512)).is_none());
+}
+
+#[test]
+fn sky_visual_uses_dedicated_celestial_art_instead_of_icon_names() {
+    assert_eq!(sky_visual(3).celestial, CelestialBody::Sun);
+    assert_eq!(sky_visual(10).celestial, CelestialBody::Moon);
 }

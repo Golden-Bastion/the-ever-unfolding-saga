@@ -262,7 +262,7 @@ fn close_to_return_screen(state: &mut BevyInteractionState, navigation: &mut Nav
     state.spatial_overlay = false;
     state.spatial_overlay_closing = false;
     state.dirty = true;
-    navigation.return_to_previous_screen(ScreenId::Gameplay);
+    navigation.return_to_previous_screen(ScreenId::SpatialExploration);
 }
 
 fn interaction_input(

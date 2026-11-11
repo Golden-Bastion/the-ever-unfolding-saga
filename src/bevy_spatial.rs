@@ -72,6 +72,28 @@ const INTERACTION_WHEEL_OUTER_RING_ENTRIES: usize = 8;
 const INTERACTION_WHEEL_OUTER_RING_RADIUS_PX: f32 = 112.0;
 const INTERACTION_WHEEL_INNER_RING_RADIUS_PX: f32 = 58.0;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CelestialBody {
+    Sun,
+    Moon,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SkyVisual {
+    background: Color,
+    celestial: CelestialBody,
+    celestial_x: f32,
+    celestial_y: f32,
+    warm_horizon: bool,
+}
+
+#[derive(Resource, Default)]
+pub(crate) struct CelestialArtAssets {
+    pub(crate) image: Option<Handle<Image>>,
+    pub(crate) sun_rect: Option<Rect>,
+    pub(crate) moon_rect: Option<Rect>,
+}
+
 #[derive(Component)]
 struct SpatialWorldEntity;
 
@@ -220,6 +242,59 @@ fn advance_location_notice(state: &mut SpatialExplorationState, delta_seconds: f
     }
 }
 
+fn sky_visual(time_points: u32) -> SkyVisual {
+    match time_points % 12 {
+        0 => SkyVisual { background: bevy_presentation::THEME_SKY_NIGHT, celestial: CelestialBody::Moon, celestial_x: 78.0, celestial_y: 9.0, warm_horizon: false },
+        1 => SkyVisual { background: bevy_presentation::THEME_SKY_DAWN, celestial: CelestialBody::Moon, celestial_x: 67.0, celestial_y: 11.0, warm_horizon: true },
+        2 => SkyVisual { background: bevy_presentation::THEME_SKY_DAWN, celestial: CelestialBody::Sun, celestial_x: 58.0, celestial_y: 11.0, warm_horizon: true },
+        3 => SkyVisual { background: bevy_presentation::THEME_SKY_DAY, celestial: CelestialBody::Sun, celestial_x: 50.0, celestial_y: 7.0, warm_horizon: false },
+        4 => SkyVisual { background: bevy_presentation::THEME_SKY_DAY, celestial: CelestialBody::Sun, celestial_x: 42.0, celestial_y: 9.0, warm_horizon: false },
+        5 => SkyVisual { background: bevy_presentation::THEME_SKY_DAY, celestial: CelestialBody::Sun, celestial_x: 34.0, celestial_y: 11.0, warm_horizon: false },
+        6 => SkyVisual { background: bevy_presentation::THEME_SKY_DAY, celestial: CelestialBody::Sun, celestial_x: 25.0, celestial_y: 14.0, warm_horizon: false },
+        7 => SkyVisual { background: bevy_presentation::THEME_SKY_DUSK, celestial: CelestialBody::Sun, celestial_x: 17.0, celestial_y: 18.0, warm_horizon: true },
+        8 => SkyVisual { background: bevy_presentation::THEME_SKY_DUSK, celestial: CelestialBody::Moon, celestial_x: 10.0, celestial_y: 13.0, warm_horizon: true },
+        9 => SkyVisual { background: bevy_presentation::THEME_SKY_NIGHT, celestial: CelestialBody::Moon, celestial_x: 21.0, celestial_y: 10.0, warm_horizon: false },
+        10 => SkyVisual { background: bevy_presentation::THEME_SKY_NIGHT, celestial: CelestialBody::Moon, celestial_x: 37.0, celestial_y: 8.0, warm_horizon: false },
+        11 => SkyVisual { background: bevy_presentation::THEME_SKY_NIGHT, celestial: CelestialBody::Moon, celestial_x: 55.0, celestial_y: 8.0, warm_horizon: false },
+        _ => unreachable!(),
+    }
+}
+
+fn load_celestial_art(
+    mut images: ResMut<Assets<Image>>,
+    mut celestial: ResMut<CelestialArtAssets>,
+) {
+    const REFERENCE: &str = "world/celestial/sun-moon.png";
+    match crate::asset_loading::load_image_from_data(&mut images, REFERENCE) {
+        Ok(image) => {
+            let Some(source) = images.get(&image) else {
+                warn!("Could not inspect celestial world art {REFERENCE}");
+                return;
+            };
+            let Some((sun_rect, moon_rect)) = celestial_source_rects(source.size()) else {
+                warn!("Celestial world art {REFERENCE} must be a landscape two-panel image");
+                return;
+            };
+            celestial.image = Some(image);
+            celestial.sun_rect = Some(sun_rect);
+            celestial.moon_rect = Some(moon_rect);
+        }
+        Err(error) => warn!("Could not load celestial world art {REFERENCE}: {error}"),
+    }
+}
+
+fn celestial_source_rects(size: UVec2) -> Option<(Rect, Rect)> {
+    if size.x <= size.y || size.x < 2 || size.y == 0 {
+        return None;
+    }
+    let width = size.x as f32;
+    let height = size.y as f32;
+    Some((
+        Rect::new(width * 0.04, height * 0.10, width * 0.49, height * 0.90),
+        Rect::new(width * 0.52, height * 0.10, width * 0.98, height * 0.90),
+    ))
+}
+
 fn spatial_header_label(sandbox_mode: bool, map_seed: u64) -> Option<String> {
     sandbox_mode.then(|| format!("WORLD LAB - PLAY TEST / SEED {map_seed}"))
 }
@@ -359,7 +434,8 @@ pub(crate) fn install(app: &mut App) {
     app.add_message::<SpatialInteractionRequest>()
         .init_resource::<SpatialExplorationState>()
         .init_resource::<SpatialJoystickState>()
-        .add_systems(Startup, setup_spatial_render_assets)
+        .init_resource::<CelestialArtAssets>()
+        .add_systems(Startup, (setup_spatial_render_assets, load_celestial_art).chain())
         .add_systems(
             Update,
             (
@@ -640,7 +716,7 @@ fn spatial_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut lifecycle: ResMut<LifecycleState>,
     mut navigation: ResMut<NavigationState>,
-    mut gameplay: ResMut<crate::bevy_gameplay::GameplayState>,
+    mut gameplay: ResMut<crate::bevy_gameplay::GameplayMenuState>,
     mut runtime_state: ResMut<crate::bevy_gameplay::GameplayRuntimeState>,
     mut combat_state: ResMut<crate::bevy_combat::CombatState>,
     mut queue: ResMut<GameplayInputQueue>,
@@ -1362,7 +1438,7 @@ fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut Navigation
         navigation.selected = 0;
     }
     // Normal spatial exploration has no Leave path back to the legacy
-    // Gameplay dashboard. This function is only used by the World Lab
+    // The normal campaign has no manual exit; this function only serves the World Lab
     // sandbox, which returns to its editor above.
 }
 
@@ -1450,9 +1526,9 @@ fn render_spatial_screen(
     mut commands: Commands,
     lifecycle: Res<LifecycleState>,
     navigation: Res<NavigationState>,
-    gameplay: Res<crate::bevy_gameplay::GameplayState>,
+    gameplay: Res<crate::bevy_gameplay::GameplayMenuState>,
     assets: Res<SpatialRenderAssets>,
-    celestial_art: Res<crate::bevy_gameplay::CelestialArtAssets>,
+    celestial_art: Res<CelestialArtAssets>,
     mut state: ResMut<SpatialExplorationState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
     world_entities: Query<Entity, With<SpatialWorldEntity>>,
@@ -1964,7 +2040,7 @@ fn render_spatial_screen(
         interaction_display,
     );
     match gameplay.screen {
-        crate::bevy_gameplay::GameplayScreen::Pause => {
+        crate::bevy_gameplay::GameplayMenuScreen::Pause => {
             let meditation_available = lifecycle.session.as_ref().is_some_and(|session| {
                 crate::game::actions::build_meditation_view(&session.state).safe_to_meditate
             });
@@ -1975,7 +2051,7 @@ fn render_spatial_screen(
                 meditation_available,
             );
         }
-        crate::bevy_gameplay::GameplayScreen::WorldMap => {
+        crate::bevy_gameplay::GameplayMenuScreen::WorldMap => {
             if let Some(game_session) = lifecycle.session.as_ref() {
                 let view = crate::game::world_map::build_view(&game_session.state);
                 crate::bevy_gameplay::render_spatial_world_map_overlay(
@@ -1987,7 +2063,7 @@ fn render_spatial_screen(
                 );
             }
         }
-        crate::bevy_gameplay::GameplayScreen::Dashboard => {}
+        crate::bevy_gameplay::GameplayMenuScreen::Closed => {}
     }
     state.dirty = false;
 }
@@ -2553,9 +2629,9 @@ fn spawn_spatial_time_indicator(
     commands: &mut Commands,
     parent: Entity,
     time_points: u32,
-    celestial_art: &crate::bevy_gameplay::CelestialArtAssets,
+    celestial_art: &CelestialArtAssets,
 ) {
-    let sky = crate::bevy_gameplay::sky_visual(time_points);
+    let sky = sky_visual(time_points);
     let row = commands
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -2603,8 +2679,8 @@ fn spawn_spatial_time_indicator(
 
     if let Some(image) = celestial_art.image.as_ref() {
         let rect = match sky.celestial {
-            crate::bevy_gameplay::CelestialBody::Sun => celestial_art.sun_rect,
-            crate::bevy_gameplay::CelestialBody::Moon => celestial_art.moon_rect,
+            CelestialBody::Sun => celestial_art.sun_rect,
+            CelestialBody::Moon => celestial_art.moon_rect,
         };
         if let Some(rect) = rect {
             let size = px(18);

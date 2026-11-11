@@ -51,14 +51,14 @@ fn quit_confirmation_can_return_to_gameplay() {
 
     let mut navigation = NavigationState {
         current_screen: Some(ScreenId::Lifecycle),
-        return_screen: Some(ScreenId::Gameplay),
+        return_screen: Some(ScreenId::SpatialExploration),
         selected: 1,
     };
 
     lifecycle.cancel_quit_confirmation(&mut navigation);
 
     assert_eq!(lifecycle.phase, LifecyclePhase::Complete);
-    assert_eq!(navigation.current_screen, Some(ScreenId::Gameplay));
+    assert_eq!(navigation.current_screen, Some(ScreenId::SpatialExploration));
     assert_eq!(navigation.return_screen, None);
     assert_eq!(lifecycle.selected, 0);
     assert!(!lifecycle.dirty);
@@ -165,7 +165,7 @@ fn lifecycle_renderer_allows_initial_screen_but_not_dedicated_screen_overwrite()
     assert!(super::should_render_lifecycle(None));
     assert!(super::should_render_lifecycle(Some(ScreenId::Lifecycle)));
     assert!(!super::should_render_lifecycle(Some(ScreenId::Options)));
-    assert!(!super::should_render_lifecycle(Some(ScreenId::Gameplay)));
+    assert!(!super::should_render_lifecycle(Some(ScreenId::SpatialExploration)));
 }
 
 #[test]

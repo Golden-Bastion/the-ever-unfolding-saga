@@ -123,7 +123,7 @@ fn combat_input(
 }
 
 fn return_from_combat(navigation: &mut NavigationState) {
-    navigation.return_to_previous_screen(ScreenId::Gameplay);
+    navigation.return_to_previous_screen(ScreenId::SpatialExploration);
 }
 
 fn move_selection(
