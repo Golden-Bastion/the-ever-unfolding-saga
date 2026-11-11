@@ -309,10 +309,10 @@ fn refresh_spatial_scene_on_reentry(
     state.last_navigation_screen = navigation.current_screen;
 }
 
-fn spatial_camera_viewport_top(scale_factor: f64) -> u32 {
-    ((SPATIAL_ROOT_PADDING_PX + SPATIAL_HEADER_HEIGHT_PX + SPATIAL_ROOT_GAP_PX) as f64
-        * scale_factor.max(1.0))
-    .round() as u32
+fn spatial_camera_viewport_top(scale_factor: f32) -> u32 {
+    (SPATIAL_ROOT_PADDING_PX + SPATIAL_HEADER_HEIGHT_PX + SPATIAL_ROOT_GAP_PX)
+        .mul_add(scale_factor.max(1.0), 0.0)
+        .round() as u32
 }
 
 fn sync_spatial_camera_viewport(
