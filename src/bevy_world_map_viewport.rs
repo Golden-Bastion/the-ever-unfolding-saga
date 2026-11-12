@@ -65,8 +65,8 @@ impl ActiveWorldMapGesture {
 
     /// Returns the viewport-space pan delta for this input update.
     fn update(&mut self, position: Vec2) -> Vec2 {
-        let crossed_drag_threshold = !self.dragging
-            && position.distance(self.start) > WORLD_MAP_GESTURE_THRESHOLD;
+        let crossed_drag_threshold =
+            !self.dragging && position.distance(self.start) > WORLD_MAP_GESTURE_THRESHOLD;
         self.dragging |= crossed_drag_threshold;
 
         let delta = if crossed_drag_threshold {
@@ -140,8 +140,7 @@ fn world_map_fit_zoom(canvas_size: Vec2, viewport_size: Vec2) -> f32 {
     if canvas_size.min_element() <= 0.0 || viewport_size.min_element() <= 0.0 {
         return 1.0;
     }
-    ((viewport_size.x / canvas_size.x).min(viewport_size.y / canvas_size.y)
-        * WORLD_MAP_FIT_MARGIN)
+    ((viewport_size.x / canvas_size.x).min(viewport_size.y / canvas_size.y) * WORLD_MAP_FIT_MARGIN)
         .clamp(WORLD_MAP_MIN_ZOOM, WORLD_MAP_MAX_ZOOM)
 }
 
@@ -329,8 +328,7 @@ fn world_map_viewport_input(
     }
 
     if let Some(cursor) = window.cursor_position() {
-        let physical =
-            bevy_presentation::physical_touch_position(cursor, window.scale_factor());
+        let physical = bevy_presentation::physical_touch_position(cursor, window.scale_factor());
         if viewport_node.contains_point(*viewport_transform, physical) {
             if let Some(anchor) = world_map_viewport_anchor(
                 viewport_node,
@@ -374,9 +372,7 @@ fn world_map_viewport_input(
             if viewport_node.contains_point(*viewport_transform, physical) {
                 let button = map_buttons
                     .iter()
-                    .find(|(_, computed, transform)| {
-                        computed.contains_point(**transform, physical)
-                    })
+                    .find(|(_, computed, transform)| computed.contains_point(**transform, physical))
                     .map(|(entity, _, _)| entity);
                 viewport_state.mouse = Some(ActiveWorldMapGesture::begin(cursor, button));
             }
@@ -433,9 +429,7 @@ fn world_map_viewport_input(
         }
         let button = map_buttons
             .iter()
-            .find(|(_, computed, transform)| {
-                computed.contains_point(**transform, physical)
-            })
+            .find(|(_, computed, transform)| computed.contains_point(**transform, physical))
             .map(|(entity, _, _)| entity);
         viewport_state.touches.insert(
             touch.id(),
@@ -560,10 +554,8 @@ fn world_map_viewport_input(
 
     for touch in touches.iter_just_released() {
         if let Some(active) = viewport_state.touches.remove(&touch.id()) {
-            let physical = bevy_presentation::physical_touch_position(
-                touch.position(),
-                window.scale_factor(),
-            );
+            let physical =
+                bevy_presentation::physical_touch_position(touch.position(), window.scale_factor());
             let released_over_button = active.button.is_some_and(|button| {
                 map_buttons.iter().any(|(entity, computed, transform)| {
                     entity == button && computed.contains_point(**transform, physical)

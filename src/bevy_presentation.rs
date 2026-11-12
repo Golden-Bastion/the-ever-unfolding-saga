@@ -1915,7 +1915,8 @@ fn queue_button_activation(
     mut activations: MessageWriter<UiButtonActivation>,
 ) {
     let button = activation.event_target();
-    if manual_buttons.contains(button) || scroll_state.should_suppress_activation(button, &touches) {
+    if manual_buttons.contains(button) || scroll_state.should_suppress_activation(button, &touches)
+    {
         return;
     }
     activations.write(UiButtonActivation(button));
