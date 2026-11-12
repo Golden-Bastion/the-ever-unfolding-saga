@@ -30,6 +30,8 @@ The world model must not receive temporary x/y coordinates, route bends, visual 
 
 This boundary allows the interim graph layout to be discarded or replaced without migrating saves or changing the authoritative travel model.
 
+The graph is presented inside a clipped two-dimensional viewport. Its pan and zoom are transient presentation state held by the Bevy viewport controller; they are not written to campaign data or saves. Opening the map starts at the base zoom centered on the current location. **Fit** frames the complete currently displayed graph, and **Reset** restores the opening view. Android supports one-finger drag-to-pan and two-finger pinch-to-zoom. Desktop supports pointer drag-to-pan and mouse-wheel zoom centered on the cursor. The toolbar and surrounding map information stay outside the transformed canvas so they remain at normal UI scale. When the viewport changes size, pan bounds and the reset position are recalculated without changing graph layout or world data.
+
 ## Intended final direction
 
 The final map should be a continuous illustrated landscape derived from coherent world geography, with the actual location network and routes represented on top of it. Geography must be generated and persisted as world data rather than invented by the map renderer.
