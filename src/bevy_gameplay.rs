@@ -899,6 +899,7 @@ fn render_world_map_graph(
             );
             commands.entity(button).insert((
                 bevy_world_map_viewport::WorldMapMapNode,
+                bevy_presentation::UiManualActivation,
                 Node {
                     width: px(WORLD_MAP_NODE_WIDTH),
                     height: px(WORLD_MAP_NODE_HEIGHT),
