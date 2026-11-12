@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 use bevy::prelude::*;
 
-use crate::bevy_gameplay::GameplayState;
 use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId, UiSelected,
@@ -229,7 +228,6 @@ fn options_input(
     mut navigation: ResMut<NavigationState>,
     mut options: ResMut<OptionsState>,
     mut ui_settings: ResMut<crate::ui_settings::UiSettings>,
-    gameplay: Res<GameplayState>,
     mut input_queue: ResMut<GameplayInputQueue>,
 ) {
     if !matches!(
@@ -273,22 +271,17 @@ fn options_input(
                 options.pending_remove_id = None;
             }
             InputEvent::Confirm => match options.tab {
-                0 => {
-                    activate_saves_action(&mut options, &mut lifecycle, &mut navigation, &gameplay)
-                }
-                1 => activate_mods_action(&mut options, &mut lifecycle, &mut navigation, &gameplay),
+                0 => activate_saves_action(&mut options, &mut lifecycle, &mut navigation),
+                1 => activate_mods_action(&mut options, &mut lifecycle, &mut navigation),
                 2 => activate_interface_action(
                     &mut options,
                     &mut ui_settings,
                     &mut lifecycle,
                     &mut navigation,
-                    &gameplay,
                 ),
                 _ => {}
             },
-            InputEvent::Cancel => {
-                close_options(&mut lifecycle, &mut navigation, &mut options, &gameplay)
-            }
+            InputEvent::Cancel => close_options(&mut lifecycle, &mut navigation, &mut options),
             _ => {}
         }
         options.dirty = true;
@@ -309,7 +302,6 @@ fn activate_saves_action(
     options: &mut OptionsState,
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
-    gameplay: &GameplayState,
 ) {
     if options.selected < options.saves.len() {
         let path = options.saves[options.selected].path.clone();
@@ -317,7 +309,7 @@ fn activate_saves_action(
     } else if options.selected == options.saves.len() {
         import_save(options, lifecycle);
     } else {
-        close_options(lifecycle, navigation, options, gameplay);
+        close_options(lifecycle, navigation, options);
     }
 }
 
@@ -325,14 +317,13 @@ fn activate_mods_action(
     options: &mut OptionsState,
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
-    gameplay: &GameplayState,
 ) {
     if options.selected == mod_install_action_index(options.mods.len()) {
         import_mod(options);
         return;
     }
     if options.selected == mod_back_action_index(options.mods.len()) {
-        close_options(lifecycle, navigation, options, gameplay);
+        close_options(lifecycle, navigation, options);
         return;
     }
 
@@ -393,7 +384,6 @@ fn activate_interface_action(
     settings: &mut crate::ui_settings::UiSettings,
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
-    gameplay: &GameplayState,
 ) {
     let changed = match options.selected {
         0 => settings.adjust_ui_scale(-crate::ui_settings::SETTING_STEP),
@@ -405,7 +395,7 @@ fn activate_interface_action(
             true
         }
         5 => {
-            close_options(lifecycle, navigation, options, gameplay);
+            close_options(lifecycle, navigation, options);
             return;
         }
         _ => false,
@@ -533,9 +523,8 @@ fn close_options(
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
     options: &mut OptionsState,
-    gameplay: &GameplayState,
 ) {
-    let return_screen = navigation.return_to_previous_screen(ScreenId::Gameplay);
+    let return_screen = navigation.return_to_previous_screen(ScreenId::SpatialExploration);
     lifecycle.refresh_saved_games();
     options.active = false;
     options.selected = 0;
@@ -543,15 +532,9 @@ fn close_options(
     options.message = None;
     options.pending_remove_id = None;
     options.dirty = true;
-    match return_screen {
-        ScreenId::Lifecycle => {
-            navigation.selected = lifecycle.selected;
-            lifecycle.mark_dirty();
-        }
-        ScreenId::Gameplay => {
-            navigation.selected = gameplay.navigation_selection();
-        }
-        _ => {}
+    if return_screen == ScreenId::Lifecycle {
+        navigation.selected = lifecycle.selected;
+        lifecycle.mark_dirty();
     }
 }
 

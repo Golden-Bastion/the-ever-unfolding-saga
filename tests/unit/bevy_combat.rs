@@ -4,7 +4,7 @@ use super::*;
 fn cancelling_combat_restores_spatial_exploration() {
     let mut navigation = NavigationState {
         current_screen: Some(ScreenId::SpatialExploration),
-        return_screen: Some(ScreenId::Gameplay),
+        return_screen: Some(ScreenId::SpatialExploration),
         selected: 0,
     };
     navigation.open_screen(ScreenId::Combat);

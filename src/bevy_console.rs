@@ -56,10 +56,7 @@ pub(crate) fn install(app: &mut App) {
 }
 
 fn console_shortcut_screen_active(screen: Option<ScreenId>) -> bool {
-    matches!(
-        screen,
-        Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
-    )
+    screen == Some(ScreenId::SpatialExploration)
 }
 
 fn open_shortcut(
@@ -275,7 +272,7 @@ fn console_input(
 }
 
 fn leave_console(state: &mut BevyConsoleState, navigation: &mut NavigationState) {
-    navigation.return_to_previous_screen(ScreenId::Gameplay);
+    navigation.return_to_previous_screen(ScreenId::SpatialExploration);
     state.console = ConsoleSession::default();
     state.dirty = true;
 }

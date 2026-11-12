@@ -18,7 +18,7 @@ fn initial_snapshot_does_not_create_feedback() {
 #[test]
 fn quest_reward_context_is_only_conversation() {
     assert!(is_quest_reward_context(Some(ScreenId::Conversation)));
-    assert!(!is_quest_reward_context(Some(ScreenId::Gameplay)));
+    assert!(!is_quest_reward_context(Some(ScreenId::SpatialExploration)));
 }
 
 #[test]

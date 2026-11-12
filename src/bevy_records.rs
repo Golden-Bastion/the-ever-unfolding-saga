@@ -331,7 +331,7 @@ fn move_to_end(records_state: &mut RecordScreenState, lifecycle: &LifecycleState
 }
 
 fn close_to_return_screen(navigation: &mut NavigationState) {
-    navigation.return_to_previous_screen(ScreenId::Gameplay);
+    navigation.return_to_previous_screen(ScreenId::SpatialExploration);
 }
 
 fn return_to_character(records_state: &mut RecordScreenState, tab: CharacterTab) {

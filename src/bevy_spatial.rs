@@ -54,7 +54,7 @@ const JOYSTICK_THUMB_TRAVEL_PX: f32 = 36.0;
 const CAMERA_LERP_SPEED: f32 = 8.0;
 const SPATIAL_ROOT_PADDING_PX: f32 = 8.0;
 const SPATIAL_ROOT_GAP_PX: f32 = 8.0;
-const SPATIAL_HEADER_HEIGHT_PX: f32 = 144.0;
+const SPATIAL_HEADER_HEIGHT_PX: f32 = 72.0;
 const LOCATION_NOTICE_DURATION_SECONDS: f32 = 4.0;
 const CAMERA_DEAD_ZONE_FRACTION: f32 = 0.15;
 const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
@@ -72,11 +72,36 @@ const INTERACTION_WHEEL_OUTER_RING_ENTRIES: usize = 8;
 const INTERACTION_WHEEL_OUTER_RING_RADIUS_PX: f32 = 112.0;
 const INTERACTION_WHEEL_INNER_RING_RADIUS_PX: f32 = 58.0;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CelestialBody {
+    Sun,
+    Moon,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SkyVisual {
+    background: Color,
+    celestial: CelestialBody,
+    celestial_x: f32,
+    celestial_y: f32,
+    warm_horizon: bool,
+}
+
+#[derive(Resource, Default)]
+pub(crate) struct CelestialArtAssets {
+    pub(crate) image: Option<Handle<Image>>,
+    pub(crate) sun_rect: Option<Rect>,
+    pub(crate) moon_rect: Option<Rect>,
+}
+
 #[derive(Component)]
 struct SpatialWorldEntity;
 
 #[derive(Component)]
 pub(crate) struct SpatialSceneRoot;
+
+#[derive(Component)]
+pub(crate) struct SpatialWorldCamera;
 
 #[derive(Component)]
 struct SpatialActorEntity;
@@ -220,6 +245,131 @@ fn advance_location_notice(state: &mut SpatialExplorationState, delta_seconds: f
     }
 }
 
+fn sky_visual(time_points: u32) -> SkyVisual {
+    match time_points % 12 {
+        0 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_NIGHT,
+            celestial: CelestialBody::Moon,
+            celestial_x: 78.0,
+            celestial_y: 9.0,
+            warm_horizon: false,
+        },
+        1 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAWN,
+            celestial: CelestialBody::Moon,
+            celestial_x: 67.0,
+            celestial_y: 11.0,
+            warm_horizon: true,
+        },
+        2 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAWN,
+            celestial: CelestialBody::Sun,
+            celestial_x: 58.0,
+            celestial_y: 11.0,
+            warm_horizon: true,
+        },
+        3 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAY,
+            celestial: CelestialBody::Sun,
+            celestial_x: 50.0,
+            celestial_y: 7.0,
+            warm_horizon: false,
+        },
+        4 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAY,
+            celestial: CelestialBody::Sun,
+            celestial_x: 42.0,
+            celestial_y: 9.0,
+            warm_horizon: false,
+        },
+        5 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAY,
+            celestial: CelestialBody::Sun,
+            celestial_x: 34.0,
+            celestial_y: 11.0,
+            warm_horizon: false,
+        },
+        6 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DAY,
+            celestial: CelestialBody::Sun,
+            celestial_x: 25.0,
+            celestial_y: 14.0,
+            warm_horizon: false,
+        },
+        7 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DUSK,
+            celestial: CelestialBody::Sun,
+            celestial_x: 17.0,
+            celestial_y: 18.0,
+            warm_horizon: true,
+        },
+        8 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_DUSK,
+            celestial: CelestialBody::Moon,
+            celestial_x: 10.0,
+            celestial_y: 13.0,
+            warm_horizon: true,
+        },
+        9 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_NIGHT,
+            celestial: CelestialBody::Moon,
+            celestial_x: 21.0,
+            celestial_y: 10.0,
+            warm_horizon: false,
+        },
+        10 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_NIGHT,
+            celestial: CelestialBody::Moon,
+            celestial_x: 37.0,
+            celestial_y: 8.0,
+            warm_horizon: false,
+        },
+        11 => SkyVisual {
+            background: bevy_presentation::THEME_SKY_NIGHT,
+            celestial: CelestialBody::Moon,
+            celestial_x: 55.0,
+            celestial_y: 8.0,
+            warm_horizon: false,
+        },
+        _ => unreachable!(),
+    }
+}
+
+fn load_celestial_art(
+    mut images: ResMut<Assets<Image>>,
+    mut celestial: ResMut<CelestialArtAssets>,
+) {
+    const REFERENCE: &str = "world/celestial/sun-moon.png";
+    match crate::asset_loading::load_image_from_data(&mut images, REFERENCE) {
+        Ok(image) => {
+            let Some(source) = images.get(&image) else {
+                warn!("Could not inspect celestial world art {REFERENCE}");
+                return;
+            };
+            let Some((sun_rect, moon_rect)) = celestial_source_rects(source.size()) else {
+                warn!("Celestial world art {REFERENCE} must be a landscape two-panel image");
+                return;
+            };
+            celestial.image = Some(image);
+            celestial.sun_rect = Some(sun_rect);
+            celestial.moon_rect = Some(moon_rect);
+        }
+        Err(error) => warn!("Could not load celestial world art {REFERENCE}: {error}"),
+    }
+}
+
+fn celestial_source_rects(size: UVec2) -> Option<(Rect, Rect)> {
+    if size.x <= size.y || size.x < 2 || size.y == 0 {
+        return None;
+    }
+    let width = size.x as f32;
+    let height = size.y as f32;
+    Some((
+        Rect::new(width * 0.04, height * 0.10, width * 0.49, height * 0.90),
+        Rect::new(width * 0.52, height * 0.10, width * 0.98, height * 0.90),
+    ))
+}
+
 fn spatial_header_label(sandbox_mode: bool, map_seed: u64) -> Option<String> {
     sandbox_mode.then(|| format!("WORLD LAB - PLAY TEST / SEED {map_seed}"))
 }
@@ -318,9 +468,10 @@ fn spatial_camera_viewport_top(scale_factor: f32) -> u32 {
 fn sync_spatial_camera_viewport(
     navigation: Res<NavigationState>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    mut cameras: Query<&mut Camera, With<Camera2d>>,
+    mut cameras: Query<&mut Camera, With<SpatialWorldCamera>>,
 ) {
-    let viewport = if navigation.current_screen == Some(ScreenId::SpatialExploration) {
+    let active = navigation.current_screen == Some(ScreenId::SpatialExploration);
+    let viewport = if active {
         let Ok(window) = windows.single() else {
             return;
         };
@@ -359,7 +510,11 @@ pub(crate) fn install(app: &mut App) {
     app.add_message::<SpatialInteractionRequest>()
         .init_resource::<SpatialExplorationState>()
         .init_resource::<SpatialJoystickState>()
-        .add_systems(Startup, setup_spatial_render_assets)
+        .init_resource::<CelestialArtAssets>()
+        .add_systems(
+            Startup,
+            (setup_spatial_render_assets, load_celestial_art).chain(),
+        )
         .add_systems(
             Update,
             (
@@ -640,7 +795,7 @@ fn spatial_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut lifecycle: ResMut<LifecycleState>,
     mut navigation: ResMut<NavigationState>,
-    mut gameplay: ResMut<crate::bevy_gameplay::GameplayState>,
+    mut gameplay: ResMut<crate::bevy_gameplay::GameplayMenuState>,
     mut runtime_state: ResMut<crate::bevy_gameplay::GameplayRuntimeState>,
     mut combat_state: ResMut<crate::bevy_combat::CombatState>,
     mut queue: ResMut<GameplayInputQueue>,
@@ -1361,9 +1516,8 @@ fn exit_spatial(state: &mut SpatialExplorationState, navigation: &mut Navigation
         navigation.return_screen = None;
         navigation.selected = 0;
     }
-    // Normal spatial exploration has no Leave path back to the legacy
-    // Gameplay dashboard. This function is only used by the World Lab
-    // sandbox, which returns to its editor above.
+    // The campaign has no manual exit; this function only returns a World Lab
+    // playtest to its editor.
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)] // Bevy systems require independent resources and queries.
@@ -1374,7 +1528,10 @@ fn update_spatial_world(
     navigation: Res<NavigationState>,
     runtime_state: Res<crate::bevy_gameplay::GameplayRuntimeState>,
     assets: Res<SpatialRenderAssets>,
-    mut camera: Query<(&mut Transform, &Camera), (With<Camera2d>, Without<SpatialPlayer>)>,
+    mut camera: Query<
+        (&mut Transform, &Camera),
+        (With<SpatialWorldCamera>, Without<SpatialPlayer>),
+    >,
     mut player: Query<(&mut Transform, &mut Sprite), With<SpatialPlayer>>,
     mut tiles: Query<
         (&SpatialTile, &mut Sprite),
@@ -1450,9 +1607,9 @@ fn render_spatial_screen(
     mut commands: Commands,
     lifecycle: Res<LifecycleState>,
     navigation: Res<NavigationState>,
-    gameplay: Res<crate::bevy_gameplay::GameplayState>,
+    gameplay: Res<crate::bevy_gameplay::GameplayMenuState>,
     assets: Res<SpatialRenderAssets>,
-    celestial_art: Res<crate::bevy_gameplay::CelestialArtAssets>,
+    celestial_art: Res<CelestialArtAssets>,
     mut state: ResMut<SpatialExplorationState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
     world_entities: Query<Entity, With<SpatialWorldEntity>>,
@@ -1774,6 +1931,23 @@ fn render_spatial_screen(
         commands.entity(root).add_child(atmosphere);
     }
 
+    let header_backdrop = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(0),
+                top: px(0),
+                width: percent(100),
+                height: px(SPATIAL_ROOT_PADDING_PX
+                    + SPATIAL_HEADER_HEIGHT_PX
+                    + SPATIAL_ROOT_GAP_PX),
+                ..default()
+            },
+            BackgroundColor(bevy_presentation::THEME_BACKGROUND),
+        ))
+        .id();
+    commands.entity(root).add_child(header_backdrop);
+
     let header = commands
         .spawn((
             Node {
@@ -1781,9 +1955,9 @@ fn render_spatial_screen(
                 height: px(SPATIAL_HEADER_HEIGHT_PX),
                 min_height: px(SPATIAL_HEADER_HEIGHT_PX),
                 max_height: px(SPATIAL_HEADER_HEIGHT_PX),
-                padding: UiRect::all(px(8)),
+                padding: UiRect::axes(px(6), px(0)),
                 flex_direction: FlexDirection::Column,
-                row_gap: px(8),
+                row_gap: px(2),
                 flex_shrink: 0.0,
                 border: UiRect::all(px(1)),
                 ..default()
@@ -1793,24 +1967,30 @@ fn render_spatial_screen(
         ))
         .id();
     commands.entity(root).add_child(header);
+
+    // The first row carries persistent world and character information.
     let header_row = commands
         .spawn(Node {
             width: percent(100),
-            min_height: px(84),
+            height: px(48),
+            min_height: px(48),
+            max_height: px(48),
             flex_direction: FlexDirection::Row,
-            justify_content: JustifyContent::SpaceBetween,
+            column_gap: px(6),
             align_items: AlignItems::Center,
             ..default()
         })
         .id();
     commands.entity(header).add_child(header_row);
+
     let header_context = commands
         .spawn(Node {
-            max_width: percent(48),
+            max_width: percent(40),
             min_width: px(0),
             flex_direction: FlexDirection::Column,
-            row_gap: px(4),
+            row_gap: px(2),
             flex_shrink: 1.0,
+            overflow: Overflow::clip(),
             ..default()
         })
         .id();
@@ -1825,13 +2005,15 @@ fn render_spatial_screen(
     let vitals = commands
         .spawn((
             Node {
-                width: px(250),
-                max_width: percent(36),
-                min_width: px(176),
-                flex_direction: FlexDirection::Column,
-                row_gap: px(4),
-                padding: UiRect::all(px(8)),
+                min_width: px(0),
+                flex_grow: 1.0,
+                flex_shrink: 1.0,
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                column_gap: px(8),
+                padding: UiRect::axes(px(6), px(4)),
                 border: UiRect::all(px(1)),
+                overflow: Overflow::clip(),
                 ..default()
             },
             BorderColor::all(bevy_presentation::THEME_BORDER),
@@ -1840,42 +2022,58 @@ fn render_spatial_screen(
         .id();
     commands.entity(header_row).add_child(vitals);
     if state.sandbox_mode {
-        spawn_label(&mut commands, vitals, "TEMPORARY SANDBOX");
         spawn_compact_label(
             &mut commands,
             vitals,
-            format!("Map: {} × {}", map.width, map.height),
+            format!(
+                "SANDBOX · {} × {} · SEED {}",
+                map.width, map.height, map.seed
+            ),
+        );
+    } else if let Some(character) = lifecycle
+        .session
+        .as_ref()
+        .map(|session| &session.state.character)
+    {
+        let identity = commands
+            .spawn(Node {
+                min_width: px(0),
+                flex_grow: 1.0,
+                flex_shrink: 1.0,
+                flex_direction: FlexDirection::Column,
+                row_gap: px(2),
+                overflow: Overflow::clip(),
+                ..default()
+            })
+            .id();
+        commands.entity(vitals).add_child(identity);
+        spawn_header_identity_label(
+            &mut commands,
+            identity,
+            format!("{} / LVL {}", character.name, character.level),
         );
         spawn_compact_label(
             &mut commands,
-            vitals,
-            format!("Generator seed: {}", map.seed),
+            identity,
+            format_condition_summary(&character.conditions),
         );
-    } else {
-        // Keep essential character status anchored to the spatial view. All values
-        // come from the authoritative character, not a parallel HUD state.
-        if let Some(character) = lifecycle
-            .session
-            .as_ref()
-            .map(|session| &session.state.character)
-        {
-            spawn_label(
-                &mut commands,
-                vitals,
-                format!("{} / LVL {}", character.name, character.level),
-            );
-            bevy_presentation::spawn_health_gauge(
-                &mut commands,
-                vitals,
-                character.hp,
-                character.max_hp,
-            );
-            spawn_compact_label(
-                &mut commands,
-                vitals,
-                format_condition_summary(&character.conditions),
-            );
-        }
+
+        let health = commands
+            .spawn(Node {
+                width: px(100),
+                min_width: px(72),
+                max_width: percent(48),
+                flex_shrink: 1.0,
+                ..default()
+            })
+            .id();
+        commands.entity(vitals).add_child(health);
+        bevy_presentation::spawn_health_gauge(
+            &mut commands,
+            health,
+            character.hp,
+            character.max_hp,
+        );
     }
 
     if !state.sandbox_mode {
@@ -1892,30 +2090,48 @@ fn render_spatial_screen(
         );
     }
 
+    // A short status strip sits under the persistent character/world row.
     let status = commands
         .spawn((
             Node {
                 width: percent(100),
-                height: px(28),
-                min_height: px(28),
-                padding: UiRect::axes(px(8), px(4)),
+                height: px(20),
+                min_height: px(20),
+                max_height: px(20),
+                padding: UiRect::axes(px(8), px(0)),
                 align_items: AlignItems::Center,
+                overflow: Overflow::clip(),
+                flex_shrink: 0.0,
                 ..default()
             },
             BackgroundColor(bevy_presentation::THEME_PANEL),
         ))
         .id();
     commands.entity(header).add_child(status);
-    spawn_label(
-        &mut commands,
-        status,
-        state
-            .location_notice
-            .as_deref()
-            .or(state.message.as_deref())
-            .unwrap_or("Move carefully. The walls are not all stone."),
-    );
+    let status_text = commands
+        .spawn((
+            Text::new(
+                state
+                    .location_notice
+                    .as_deref()
+                    .or(state.message.as_deref())
+                    .unwrap_or("Move carefully. The walls are not all stone."),
+            ),
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                max_height: px(18),
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
+            TextFont::from_font_size(FontSize::Rem(0.72)),
+            TextColor(bevy_presentation::THEME_TEXT),
+        ))
+        .id();
+    commands.entity(status).add_child(status_text);
 
+    // Contextual actions retain their existing lower-right map-footer placement.
     let footer = commands
         .spawn(Node {
             width: percent(100),
@@ -1927,9 +2143,6 @@ fn render_spatial_screen(
         })
         .id();
     commands.entity(root).add_child(footer);
-
-    #[cfg(target_os = "android")]
-    spawn_virtual_joystick(&mut commands, root);
 
     let interaction_available = !state.sandbox_mode
         && lifecycle.session.as_ref().is_some_and(|game_session| {
@@ -1963,8 +2176,12 @@ fn render_spatial_screen(
         SpatialAction::Interact,
         interaction_display,
     );
+
+    #[cfg(target_os = "android")]
+    spawn_virtual_joystick(&mut commands, root);
+
     match gameplay.screen {
-        crate::bevy_gameplay::GameplayScreen::Pause => {
+        crate::bevy_gameplay::GameplayMenuScreen::Pause => {
             let meditation_available = lifecycle.session.as_ref().is_some_and(|session| {
                 crate::game::actions::build_meditation_view(&session.state).safe_to_meditate
             });
@@ -1975,7 +2192,7 @@ fn render_spatial_screen(
                 meditation_available,
             );
         }
-        crate::bevy_gameplay::GameplayScreen::WorldMap => {
+        crate::bevy_gameplay::GameplayMenuScreen::WorldMap => {
             if let Some(game_session) = lifecycle.session.as_ref() {
                 let view = crate::game::world_map::build_view(&game_session.state);
                 crate::bevy_gameplay::render_spatial_world_map_overlay(
@@ -1987,7 +2204,7 @@ fn render_spatial_screen(
                 );
             }
         }
-        crate::bevy_gameplay::GameplayScreen::Dashboard => {}
+        crate::bevy_gameplay::GameplayMenuScreen::Closed => {}
     }
     state.dirty = false;
 }
@@ -2103,16 +2320,18 @@ fn virtual_joystick_direction(screen_offset: Vec2) -> Vec2 {
 fn spatial_player_screen_position(
     position: Vec2,
     map: &LocalMap,
-    cameras: &Query<(&Camera, &GlobalTransform), With<Camera2d>>,
-) -> Option<(Vec2, Vec2)> {
+    cameras: &Query<(&Camera, &GlobalTransform), With<SpatialWorldCamera>>,
+) -> Option<(Vec2, Vec2, Vec2, f32)> {
     let projected = map_to_world(position, Some(map));
     let player_world = Vec3::new(projected.x, projected.y + PLAYER_SPRITE_HEIGHT * 0.5, 0.0);
     cameras.iter().find_map(|(camera, camera_transform)| {
         let screen_position = camera
             .world_to_viewport(camera_transform, player_world)
             .ok()?;
-        let viewport = camera.logical_viewport_size()?;
-        Some((screen_position, viewport))
+        let map_viewport = camera.logical_viewport_size()?;
+        let target_size = camera.logical_target_size()?;
+        let viewport_top = camera.logical_viewport_rect()?.min.y;
+        Some((screen_position, map_viewport, target_size, viewport_top))
     })
 }
 
@@ -2131,13 +2350,24 @@ fn interaction_wheel_root_position(anchor: Vec2, viewport: Vec2, size: f32) -> V
     )
 }
 
+fn interaction_wheel_root_position_with_viewport_top(
+    anchor: Vec2,
+    target_size: Vec2,
+    viewport_top: f32,
+    size: f32,
+) -> Vec2 {
+    let map_viewport = Vec2::new(target_size.x, target_size.y - viewport_top);
+    let map_anchor = anchor - Vec2::new(0.0, viewport_top);
+    interaction_wheel_root_position(map_anchor, map_viewport, size) + Vec2::new(0.0, viewport_top)
+}
+
 fn sync_spatial_interaction_wheel(
     mut commands: Commands,
     state: Res<SpatialExplorationState>,
     navigation: Res<NavigationState>,
     spatial_roots: Query<Entity, With<SpatialSceneRoot>>,
     wheel_roots: Query<Entity, With<SpatialInteractionWheelRoot>>,
-    cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<SpatialWorldCamera>>,
 ) {
     if navigation.current_screen != Some(ScreenId::SpatialExploration) {
         for root in &wheel_roots {
@@ -2160,26 +2390,27 @@ fn sync_spatial_interaction_wheel(
     let Some(map) = state.maps.get(&session.location_id) else {
         return;
     };
-    let Some((anchor, viewport)) = spatial_player_screen_position(state.position, map, &cameras)
+    let Some((anchor, map_viewport, target_size, viewport_top)) =
+        spatial_player_screen_position(state.position, map, &cameras)
     else {
         return;
     };
     let Some(parent) = spatial_roots.iter().next() else {
         return;
     };
-    let size = interaction_wheel_size(viewport);
+    let size = interaction_wheel_size(map_viewport);
     spawn_interaction_wheel(
         &mut commands,
         parent,
         wheel,
-        interaction_wheel_root_position(anchor, viewport, size),
+        interaction_wheel_root_position_with_viewport_top(anchor, target_size, viewport_top, size),
         size,
     );
 }
 
 fn update_spatial_wheel_anchor(
     state: Res<SpatialExplorationState>,
-    cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<SpatialWorldCamera>>,
     mut wheel_roots: Query<&mut Node, With<SpatialInteractionWheelRoot>>,
 ) {
     if state.interaction_wheel.is_none() {
@@ -2191,12 +2422,14 @@ fn update_spatial_wheel_anchor(
     let Some(map) = state.maps.get(&session.location_id) else {
         return;
     };
-    let Some((anchor, viewport)) = spatial_player_screen_position(state.position, map, &cameras)
+    let Some((anchor, map_viewport, target_size, viewport_top)) =
+        spatial_player_screen_position(state.position, map, &cameras)
     else {
         return;
     };
-    let size = interaction_wheel_size(viewport);
-    let root_position = interaction_wheel_root_position(anchor, viewport, size);
+    let size = interaction_wheel_size(map_viewport);
+    let root_position =
+        interaction_wheel_root_position_with_viewport_top(anchor, target_size, viewport_top, size);
     for mut node in &mut wheel_roots {
         node.left = px(root_position.x);
         node.top = px(root_position.y);
@@ -2542,8 +2775,29 @@ fn spawn_compact_label(commands: &mut Commands, parent: Entity, label: impl Into
             TextColor(bevy_presentation::THEME_MUTED),
             Node {
                 width: percent(100),
+                min_width: px(0),
+                max_width: percent(100),
                 ..default()
             },
+            TextLayout::new(Justify::Left, LineBreak::NoWrap),
+        ))
+        .id();
+    commands.entity(parent).add_child(label);
+}
+
+fn spawn_header_identity_label(commands: &mut Commands, parent: Entity, label: impl Into<String>) {
+    let label = commands
+        .spawn((
+            Text::new(label.into()),
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                max_width: percent(100),
+                ..default()
+            },
+            TextLayout::new(Justify::Left, LineBreak::NoWrap),
+            TextFont::from_font_size(FontSize::Rem(0.78)),
+            TextColor(bevy_presentation::THEME_TEXT),
         ))
         .id();
     commands.entity(parent).add_child(label);
@@ -2553,9 +2807,9 @@ fn spawn_spatial_time_indicator(
     commands: &mut Commands,
     parent: Entity,
     time_points: u32,
-    celestial_art: &crate::bevy_gameplay::CelestialArtAssets,
+    celestial_art: &CelestialArtAssets,
 ) {
-    let sky = crate::bevy_gameplay::sky_visual(time_points);
+    let sky = sky_visual(time_points);
     let row = commands
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -2603,8 +2857,8 @@ fn spawn_spatial_time_indicator(
 
     if let Some(image) = celestial_art.image.as_ref() {
         let rect = match sky.celestial {
-            crate::bevy_gameplay::CelestialBody::Sun => celestial_art.sun_rect,
-            crate::bevy_gameplay::CelestialBody::Moon => celestial_art.moon_rect,
+            CelestialBody::Sun => celestial_art.sun_rect,
+            CelestialBody::Moon => celestial_art.moon_rect,
         };
         if let Some(rect) = rect {
             let size = px(18);

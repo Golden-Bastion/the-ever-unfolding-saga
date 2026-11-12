@@ -60,8 +60,8 @@ src/
 ├── bevy_app.rs              # Bevy app/bootstrap configuration
 ├── bevy_presentation.rs     # shared Bevy UI primitives and semantic input routing
 ├── bevy_lifecycle.rs        # start/load/creation/quit/death lifecycle orchestration
-├── bevy_navigation_bridge.rs # lifecycle completion and gameplay re-entry hand-offs
-├── bevy_gameplay.rs         # gameplay dashboard and world navigation
+├── bevy_navigation_bridge.rs # lifecycle completion and spatial exploration hand-off
+├── bevy_gameplay.rs         # spatial pause/navigation overlay and interim World Map
 ├── bevy_interactions.rs     # NPC dialogue and remains-recovery screens
 ├── bevy_records.rs          # Character hub, record details, meditation, and journal flows
 ├── bevy_combat.rs           # combat presentation and interaction
@@ -78,14 +78,12 @@ src/
 │   ├── history_screen.rs    # renderer-neutral history view construction
 │   ├── interactions.rs      # NPC dialogue, quest interaction, faction memory/reputation
 │   ├── legacy.rs            # death, corpses, previous-life recovery
-│   ├── menu.rs              # gameplay action definitions
 │   ├── navigation.rs        # renderer-neutral world navigation views/rules
 │   ├── quests.rs            # quest state and progression rules
 │   ├── records.rs           # renderer-neutral record views and mutations
 │   ├── state_effects.rs     # shared state-effect helpers
 │   ├── time.rs              # time calculations and display values
 │   ├── world.rs              # world bootstrap and loaded-state validation
-│   └── world_view.rs         # renderer-neutral world presentation view construction
 ├── presentation.rs          # frontend-independent presentation/view models
 ├── content.rs               # content module facade
 ├── content/
@@ -105,7 +103,7 @@ The exact module list may evolve, but new modules should represent meaningful re
 
 ## Game flow
 
-`main.rs` starts the Bevy application. Bevy lifecycle systems own start/load/creation/quit/death presentation and navigation. The gameplay adapter owns the dashboard and world-navigation interaction, while dedicated Bevy adapters own records, interaction, combat, and console screens.
+`main.rs` starts the Bevy application. Bevy lifecycle systems own start/load/creation/quit/death presentation and navigation. The gameplay-menu adapter owns the spatial pause/navigation overlay and interim World Map, while dedicated Bevy adapters own records, interaction, combat, and console screens.
 
 Gameplay systems operate on the authoritative model and expose renderer-neutral view data where a frontend needs it. Character progression owns experience gain, level advancement, and character-sheet data. Gameplay interactions own NPC dialogue, quest offering/turn-in, faction memory/reputation updates, NPC availability, and remains recovery. Legacy gameplay owns character death, corpse creation, corpse recovery, and previous-life item recovery. Combat is isolated from general action handling. World/bootstrap logic owns world initialization and validation. Persistence serializes and restores state. The developer console owns command/session state while Bevy owns its rendering and input presentation.
 

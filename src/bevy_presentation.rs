@@ -75,9 +75,6 @@ struct UiStackedActionButton;
 pub struct UiMenuButton;
 
 #[derive(Component)]
-pub struct UiConditionIndicator;
-
-#[derive(Component)]
 pub struct UiContextMessage;
 
 #[derive(Component)]
@@ -117,13 +114,6 @@ struct UiHealthGaugeShadow;
 
 #[derive(Component)]
 struct UiGaugeValueText;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SurfaceTone {
-    #[allow(dead_code)] // TODO: this varient is never constructed; remove thid after it is used
-    Quiet,
-    Strong,
-}
 
 #[derive(Component)]
 pub struct BevyScreenRoot;
@@ -390,7 +380,6 @@ pub enum ScreenId {
     WorldLab,
     WorldLabEditor,
     WorldLabFixtures,
-    Gameplay,
     Character,
     Meditation,
     Talk,
@@ -404,10 +393,7 @@ pub enum ScreenId {
 }
 
 pub(crate) fn menu_button_screen_active(screen: Option<ScreenId>) -> bool {
-    matches!(
-        screen,
-        Some(ScreenId::Gameplay | ScreenId::SpatialExploration)
-    )
+    screen == Some(ScreenId::SpatialExploration)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -567,26 +553,6 @@ pub fn install(app: &mut App) {
 
     #[cfg(target_os = "android")]
     app.add_systems(Update, android_back_to_semantic_input);
-}
-
-pub fn spawn_world_root(commands: &mut Commands, background: Color) -> Entity {
-    commands
-        .spawn((
-            BevyScreenRoot,
-            Node {
-                width: percent(100),
-                height: percent(100),
-                min_width: px(0),
-                min_height: px(0),
-                padding: UiRect::all(screen_padding()),
-                flex_direction: FlexDirection::Column,
-                row_gap: responsive_compact_gap(),
-                overflow: Overflow::clip(),
-                ..default()
-            },
-            BackgroundColor(background),
-        ))
-        .id()
 }
 
 pub fn spawn_screen(commands: &mut Commands, title: impl Into<String>) -> Entity {
@@ -1090,32 +1056,6 @@ pub fn touch_target_size() -> Val {
     px(UI_TOUCH_TARGET_PX)
 }
 
-pub fn spawn_surface(commands: &mut Commands, parent: Entity, tone: SurfaceTone) -> Entity {
-    let background = match tone {
-        SurfaceTone::Quiet => THEME_SURFACE,
-        SurfaceTone::Strong => THEME_SURFACE_STRONG,
-    };
-    let surface = commands
-        .spawn((
-            UiSurface,
-            Node {
-                width: percent(100),
-                min_width: px(0),
-                min_height: px(0),
-                padding: UiRect::all(responsive_surface_padding()),
-                flex_direction: FlexDirection::Column,
-                row_gap: responsive_compact_gap(),
-                border: UiRect::all(px(1)),
-                ..default()
-            },
-            BorderColor::all(THEME_BORDER),
-            BackgroundColor(background),
-        ))
-        .id();
-    commands.entity(parent).add_child(surface);
-    surface
-}
-
 pub fn spawn_overlay(commands: &mut Commands, parent: Entity) -> Entity {
     let overlay = commands
         .spawn((
@@ -1559,82 +1499,6 @@ pub fn spawn_action_button_with_detail(
     button
 }
 
-pub fn spawn_primary_action_button(
-    commands: &mut Commands,
-    parent: Entity,
-    index: usize,
-    icon: impl Into<String>,
-    label: impl Into<String>,
-) -> Entity {
-    let button = commands
-        .spawn((
-            Button,
-            Hovered::default(),
-            UiTouchTargetShape::MinimumHeight,
-            ChoiceButton { index },
-            UiActionButton,
-            UiStyledButton,
-            Node {
-                width: Val::Auto,
-                min_width: px(110),
-                min_height: touch_target_size(),
-                flex_grow: 1.0,
-                flex_shrink: 1.0,
-                padding: UiRect::axes(
-                    responsive_vmin(UI_ACTION_PADDING_HORIZONTAL_VMIN),
-                    responsive_vmin(UI_ACTION_PADDING_VERTICAL_VMIN),
-                ),
-                border: UiRect::all(px(1)),
-                justify_content: JustifyContent::Start,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BorderColor::all(THEME_BORDER),
-            BackgroundColor(THEME_SURFACE),
-            children![(
-                Node {
-                    width: percent(100),
-                    min_width: px(0),
-                    max_width: percent(100),
-                    flex_direction: FlexDirection::Row,
-                    column_gap: responsive_compact_gap(),
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                children![
-                    (
-                        Node {
-                            width: px(22),
-                            height: px(22),
-                            min_width: px(22),
-                            min_height: px(22),
-                            flex_shrink: 0.0,
-                            ..default()
-                        },
-                        UiIconName(icon.into()),
-                    ),
-                    (
-                        Text::new(label.into()),
-                        Node {
-                            min_width: px(0),
-                            max_width: percent(100),
-                            flex_grow: 1.0,
-                            flex_shrink: 1.0,
-                            ..default()
-                        },
-                        TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
-                        TextContent,
-                        TextFont::from_font_size(label_font_size()),
-                        TextColor(THEME_TEXT),
-                    ),
-                ],
-            )],
-        ))
-        .id();
-    commands.entity(parent).add_child(button);
-    button
-}
-
 pub fn spawn_menu_button(
     commands: &mut Commands,
     parent: Entity,
@@ -1743,41 +1607,6 @@ pub fn spawn_health_gauge(
         .id();
     commands.entity(parent).add_child(gauge);
     gauge
-}
-
-pub fn spawn_condition_indicator(
-    commands: &mut Commands,
-    parent: Entity,
-    icon: impl Into<String>,
-) -> Entity {
-    let indicator = commands
-        .spawn((
-            UiConditionIndicator,
-            Node {
-                width: touch_target_size(),
-                min_width: touch_target_size(),
-                height: touch_target_size(),
-                min_height: touch_target_size(),
-                padding: UiRect::all(responsive_vmin(0.556)),
-                border: UiRect::all(px(1)),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BorderColor::all(THEME_BORDER),
-            BackgroundColor(THEME_SURFACE),
-            children![(
-                Node {
-                    width: px(22),
-                    height: px(22),
-                    ..default()
-                },
-                UiIconName(icon.into())
-            )],
-        ))
-        .id();
-    commands.entity(parent).add_child(indicator);
-    indicator
 }
 
 pub fn spawn_context_message(

@@ -275,7 +275,7 @@ fn presentation_transition_scale_is_smooth_and_bounded() {
 fn dedicated_screen_navigation_restores_the_screen_that_opened_it() {
     let mut navigation = NavigationState {
         current_screen: Some(ScreenId::SpatialExploration),
-        return_screen: Some(ScreenId::Gameplay),
+        return_screen: Some(ScreenId::SpatialExploration),
         selected: 4,
     };
 
@@ -286,7 +286,7 @@ fn dedicated_screen_navigation_restores_the_screen_that_opened_it() {
     assert_eq!(navigation.selected, 0);
 
     assert_eq!(
-        navigation.return_to_previous_screen(ScreenId::Gameplay),
+        navigation.return_to_previous_screen(ScreenId::SpatialExploration),
         ScreenId::SpatialExploration
     );
     assert_eq!(
@@ -304,9 +304,12 @@ fn dedicated_screen_navigation_uses_its_fallback_without_a_previous_screen() {
     assert_eq!(navigation.return_screen, None);
 
     assert_eq!(
-        navigation.return_to_previous_screen(ScreenId::Gameplay),
-        ScreenId::Gameplay
+        navigation.return_to_previous_screen(ScreenId::SpatialExploration),
+        ScreenId::SpatialExploration
     );
-    assert_eq!(navigation.current_screen, Some(ScreenId::Gameplay));
+    assert_eq!(
+        navigation.current_screen,
+        Some(ScreenId::SpatialExploration)
+    );
     assert_eq!(navigation.return_screen, None);
 }
