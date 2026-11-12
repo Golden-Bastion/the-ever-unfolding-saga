@@ -80,6 +80,12 @@ pub struct UiContextMessage;
 #[derive(Component)]
 pub struct UiStyledButton;
 
+/// Marks a button whose activation is resolved by a custom gesture controller.
+/// The normal Bevy UI activation observer ignores these buttons; the owner must
+/// emit UiButtonActivation after it has distinguished a tap from a drag gesture.
+#[derive(Component)]
+pub(crate) struct UiManualActivation;
+
 #[derive(Component)]
 pub struct UiSelected;
 
@@ -1905,10 +1911,11 @@ fn queue_button_activation(
     activation: On<Activate>,
     touches: Res<Touches>,
     mut scroll_state: ResMut<TouchScrollState>,
+    manual_buttons: Query<(), With<UiManualActivation>>,
     mut activations: MessageWriter<UiButtonActivation>,
 ) {
     let button = activation.event_target();
-    if scroll_state.should_suppress_activation(button, &touches) {
+    if manual_buttons.contains(button) || scroll_state.should_suppress_activation(button, &touches) {
         return;
     }
     activations.write(UiButtonActivation(button));
