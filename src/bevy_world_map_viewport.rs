@@ -366,14 +366,17 @@ fn world_map_viewport_input(
 
         if let Some(mut active) = viewport_state.mouse {
             if mouse.pressed(MouseButton::Left) {
-                if !active.dragging
-                    && cursor.distance(active.start) > WORLD_MAP_GESTURE_THRESHOLD
-                {
-                    active.dragging = true;
-                }
+                let crossed_drag_threshold = !active.dragging
+                    && cursor.distance(active.start) > WORLD_MAP_GESTURE_THRESHOLD;
+                active.dragging |= crossed_drag_threshold;
                 if active.dragging {
+                    let delta = if crossed_drag_threshold {
+                        cursor - active.start
+                    } else {
+                        cursor - active.last
+                    };
                     viewport_state.pan = world_map_clamp_pan(
-                        viewport_state.pan + cursor - active.last,
+                        viewport_state.pan + delta,
                         viewport_state.zoom,
                         canvas_size,
                         viewport_size,
