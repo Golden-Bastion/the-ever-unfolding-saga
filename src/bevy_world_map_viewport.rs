@@ -407,7 +407,7 @@ fn world_map_viewport_input(
                             window.scale_factor(),
                         );
                         map_buttons.iter().any(|(entity, computed, transform)| {
-                            entity == button && computed.contains_point(**transform, physical)
+                            entity == button && computed.contains_point(*transform, physical)
                         })
                     });
                     if let Some(button) = active.release_activation(released_over_button) {
@@ -558,7 +558,7 @@ fn world_map_viewport_input(
                 bevy_presentation::physical_touch_position(touch.position(), window.scale_factor());
             let released_over_button = active.button.is_some_and(|button| {
                 map_buttons.iter().any(|(entity, computed, transform)| {
-                    entity == button && computed.contains_point(**transform, physical)
+                    entity == button && computed.contains_point(*transform, physical)
                 })
             });
 
