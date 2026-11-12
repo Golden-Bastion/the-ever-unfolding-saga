@@ -2347,15 +2347,10 @@ fn interaction_wheel_root_position_with_viewport_top(
     viewport_top: f32,
     size: f32,
 ) -> Vec2 {
-    let minimum = Vec2::new(8.0, viewport_top + 8.0);
-    let maximum = Vec2::new(
-        (target_size.x - size - 8.0).max(minimum.x),
-        (target_size.y - size - 8.0).max(minimum.y),
-    );
-    Vec2::new(
-        (anchor.x - size * 0.5).clamp(minimum.x, maximum.x),
-        (anchor.y - size * 0.5).clamp(minimum.y, maximum.y),
-    )
+    let map_viewport = Vec2::new(target_size.x, target_size.y - viewport_top);
+    let map_anchor = anchor - Vec2::new(0.0, viewport_top);
+    interaction_wheel_root_position(map_anchor, map_viewport, size)
+        + Vec2::new(0.0, viewport_top)
 }
 
 fn sync_spatial_interaction_wheel(
