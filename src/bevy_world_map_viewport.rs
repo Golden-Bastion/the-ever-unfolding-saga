@@ -3,7 +3,7 @@
 //! The map graph and travel model remain owned by the gameplay/presentation
 //! layers. This module only controls the clipped viewport and its canvas transform.
 
-use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
+use bevy::input::mouse::{MouseScrollPixelsPerLine, MouseScrollUnit, MouseWheel};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui::{Pressed, UiTransform};
@@ -186,6 +186,7 @@ fn world_map_viewport_input(
     touches: Res<Touches>,
     mouse: Res<ButtonInput<MouseButton>>,
     mut mouse_wheel: MessageReader<MouseWheel>,
+    scroll_pixels_per_line: Res<MouseScrollPixelsPerLine>,
     window: Single<&Window, With<PrimaryWindow>>,
     navigation: Res<NavigationState>,
     mut viewport_state: ResMut<WorldMapViewportState>,
@@ -302,7 +303,7 @@ fn world_map_viewport_input(
                 for event in mouse_wheel.read() {
                     let delta = match event.unit {
                         MouseScrollUnit::Line => event.y,
-                        MouseScrollUnit::Pixel => event.y / 120.0,
+                        MouseScrollUnit::Pixel => event.y / *scroll_pixels_per_line,
                     };
                     if delta == 0.0 {
                         continue;
