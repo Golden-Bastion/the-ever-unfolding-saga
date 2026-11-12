@@ -313,4 +313,3 @@ fn dedicated_screen_navigation_uses_its_fallback_without_a_previous_screen() {
     );
     assert_eq!(navigation.return_screen, None);
 }
-

@@ -235,7 +235,6 @@ fn world_map_viewport_input(
         (With<Button>, With<WorldMapMapNode>),
     >,
 ) {
-
     if navigation.current_screen != Some(ScreenId::SpatialExploration) {
         viewport_state.reset();
         return;
