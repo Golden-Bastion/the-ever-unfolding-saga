@@ -453,6 +453,7 @@ fn world_map_viewport_input(
                         .get(&id)
                         .and_then(|touch| touch.button)
                     {
+                        commands.entity(button).remove::<Pressed>();
                         touch_scroll.suppress_external_activation(button);
                     }
                 }
@@ -468,6 +469,7 @@ fn world_map_viewport_input(
                     touch.dragging = true;
                     touch.last = if id == ids[0] { first } else { second };
                     if let Some(button) = touch.button {
+                        commands.entity(button).remove::<Pressed>();
                         touch_scroll.suppress_external_activation(button);
                     }
                 }
