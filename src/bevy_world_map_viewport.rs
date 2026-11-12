@@ -483,9 +483,11 @@ fn world_map_viewport_input(
                 .map(|touch| touch.position())
             {
                 if let Some(touch) = viewport_state.touches.get_mut(&id) {
+                    // The remaining finger may keep panning, but it must not
+                    // turn the completed pinch into a destination tap.
                     touch.start = position;
                     touch.last = position;
-                    touch.dragging = false;
+                    touch.dragging = true;
                 }
             }
         } else if let Some(position) = touches
