@@ -489,7 +489,6 @@ fn sync_spatial_camera_viewport(
     };
 
     for mut camera in &mut cameras {
-        camera.is_active = active;
         camera.viewport = viewport.clone();
     }
 }
