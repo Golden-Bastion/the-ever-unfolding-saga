@@ -2001,7 +2001,10 @@ fn render_spatial_screen(
         spawn_compact_label(
             &mut commands,
             vitals,
-            format!("SANDBOX · {} × {} · SEED {}", map.width, map.height, map.seed),
+            format!(
+                "SANDBOX · {} × {} · SEED {}",
+                map.width, map.height, map.seed
+            ),
         );
     } else if let Some(character) = lifecycle
         .session
@@ -2744,11 +2747,7 @@ fn spawn_compact_label(commands: &mut Commands, parent: Entity, label: impl Into
     commands.entity(parent).add_child(label);
 }
 
-fn spawn_header_identity_label(
-    commands: &mut Commands,
-    parent: Entity,
-    label: impl Into<String>,
-) {
+fn spawn_header_identity_label(commands: &mut Commands, parent: Entity, label: impl Into<String>) {
     let label = commands
         .spawn((
             Text::new(label.into()),
