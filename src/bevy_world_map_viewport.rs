@@ -46,19 +46,56 @@ enum WorldMapViewAction {
 struct WorldMapViewControl(WorldMapViewAction);
 
 #[derive(Clone, Copy)]
-struct ActiveWorldMapTouch {
+struct ActiveWorldMapGesture {
     start: Vec2,
     last: Vec2,
     dragging: bool,
     button: Option<Entity>,
 }
 
-#[derive(Clone, Copy)]
-struct ActiveWorldMapMouse {
-    start: Vec2,
-    last: Vec2,
-    dragging: bool,
-    button: Option<Entity>,
+impl ActiveWorldMapGesture {
+    fn begin(position: Vec2, button: Option<Entity>) -> Self {
+        Self {
+            start: position,
+            last: position,
+            dragging: false,
+            button,
+        }
+    }
+
+    /// Returns the viewport-space pan delta for this input update.
+    fn update(&mut self, position: Vec2) -> Vec2 {
+        let crossed_drag_threshold = !self.dragging
+            && position.distance(self.start) > WORLD_MAP_GESTURE_THRESHOLD;
+        self.dragging |= crossed_drag_threshold;
+
+        let delta = if crossed_drag_threshold {
+            // Apply the complete movement that crossed the threshold. Discarding
+            // this initial displacement makes desktop drags feel unresponsive.
+            position - self.start
+        } else if self.dragging {
+            position - self.last
+        } else {
+            Vec2::ZERO
+        };
+        self.last = position;
+        delta
+    }
+
+    /// A second pointer turns this gesture into navigation, never a node tap.
+    fn begin_drag(&mut self, position: Vec2) {
+        self.start = position;
+        self.last = position;
+        self.dragging = true;
+    }
+
+    fn release_activation(self, released_over_button: bool) -> Option<Entity> {
+        if self.dragging || !released_over_button {
+            None
+        } else {
+            self.button
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -77,9 +114,9 @@ struct WorldMapViewportState {
     default_pan: Vec2,
     viewport_size: Vec2,
     requested_action: Option<WorldMapViewAction>,
-    touches: HashMap<u64, ActiveWorldMapTouch>,
+    touches: HashMap<u64, ActiveWorldMapGesture>,
     pinch: Option<ActiveWorldMapPinch>,
-    mouse: Option<ActiveWorldMapMouse>,
+    mouse: Option<ActiveWorldMapGesture>,
 }
 
 impl WorldMapViewportState {
@@ -98,20 +135,6 @@ const WORLD_MAP_MAX_ZOOM: f32 = 3.0;
 const WORLD_MAP_ZOOM_STEP: f32 = 1.2;
 const WORLD_MAP_GESTURE_THRESHOLD: f32 = 12.0;
 const WORLD_MAP_FIT_MARGIN: f32 = 0.92;
-
-/// Resolve a destination only when a press began on that node, remained a tap,
-/// and was released over the same node. Drag and pinch gestures never activate it.
-fn world_map_destination_activation(
-    button: Option<Entity>,
-    dragging: bool,
-    released_over_button: bool,
-) -> Option<Entity> {
-    if dragging || !released_over_button {
-        None
-    } else {
-        button
-    }
-}
 
 fn world_map_fit_zoom(canvas_size: Vec2, viewport_size: Vec2) -> f32 {
     if canvas_size.min_element() <= 0.0 || viewport_size.min_element() <= 0.0 {
@@ -355,26 +378,14 @@ fn world_map_viewport_input(
                         computed.contains_point(**transform, physical)
                     })
                     .map(|(entity, _, _)| entity);
-                viewport_state.mouse = Some(ActiveWorldMapMouse {
-                    start: cursor,
-                    last: cursor,
-                    dragging: false,
-                    button,
-                });
+                viewport_state.mouse = Some(ActiveWorldMapGesture::begin(cursor, button));
             }
         }
 
         if let Some(mut active) = viewport_state.mouse {
             if mouse.pressed(MouseButton::Left) {
-                let crossed_drag_threshold = !active.dragging
-                    && cursor.distance(active.start) > WORLD_MAP_GESTURE_THRESHOLD;
-                active.dragging |= crossed_drag_threshold;
+                let delta = active.update(cursor);
                 if active.dragging {
-                    let delta = if crossed_drag_threshold {
-                        cursor - active.start
-                    } else {
-                        cursor - active.last
-                    };
                     viewport_state.pan = world_map_clamp_pan(
                         viewport_state.pan + delta,
                         viewport_state.zoom,
@@ -386,7 +397,6 @@ fn world_map_viewport_input(
                         touch_scroll.suppress_external_activation(button);
                     }
                 }
-                active.last = cursor;
                 viewport_state.mouse = Some(active);
             } else {
                 if active.dragging {
@@ -396,22 +406,15 @@ fn world_map_viewport_input(
                     }
                 } else if mouse.just_released(MouseButton::Left) {
                     let released_over_button = active.button.is_some_and(|button| {
-                        cursor.is_some_and(|cursor| {
-                            let physical = bevy_presentation::physical_touch_position(
-                                cursor,
-                                window.scale_factor(),
-                            );
-                            map_buttons.iter().any(|(entity, computed, transform)| {
-                                entity == button
-                                    && computed.contains_point(**transform, physical)
-                            })
+                        let physical = bevy_presentation::physical_touch_position(
+                            cursor,
+                            window.scale_factor(),
+                        );
+                        map_buttons.iter().any(|(entity, computed, transform)| {
+                            entity == button && computed.contains_point(**transform, physical)
                         })
                     });
-                    if let Some(button) = world_map_destination_activation(
-                        active.button,
-                        active.dragging,
-                        released_over_button,
-                    ) {
+                    if let Some(button) = active.release_activation(released_over_button) {
                         activations.write(bevy_presentation::UiButtonActivation(button));
                     }
                 }
@@ -436,12 +439,7 @@ fn world_map_viewport_input(
             .map(|(entity, _, _)| entity);
         viewport_state.touches.insert(
             touch.id(),
-            ActiveWorldMapTouch {
-                start: touch.position(),
-                last: touch.position(),
-                dragging: false,
-                button,
-            },
+            ActiveWorldMapGesture::begin(touch.position(), button),
         );
     }
 
@@ -474,6 +472,10 @@ fn world_map_viewport_input(
             )
             .unwrap_or(Vec2::ZERO);
 
+            let previous_pinch_is_none = viewport_state
+                .pinch
+                .filter(|pinch| pinch.ids == ids)
+                .is_none();
             if let Some(previous) = viewport_state.pinch.filter(|pinch| pinch.ids == ids) {
                 let next = (viewport_state.zoom * distance / previous.last_distance)
                     .clamp(WORLD_MAP_MIN_ZOOM, WORLD_MAP_MAX_ZOOM);
@@ -505,8 +507,12 @@ fn world_map_viewport_input(
             });
             for id in ids {
                 if let Some(touch) = viewport_state.touches.get_mut(&id) {
-                    touch.dragging = true;
-                    touch.last = if id == ids[0] { first } else { second };
+                    let position = if id == ids[0] { first } else { second };
+                    if previous_pinch_is_none {
+                        touch.begin_drag(position);
+                    } else {
+                        touch.last = position;
+                    }
                     if let Some(button) = touch.button {
                         commands.entity(button).remove::<Pressed>();
                         touch_scroll.suppress_external_activation(button);
@@ -524,9 +530,7 @@ fn world_map_viewport_input(
                 if let Some(touch) = viewport_state.touches.get_mut(&id) {
                     // The remaining finger may keep panning, but it must not
                     // turn the completed pinch into a destination tap.
-                    touch.start = position;
-                    touch.last = position;
-                    touch.dragging = true;
+                    touch.begin_drag(position);
                 }
             }
         } else if let Some(position) = touches
@@ -534,37 +538,20 @@ fn world_map_viewport_input(
             .find(|touch| touch.id() == id)
             .map(|touch| touch.position())
         {
-            if let Some(active) = viewport_state.touches.get(&id).copied() {
-                let crossed = !active.dragging
-                    && position.distance(active.start) > WORLD_MAP_GESTURE_THRESHOLD;
-                if crossed {
-                    if let Some(button) = active.button {
+            if let Some(touch) = viewport_state.touches.get_mut(&id) {
+                let delta = touch.update(position);
+                if touch.dragging {
+                    if let Some(button) = touch.button {
                         commands.entity(button).remove::<Pressed>();
                         touch_scroll.suppress_external_activation(button);
                     }
-                    viewport_state.pan = world_map_clamp_pan(
-                        viewport_state.pan + position - active.start,
-                        viewport_state.zoom,
-                        canvas_size,
-                        viewport_size,
-                    );
-                } else if active.dragging {
-                    viewport_state.pan = world_map_clamp_pan(
-                        viewport_state.pan + position - active.last,
-                        viewport_state.zoom,
-                        canvas_size,
-                        viewport_size,
-                    );
                 }
-                if let Some(touch) = viewport_state.touches.get_mut(&id) {
-                    touch.dragging |= crossed;
-                    touch.last = position;
-                    if touch.dragging {
-                        if let Some(button) = touch.button {
-                            touch_scroll.suppress_external_activation(button);
-                        }
-                    }
-                }
+                viewport_state.pan = world_map_clamp_pan(
+                    viewport_state.pan + delta,
+                    viewport_state.zoom,
+                    canvas_size,
+                    viewport_size,
+                );
             }
         }
     } else {
@@ -588,11 +575,7 @@ fn world_map_viewport_input(
                     commands.entity(button).remove::<Pressed>();
                     touch_scroll.suppress_external_activation(button);
                 }
-            } else if let Some(button) = world_map_destination_activation(
-                active.button,
-                active.dragging,
-                released_over_button,
-            ) {
+            } else if let Some(button) = active.release_activation(released_over_button) {
                 activations.write(bevy_presentation::UiButtonActivation(button));
             }
         }
