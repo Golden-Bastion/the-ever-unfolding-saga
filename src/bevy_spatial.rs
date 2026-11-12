@@ -54,7 +54,7 @@ const JOYSTICK_THUMB_TRAVEL_PX: f32 = 36.0;
 const CAMERA_LERP_SPEED: f32 = 8.0;
 const SPATIAL_ROOT_PADDING_PX: f32 = 8.0;
 const SPATIAL_ROOT_GAP_PX: f32 = 8.0;
-const SPATIAL_HEADER_HEIGHT_PX: f32 = 144.0;
+const SPATIAL_HEADER_HEIGHT_PX: f32 = 108.0;
 const LOCATION_NOTICE_DURATION_SECONDS: f32 = 4.0;
 const CAMERA_DEAD_ZONE_FRACTION: f32 = 0.15;
 const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
@@ -1931,9 +1931,9 @@ fn render_spatial_screen(
                 height: px(SPATIAL_HEADER_HEIGHT_PX),
                 min_height: px(SPATIAL_HEADER_HEIGHT_PX),
                 max_height: px(SPATIAL_HEADER_HEIGHT_PX),
-                padding: UiRect::all(px(8)),
+                padding: UiRect::axes(px(6), px(2)),
                 flex_direction: FlexDirection::Column,
-                row_gap: px(8),
+                row_gap: px(4),
                 flex_shrink: 0.0,
                 border: UiRect::all(px(1)),
                 ..default()
@@ -1943,24 +1943,30 @@ fn render_spatial_screen(
         ))
         .id();
     commands.entity(root).add_child(header);
+
+    // The first row carries persistent world and character information.
     let header_row = commands
         .spawn(Node {
             width: percent(100),
-            min_height: px(84),
+            height: px(48),
+            min_height: px(48),
+            max_height: px(48),
             flex_direction: FlexDirection::Row,
-            justify_content: JustifyContent::SpaceBetween,
+            column_gap: px(6),
             align_items: AlignItems::Center,
             ..default()
         })
         .id();
     commands.entity(header).add_child(header_row);
+
     let header_context = commands
         .spawn(Node {
-            max_width: percent(48),
+            max_width: percent(40),
             min_width: px(0),
             flex_direction: FlexDirection::Column,
-            row_gap: px(4),
+            row_gap: px(2),
             flex_shrink: 1.0,
+            overflow: Overflow::clip(),
             ..default()
         })
         .id();
@@ -1975,13 +1981,15 @@ fn render_spatial_screen(
     let vitals = commands
         .spawn((
             Node {
-                width: px(250),
-                max_width: percent(36),
-                min_width: px(176),
-                flex_direction: FlexDirection::Column,
-                row_gap: px(4),
-                padding: UiRect::all(px(8)),
+                min_width: px(0),
+                flex_grow: 1.0,
+                flex_shrink: 1.0,
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                column_gap: px(8),
+                padding: UiRect::axes(px(6), px(4)),
                 border: UiRect::all(px(1)),
+                overflow: Overflow::clip(),
                 ..default()
             },
             BorderColor::all(bevy_presentation::THEME_BORDER),
@@ -1990,42 +1998,55 @@ fn render_spatial_screen(
         .id();
     commands.entity(header_row).add_child(vitals);
     if state.sandbox_mode {
-        spawn_label(&mut commands, vitals, "TEMPORARY SANDBOX");
         spawn_compact_label(
             &mut commands,
             vitals,
-            format!("Map: {} × {}", map.width, map.height),
+            format!("SANDBOX · {} × {} · SEED {}", map.width, map.height, map.seed),
+        );
+    } else if let Some(character) = lifecycle
+        .session
+        .as_ref()
+        .map(|session| &session.state.character)
+    {
+        let identity = commands
+            .spawn(Node {
+                min_width: px(0),
+                flex_grow: 1.0,
+                flex_shrink: 1.0,
+                flex_direction: FlexDirection::Column,
+                row_gap: px(2),
+                overflow: Overflow::clip(),
+                ..default()
+            })
+            .id();
+        commands.entity(vitals).add_child(identity);
+        spawn_header_identity_label(
+            &mut commands,
+            identity,
+            format!("{} / LVL {}", character.name, character.level),
         );
         spawn_compact_label(
             &mut commands,
-            vitals,
-            format!("Generator seed: {}", map.seed),
+            identity,
+            format_condition_summary(&character.conditions),
         );
-    } else {
-        // Keep essential character status anchored to the spatial view. All values
-        // come from the authoritative character, not a parallel HUD state.
-        if let Some(character) = lifecycle
-            .session
-            .as_ref()
-            .map(|session| &session.state.character)
-        {
-            spawn_label(
-                &mut commands,
-                vitals,
-                format!("{} / LVL {}", character.name, character.level),
-            );
-            bevy_presentation::spawn_health_gauge(
-                &mut commands,
-                vitals,
-                character.hp,
-                character.max_hp,
-            );
-            spawn_compact_label(
-                &mut commands,
-                vitals,
-                format_condition_summary(&character.conditions),
-            );
-        }
+
+        let health = commands
+            .spawn(Node {
+                width: px(100),
+                min_width: px(72),
+                max_width: percent(48),
+                flex_shrink: 1.0,
+                ..default()
+            })
+            .id();
+        commands.entity(vitals).add_child(health);
+        bevy_presentation::spawn_health_gauge(
+            &mut commands,
+            health,
+            character.hp,
+            character.max_hp,
+        );
     }
 
     if !state.sandbox_mode {
@@ -2042,44 +2063,61 @@ fn render_spatial_screen(
         );
     }
 
+    // Context feedback and contextual actions share the compact second header row.
     let status = commands
         .spawn((
             Node {
                 width: percent(100),
-                height: px(28),
-                min_height: px(28),
-                padding: UiRect::axes(px(8), px(4)),
+                height: px(48),
+                min_height: px(48),
+                max_height: px(48),
+                padding: UiRect::axes(px(8), px(0)),
+                flex_direction: FlexDirection::Row,
+                column_gap: px(6),
                 align_items: AlignItems::Center,
+                flex_shrink: 0.0,
                 ..default()
             },
             BackgroundColor(bevy_presentation::THEME_PANEL),
         ))
         .id();
     commands.entity(header).add_child(status);
-    spawn_label(
-        &mut commands,
-        status,
-        state
-            .location_notice
-            .as_deref()
-            .or(state.message.as_deref())
-            .unwrap_or("Move carefully. The walls are not all stone."),
-    );
 
-    let footer = commands
+    let status_text = commands
+        .spawn((
+            Text::new(
+                state
+                    .location_notice
+                    .as_deref()
+                    .or(state.message.as_deref())
+                    .unwrap_or("Move carefully. The walls are not all stone."),
+            ),
+            Node {
+                min_width: px(0),
+                max_width: percent(100),
+                max_height: px(40),
+                flex_grow: 1.0,
+                flex_shrink: 1.0,
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
+            TextFont::from_font_size(FontSize::Rem(0.72)),
+            TextColor(bevy_presentation::THEME_TEXT),
+        ))
+        .id();
+    commands.entity(status).add_child(status_text);
+
+    let action_controls = commands
         .spawn(Node {
-            width: percent(100),
-            flex_grow: 1.0,
             flex_direction: FlexDirection::Row,
-            justify_content: JustifyContent::End,
-            align_items: AlignItems::End,
+            column_gap: px(4),
+            align_items: AlignItems::Center,
+            flex_shrink: 0.0,
             ..default()
         })
         .id();
-    commands.entity(root).add_child(footer);
-
-    #[cfg(target_os = "android")]
-    spawn_virtual_joystick(&mut commands, root);
+    commands.entity(status).add_child(action_controls);
 
     let interaction_available = !state.sandbox_mode
         && lifecycle.session.as_ref().is_some_and(|game_session| {
@@ -2097,7 +2135,7 @@ fn render_spatial_screen(
             .is_some_and(|game_session| spatial_investigation_available(&game_session.state));
     spawn_control(
         &mut commands,
-        footer,
+        action_controls,
         "Investigate",
         SpatialAction::Investigate,
         if investigation_available {
@@ -2108,11 +2146,15 @@ fn render_spatial_screen(
     );
     spawn_control(
         &mut commands,
-        footer,
+        action_controls,
         "Interact",
         SpatialAction::Interact,
         interaction_display,
     );
+
+    #[cfg(target_os = "android")]
+    spawn_virtual_joystick(&mut commands, root);
+
     match gameplay.screen {
         crate::bevy_gameplay::GameplayMenuScreen::Pause => {
             let meditation_available = lifecycle.session.as_ref().is_some_and(|session| {
@@ -2692,8 +2734,33 @@ fn spawn_compact_label(commands: &mut Commands, parent: Entity, label: impl Into
             TextColor(bevy_presentation::THEME_MUTED),
             Node {
                 width: percent(100),
+                min_width: px(0),
+                max_width: percent(100),
                 ..default()
             },
+            TextLayout::new(Justify::Left, LineBreak::NoWrap),
+        ))
+        .id();
+    commands.entity(parent).add_child(label);
+}
+
+fn spawn_header_identity_label(
+    commands: &mut Commands,
+    parent: Entity,
+    label: impl Into<String>,
+) {
+    let label = commands
+        .spawn((
+            Text::new(label.into()),
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                max_width: percent(100),
+                ..default()
+            },
+            TextLayout::new(Justify::Left, LineBreak::NoWrap),
+            TextFont::from_font_size(FontSize::Rem(0.78)),
+            TextColor(bevy_presentation::THEME_TEXT),
         ))
         .id();
     commands.entity(parent).add_child(label);

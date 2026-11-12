@@ -6,6 +6,10 @@
 
 `interaction_actions.rs` owns renderer-neutral action/target identities and discovers all currently eligible contextual interactions from the local map and authoritative game state. It applies the established projected interaction radius, prop-aware line-of-sight checks, actor/inventory validation, deterministic candidate ordering, and stable action/target identity without depending on Bevy types. `bevy_spatial.rs` adapts that model to the Bevy frontend. It owns angled projection, terrain, prop and actor-marker rendering, depth ordering, movement input from keyboard and touch controls, collision checks, camera follow, wheel presentation, and synchronization with the active game state. Actor placements are added deterministically on map entry and only use reachable walkable cells. The saved world remains authoritative for persistent maps; the active character owns the exact continuous position. `bevy_interactions.rs` renders the corresponding dialogue and remains overlays without replacing the spatial scene. The spatial frontend also detects navigation re-entry after a dedicated screen has replaced its screen root and rebuilds the ECS presentation from the retained map and continuous player position; this does not regenerate the map or reset exploration progress.
 
+## HUD and viewport
+
+The spatial HUD is contained in a compact 108-logical-pixel opaque header. Its first row holds the time-of-day indicator, character identity, health gauge, condition summary, and pause/menu control. The second row holds contextual feedback and only the currently eligible Interact/Investigate actions. Persistent action buttons must not be positioned over the playable map. The camera viewport begins below the header and its outer spacing; the Android virtual joystick remains anchored over the map area as a movement control, not as persistent HUD content.
+
 ## Coordinate conventions
 
 - Grid coordinates are continuous during movement. A tile's center is represented by `(x + 0.5, y + 0.5)`.
