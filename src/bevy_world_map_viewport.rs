@@ -1,7 +1,7 @@
 //! Presentation-only pan, zoom, and gesture handling for the interim world map.
 //!
- // The map graph and travel model remain owned by the gameplay/presentation
- // layers. This module only controls the clipped viewport and its canvas transform.
+//! The map graph and travel model remain owned by the gameplay/presentation
+//! layers. This module only controls the clipped viewport and its canvas transform.
 
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::picking::hover::Hovered;
@@ -160,7 +160,7 @@ fn world_map_viewport_anchor(
     let physical_position =
         bevy_presentation::physical_touch_position(logical_position, scale_factor);
     let normalized = viewport.normalize_point(*transform, physical_position)?;
-    let logical_size = viewport.size() * viewport.inverse_scale_factor();
+    let logical_size = viewport.size * viewport.inverse_scale_factor();
     Some(normalized * logical_size)
 }
 
