@@ -1936,9 +1936,9 @@ fn render_spatial_screen(
                 left: px(0),
                 top: px(0),
                 width: percent(100),
-                height: px(
-                    SPATIAL_ROOT_PADDING_PX + SPATIAL_HEADER_HEIGHT_PX + SPATIAL_ROOT_GAP_PX,
-                ),
+                height: px(SPATIAL_ROOT_PADDING_PX
+                    + SPATIAL_HEADER_HEIGHT_PX
+                    + SPATIAL_ROOT_GAP_PX),
                 ..default()
             },
             BackgroundColor(bevy_presentation::THEME_BACKGROUND),
@@ -2421,8 +2421,7 @@ fn update_spatial_wheel_anchor(
         return;
     };
     let size = interaction_wheel_size(map_viewport);
-    let root_position =
-        interaction_wheel_root_position(anchor, target_size, viewport_top, size);
+    let root_position = interaction_wheel_root_position(anchor, target_size, viewport_top, size);
     for mut node in &mut wheel_roots {
         node.left = px(root_position.x);
         node.top = px(root_position.y);
