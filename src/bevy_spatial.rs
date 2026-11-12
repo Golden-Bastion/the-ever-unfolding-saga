@@ -1528,7 +1528,10 @@ fn update_spatial_world(
     navigation: Res<NavigationState>,
     runtime_state: Res<crate::bevy_gameplay::GameplayRuntimeState>,
     assets: Res<SpatialRenderAssets>,
-    mut camera: Query<(&mut Transform, &Camera), (With<SpatialWorldCamera>, Without<SpatialPlayer>)>,
+    mut camera: Query<
+        (&mut Transform, &Camera),
+        (With<SpatialWorldCamera>, Without<SpatialPlayer>),
+    >,
     mut player: Query<(&mut Transform, &mut Sprite), With<SpatialPlayer>>,
     mut tiles: Query<
         (&SpatialTile, &mut Sprite),
