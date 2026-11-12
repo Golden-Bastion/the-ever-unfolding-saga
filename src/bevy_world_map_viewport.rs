@@ -1,7 +1,7 @@
 //! Presentation-only pan, zoom, and gesture handling for the interim world map.
 //!
- //! The map graph and travel model remain owned by the gameplay/presentation
- //! layers. This module only controls the clipped viewport and its canvas transform.
+ // The map graph and travel model remain owned by the gameplay/presentation
+ // layers. This module only controls the clipped viewport and its canvas transform.
 
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::picking::hover::Hovered;
@@ -12,7 +12,15 @@ use bevy::window::PrimaryWindow;
 use std::collections::HashMap;
 
 use crate::bevy_presentation::{self, NavigationState, ScreenId};
-use crate::bevy_presentation::TouchScrollState;
+
+pub(crate) fn install(app: &mut App) {
+    app.init_resource::<WorldMapViewportState>()
+        .add_systems(
+            PreUpdate,
+            world_map_viewport_input.after(bevy::ui::UiSystems::Focus),
+        )
+        .add_systems(Update, world_map_control_input);
+}
 
 #[derive(Component)]
 struct WorldMapViewport;
@@ -201,6 +209,7 @@ fn world_map_viewport_input(
         return;
     };
     let Some((mut canvas_transform, canvas)) = canvases.iter_mut().next() else {
+        viewport_state.reset();
         return;
     };
 
@@ -547,10 +556,6 @@ fn world_map_viewport_input(
         viewport_state.pan.y - canvas_size.y * 0.5,
     );
     canvas_transform.scale = Vec2::splat(viewport_state.zoom);
-}
-
-fn layout_size_center(width: f32, height: f32) -> Vec2 {
-    Vec2::new(width * 0.5, height * 0.5)
 }
 
 pub(crate) fn spawn_world_map_view_controls(commands: &mut Commands, parent: Entity) {
