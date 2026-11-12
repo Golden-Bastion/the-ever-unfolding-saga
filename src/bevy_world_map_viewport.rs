@@ -227,7 +227,6 @@ fn world_map_viewport_input(
     window: Single<&Window, With<PrimaryWindow>>,
     navigation: Res<NavigationState>,
     mut viewport_state: ResMut<WorldMapViewportState>,
-    mut touch_scroll: ResMut<bevy_presentation::TouchScrollState>,
     mut activations: MessageWriter<bevy_presentation::UiButtonActivation>,
     viewports: Query<(Entity, &ComputedNode, &UiGlobalTransform), With<WorldMapViewport>>,
     mut canvases: Query<(&mut UiTransform, &WorldMapCanvas), With<WorldMapCanvas>>,
@@ -236,7 +235,6 @@ fn world_map_viewport_input(
         (With<Button>, With<WorldMapMapNode>),
     >,
 ) {
-    touch_scroll.clear_external_suppression();
 
     if navigation.current_screen != Some(ScreenId::SpatialExploration) {
         viewport_state.reset();
@@ -391,7 +389,6 @@ fn world_map_viewport_input(
                     );
                     if let Some(button) = active.button {
                         commands.entity(button).remove::<Pressed>();
-                        touch_scroll.suppress_external_activation(button);
                     }
                 }
                 viewport_state.mouse = Some(active);
@@ -399,7 +396,6 @@ fn world_map_viewport_input(
                 if active.dragging {
                     if let Some(button) = active.button {
                         commands.entity(button).remove::<Pressed>();
-                        touch_scroll.suppress_external_activation(button);
                     }
                 } else if mouse.just_released(MouseButton::Left) {
                     let released_over_button = active.button.is_some_and(|button| {
@@ -490,7 +486,6 @@ fn world_map_viewport_input(
                         .and_then(|touch| touch.button)
                     {
                         commands.entity(button).remove::<Pressed>();
-                        touch_scroll.suppress_external_activation(button);
                     }
                 }
             }
@@ -510,7 +505,6 @@ fn world_map_viewport_input(
                     }
                     if let Some(button) = touch.button {
                         commands.entity(button).remove::<Pressed>();
-                        touch_scroll.suppress_external_activation(button);
                     }
                 }
             }
@@ -538,7 +532,6 @@ fn world_map_viewport_input(
                 if touch.dragging {
                     if let Some(button) = touch.button {
                         commands.entity(button).remove::<Pressed>();
-                        touch_scroll.suppress_external_activation(button);
                     }
                 }
                 viewport_state.pan = world_map_clamp_pan(
@@ -566,7 +559,6 @@ fn world_map_viewport_input(
             if active.dragging {
                 if let Some(button) = active.button {
                     commands.entity(button).remove::<Pressed>();
-                    touch_scroll.suppress_external_activation(button);
                 }
             } else if let Some(button) = active.release_activation(released_over_button) {
                 activations.write(bevy_presentation::UiButtonActivation(button));
