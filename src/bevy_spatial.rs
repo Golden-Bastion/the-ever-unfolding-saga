@@ -54,7 +54,7 @@ const JOYSTICK_THUMB_TRAVEL_PX: f32 = 36.0;
 const CAMERA_LERP_SPEED: f32 = 8.0;
 const SPATIAL_ROOT_PADDING_PX: f32 = 8.0;
 const SPATIAL_ROOT_GAP_PX: f32 = 8.0;
-const SPATIAL_HEADER_HEIGHT_PX: f32 = 108.0;
+const SPATIAL_HEADER_HEIGHT_PX: f32 = 72.0;
 const LOCATION_NOTICE_DURATION_SECONDS: f32 = 4.0;
 const CAMERA_DEAD_ZONE_FRACTION: f32 = 0.15;
 const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
@@ -99,6 +99,9 @@ struct SpatialWorldEntity;
 
 #[derive(Component)]
 pub(crate) struct SpatialSceneRoot;
+
+#[derive(Component)]
+pub(crate) struct SpatialWorldCamera;
 
 #[derive(Component)]
 struct SpatialActorEntity;
@@ -465,9 +468,10 @@ fn spatial_camera_viewport_top(scale_factor: f32) -> u32 {
 fn sync_spatial_camera_viewport(
     navigation: Res<NavigationState>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    mut cameras: Query<&mut Camera, With<Camera2d>>,
+    mut cameras: Query<&mut Camera, With<SpatialWorldCamera>>,
 ) {
-    let viewport = if navigation.current_screen == Some(ScreenId::SpatialExploration) {
+    let active = navigation.current_screen == Some(ScreenId::SpatialExploration);
+    let viewport = if active {
         let Ok(window) = windows.single() else {
             return;
         };
@@ -485,6 +489,7 @@ fn sync_spatial_camera_viewport(
     };
 
     for mut camera in &mut cameras {
+        camera.is_active = active;
         camera.viewport = viewport.clone();
     }
 }
@@ -1524,7 +1529,7 @@ fn update_spatial_world(
     navigation: Res<NavigationState>,
     runtime_state: Res<crate::bevy_gameplay::GameplayRuntimeState>,
     assets: Res<SpatialRenderAssets>,
-    mut camera: Query<(&mut Transform, &Camera), (With<Camera2d>, Without<SpatialPlayer>)>,
+    mut camera: Query<(&mut Transform, &Camera), With<SpatialWorldCamera>>,
     mut player: Query<(&mut Transform, &mut Sprite), With<SpatialPlayer>>,
     mut tiles: Query<
         (&SpatialTile, &mut Sprite),
@@ -1924,6 +1929,23 @@ fn render_spatial_screen(
         commands.entity(root).add_child(atmosphere);
     }
 
+    let header_backdrop = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(0),
+                top: px(0),
+                width: percent(100),
+                height: px(
+                    SPATIAL_ROOT_PADDING_PX + SPATIAL_HEADER_HEIGHT_PX + SPATIAL_ROOT_GAP_PX,
+                ),
+                ..default()
+            },
+            BackgroundColor(bevy_presentation::THEME_BACKGROUND),
+        ))
+        .id();
+    commands.entity(root).add_child(header_backdrop);
+
     let header = commands
         .spawn((
             Node {
@@ -1931,9 +1953,9 @@ fn render_spatial_screen(
                 height: px(SPATIAL_HEADER_HEIGHT_PX),
                 min_height: px(SPATIAL_HEADER_HEIGHT_PX),
                 max_height: px(SPATIAL_HEADER_HEIGHT_PX),
-                padding: UiRect::axes(px(6), px(2)),
+                padding: UiRect::axes(px(6), px(0)),
                 flex_direction: FlexDirection::Column,
-                row_gap: px(4),
+                row_gap: px(2),
                 flex_shrink: 0.0,
                 border: UiRect::all(px(1)),
                 ..default()
@@ -2066,18 +2088,17 @@ fn render_spatial_screen(
         );
     }
 
-    // Context feedback and contextual actions share the compact second header row.
+    // A short status strip sits under the persistent character/world row.
     let status = commands
         .spawn((
             Node {
                 width: percent(100),
-                height: px(48),
-                min_height: px(48),
-                max_height: px(48),
+                height: px(20),
+                min_height: px(20),
+                max_height: px(20),
                 padding: UiRect::axes(px(8), px(0)),
-                flex_direction: FlexDirection::Row,
-                column_gap: px(6),
                 align_items: AlignItems::Center,
+                overflow: Overflow::clip(),
                 flex_shrink: 0.0,
                 ..default()
             },
@@ -2085,7 +2106,6 @@ fn render_spatial_screen(
         ))
         .id();
     commands.entity(header).add_child(status);
-
     let status_text = commands
         .spawn((
             Text::new(
@@ -2096,11 +2116,9 @@ fn render_spatial_screen(
                     .unwrap_or("Move carefully. The walls are not all stone."),
             ),
             Node {
+                width: percent(100),
                 min_width: px(0),
-                max_width: percent(100),
-                max_height: px(40),
-                flex_grow: 1.0,
-                flex_shrink: 1.0,
+                max_height: px(18),
                 overflow: Overflow::clip(),
                 ..default()
             },
@@ -2111,16 +2129,18 @@ fn render_spatial_screen(
         .id();
     commands.entity(status).add_child(status_text);
 
-    let action_controls = commands
+    // Contextual actions retain their existing lower-right map-footer placement.
+    let footer = commands
         .spawn(Node {
+            width: percent(100),
+            flex_grow: 1.0,
             flex_direction: FlexDirection::Row,
-            column_gap: px(4),
-            align_items: AlignItems::Center,
-            flex_shrink: 0.0,
+            justify_content: JustifyContent::End,
+            align_items: AlignItems::End,
             ..default()
         })
         .id();
-    commands.entity(status).add_child(action_controls);
+    commands.entity(root).add_child(footer);
 
     let interaction_available = !state.sandbox_mode
         && lifecycle.session.as_ref().is_some_and(|game_session| {
@@ -2138,7 +2158,7 @@ fn render_spatial_screen(
             .is_some_and(|game_session| spatial_investigation_available(&game_session.state));
     spawn_control(
         &mut commands,
-        action_controls,
+        footer,
         "Investigate",
         SpatialAction::Investigate,
         if investigation_available {
@@ -2149,7 +2169,7 @@ fn render_spatial_screen(
     );
     spawn_control(
         &mut commands,
-        action_controls,
+        footer,
         "Interact",
         SpatialAction::Interact,
         interaction_display,
@@ -2298,16 +2318,18 @@ fn virtual_joystick_direction(screen_offset: Vec2) -> Vec2 {
 fn spatial_player_screen_position(
     position: Vec2,
     map: &LocalMap,
-    cameras: &Query<(&Camera, &GlobalTransform), With<Camera2d>>,
-) -> Option<(Vec2, Vec2)> {
+    cameras: &Query<(&Camera, &GlobalTransform), With<SpatialWorldCamera>>,
+) -> Option<(Vec2, Vec2, Vec2, f32)> {
     let projected = map_to_world(position, Some(map));
     let player_world = Vec3::new(projected.x, projected.y + PLAYER_SPRITE_HEIGHT * 0.5, 0.0);
     cameras.iter().find_map(|(camera, camera_transform)| {
         let screen_position = camera
             .world_to_viewport(camera_transform, player_world)
             .ok()?;
-        let viewport = camera.logical_viewport_size()?;
-        Some((screen_position, viewport))
+        let map_viewport = camera.logical_viewport_size()?;
+        let target_size = camera.logical_target_size()?;
+        let viewport_top = camera.logical_viewport_rect()?.min.y;
+        Some((screen_position, map_viewport, target_size, viewport_top))
     })
 }
 
@@ -2315,14 +2337,20 @@ fn interaction_wheel_size(viewport: Vec2) -> f32 {
     (viewport.min_element() - 16.0).clamp(96.0, INTERACTION_WHEEL_SIZE_PX)
 }
 
-fn interaction_wheel_root_position(anchor: Vec2, viewport: Vec2, size: f32) -> Vec2 {
+fn interaction_wheel_root_position(
+    anchor: Vec2,
+    target_size: Vec2,
+    viewport_top: f32,
+    size: f32,
+) -> Vec2 {
+    let minimum = Vec2::new(8.0, viewport_top + 8.0);
     let maximum = Vec2::new(
-        (viewport.x - size - 8.0).max(8.0),
-        (viewport.y - size - 8.0).max(8.0),
+        (target_size.x - size - 8.0).max(minimum.x),
+        (target_size.y - size - 8.0).max(minimum.y),
     );
     Vec2::new(
-        (anchor.x - size * 0.5).clamp(8.0, maximum.x),
-        (anchor.y - size * 0.5).clamp(8.0, maximum.y),
+        (anchor.x - size * 0.5).clamp(minimum.x, maximum.x),
+        (anchor.y - size * 0.5).clamp(minimum.y, maximum.y),
     )
 }
 
@@ -2332,7 +2360,7 @@ fn sync_spatial_interaction_wheel(
     navigation: Res<NavigationState>,
     spatial_roots: Query<Entity, With<SpatialSceneRoot>>,
     wheel_roots: Query<Entity, With<SpatialInteractionWheelRoot>>,
-    cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<SpatialWorldCamera>>,
 ) {
     if navigation.current_screen != Some(ScreenId::SpatialExploration) {
         for root in &wheel_roots {
@@ -2355,26 +2383,27 @@ fn sync_spatial_interaction_wheel(
     let Some(map) = state.maps.get(&session.location_id) else {
         return;
     };
-    let Some((anchor, viewport)) = spatial_player_screen_position(state.position, map, &cameras)
+    let Some((anchor, map_viewport, target_size, viewport_top)) =
+        spatial_player_screen_position(state.position, map, &cameras)
     else {
         return;
     };
     let Some(parent) = spatial_roots.iter().next() else {
         return;
     };
-    let size = interaction_wheel_size(viewport);
+    let size = interaction_wheel_size(map_viewport);
     spawn_interaction_wheel(
         &mut commands,
         parent,
         wheel,
-        interaction_wheel_root_position(anchor, viewport, size),
+        interaction_wheel_root_position(anchor, target_size, viewport_top, size),
         size,
     );
 }
 
 fn update_spatial_wheel_anchor(
     state: Res<SpatialExplorationState>,
-    cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<SpatialWorldCamera>>,
     mut wheel_roots: Query<&mut Node, With<SpatialInteractionWheelRoot>>,
 ) {
     if state.interaction_wheel.is_none() {
@@ -2386,12 +2415,14 @@ fn update_spatial_wheel_anchor(
     let Some(map) = state.maps.get(&session.location_id) else {
         return;
     };
-    let Some((anchor, viewport)) = spatial_player_screen_position(state.position, map, &cameras)
+    let Some((anchor, map_viewport, target_size, viewport_top)) =
+        spatial_player_screen_position(state.position, map, &cameras)
     else {
         return;
     };
-    let size = interaction_wheel_size(viewport);
-    let root_position = interaction_wheel_root_position(anchor, viewport, size);
+    let size = interaction_wheel_size(map_viewport);
+    let root_position =
+        interaction_wheel_root_position(anchor, target_size, viewport_top, size);
     for mut node in &mut wheel_roots {
         node.left = px(root_position.x);
         node.top = px(root_position.y);

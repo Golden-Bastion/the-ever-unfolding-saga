@@ -5,6 +5,7 @@
 
 #[cfg(not(target_os = "android"))]
 use crate::desktop_window;
+use bevy::camera::visibility::RenderLayers;
 use bevy::input_focus::tab_navigation::TabNavigationPlugin;
 use bevy::prelude::*;
 use bevy_picking::events::PointerRelease;
@@ -58,5 +59,15 @@ pub fn run() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    commands.spawn((Camera2d, bevy_spatial::SpatialWorldCamera));
+    commands.spawn((
+        Camera2d,
+        Camera {
+            order: 1,
+            clear_color: ClearColorConfig::None,
+            ..default()
+        },
+        RenderLayers::none(),
+        IsDefaultUiCamera,
+    ));
 }
