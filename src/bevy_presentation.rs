@@ -268,12 +268,25 @@ struct ActiveTouchScroll {
 }
 
 #[derive(Resource, Default, Debug)]
-struct TouchScrollState {
+pub(crate) struct TouchScrollState {
     active: Option<ActiveTouchScroll>,
+    externally_suppressed_buttons: HashSet<Entity>,
 }
 
 impl TouchScrollState {
-    fn should_suppress_activation(&self, button: Entity, touches: &Touches) -> bool {
+    pub(crate) fn suppress_external_activation(&mut self, button: Entity) {
+        self.externally_suppressed_buttons.insert(button);
+    }
+
+    pub(crate) fn clear_external_suppression(&mut self) {
+        self.externally_suppressed_buttons.clear();
+    }
+
+    fn should_suppress_activation(&mut self, button: Entity, touches: &Touches) -> bool {
+        if self.externally_suppressed_buttons.remove(&button) {
+            return true;
+        }
+
         let Some(active) = self.active else {
             return false;
         };
@@ -1891,7 +1904,7 @@ pub(crate) fn queue_choice_activation(queue: &mut Vec<InputEvent>, index: usize)
 fn queue_button_activation(
     activation: On<Activate>,
     touches: Res<Touches>,
-    scroll_state: Res<TouchScrollState>,
+    mut scroll_state: ResMut<TouchScrollState>,
     mut activations: MessageWriter<UiButtonActivation>,
 ) {
     let button = activation.event_target();
