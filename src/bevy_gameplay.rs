@@ -407,6 +407,12 @@ fn world_map_viewport_input(
                 active.last = cursor;
                 viewport_state.mouse = Some(active);
             } else {
+                if active.dragging {
+                    if let Some(button) = active.button {
+                        commands.entity(button).remove::<Pressed>();
+                        touch_scroll.suppress_external_activation(button);
+                    }
+                }
                 viewport_state.mouse = None;
             }
         }
@@ -527,6 +533,7 @@ fn world_map_viewport_input(
                     && position.distance(active.start) > WORLD_MAP_GESTURE_THRESHOLD;
                 if crossed {
                     if let Some(button) = active.button {
+                        commands.entity(button).remove::<Pressed>();
                         touch_scroll.suppress_external_activation(button);
                     }
                     viewport_state.pan = world_map_clamp_pan(
@@ -562,10 +569,14 @@ fn world_map_viewport_input(
         if let Some(active) = viewport_state.touches.remove(&touch.id()) {
             if active.dragging {
                 if let Some(button) = active.button {
+                    commands.entity(button).remove::<Pressed>();
                     touch_scroll.suppress_external_activation(button);
                 }
             }
         }
+    }
+    for touch in touches.iter_just_canceled() {
+        viewport_state.touches.remove(&touch.id());
     }
     if viewport_state.touches.len() < 2 {
         viewport_state.pinch = None;
