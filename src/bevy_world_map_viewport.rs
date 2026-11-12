@@ -217,6 +217,7 @@ fn world_map_control_input(
     }
 }
 
+#[allow(clippy::too_many_arguments, clippy::type_complexity)] // Bevy systems require independent resources and queries.
 fn world_map_viewport_input(
     mut commands: Commands,
     touches: Res<Touches>,
