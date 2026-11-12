@@ -451,8 +451,7 @@ fn render_pause(commands: &mut Commands, parent: Entity, actions: &[PauseAction]
                 padding: UiRect::all(bevy_presentation::responsive_surface_padding()),
                 flex_direction: FlexDirection::Column,
                 row_gap: bevy_presentation::responsive_compact_gap(),
-                overflow: Overflow::clip(),
-                flex_grow: 1.0,
+                overflow: Overflow::scroll(),
                 border: UiRect::all(px(1)),
                 ..default()
             },
@@ -764,7 +763,7 @@ fn render_world_map_graph(
         })
         .unwrap_or_else(|| Vec2::new(layout.width * 0.5, layout.height * 0.5));
 
-    bevy_world_map_viewport::spawn_world_map_viewport(
+    let canvas = bevy_world_map_viewport::spawn_world_map_viewport(
         commands,
         parent,
         Vec2::new(layout.width, layout.height),
