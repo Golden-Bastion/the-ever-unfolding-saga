@@ -2337,7 +2337,11 @@ fn interaction_wheel_size(viewport: Vec2) -> f32 {
     (viewport.min_element() - 16.0).clamp(96.0, INTERACTION_WHEEL_SIZE_PX)
 }
 
-fn interaction_wheel_root_position(
+fn interaction_wheel_root_position(anchor: Vec2, viewport: Vec2, size: f32) -> Vec2 {
+    interaction_wheel_root_position_with_viewport_top(anchor, viewport, 0.0, size)
+}
+
+fn interaction_wheel_root_position_with_viewport_top(
     anchor: Vec2,
     target_size: Vec2,
     viewport_top: f32,
@@ -2396,7 +2400,7 @@ fn sync_spatial_interaction_wheel(
         &mut commands,
         parent,
         wheel,
-        interaction_wheel_root_position(anchor, target_size, viewport_top, size),
+        interaction_wheel_root_position_with_viewport_top(anchor, target_size, viewport_top, size),
         size,
     );
 }
@@ -2421,7 +2425,7 @@ fn update_spatial_wheel_anchor(
         return;
     };
     let size = interaction_wheel_size(map_viewport);
-    let root_position = interaction_wheel_root_position(anchor, target_size, viewport_top, size);
+    let root_position = interaction_wheel_root_position_with_viewport_top(anchor, target_size, viewport_top, size);
     for mut node in &mut wheel_roots {
         node.left = px(root_position.x);
         node.top = px(root_position.y);
