@@ -99,6 +99,20 @@ const WORLD_MAP_ZOOM_STEP: f32 = 1.2;
 const WORLD_MAP_GESTURE_THRESHOLD: f32 = 12.0;
 const WORLD_MAP_FIT_MARGIN: f32 = 0.92;
 
+/// Resolve a destination only when a press began on that node, remained a tap,
+/// and was released over the same node. Drag and pinch gestures never activate it.
+fn world_map_destination_activation(
+    button: Option<Entity>,
+    dragging: bool,
+    released_over_button: bool,
+) -> Option<Entity> {
+    if dragging || !released_over_button {
+        None
+    } else {
+        button
+    }
+}
+
 fn world_map_fit_zoom(canvas_size: Vec2, viewport_size: Vec2) -> f32 {
     if canvas_size.min_element() <= 0.0 || viewport_size.min_element() <= 0.0 {
         return 1.0;
@@ -191,6 +205,7 @@ fn world_map_viewport_input(
     navigation: Res<NavigationState>,
     mut viewport_state: ResMut<WorldMapViewportState>,
     mut touch_scroll: ResMut<bevy_presentation::TouchScrollState>,
+    mut activations: MessageWriter<bevy_presentation::UiButtonActivation>,
     viewports: Query<(Entity, &ComputedNode, &UiGlobalTransform), With<WorldMapViewport>>,
     mut canvases: Query<(&mut UiTransform, &WorldMapCanvas), With<WorldMapCanvas>>,
     map_buttons: Query<
@@ -376,6 +391,26 @@ fn world_map_viewport_input(
                         commands.entity(button).remove::<Pressed>();
                         touch_scroll.suppress_external_activation(button);
                     }
+                } else if mouse.just_released(MouseButton::Left) {
+                    let released_over_button = active.button.is_some_and(|button| {
+                        cursor.is_some_and(|cursor| {
+                            let physical = bevy_presentation::physical_touch_position(
+                                cursor,
+                                window.scale_factor(),
+                            );
+                            map_buttons.iter().any(|(entity, computed, transform)| {
+                                entity == button
+                                    && computed.contains_point(**transform, physical)
+                            })
+                        })
+                    });
+                    if let Some(button) = world_map_destination_activation(
+                        active.button,
+                        active.dragging,
+                        released_over_button,
+                    ) {
+                        activations.write(bevy_presentation::UiButtonActivation(button));
+                    }
                 }
                 viewport_state.mouse = None;
             }
@@ -535,11 +570,27 @@ fn world_map_viewport_input(
 
     for touch in touches.iter_just_released() {
         if let Some(active) = viewport_state.touches.remove(&touch.id()) {
+            let physical = bevy_presentation::physical_touch_position(
+                touch.position(),
+                window.scale_factor(),
+            );
+            let released_over_button = active.button.is_some_and(|button| {
+                map_buttons.iter().any(|(entity, computed, transform)| {
+                    entity == button && computed.contains_point(**transform, physical)
+                })
+            });
+
             if active.dragging {
                 if let Some(button) = active.button {
                     commands.entity(button).remove::<Pressed>();
                     touch_scroll.suppress_external_activation(button);
                 }
+            } else if let Some(button) = world_map_destination_activation(
+                active.button,
+                active.dragging,
+                released_over_button,
+            ) {
+                activations.write(bevy_presentation::UiButtonActivation(button));
             }
         }
     }

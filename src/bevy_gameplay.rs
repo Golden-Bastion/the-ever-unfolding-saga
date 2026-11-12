@@ -764,13 +764,12 @@ fn render_world_map_graph(
         })
         .unwrap_or_else(|| Vec2::new(layout.width * 0.5, layout.height * 0.5));
 
-    let canvas = bevy_world_map_viewport::spawn_world_map_viewport(
+    bevy_world_map_viewport::spawn_world_map_viewport(
         commands,
         parent,
         Vec2::new(layout.width, layout.height),
         current_location_center,
     );
-    commands.entity(viewport).add_child(canvas);
 
     let placement_by_id = layout
         .nodes
