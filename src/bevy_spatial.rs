@@ -2337,7 +2337,14 @@ fn interaction_wheel_size(viewport: Vec2) -> f32 {
 }
 
 fn interaction_wheel_root_position(anchor: Vec2, viewport: Vec2, size: f32) -> Vec2 {
-    interaction_wheel_root_position_with_viewport_top(anchor, viewport, 0.0, size)
+    let maximum = Vec2::new(
+        (viewport.x - size - 8.0).max(8.0),
+        (viewport.y - size - 8.0).max(8.0),
+    );
+    Vec2::new(
+        (anchor.x - size * 0.5).clamp(8.0, maximum.x),
+        (anchor.y - size * 0.5).clamp(8.0, maximum.y),
+    )
 }
 
 fn interaction_wheel_root_position_with_viewport_top(
