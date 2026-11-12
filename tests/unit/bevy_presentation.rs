@@ -313,3 +313,19 @@ fn dedicated_screen_navigation_uses_its_fallback_without_a_previous_screen() {
     );
     assert_eq!(navigation.return_screen, None);
 }
+
+#[test]
+fn external_drag_suppression_consumes_the_activation_once() {
+    let mut world = World::new();
+    let button = world.spawn_empty().id();
+    let touches = Touches::default();
+    let mut state = TouchScrollState::default();
+
+    state.suppress_external_activation(button);
+    assert!(state.should_suppress_activation(button, &touches));
+    assert!(!state.should_suppress_activation(button, &touches));
+
+    state.suppress_external_activation(button);
+    state.clear_external_suppression();
+    assert!(!state.should_suppress_activation(button, &touches));
+}
