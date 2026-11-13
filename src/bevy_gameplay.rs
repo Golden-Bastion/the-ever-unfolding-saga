@@ -123,7 +123,10 @@ fn gameplay_input(
                 }
                 navigation_state.selected = 0;
             }
-            InputEvent::End => {
+            InputEvent::SetSelection(index) => {
+                set_selection(&mut gameplay, &mut navigation_state, index, &lifecycle);
+            }
+            InputEvent::End => {}
                 move_selection_to_end(&mut gameplay, &mut navigation_state, &lifecycle)
             }
             InputEvent::Cancel | InputEvent::Backspace => match gameplay.screen {
@@ -154,16 +157,11 @@ fn gameplay_input(
     }
 }
 
-fn move_selection(
-    gameplay: &mut GameplayMenuState,
-    navigation_state: &mut NavigationState,
-    direction: isize,
-    lifecycle: &LifecycleState,
-) {
+fn selection_count(gameplay: &GameplayMenuState, lifecycle: &LifecycleState) -> usize {
     let Some(session) = lifecycle.session.as_ref() else {
-        return;
+        return 0;
     };
-    let count = match gameplay.screen {
+    match gameplay.screen {
         GameplayMenuScreen::Closed => 0,
         GameplayMenuScreen::WorldMap => {
             world_map::build_view(&session.state)
@@ -172,19 +170,51 @@ fn move_selection(
                 + 1
         }
         GameplayMenuScreen::Pause => pause_action_count(meditation_is_available(lifecycle)),
-    };
+    }
+}
+
+fn set_selection(
+    gameplay: &mut GameplayMenuState,
+    navigation_state: &mut NavigationState,
+    selected: usize,
+    lifecycle: &LifecycleState,
+) {
+    let count = selection_count(gameplay, lifecycle);
     if count == 0 {
         return;
     }
+    let selected = selected.min(count - 1);
     if gameplay.screen == GameplayMenuScreen::Pause {
-        gameplay.pause_selected =
-            (gameplay.pause_selected as isize + direction).rem_euclid(count as isize) as usize;
-        navigation_state.selected = gameplay.pause_selected;
+        gameplay.pause_selected = selected;
+    } else if gameplay.screen == GameplayMenuScreen::WorldMap {
+        gameplay.selected = selected;
     } else {
-        gameplay.selected =
-            (gameplay.selected as isize + direction).rem_euclid(count as isize) as usize;
-        navigation_state.selected = gameplay.selected;
+        return;
     }
+    navigation_state.selected = selected;
+}
+
+fn move_selection(
+    gameplay: &mut GameplayMenuState,
+    navigation_state: &mut NavigationState,
+    direction: isize,
+    lifecycle: &LifecycleState,
+) {
+    let count = selection_count(gameplay, lifecycle);
+    if count == 0 {
+        return;
+    }
+    let selected = if gameplay.screen == GameplayMenuScreen::Pause {
+        gameplay.pause_selected
+    } else {
+        gameplay.selected
+    };
+    set_selection(
+        gameplay,
+        navigation_state,
+        (selected as isize + direction).rem_euclid(count as isize) as usize,
+        lifecycle,
+    );
 }
 
 fn move_selection_to_end(
@@ -192,27 +222,9 @@ fn move_selection_to_end(
     navigation_state: &mut NavigationState,
     lifecycle: &LifecycleState,
 ) {
-    let Some(session) = lifecycle.session.as_ref() else {
-        return;
-    };
-    let count = match gameplay.screen {
-        GameplayMenuScreen::Closed => 0,
-        GameplayMenuScreen::WorldMap => {
-            world_map::build_view(&session.state)
-                .fast_travel_destinations
-                .len()
-                + 1
-        }
-        GameplayMenuScreen::Pause => pause_action_count(meditation_is_available(lifecycle)),
-    };
+    let count = selection_count(gameplay, lifecycle);
     if count > 0 {
-        if gameplay.screen == GameplayMenuScreen::Pause {
-            gameplay.pause_selected = count - 1;
-            navigation_state.selected = gameplay.pause_selected;
-        } else {
-            gameplay.selected = count - 1;
-            navigation_state.selected = gameplay.selected;
-        }
+        set_selection(gameplay, navigation_state, count - 1, lifecycle);
     }
 }
 
