@@ -20,7 +20,7 @@ The first version intentionally avoids representing geographical terrain. It vis
 - Choosing a fast-travelable map node is the fast-travel action; there is no separate destination-only Travel screen.
 - Physical passage use remains the normal travel path inside spatial gameplay. It continues to validate the immediate reciprocal connection and enters the destination's local map without invoking fast travel.
 
-Visibility is currently derived from `World.local_maps` and the current location. This is an interim discovery rule, not the final definition of cartography or fog of war.
+Visibility and visit eligibility primarily use `World.local_maps`: establishing a persistent local map records a durable visit. For saves created before that persistence existed, the map also recognizes retained travel-history entries written by the active character or a recorded predecessor in the same inheritance line. This compatibility fallback can only recover visits still present in the bounded history; once an old travel entry has been trimmed, it cannot reconstruct that visit. New visits continue to be recorded through persistent local maps. This is an interim discovery rule, not the final definition of cartography or fog of war.
 
 ## Presentation-only layout contract
 

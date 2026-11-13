@@ -20,16 +20,8 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         .campaign_content
         .clone()
         .unwrap_or_else(crate::content::load_campaign_content);
-    let explored_ids = state
-        .world
-        .local_maps
-        .iter()
-        .map(|map| map.location_id.clone())
-        .collect::<HashSet<_>>();
-
     let is_explored = |location_id: u64| {
-        let stable_id = format!("location.{location_id}");
-        explored_ids.contains(&stable_id)
+        crate::game::actions::has_visited_location(state, location_id)
     };
 
     let mut visible_ids = HashSet::from([current.id]);

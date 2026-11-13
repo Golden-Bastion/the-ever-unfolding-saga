@@ -600,7 +600,7 @@ pub(crate) fn spawn_world_map_view_controls(commands: &mut Commands, parent: Ent
     commands.entity(parent).add_child(row);
 
     for (label, action) in [
-        ("−", WorldMapViewAction::ZoomOut),
+        ("-", WorldMapViewAction::ZoomOut),
         ("+", WorldMapViewAction::ZoomIn),
         ("Fit", WorldMapViewAction::Fit),
         ("Reset", WorldMapViewAction::Reset),
