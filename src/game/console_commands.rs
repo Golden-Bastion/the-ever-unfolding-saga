@@ -72,9 +72,9 @@ pub(super) fn execute_line(
 }
 fn help(console: &mut ConsoleState) {
     console.output.push("help clear status where mods content locations goto teleport npc npcs quests quest factions faction inventory give remove heal damage kill revive xp level attr condition time day history reload save exit".into());
-    console
-        .output
-        .push("Tab: candidates | Up/Down: select | Enter: accept | Esc: cancel autocomplete".into());
+    console.output.push(
+        "Tab: candidates | Up/Down: select | Enter: accept | Esc: cancel autocomplete".into(),
+    );
 }
 fn status(state: &GameState, console: &mut ConsoleState) {
     let location = state
