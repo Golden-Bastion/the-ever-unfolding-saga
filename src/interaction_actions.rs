@@ -88,7 +88,7 @@ pub(crate) fn discover_available_interactions(
         let item = AvailableInteraction {
             action: InteractionActionKind::Examine,
             target: InteractionTarget::PointOfInterest(poi.id.clone()),
-            label: format!("Examine — {}", poi.title),
+            label: format!("Examine: {}", poi.title),
         };
         candidates.push((distance, 2_u8, item.stable_key(), item));
     }
@@ -116,7 +116,7 @@ pub(crate) fn discover_available_interactions(
                     AvailableInteraction {
                         action: InteractionActionKind::Talk,
                         target: InteractionTarget::Npc(npc.id),
-                        label: format!("Talk — {}", npc.name),
+                        label: format!("Talk: {}", npc.name),
                     },
                 )
             }
@@ -133,7 +133,7 @@ pub(crate) fn discover_available_interactions(
                     AvailableInteraction {
                         action: InteractionActionKind::SearchRemains,
                         target: InteractionTarget::Corpse(corpse.id),
-                        label: format!("Search — {}", corpse.former_name),
+                        label: format!("Search: {}", corpse.former_name),
                     },
                 )
             }
@@ -150,7 +150,7 @@ pub(crate) fn discover_available_interactions(
         let label = game
             .world
             .location_by_id(exit.target_location_id)
-            .map(|location| format!("Enter — {}", location.name))
+            .map(|location| format!("Enter: {}", location.name))
             .unwrap_or_else(|| "Use passage".to_string());
         let item = AvailableInteraction {
             action: InteractionActionKind::Enter,

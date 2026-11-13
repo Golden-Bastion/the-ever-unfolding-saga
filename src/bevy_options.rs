@@ -694,7 +694,7 @@ fn render_mods_tab(commands: &mut Commands, list: Entity, options: &OptionsState
             commands,
             row.label,
             format!(
-                "id={} · version={} · priority={} · assets={}",
+                "id={} | version={} | priority={} | assets={}",
                 item.manifest.id, item.manifest.version, item.priority, item.asset_count
             ),
         );
@@ -729,7 +729,7 @@ fn render_mods_tab(commands: &mut Commands, list: Entity, options: &OptionsState
             commands,
             row.controls,
             base + MOD_PRIORITY_DOWN_ACTION,
-            "Priority—",
+            "Priority:",
             options.selected == base + MOD_PRIORITY_DOWN_ACTION,
         );
     }

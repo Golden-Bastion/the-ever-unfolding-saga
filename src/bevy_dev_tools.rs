@@ -334,7 +334,7 @@ fn world_lab_actor_catalog(game: &GameState, location_id: u64) -> Vec<WorldLabAc
         .map(|npc| WorldLabActor {
             entity_id: npc.id,
             kind: SpatialEntityKind::Npc,
-            label: format!("{} — {}", npc.name, npc.title),
+            label: format!("{} - {}", npc.name, npc.title),
         })
         .collect::<Vec<_>>();
     actors.extend(
@@ -1273,7 +1273,7 @@ fn world_lab_cell_details(map: &LocalMap, position: GridPosition) -> String {
         markers.join(", ")
     };
     format!(
-        "Selected cell ({}, {}) · {} · {}",
+        "Selected cell ({}, {}) | {} | {}",
         position.x, position.y, terrain, markers
     )
 }
@@ -2055,7 +2055,7 @@ fn render_character_workshop(
             bevy_presentation::spawn_muted_label(
                 commands,
                 controls,
-                format!("{marker} {} — {}", part.id, part.asset),
+                format!("{marker} {} - {}", part.id, part.asset),
             );
         }
     } else {
@@ -2161,7 +2161,7 @@ fn render_world_lab(
     bevy_presentation::spawn_muted_label(
         commands,
         controls,
-        format!("Map dimensions: {width} × {height}"),
+        format!("Map dimensions: {width} x {height}"),
     );
     bevy_presentation::spawn_muted_label(
         commands,
@@ -2230,7 +2230,7 @@ fn render_world_lab(
         bevy_presentation::spawn_muted_label(
             commands,
             preview_panel,
-            "Legend: @ entry · ? discovery · E passage · N NPC · C remains · P prop · # wall · . floor · : ash · % rubble",
+            "Legend: @ entry | ? discovery | E passage | N NPC | C remains | P prop | # wall | . floor | : ash | % rubble",
         );
         if map_is_current {
             bevy_presentation::spawn_muted_label(
@@ -2265,7 +2265,7 @@ fn render_world_lab_editor(
     state: &DeveloperToolsState,
     spatial: &SpatialExplorationState,
 ) {
-    let root = bevy_presentation::spawn_screen(commands, "WORLD LAB · MAP EDITOR");
+    let root = bevy_presentation::spawn_screen(commands, "WORLD LAB | MAP EDITOR");
     bevy_presentation::spawn_muted_label(
         commands,
         root,
@@ -2418,7 +2418,7 @@ fn render_world_lab_editor(
         let cursor = world_lab_cursor(state, map);
         bevy_presentation::spawn_muted_label(
             commands, preview_panel,
-            "Legend: X cursor · H prop · Q discovery · D passage · A actor · @ entry · ? discovery · E passage · N NPC · C remains · P prop · # wall · . floor · : ash · % rubble",
+            "Legend: X cursor | H prop | Q discovery | D passage | A actor | @ entry | ? discovery | E passage | N NPC | C remains | P prop | # wall | . floor | : ash | % rubble",
         );
         bevy_presentation::spawn_muted_label(
             commands,
@@ -2442,7 +2442,7 @@ fn render_world_lab_fixtures(
     navigation: &NavigationState,
     state: &DeveloperToolsState,
 ) {
-    let root = bevy_presentation::spawn_screen(commands, "WORLD LAB · FIXTURES");
+    let root = bevy_presentation::spawn_screen(commands, "WORLD LAB | FIXTURES");
     bevy_presentation::spawn_muted_label(
         commands,
         root,

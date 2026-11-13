@@ -64,7 +64,7 @@ impl SaveMetadata {
         };
 
         format!(
-            "Level {} · {} · Day {} · Format v{} · {}",
+            "Level {} | {} | Day {} | Format v{} | {}",
             self.character_level,
             self.world_name,
             self.world_day,

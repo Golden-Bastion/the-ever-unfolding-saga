@@ -697,7 +697,7 @@ fn render_world_map_content(
         bevy_presentation::spawn_muted_label(
             commands,
             panel,
-            format!("CURRENT REGION  ·  {}", current.region_name),
+            format!("CURRENT REGION  |  {}", current.region_name),
         );
         bevy_presentation::spawn_label(commands, panel, current.name.clone());
     } else {
@@ -710,7 +710,7 @@ fn render_world_map_content(
     bevy_presentation::spawn_muted_label(
         commands,
         panel,
-        "Select a previously visited place to fast-travel. Unexplored places must be reached in the world.",
+        "Visited places have a warm border. Fast travel needs a known route; unexplored places must be reached in the world.",
     );
     if let Some(message) = message {
         bevy_presentation::spawn_muted_label(commands, panel, message);
@@ -885,7 +885,7 @@ fn render_world_map_graph(
                 "route steps"
             };
             let detail = format!(
-                "{}  ·  FAST TRAVEL  ·  {} {}",
+                "{} | FAST TRAVEL | {} {}",
                 node.location.region_name, steps, route_label
             );
             let button = bevy_presentation::spawn_action_button_with_detail(
@@ -931,15 +931,15 @@ fn render_world_map_graph(
             )
         } else if node.explored {
             (
-                bevy_presentation::THEME_BORDER,
+                bevy_presentation::THEME_ACCENT,
                 bevy_presentation::THEME_SURFACE,
-                "KNOWN · NO FAST-TRAVEL ROUTE",
+                "VISITED | NO ROUTE",
             )
         } else {
             (
                 bevy_presentation::THEME_BORDER,
                 bevy_presentation::THEME_SURFACE_STRONG,
-                "UNEXPLORED · REACH IN THE WORLD",
+                "UNEXPLORED",
             )
         };
         let card = commands
@@ -965,7 +965,7 @@ fn render_world_map_graph(
         bevy_presentation::spawn_muted_label(commands, card, node.location.region_name.clone());
         bevy_presentation::spawn_label(commands, card, node.location.name.clone());
         let detail = if node.location.dangerous {
-            format!("{status}  ·  DANGEROUS")
+            format!("{status} | DANGER")
         } else {
             status.to_string()
         };
