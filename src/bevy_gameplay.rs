@@ -888,7 +888,7 @@ fn render_world_map_graph(
                 "{} | FAST TRAVEL | {} {}",
                 node.location.region_name, steps, route_label
             );
-            let button = bevy_presentation::spawn_action_button_with_detail(
+            let button = bevy_presentation::spawn_positioned_action_button_with_detail(
                 commands,
                 canvas,
                 index,
@@ -898,6 +898,7 @@ fn render_world_map_graph(
             );
             commands.entity(button).insert((
                 bevy_world_map_viewport::WorldMapMapNode,
+                bevy_presentation::UiWarmButton,
                 bevy_presentation::UiManualActivation,
                 Node {
                     width: px(WORLD_MAP_NODE_WIDTH),
