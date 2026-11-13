@@ -480,3 +480,27 @@ fn world_lab_actor_editor_moves_removes_and_reuses_a_real_entity() {
             .any(|placed| placed.entity_id == actor.entity_id && placed.position == destination)
     }));
 }
+
+#[test]
+fn developer_tools_screen_only_rebuilds_when_its_own_view_changes() {
+    assert!(!developer_tools_screen_requires_render(
+        Some(ScreenId::DeveloperTools),
+        ScreenId::DeveloperTools,
+        false,
+    ));
+    assert!(!developer_tools_screen_requires_render(
+        Some(ScreenId::WorldLab),
+        ScreenId::WorldLab,
+        false,
+    ));
+    assert!(developer_tools_screen_requires_render(
+        Some(ScreenId::DeveloperTools),
+        ScreenId::DeveloperTools,
+        true,
+    ));
+    assert!(developer_tools_screen_requires_render(
+        Some(ScreenId::DeveloperTools),
+        ScreenId::WorldLab,
+        false,
+    ));
+}
