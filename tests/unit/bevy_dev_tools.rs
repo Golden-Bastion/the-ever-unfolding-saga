@@ -482,6 +482,24 @@ fn world_lab_actor_editor_moves_removes_and_reuses_a_real_entity() {
 }
 
 #[test]
+fn character_lab_has_two_part_controls_per_slot_before_its_global_actions() {
+    let slot_count = 5;
+
+    assert_eq!(character_lab_action_count(slot_count), 14);
+    for selected in 0..slot_count * 2 {
+        assert_eq!(
+            character_lab_control_target(selected, slot_count),
+            Some((
+                selected / 2,
+                if selected % 2 == 0 { -1 } else { 1 }
+            ))
+        );
+    }
+    assert_eq!(character_lab_control_target(slot_count * 2, slot_count), None);
+    assert_eq!(character_lab_control_target(slot_count * 2 + 3, slot_count), None);
+}
+
+#[test]
 fn developer_tools_screen_only_rebuilds_when_its_own_view_changes() {
     assert!(!developer_tools_screen_requires_render(
         Some(ScreenId::DeveloperTools),

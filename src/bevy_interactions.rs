@@ -82,15 +82,6 @@ pub(crate) struct PortraitImageCache {
     pub(crate) failures: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PortraitSlotControl {
-    pub(crate) name: String,
-    pub(crate) selected_part: usize,
-    pub(crate) part_count: usize,
-    pub(crate) previous_index: usize,
-    pub(crate) next_index: usize,
-}
-
 #[derive(Component)]
 struct SpatialInteractionOverlayRoot;
 
@@ -836,59 +827,6 @@ fn load_portrait_layer_image(
     }
 }
 
-fn populate_portrait_canvas(
-    commands: &mut Commands,
-    canvas: Entity,
-    fallback_parent: Entity,
-    portrait: &CharacterPortraitView,
-    fallback: Option<&str>,
-    images: &mut Assets<Image>,
-    cache: &mut PortraitImageCache,
-) {
-    let mut rendered = 0usize;
-    for layer in ordered_portrait_layers(portrait) {
-        let Some(image) = load_portrait_layer_image(images, cache, layer) else {
-            continue;
-        };
-        let node = commands
-            .spawn((
-                ImageNode::new(image),
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: px(0),
-                    right: px(0),
-                    top: px(0),
-                    bottom: px(0),
-                    width: percent(100),
-                    height: percent(100),
-                    ..default()
-                },
-            ))
-            .id();
-        commands.entity(canvas).add_child(node);
-        rendered += 1;
-    }
-    if rendered == 0 {
-        bevy_presentation::spawn_muted_label(
-            commands,
-            fallback_parent,
-            fallback.unwrap_or("Portrait unavailable"),
-        );
-    }
-}
-
-pub(crate) fn portrait_slot_anchor(slot: &str, index: usize, total: usize) -> f32 {
-    match slot.to_ascii_lowercase().as_str() {
-        "headgear" => 7.0,
-        "hair" => 20.0,
-        "face" => 34.0,
-        "accessory" => 53.0,
-        "body" => 72.0,
-        _ if total > 0 => 8.0 + 78.0 * ((index as f32 + 0.5) / total as f32),
-        _ => 50.0,
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn render_character_portrait(
     commands: &mut Commands,
@@ -942,174 +880,35 @@ pub(crate) fn render_character_portrait(
         ))
         .id();
     commands.entity(panel).add_child(canvas);
-    populate_portrait_canvas(commands, canvas, panel, portrait, fallback, images, cache);
-}
 
-/// Renders a portrait with slot controls beside the matching body regions.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn render_character_appearance_viewer(
-    commands: &mut Commands,
-    parent: Entity,
-    name: &str,
-    detail: Option<&str>,
-    portrait: &CharacterPortraitView,
-    slot_controls: &[PortraitSlotControl],
-    selected: usize,
-    fallback: Option<&str>,
-    images: &mut Assets<Image>,
-    cache: &mut PortraitImageCache,
-) {
-    let panel = commands
-        .spawn((
-            Node {
-                width: percent(100),
-                height: percent(100),
-                min_width: px(0),
-                min_height: px(0),
-                flex_grow: 1.0,
-                flex_shrink: 1.0,
-                padding: UiRect::all(px(6)),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                row_gap: px(4),
-                ..default()
-            },
-            BackgroundColor(bevy_presentation::THEME_SURFACE),
-        ))
-        .id();
-    commands.entity(parent).add_child(panel);
-    bevy_presentation::spawn_label(commands, panel, name);
-    if let Some(detail) = detail.filter(|value| !value.trim().is_empty()) {
-        bevy_presentation::spawn_muted_label(commands, panel, detail);
-    }
-
-    let stage = commands
-        .spawn(Node {
-            width: percent(100),
-            min_width: px(0),
-            min_height: px(0),
-            flex_grow: 1.0,
-            flex_shrink: 1.0,
-            flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Stretch,
-            column_gap: px(4),
-            ..default()
-        })
-        .id();
-    commands.entity(panel).add_child(stage);
-
-    let artwork = commands
-        .spawn(Node {
-            width: percent(42),
-            height: percent(100),
-            min_width: px(0),
-            min_height: px(0),
-            flex_shrink: 1.0,
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            ..default()
-        })
-        .id();
-    commands.entity(stage).add_child(artwork);
-
-    let canvas = commands
-        .spawn((
-            Node {
-                width: Val::Auto,
-                height: percent(100),
-                max_width: percent(100),
-                max_height: px(320),
-                aspect_ratio: Some(2.0 / 3.0),
-                position_type: PositionType::Relative,
-                overflow: Overflow::clip(),
-                flex_shrink: 1.0,
-                ..default()
-            },
-            BackgroundColor(bevy_presentation::THEME_PANEL),
-            BorderColor::all(bevy_presentation::THEME_BORDER),
-        ))
-        .id();
-    commands.entity(artwork).add_child(canvas);
-    populate_portrait_canvas(commands, canvas, artwork, portrait, fallback, images, cache);
-
-    let controls = commands
-        .spawn(Node {
-            width: percent(58),
-            height: percent(100),
-            min_width: px(0),
-            min_height: px(0),
-            position_type: PositionType::Relative,
-            flex_shrink: 1.0,
-            ..default()
-        })
-        .id();
-    commands.entity(stage).add_child(controls);
-
-    for (index, control) in slot_controls.iter().enumerate() {
-        if control.part_count == 0 {
+    let mut rendered = 0usize;
+    for layer in ordered_portrait_layers(portrait) {
+        let Some(image) = load_portrait_layer_image(images, cache, layer) else {
             continue;
-        }
-        let row = commands
-            .spawn(Node {
-                position_type: PositionType::Absolute,
-                left: px(0),
-                right: px(0),
-                top: percent(portrait_slot_anchor(&control.name, index, slot_controls.len())),
-                height: bevy_presentation::touch_target_size(),
-                min_width: px(0),
-                flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceBetween,
-                column_gap: px(3),
-                ..default()
-            })
-            .id();
-        commands.entity(controls).add_child(row);
-
-        let previous =
-            bevy_presentation::spawn_icon_action_button(commands, row, control.previous_index, "back");
-        if selected == control.previous_index {
-            commands.entity(previous).insert(bevy_presentation::UiSelected);
-        }
-
-        let label = commands
+        };
+        let node = commands
             .spawn((
-                Text::new(format!(
-                    "{} {}/{}",
-                    control.name,
-                    control.selected_part + 1,
-                    control.part_count
-                )),
+                ImageNode::new(image),
                 Node {
-                    min_width: px(0),
-                    flex_grow: 1.0,
-                    flex_shrink: 1.0,
+                    position_type: PositionType::Absolute,
+                    left: px(0),
+                    right: px(0),
+                    top: px(0),
+                    bottom: px(0),
+                    width: percent(100),
+                    height: percent(100),
                     ..default()
                 },
-                TextLayout::new(Justify::Center, LineBreak::WordOrCharacter),
-                TextContent,
-                TextFont::from_font_size(bevy_presentation::muted_font_size()),
-                TextColor(bevy_presentation::THEME_TEXT),
             ))
             .id();
-        commands.entity(row).add_child(label);
-
-        let next = bevy_presentation::spawn_icon_action_button(
-            commands,
-            row,
-            control.next_index,
-            "continue",
-        );
-        if selected == control.next_index {
-            commands.entity(next).insert(bevy_presentation::UiSelected);
-        }
+        commands.entity(canvas).add_child(node);
+        rendered += 1;
     }
-
-    if slot_controls.iter().all(|control| control.part_count == 0) {
+    if rendered == 0 {
         bevy_presentation::spawn_muted_label(
             commands,
-            controls,
-            "No editable portrait slots are available.",
+            panel,
+            fallback.unwrap_or("Portrait unavailable"),
         );
     }
 }

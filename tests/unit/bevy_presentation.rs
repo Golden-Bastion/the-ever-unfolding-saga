@@ -321,6 +321,41 @@ fn compact_action_buttons_keep_touch_sized_bounds_without_filling_the_row() {
 }
 
 #[test]
+fn icon_action_buttons_use_the_shared_touch_and_semantic_activation_path() {
+    #[derive(Resource)]
+    struct Fixture(Entity);
+
+    fn setup(mut commands: Commands) {
+        let parent = commands.spawn_empty().id();
+        let button = spawn_icon_action_button(&mut commands, parent, 13, "back");
+        commands.insert_resource(Fixture(button));
+    }
+
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(setup);
+    schedule.run(&mut world);
+
+    let button = world.resource::<Fixture>().0;
+    assert!(world.get::<Button>(button).is_some());
+    assert!(world.get::<UiActionButton>(button).is_some());
+    assert!(world.get::<UiStyledButton>(button).is_some());
+    assert!(world.get::<UiStackedActionButton>(button).is_none());
+    assert_eq!(world.get::<ChoiceButton>(button).unwrap().index, 13);
+    assert_eq!(
+        world.get::<UiTouchTargetShape>(button),
+        Some(&UiTouchTargetShape::MinimumHeight)
+    );
+
+    let mut queue = Vec::new();
+    queue_choice_activation(&mut queue, world.get::<ChoiceButton>(button).unwrap().index);
+    assert_eq!(
+        queue,
+        vec![InputEvent::SetSelection(13), InputEvent::Confirm]
+    );
+}
+
+#[test]
 fn choice_activation_selects_the_exact_index_before_confirming() {
     let mut queue = Vec::new();
 

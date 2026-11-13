@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use bevy::prelude::*;
 
-use crate::bevy_interactions::{self, PortraitImageCache, PortraitSlotControl};
+use crate::bevy_interactions::{self, PortraitImageCache};
 use crate::bevy_lifecycle::LifecycleState;
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId,
@@ -30,8 +30,12 @@ use crate::spatial::{
 use crate::spatial_fixtures::load_spatial_fixture;
 use crate::spatial_fixtures::{list_spatial_fixtures, save_spatial_fixture, SpatialFixtureEntry};
 
-const CHARACTER_LAB_ACTIONS: &[(&str, &str)] = &[
-    ("display", "Toggle selected layer visibility"),
+const WORKSHOP_ACTIONS: &[(&str, &str)] = &[
+    ("back", "Previous part"),
+    ("continue", "Next part"),
+    ("back", "Previous slot"),
+    ("continue", "Next slot"),
+    ("display", "Toggle layer visibility"),
     ("choice", "Randomize combination"),
     ("cancel", "Reset combination"),
     ("back", "Back to Developer Tools"),
@@ -97,7 +101,7 @@ impl Default for WorldLabOptions {
 }
 
 #[derive(Debug, Clone)]
-struct CharacterLabSlot {
+struct WorkshopSlot {
     name: String,
     parts: Vec<CharacterPartContent>,
     selected_part: usize,
@@ -141,7 +145,7 @@ impl From<SpatialFixtureEntry> for WorldLabFixtureEntry {
 
 #[derive(Resource, Default)]
 struct DeveloperToolsState {
-    slots: Vec<CharacterLabSlot>,
+    slots: Vec<WorkshopSlot>,
     selected_slot: usize,
     seed: u64,
     load_warnings: Vec<String>,
@@ -178,7 +182,7 @@ fn initialize(mut state: ResMut<DeveloperToolsState>) {
     state.dirty = true;
 }
 
-fn build_slots(parts: Vec<CharacterPartContent>) -> Vec<CharacterLabSlot> {
+fn build_slots(parts: Vec<CharacterPartContent>) -> Vec<WorkshopSlot> {
     let mut grouped = BTreeMap::<String, Vec<CharacterPartContent>>::new();
     for part in parts {
         grouped.entry(part.slot.clone()).or_default().push(part);
@@ -192,7 +196,7 @@ fn build_slots(parts: Vec<CharacterPartContent>) -> Vec<CharacterLabSlot> {
                     .cmp(&right.id)
                     .then_with(|| left.asset.cmp(&right.asset))
             });
-            CharacterLabSlot {
+            WorkshopSlot {
                 name,
                 parts,
                 selected_part: 0,
@@ -202,7 +206,7 @@ fn build_slots(parts: Vec<CharacterPartContent>) -> Vec<CharacterLabSlot> {
         .collect()
 }
 
-fn build_preview_portrait(slots: &[CharacterLabSlot]) -> CharacterPortraitView {
+fn build_preview_portrait(slots: &[WorkshopSlot]) -> CharacterPortraitView {
     let mut layers = slots
         .iter()
         .filter(|slot| slot.visible)
@@ -248,26 +252,16 @@ fn cycle_index(current: usize, len: usize, direction: isize) -> usize {
     }
 }
 
-fn character_lab_control_target(selected: usize, slot_count: usize) -> Option<(usize, isize)> {
-    let control_count = slot_count.saturating_mul(2);
-    (selected < control_count).then(|| {
-        let control = selected / 2;
-        (control, if selected % 2 == 0 { -1 } else { 1 })
-    })
-}
-
-fn character_lab_action_count(slot_count: usize) -> usize {
-    slot_count
-        .saturating_mul(2)
-        .saturating_add(CHARACTER_LAB_ACTIONS.len())
-}
-
-fn cycle_slot_part(state: &mut DeveloperToolsState, slot_index: usize, direction: isize) {
-    let Some(slot) = state.slots.get_mut(slot_index) else {
+fn cycle_current_part(state: &mut DeveloperToolsState, direction: isize) {
+    let Some(slot) = state.slots.get_mut(state.selected_slot) else {
         return;
     };
-    state.selected_slot = slot_index;
     slot.selected_part = cycle_index(slot.selected_part, slot.parts.len(), direction);
+    state.dirty = true;
+}
+
+fn cycle_current_slot(state: &mut DeveloperToolsState, direction: isize) {
+    state.selected_slot = cycle_index(state.selected_slot, state.slots.len(), direction);
     state.dirty = true;
 }
 
@@ -1553,7 +1547,7 @@ fn is_developer_tool_screen(screen: ScreenId) -> bool {
     matches!(
         screen,
         ScreenId::DeveloperTools
-            | ScreenId::CharacterLab
+            | ScreenId::CharacterWorkshop
             | ScreenId::WorldLab
             | ScreenId::WorldLabEditor
             | ScreenId::WorldLabFixtures
@@ -1563,7 +1557,7 @@ fn is_developer_tool_screen(screen: ScreenId) -> bool {
 fn screen_action_count(screen: ScreenId, state: &DeveloperToolsState) -> usize {
     match screen {
         ScreenId::DeveloperTools => 3,
-        ScreenId::CharacterLab => character_lab_action_count(state.slots.len()),
+        ScreenId::CharacterWorkshop => WORKSHOP_ACTIONS.len(),
         ScreenId::WorldLab => WORLD_LAB_ACTIONS.len(),
         ScreenId::WorldLabEditor => WORLD_LAB_EDITOR_ACTIONS.len(),
         ScreenId::WorldLabFixtures => state.world_lab_fixtures.len() + 3,
@@ -1625,7 +1619,7 @@ fn developer_tools_input(
                 match screen {
                     ScreenId::DeveloperTools => match navigation.selected {
                         0 => {
-                            navigation.current_screen = Some(ScreenId::CharacterLab);
+                            navigation.current_screen = Some(ScreenId::CharacterWorkshop);
                             navigation.selected = 0;
                             state.dirty = true;
                         }
@@ -1652,30 +1646,26 @@ fn developer_tools_input(
                             return_to_start(&mut state, &mut lifecycle, &mut navigation);
                         }
                     },
-                    ScreenId::CharacterLab => {
-                        if let Some((slot_index, direction)) =
-                            character_lab_control_target(navigation.selected, state.slots.len())
-                        {
-                            cycle_slot_part(&mut state, slot_index, direction);
-                        } else {
-                            match navigation.selected - state.slots.len().saturating_mul(2) {
-                                0 => {
-                                    let selected_slot = state.selected_slot;
-                                    if let Some(slot) = state.slots.get_mut(selected_slot) {
-                                        slot.visible = !slot.visible;
-                                        state.dirty = true;
-                                    }
-                                }
-                                1 => randomize_combination(&mut state),
-                                2 => reset_combination(&mut state),
-                                3 => {
-                                    navigation.current_screen = Some(ScreenId::DeveloperTools);
-                                    navigation.selected = 0;
-                                    state.dirty = true;
-                                }
-                                _ => {}
+                    ScreenId::CharacterWorkshop => match navigation.selected {
+                        0 => cycle_current_part(&mut state, -1),
+                        1 => cycle_current_part(&mut state, 1),
+                        2 => cycle_current_slot(&mut state, -1),
+                        3 => cycle_current_slot(&mut state, 1),
+                        4 => {
+                            let selected_slot = state.selected_slot;
+                            if let Some(slot) = state.slots.get_mut(selected_slot) {
+                                slot.visible = !slot.visible;
+                                state.dirty = true;
                             }
                         }
+                        5 => randomize_combination(&mut state),
+                        6 => reset_combination(&mut state),
+                        7 => {
+                            navigation.current_screen = Some(ScreenId::DeveloperTools);
+                            navigation.selected = 0;
+                            state.dirty = true;
+                        }
+                        _ => {}
                     },
                     ScreenId::WorldLab => {
                         match navigation.selected {
@@ -1843,7 +1833,7 @@ fn developer_tools_input(
             }
             InputEvent::Cancel => {
                 match screen {
-                    ScreenId::CharacterLab => {
+                    ScreenId::CharacterWorkshop => {
                         navigation.current_screen = Some(ScreenId::DeveloperTools);
                         navigation.selected = 0;
                         state.dirty = true;
@@ -1890,7 +1880,7 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
         panel,
         0,
         "character",
-        "Character Lab",
+        "Character Workshop",
     );
     if navigation.selected == 0 {
         commands
@@ -1925,14 +1915,14 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_character_lab(
+fn render_character_workshop(
     commands: &mut Commands,
     navigation: &NavigationState,
     state: &DeveloperToolsState,
     images: &mut Assets<Image>,
     cache: &mut PortraitImageCache,
 ) {
-    let root = bevy_presentation::spawn_screen(commands, "CHARACTER LAB");
+    let root = bevy_presentation::spawn_screen(commands, "CHARACTER WORKSHOP");
     bevy_presentation::spawn_muted_label(
         commands,
         root,
@@ -1942,6 +1932,7 @@ fn render_character_lab(
     let workspace = commands
         .spawn(Node {
             width: percent(100),
+            height: percent(100),
             min_width: px(0),
             min_height: px(0),
             flex_grow: 1.0,
@@ -1959,38 +1950,12 @@ fn render_character_lab(
         state.seed,
         portrait.layers.len()
     );
-    let viewer = commands
-        .spawn(Node {
-            width: percent(50),
-            height: percent(100),
-            min_width: px(0),
-            min_height: px(0),
-            flex_grow: 1.0,
-            flex_shrink: 1.0,
-            ..default()
-        })
-        .id();
-    commands.entity(workspace).add_child(viewer);
-    let slot_controls = state
-        .slots
-        .iter()
-        .enumerate()
-        .map(|(index, slot)| PortraitSlotControl {
-            name: slot.name.clone(),
-            selected_part: slot.selected_part,
-            part_count: slot.parts.len(),
-            previous_index: index * 2,
-            next_index: index * 2 + 1,
-        })
-        .collect::<Vec<_>>();
-    bevy_interactions::render_character_appearance_viewer(
+    bevy_interactions::render_character_portrait(
         commands,
-        viewer,
+        workspace,
         "ASSEMBLED CHARACTER",
         Some(&detail),
         &portrait,
-        &slot_controls,
-        navigation.selected,
         Some("No portrait layers are selected."),
         images,
         cache,
@@ -1998,7 +1963,6 @@ fn render_character_lab(
 
     let controls = commands
         .spawn((
-            bevy_presentation::TouchScrollablePanel,
             Node {
                 width: percent(50),
                 height: percent(100),
@@ -2022,7 +1986,7 @@ fn render_character_lab(
     bevy_presentation::spawn_muted_label(
         commands,
         controls,
-        "Use the arrows beside each portrait layer to change its part. Visibility applies to the most recently selected layer.",
+        "Select a slot, cycle its parts, and toggle its visibility.",
     );
 
     if let Some(slot) = state.slots.get(state.selected_slot) {
@@ -2150,17 +2114,10 @@ fn render_character_lab(
         }
     }
 
-    let action_offset = state.slots.len().saturating_mul(2);
-    for (index, (icon, label)) in CHARACTER_LAB_ACTIONS.iter().enumerate() {
-        let action_index = action_offset + index;
-        let button = bevy_presentation::spawn_action_button(
-            commands,
-            controls,
-            action_index,
-            *icon,
-            *label,
-        );
-        if navigation.selected == action_index {
+    for (index, (icon, label)) in WORKSHOP_ACTIONS.iter().enumerate() {
+        let button =
+            bevy_presentation::spawn_action_button(commands, controls, index, *icon, *label);
+        if navigation.selected == index {
             commands
                 .entity(button)
                 .insert(bevy_presentation::UiSelected);
@@ -2598,8 +2555,8 @@ fn render_if_active(
     }
     match screen {
         ScreenId::DeveloperTools => render_hub(&mut commands, &navigation),
-        ScreenId::CharacterLab => {
-            render_character_lab(&mut commands, &navigation, &state, &mut images, &mut cache)
+        ScreenId::CharacterWorkshop => {
+            render_character_workshop(&mut commands, &navigation, &state, &mut images, &mut cache)
         }
         ScreenId::WorldLab => render_world_lab(&mut commands, &navigation, &state, &spatial),
         ScreenId::WorldLabEditor => {
