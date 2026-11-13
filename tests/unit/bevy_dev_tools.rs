@@ -500,6 +500,47 @@ fn character_lab_has_two_part_controls_per_slot_before_its_global_actions() {
 }
 
 #[test]
+fn cycling_a_character_lab_slot_part_also_selects_that_slot() {
+    fn part(id: &str, slot: &str) -> CharacterPartContent {
+        CharacterPartContent {
+            id: id.into(),
+            slot: slot.into(),
+            asset: format!("{id}.png"),
+            weight: 1,
+            layer: 1,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
+        }
+    }
+
+    let mut state = DeveloperToolsState {
+        slots: vec![
+            CharacterLabSlot {
+                name: "body".into(),
+                parts: vec![part("body.one", "body"), part("body.two", "body")],
+                selected_part: 0,
+                visible: true,
+            },
+            CharacterLabSlot {
+                name: "face".into(),
+                parts: vec![part("face.one", "face"), part("face.two", "face")],
+                selected_part: 0,
+                visible: true,
+            },
+        ],
+        selected_slot: 0,
+        ..default()
+    };
+
+    cycle_slot_part(&mut state, 1, -1);
+
+    assert_eq!(state.selected_slot, 1);
+    assert_eq!(state.slots[0].selected_part, 0);
+    assert_eq!(state.slots[1].selected_part, 1);
+    assert!(state.dirty);
+}
+
+#[test]
 fn developer_tools_screen_only_rebuilds_when_its_own_view_changes() {
     assert!(!developer_tools_screen_requires_render(
         Some(ScreenId::DeveloperTools),

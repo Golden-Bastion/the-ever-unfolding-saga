@@ -342,7 +342,9 @@ fn max_selection(lifecycle: &LifecycleState) -> usize {
     match lifecycle.phase {
         LifecyclePhase::Start => start_option_count(lifecycle).saturating_sub(1),
         LifecyclePhase::Load => lifecycle.save_files.len(),
-        LifecyclePhase::CreateCharacter => creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).1,
+        LifecyclePhase::CreateCharacter => {
+            creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).1
+        },
         LifecyclePhase::QuitConfirm => 1,
         LifecyclePhase::Death => 2,
         LifecyclePhase::Complete => 0,
@@ -351,7 +353,9 @@ fn max_selection(lifecycle: &LifecycleState) -> usize {
 
 fn min_selection(lifecycle: &LifecycleState) -> usize {
     match lifecycle.phase {
-        LifecyclePhase::CreateCharacter => creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).0,
+        LifecyclePhase::CreateCharacter => {
+            creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).0
+        },
         _ => 0,
     }
 }

@@ -1,7 +1,7 @@
 //! Start-screen developer tools and isolated visual experimentation sessions.
 //!
-//! The workshop reads the same merged campaign catalogue as gameplay and calls
-//! the dialogue portrait compositor, keeping preview output on the gameplay path.
+//! Character Lab reads the same merged campaign catalogue as gameplay and calls
+//! the shared portrait compositor, keeping preview output on the gameplay path.
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
