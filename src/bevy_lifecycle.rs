@@ -146,6 +146,9 @@ fn lifecycle_input(
                 let max = max_selection(&lifecycle);
                 set_selection(&mut lifecycle, &mut navigation, max);
             }
+            InputEvent::SetSelection(index) => {
+                set_selection(&mut lifecycle, &mut navigation, index);
+            }
             InputEvent::Tab if lifecycle.phase == LifecyclePhase::CreateCharacter => {
                 let next_tab = (lifecycle.creation_tab + 1) % 4;
                 input_focus.clear();
