@@ -415,24 +415,30 @@ fn appearance_button_activation_keeps_part_and_slot_actions_distinct() {
     select_creation_tab(&mut lifecycle, &mut navigation, 2);
 
     assert!(lifecycle.appearance_slots.len() > 1);
-    let first_slot_part_count = lifecycle.appearance_slots[0].parts.len();
-    assert!(first_slot_part_count > 1);
+    let part_slot = lifecycle
+        .appearance_slots
+        .iter()
+        .position(|slot| slot.parts.len() > 1)
+        .expect("the bundled appearance catalogue has at least one multi-part slot");
+    lifecycle.selected_appearance_slot = part_slot;
+    let part_count = lifecycle.appearance_slots[part_slot].parts.len();
 
     activate_button(&mut lifecycle, &mut navigation, 3);
-    assert_eq!(lifecycle.selected_appearance_slot, 0);
+    assert_eq!(lifecycle.selected_appearance_slot, part_slot);
     assert_eq!(
-        lifecycle.appearance_slots[0].selected_part,
-        first_slot_part_count - 1,
+        lifecycle.appearance_slots[part_slot].selected_part,
+        part_count - 1,
         "Previous part must wrap within the current slot"
     );
 
     activate_button(&mut lifecycle, &mut navigation, 4);
-    assert_eq!(lifecycle.selected_appearance_slot, 0);
+    assert_eq!(lifecycle.selected_appearance_slot, part_slot);
     assert_eq!(
-        lifecycle.appearance_slots[0].selected_part, 0,
+        lifecycle.appearance_slots[part_slot].selected_part, 0,
         "Next part must advance within the current slot"
     );
 
+    lifecycle.selected_appearance_slot = 0;
     activate_button(&mut lifecycle, &mut navigation, 5);
     assert_eq!(
         lifecycle.selected_appearance_slot,
