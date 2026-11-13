@@ -258,7 +258,11 @@ fn options_input(
                 options.selected = options_selection_end(&options);
                 options.pending_remove_id = None;
             }
-            InputEvent::SelectTab(tab) if tab < 3 => {
+            InputEvent::SetSelection(index) => {
+                options.selected = index.min(options_selection_end(&options));
+                options.pending_remove_id = None;
+            }
+            InputEvent::SelectTab(tab) if tab < 3 => {}
                 options.tab = tab;
                 options.selected = 0;
                 options.message = None;
