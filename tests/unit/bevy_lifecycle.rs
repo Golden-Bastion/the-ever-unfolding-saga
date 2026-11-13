@@ -454,3 +454,24 @@ fn appearance_buttons_change_the_part_for_the_slot_the_row_represents() {
         );
     }
 }
+
+#[test]
+fn creation_appearance_slots_follow_the_portrait_view_order() {
+    let parts = ["body", "face", "headgear", "accessory", "hair"]
+        .into_iter()
+        .map(|slot| crate::content::CharacterPartContent {
+            id: format!("{slot}.default"),
+            slot: slot.into(),
+            asset: format!("{slot}.png"),
+            weight: 1,
+            layer: 1,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
+        })
+        .collect();
+
+    let slots = creation_appearance_slots(parts);
+    let order = slots.iter().map(|slot| slot.name.as_str()).collect::<Vec<_>>();
+
+    assert_eq!(order, ["headgear", "hair", "face", "accessory", "body"]);
+}
