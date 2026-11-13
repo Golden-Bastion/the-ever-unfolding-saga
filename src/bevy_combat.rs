@@ -93,7 +93,7 @@ fn combat_input(
             InputEvent::SetSelection(index) => {
                 set_selection(&mut combat_state, &mut navigation, index);
             }
-            InputEvent::End => {}
+            InputEvent::End => {
                 let last = combat_state.action_count().saturating_sub(1);
                 set_selection(&mut combat_state, &mut navigation, last);
             }
