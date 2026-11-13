@@ -1008,6 +1008,7 @@ pub(crate) fn render_character_appearance_viewer(
             flex_direction: FlexDirection::Row,
             align_items: AlignItems::Stretch,
             column_gap: px(4),
+            max_height: px(320),
             ..default()
         })
         .id();
