@@ -266,6 +266,7 @@ fn console_input(
             }
             InputEvent::Character(_) => {}
             InputEvent::SelectTab(_) => {}
+            InputEvent::SetSelection(_) => {}
             InputEvent::OpenSecondaryNavigation | InputEvent::OpenDeveloperConsole => {}
         }
     }
