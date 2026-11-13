@@ -153,9 +153,13 @@ fn action_grouping_preserves_canvas_positioned_map_destinations() {
     assert!(canvas_children.contains(&fixture.absolute_stacked));
     assert!(!canvas_children.contains(&fixture.ordinary));
 
-    assert!(world.get::<UiManualActivation>(fixture.positioned).is_some());
+    assert!(world
+        .get::<UiManualActivation>(fixture.positioned)
+        .is_some());
     assert!(world.get::<UiWarmButton>(fixture.positioned).is_some());
-    assert!(world.get::<UiStackedActionButton>(fixture.positioned).is_none());
+    assert!(world
+        .get::<UiStackedActionButton>(fixture.positioned)
+        .is_none());
     assert_eq!(
         world.get::<Node>(fixture.positioned).unwrap().left,
         px(120.0)
