@@ -566,3 +566,24 @@ fn developer_tools_screen_only_rebuilds_when_its_own_view_changes() {
         false,
     ));
 }
+
+#[test]
+fn character_lab_slots_follow_the_portrait_view_order() {
+    let parts = ["body", "face", "headgear", "accessory", "hair"]
+        .into_iter()
+        .map(|slot| CharacterPartContent {
+            id: format!("{slot}.default"),
+            slot: slot.into(),
+            asset: format!("{slot}.png"),
+            weight: 1,
+            layer: 1,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
+        })
+        .collect();
+
+    let slots = build_slots(parts);
+    let order = slots.iter().map(|slot| slot.name.as_str()).collect::<Vec<_>>();
+
+    assert_eq!(order, ["headgear", "hair", "face", "accessory", "body"]);
+}
