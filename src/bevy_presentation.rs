@@ -1897,7 +1897,7 @@ pub(crate) fn queue_choice_activation(queue: &mut Vec<InputEvent>, index: usize)
 fn queue_button_activation(
     activation: On<Activate>,
     touches: Res<Touches>,
-    mut scroll_state: ResMut<TouchScrollState>,
+    scroll_state: ResMut<TouchScrollState>,
     manual_buttons: Query<(), With<UiManualActivation>>,
     mut activations: MessageWriter<UiButtonActivation>,
 ) {
