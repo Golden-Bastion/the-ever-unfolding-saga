@@ -240,6 +240,21 @@ fn move_selection(
     state.dirty = true;
 }
 
+fn set_selection(
+    state: &mut BevyInteractionState,
+    lifecycle: &LifecycleState,
+    navigation: &mut NavigationState,
+    selected: usize,
+) {
+    let count = selection_count(state, lifecycle);
+    if count == 0 {
+        return;
+    }
+    state.selected = selected.min(count - 1);
+    navigation.selected = state.selected;
+    state.dirty = true;
+}
+
 fn move_to_end(
     state: &mut BevyInteractionState,
     lifecycle: &LifecycleState,
@@ -293,6 +308,9 @@ fn interaction_input(
                 state.selected = 0;
                 navigation.selected = 0;
                 state.dirty = true;
+            }
+            InputEvent::SetSelection(index) => {
+                set_selection(&mut state, &lifecycle, &mut navigation, index);
             }
             InputEvent::End => move_to_end(&mut state, &lifecycle, &mut navigation),
             InputEvent::PageUp => move_selection(&mut state, &lifecycle, &mut navigation, -5),

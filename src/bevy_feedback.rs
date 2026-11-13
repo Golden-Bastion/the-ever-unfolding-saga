@@ -180,6 +180,7 @@ fn feedback_input(
             InputEvent::Down => move_level_selection(&mut feedback, 1),
             InputEvent::Home => set_level_selection(&mut feedback, 0),
             InputEvent::End => set_level_selection(&mut feedback, 2),
+            InputEvent::SetSelection(index) => set_level_selection(&mut feedback, index),
             InputEvent::Character('1') => {
                 choose_attribute(&mut lifecycle, &mut feedback, 0, &mut navigation)
             }

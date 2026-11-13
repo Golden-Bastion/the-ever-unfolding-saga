@@ -228,6 +228,13 @@ fn record_input(
                 records_state.selected = 0;
                 records_state.dirty = true;
             }
+            InputEvent::SetSelection(index) => {
+                let count = selection_count(&records_state, &lifecycle);
+                if count > 0 {
+                    records_state.selected = index.min(count - 1);
+                    records_state.dirty = true;
+                }
+            }
             InputEvent::End => move_to_end(&mut records_state, &lifecycle),
             InputEvent::PageUp => move_selection(&mut records_state, &lifecycle, -5),
             InputEvent::PageDown => move_selection(&mut records_state, &lifecycle, 5),
