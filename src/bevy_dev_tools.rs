@@ -1611,7 +1611,7 @@ fn developer_tools_input(
                 navigation.selected = index.min(count.saturating_sub(1));
                 state.dirty = true;
             }
-            InputEvent::End => {}
+            InputEvent::End => {
                 navigation.selected = count.saturating_sub(1);
                 state.dirty = true;
             }
