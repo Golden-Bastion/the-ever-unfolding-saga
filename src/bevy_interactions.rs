@@ -989,6 +989,7 @@ pub(crate) fn render_character_appearance_viewer(
             width: percent(100),
             min_width: px(0),
             min_height: px(0),
+            flex_basis: px(0),
             flex_grow: 1.0,
             flex_shrink: 1.0,
             flex_direction: FlexDirection::Row,
