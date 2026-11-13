@@ -414,7 +414,9 @@ fn creation_appearance_slots(parts: Vec<CharacterPartContent>) -> Vec<CreationAp
         .collect::<Vec<_>>();
     slots.sort_by(|left, right| {
         crate::bevy_interactions::portrait_slot_order_rank(&left.name)
-            .cmp(&crate::bevy_interactions::portrait_slot_order_rank(&right.name))
+            .cmp(&crate::bevy_interactions::portrait_slot_order_rank(
+                &right.name,
+            ))
             .then_with(|| left.name.cmp(&right.name))
     });
     slots

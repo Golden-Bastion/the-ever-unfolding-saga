@@ -583,7 +583,10 @@ fn character_lab_slots_follow_the_portrait_view_order() {
         .collect();
 
     let slots = build_slots(parts);
-    let order = slots.iter().map(|slot| slot.name.as_str()).collect::<Vec<_>>();
+    let order = slots
+        .iter()
+        .map(|slot| slot.name.as_str())
+        .collect::<Vec<_>>();
 
     assert_eq!(order, ["headgear", "hair", "face", "accessory", "body"]);
 }
