@@ -9,6 +9,7 @@ pub(crate) enum InputEvent {
     Down,
     Home,
     End,
+    SetSelection(usize),
     PageUp,
     PageDown,
     Confirm,
