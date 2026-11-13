@@ -1885,7 +1885,7 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
         "Visual development workspaces. No campaign or save is required.",
     );
 
-    let workshop = bevy_presentation::spawn_action_button(
+    let character_lab = bevy_presentation::spawn_action_button(
         commands,
         panel,
         0,
@@ -1894,7 +1894,7 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
     );
     if navigation.selected == 0 {
         commands
-            .entity(workshop)
+            .entity(character_lab)
             .insert(bevy_presentation::UiSelected);
     }
 
@@ -1944,6 +1944,7 @@ fn render_character_lab(
             width: percent(100),
             min_width: px(0),
             min_height: px(0),
+            flex_basis: px(0),
             flex_grow: 1.0,
             flex_shrink: 1.0,
             flex_direction: FlexDirection::Row,
