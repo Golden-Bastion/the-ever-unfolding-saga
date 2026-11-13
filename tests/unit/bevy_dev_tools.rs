@@ -26,10 +26,10 @@ fn slot_catalogue_groups_parts_and_keeps_a_stable_order() {
             .iter()
             .map(|slot| slot.name.as_str())
             .collect::<Vec<_>>(),
-        vec!["face", "hair"]
+        vec!["hair", "face"]
     );
     assert_eq!(
-        slots[1]
+        slots[0]
             .parts
             .iter()
             .map(|part| part.id.as_str())
@@ -56,7 +56,11 @@ fn preview_uses_visible_selected_parts_in_draw_order() {
         vec!["face", "hair", "body"]
     );
 
-    slots[0].visible = false;
+    slots
+        .iter_mut()
+        .find(|slot| slot.name == "body")
+        .expect("the body slot should exist")
+        .visible = false;
     let portrait = build_preview_portrait(&slots);
     assert_eq!(
         portrait
@@ -482,6 +486,68 @@ fn world_lab_actor_editor_moves_removes_and_reuses_a_real_entity() {
 }
 
 #[test]
+fn character_lab_has_two_part_controls_per_slot_before_its_global_actions() {
+    let slot_count = 5;
+
+    assert_eq!(character_lab_action_count(slot_count), 14);
+    for selected in 0..slot_count * 2 {
+        assert_eq!(
+            character_lab_control_target(selected, slot_count),
+            Some((selected / 2, if selected % 2 == 0 { -1 } else { 1 }))
+        );
+    }
+    assert_eq!(
+        character_lab_control_target(slot_count * 2, slot_count),
+        None
+    );
+    assert_eq!(
+        character_lab_control_target(slot_count * 2 + 3, slot_count),
+        None
+    );
+}
+
+#[test]
+fn cycling_a_character_lab_slot_part_also_selects_that_slot() {
+    fn part(id: &str, slot: &str) -> CharacterPartContent {
+        CharacterPartContent {
+            id: id.into(),
+            slot: slot.into(),
+            asset: format!("{id}.png"),
+            weight: 1,
+            layer: 1,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
+        }
+    }
+
+    let mut state = DeveloperToolsState {
+        slots: vec![
+            CharacterLabSlot {
+                name: "body".into(),
+                parts: vec![part("body.one", "body"), part("body.two", "body")],
+                selected_part: 0,
+                visible: true,
+            },
+            CharacterLabSlot {
+                name: "face".into(),
+                parts: vec![part("face.one", "face"), part("face.two", "face")],
+                selected_part: 0,
+                visible: true,
+            },
+        ],
+        selected_slot: 0,
+        ..default()
+    };
+
+    cycle_slot_part(&mut state, 1, -1);
+
+    assert_eq!(state.selected_slot, 1);
+    assert_eq!(state.slots[0].selected_part, 0);
+    assert_eq!(state.slots[1].selected_part, 1);
+    assert!(state.dirty);
+}
+
+#[test]
 fn developer_tools_screen_only_rebuilds_when_its_own_view_changes() {
     assert!(!developer_tools_screen_requires_render(
         Some(ScreenId::DeveloperTools),
@@ -503,4 +569,28 @@ fn developer_tools_screen_only_rebuilds_when_its_own_view_changes() {
         ScreenId::WorldLab,
         false,
     ));
+}
+
+#[test]
+fn character_lab_slots_follow_the_portrait_view_order() {
+    let parts = ["body", "face", "headgear", "accessory", "hair"]
+        .into_iter()
+        .map(|slot| CharacterPartContent {
+            id: format!("{slot}.default"),
+            slot: slot.into(),
+            asset: format!("{slot}.png"),
+            weight: 1,
+            layer: 1,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
+        })
+        .collect();
+
+    let slots = build_slots(parts);
+    let order = slots
+        .iter()
+        .map(|slot| slot.name.as_str())
+        .collect::<Vec<_>>();
+
+    assert_eq!(order, vec!["headgear", "hair", "face", "accessory", "body"]);
 }

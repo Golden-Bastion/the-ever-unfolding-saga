@@ -222,10 +222,11 @@ fn default_creation_values_match_legacy_flow() {
 
 #[test]
 fn creation_tabs_have_independent_selection_ranges() {
-    assert_eq!(creation_selection_bounds(0), (0, 0));
-    assert_eq!(creation_selection_bounds(1), (1, 2));
-    assert_eq!(creation_selection_bounds(2), (3, 6));
-    assert_eq!(creation_selection_bounds(3), (7, 7));
+    assert_eq!(creation_selection_bounds(0, 5), (0, 0));
+    assert_eq!(creation_selection_bounds(1, 5), (1, 2));
+    assert_eq!(creation_selection_bounds(2, 0), (3, 3));
+    assert_eq!(creation_selection_bounds(2, 2), (3, 6));
+    assert_eq!(creation_selection_bounds(3, 5), (7, 7));
     assert_eq!(creation_tab_for_field(0), 0);
     assert_eq!(creation_tab_for_field(1), 1);
     assert_eq!(creation_tab_for_field(2), 1);
@@ -336,17 +337,22 @@ fn creation_field_focus_is_explicit_and_stops_at_the_review_tab() {
 }
 
 #[test]
-fn appearance_creation_tab_cycles_parts_and_slots_and_persists_the_selection() {
-    assert_eq!(creation_selection_bounds(2), (3, 6));
-    assert_eq!(creation_selection_bounds(3), (7, 7));
+fn appearance_creation_uses_two_controls_per_slot_and_persists_the_selection() {
+    assert_eq!(creation_selection_bounds(2, 0), (3, 3));
+    assert_eq!(creation_selection_bounds(2, 5), (3, 12));
+    assert_eq!(creation_selection_bounds(3, 5), (7, 7));
 
     let mut lifecycle = LifecycleState::default();
     let mut navigation = NavigationState::default();
     lifecycle.start_new_game(&mut navigation);
-    assert!(!lifecycle.appearance_slots.is_empty());
+    let slot_count = lifecycle.appearance_slots.len();
+    assert!(slot_count > 0);
+    assert_eq!(
+        creation_selection_bounds(2, slot_count),
+        (3, 3 + slot_count * 2 - 1)
+    );
 
     select_creation_tab(&mut lifecycle, &mut navigation, 2);
-    let initial_slot = lifecycle.appearance_slots[0].name.clone();
     let initial_part = lifecycle.appearance_slots[0].parts[0].id.clone();
     let part_count = lifecycle.appearance_slots[0].parts.len();
     cycle_appearance_part(&mut lifecycle, 1);
@@ -357,15 +363,8 @@ fn appearance_creation_tab_cycles_parts_and_slots_and_persists_the_selection() {
         );
     }
 
-    cycle_appearance_slot(&mut lifecycle, 1);
-    if lifecycle.appearance_slots.len() > 1 {
-        assert_ne!(
-            lifecycle.appearance_slots[lifecycle.selected_appearance_slot].name,
-            initial_slot
-        );
-    }
     let selected = selected_appearance_part_ids(&lifecycle);
-    assert_eq!(selected.len(), lifecycle.appearance_slots.len());
+    assert_eq!(selected.len(), slot_count);
 
     select_creation_tab(&mut lifecycle, &mut navigation, 3);
     assert_eq!(lifecycle.selected, 7);
@@ -386,7 +385,7 @@ fn lifecycle_complete_action_reflects_pending_save_confirmation() {
 }
 
 #[test]
-fn appearance_button_activation_keeps_part_and_slot_actions_distinct() {
+fn appearance_buttons_change_the_part_for_the_slot_the_row_represents() {
     use crate::input::InputEvent;
 
     fn activate_button(
@@ -423,32 +422,60 @@ fn appearance_button_activation_keeps_part_and_slot_actions_distinct() {
     lifecycle.selected_appearance_slot = part_slot;
     let part_count = lifecycle.appearance_slots[part_slot].parts.len();
 
-    activate_button(&mut lifecycle, &mut navigation, 3);
+    let other_slot = (part_slot + 1) % lifecycle.appearance_slots.len();
+    let other_part_before = lifecycle.appearance_slots[other_slot].selected_part;
+
+    activate_button(&mut lifecycle, &mut navigation, 3 + part_slot * 2);
     assert_eq!(lifecycle.selected_appearance_slot, part_slot);
     assert_eq!(
         lifecycle.appearance_slots[part_slot].selected_part,
         part_count - 1,
-        "Previous part must wrap within the current slot"
+        "The left arrow must wrap to the previous part in its own slot"
+    );
+    assert_eq!(
+        lifecycle.appearance_slots[other_slot].selected_part, other_part_before,
+        "Changing one layer must not change another layer"
     );
 
-    activate_button(&mut lifecycle, &mut navigation, 4);
+    activate_button(&mut lifecycle, &mut navigation, 4 + part_slot * 2);
     assert_eq!(lifecycle.selected_appearance_slot, part_slot);
     assert_eq!(
         lifecycle.appearance_slots[part_slot].selected_part, 0,
-        "Next part must advance within the current slot"
+        "The right arrow must advance within the same slot"
     );
 
-    lifecycle.selected_appearance_slot = 0;
-    activate_button(&mut lifecycle, &mut navigation, 5);
-    assert_eq!(
-        lifecycle.selected_appearance_slot,
-        lifecycle.appearance_slots.len() - 1,
-        "Previous slot must change the slot without treating its index as a part index"
-    );
+    let other_count = lifecycle.appearance_slots[other_slot].parts.len();
+    activate_button(&mut lifecycle, &mut navigation, 3 + other_slot * 2);
+    assert_eq!(lifecycle.selected_appearance_slot, other_slot);
+    if other_count > 1 {
+        assert_eq!(
+            lifecycle.appearance_slots[other_slot].selected_part,
+            other_count - 1,
+            "The other slot must respond to its own left arrow"
+        );
+    }
+}
 
-    activate_button(&mut lifecycle, &mut navigation, 6);
-    assert_eq!(
-        lifecycle.selected_appearance_slot, 0,
-        "Next slot must return to the first slot"
-    );
+#[test]
+fn creation_appearance_slots_follow_the_portrait_view_order() {
+    let parts = ["body", "face", "headgear", "accessory", "hair"]
+        .into_iter()
+        .map(|slot| crate::content::CharacterPartContent {
+            id: format!("{slot}.default"),
+            slot: slot.into(),
+            asset: format!("{slot}.png"),
+            weight: 1,
+            layer: 1,
+            requires_tags: Vec::new(),
+            excludes_tags: Vec::new(),
+        })
+        .collect();
+
+    let slots = creation_appearance_slots(parts);
+    let order = slots
+        .iter()
+        .map(|slot| slot.name.as_str())
+        .collect::<Vec<_>>();
+
+    assert_eq!(order, vec!["headgear", "hair", "face", "accessory", "body"]);
 }

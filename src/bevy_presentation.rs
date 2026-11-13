@@ -387,7 +387,7 @@ impl NavigationState {
 pub enum ScreenId {
     Lifecycle,
     DeveloperTools,
-    CharacterWorkshop,
+    CharacterLab,
     WorldLab,
     WorldLabEditor,
     WorldLabFixtures,
@@ -1411,6 +1411,53 @@ pub fn spawn_action_button(
                         TextColor(THEME_TEXT),
                     ),
                 ],
+            )],
+        ))
+        .id();
+    commands.entity(parent).add_child(button);
+    button
+}
+
+/// Creates a compact, icon-only action button that participates in the shared
+/// ChoiceButton -> semantic-input pipeline without entering vertical menu grouping.
+pub(crate) fn spawn_icon_action_button(
+    commands: &mut Commands,
+    parent: Entity,
+    index: usize,
+    icon: impl Into<String>,
+) -> Entity {
+    let button = commands
+        .spawn((
+            Button,
+            Hovered::default(),
+            UiTouchTargetShape::MinimumHeight,
+            ChoiceButton { index },
+            UiActionButton,
+            UiStyledButton,
+            Node {
+                width: touch_target_size(),
+                height: touch_target_size(),
+                min_width: touch_target_size(),
+                min_height: touch_target_size(),
+                flex_shrink: 0.0,
+                padding: UiRect::all(px(3)),
+                border: UiRect::all(px(1)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BorderColor::all(THEME_BORDER),
+            BackgroundColor(THEME_SURFACE),
+            children![(
+                Node {
+                    width: px(22),
+                    height: px(22),
+                    min_width: px(22),
+                    min_height: px(22),
+                    flex_shrink: 0.0,
+                    ..default()
+                },
+                UiIconName(icon.into()),
             )],
         ))
         .id();

@@ -58,6 +58,18 @@ fn portrait_layers_are_composited_in_stable_draw_order() {
 }
 
 #[test]
+fn character_slot_controls_align_with_their_portrait_regions() {
+    assert_eq!(portrait_slot_anchor("headgear", 0, 5), 7.0);
+    assert_eq!(portrait_slot_anchor("hair", 1, 5), 20.0);
+    assert_eq!(portrait_slot_anchor("face", 2, 5), 34.0);
+    assert_eq!(portrait_slot_anchor("accessory", 3, 5), 53.0);
+    assert_eq!(portrait_slot_anchor("body", 4, 5), 72.0);
+    assert_eq!(portrait_slot_anchor("custom-layer", 0, 2), 27.5);
+    assert_eq!(portrait_slot_anchor("custom-layer", 1, 2), 66.5);
+    assert_eq!(portrait_slot_anchor("custom-layer", 0, 0), 50.0);
+}
+
+#[test]
 fn closing_spatial_dialogue_keeps_movement_suspended_during_transition() {
     let mut state = BevyInteractionState::default();
     let mut navigation = NavigationState::default();
