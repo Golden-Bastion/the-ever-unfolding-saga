@@ -20,7 +20,7 @@ The first version intentionally avoids representing geographical terrain. It vis
 - Choosing a fast-travelable map node is the fast-travel action; there is no separate destination-only Travel screen.
 - Physical passage use remains the normal travel path inside spatial gameplay. It continues to validate the immediate reciprocal connection and enters the destination's local map without invoking fast travel.
 
-Visibility is currently derived from `World.local_maps` and the current location. This is an interim discovery rule, not the final definition of cartography or fog of war.
+Visibility and visit eligibility primarily use `World.local_maps`: establishing a persistent local map records a durable visit. For saves created before that persistence existed, the map also recognizes retained travel-history entries written by the active character or a recorded predecessor in the same inheritance line. This compatibility fallback can only recover visits still present in the bounded history; once an old travel entry has been trimmed, it cannot reconstruct that visit. New visits continue to be recorded through persistent local maps. This is an interim discovery rule, not the final definition of cartography or fog of war.
 
 ## Presentation-only layout contract
 
@@ -29,6 +29,8 @@ The graph layout is computed when the map is rendered. A breadth-first traversal
 The world model must not receive temporary x/y coordinates, route bends, visual grouping offsets, map zoom, or other renderer-specific layout state. The renderer consumes stable location identities, region identities/names, exploration flags, fast-travel eligibility, and route endpoints. It must never make a displayed line authoritative for travel.
 
 This boundary allows the interim graph layout to be discarded or replaced without migrating saves or changing the authoritative travel model.
+
+The graph is presented inside a clipped two-dimensional viewport. Its pan and zoom are transient presentation state held by the Bevy viewport controller; they are not written to campaign data or saves. Map destination buttons are canvas-positioned controls, not members of the shared vertically stacked menu-action group; the group organizer must leave absolute-positioned controls under their owning canvas. Previously visited fast-travel destinations use the map's warm accent treatment at rest and retain hover, pressed, and selected feedback. Opening the map starts at the base zoom centered on the current location. **Fit** frames the complete currently displayed graph, and **Reset** restores the opening view. Android supports one-finger drag-to-pan and two-finger pinch-to-zoom. Desktop supports pointer drag-to-pan and mouse-wheel zoom centered on the cursor. Destination nodes use release-based manual activation: a press must begin on a destination and finish as a tap over that same node. Dragging or pinching cancels destination activation, even when the gesture ends over the original node. The toolbar and surrounding map information stay outside the transformed canvas so they remain at normal UI scale. When the viewport changes size, pan bounds and the reset position are recalculated without changing graph layout or world data.
 
 ## Intended final direction
 

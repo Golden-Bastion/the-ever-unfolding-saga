@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{self, GameplayInputQueue, NavigationState, ScreenId};
+use crate::bevy_world_map_viewport;
 use crate::game::{actions, world_map};
 use crate::input::InputEvent;
 use crate::presentation::WorldMapView;
@@ -661,7 +662,6 @@ pub(crate) fn render_spatial_world_map_overlay(
     let surface = commands
         .spawn((
             bevy_presentation::UiSurface,
-            bevy_presentation::TouchScrollablePanel,
             Node {
                 width: percent(92),
                 min_width: px(280),
@@ -697,7 +697,7 @@ fn render_world_map_content(
         bevy_presentation::spawn_muted_label(
             commands,
             panel,
-            format!("CURRENT REGION  ·  {}", current.region_name),
+            format!("CURRENT REGION  |  {}", current.region_name),
         );
         bevy_presentation::spawn_label(commands, panel, current.name.clone());
     } else {
@@ -710,7 +710,7 @@ fn render_world_map_content(
     bevy_presentation::spawn_muted_label(
         commands,
         panel,
-        "Select a previously visited place to fast-travel. Unexplored places must be reached in the world.",
+        "Visited places have a warm border. Fast travel needs a known route; unexplored places must be reached in the world.",
     );
     if let Some(message) = message {
         bevy_presentation::spawn_muted_label(commands, panel, message);
@@ -746,40 +746,30 @@ fn render_world_map_graph(
     selected: usize,
 ) {
     let layout = build_world_map_layout(view);
-    let viewport_height = layout.height.clamp(300.0, 460.0);
-    let viewport = commands
-        .spawn((
-            bevy_presentation::TouchScrollablePanel,
-            Node {
-                width: percent(100),
-                min_width: px(0),
-                height: px(viewport_height),
-                max_height: px(460.0),
-                padding: UiRect::all(px(6)),
-                overflow: Overflow::scroll(),
-                border: UiRect::all(px(1)),
-                ..default()
-            },
-            BorderColor::all(bevy_presentation::THEME_BORDER),
-            BackgroundColor(bevy_presentation::THEME_PANEL),
-        ))
-        .id();
-    commands.entity(parent).add_child(viewport);
+    bevy_world_map_viewport::spawn_world_map_view_controls(commands, parent);
 
-    let canvas = commands
-        .spawn((
-            Node {
-                width: px(layout.width),
-                height: px(layout.height),
-                min_width: px(layout.width),
-                position_type: PositionType::Relative,
-                flex_shrink: 0.0,
-                ..default()
-            },
-            BackgroundColor(bevy_presentation::THEME_PANEL),
-        ))
-        .id();
-    commands.entity(viewport).add_child(canvas);
+    let current_location_center = layout
+        .nodes
+        .iter()
+        .find(|placement| {
+            view.current_location
+                .as_ref()
+                .is_some_and(|current| current.id == placement.location_id)
+        })
+        .map(|placement| {
+            Vec2::new(
+                placement.left + WORLD_MAP_NODE_WIDTH * 0.5,
+                placement.top + WORLD_MAP_NODE_HEIGHT * 0.5,
+            )
+        })
+        .unwrap_or_else(|| Vec2::new(layout.width * 0.5, layout.height * 0.5));
+
+    let canvas = bevy_world_map_viewport::spawn_world_map_viewport(
+        commands,
+        parent,
+        Vec2::new(layout.width, layout.height),
+        current_location_center,
+    );
 
     let placement_by_id = layout
         .nodes
@@ -895,10 +885,10 @@ fn render_world_map_graph(
                 "route steps"
             };
             let detail = format!(
-                "{}  ·  FAST TRAVEL  ·  {} {}",
+                "{} | FAST TRAVEL | {} {}",
                 node.location.region_name, steps, route_label
             );
-            let button = bevy_presentation::spawn_action_button_with_detail(
+            let button = bevy_presentation::spawn_positioned_action_button_with_detail(
                 commands,
                 canvas,
                 index,
@@ -907,6 +897,9 @@ fn render_world_map_graph(
                 detail,
             );
             commands.entity(button).insert((
+                bevy_world_map_viewport::WorldMapMapNode,
+                bevy_presentation::UiWarmButton,
+                bevy_presentation::UiManualActivation,
                 Node {
                     width: px(WORLD_MAP_NODE_WIDTH),
                     height: px(WORLD_MAP_NODE_HEIGHT),
@@ -939,15 +932,15 @@ fn render_world_map_graph(
             )
         } else if node.explored {
             (
-                bevy_presentation::THEME_BORDER,
+                bevy_presentation::THEME_ACCENT,
                 bevy_presentation::THEME_SURFACE,
-                "KNOWN · NO FAST-TRAVEL ROUTE",
+                "VISITED | NO ROUTE",
             )
         } else {
             (
                 bevy_presentation::THEME_BORDER,
                 bevy_presentation::THEME_SURFACE_STRONG,
-                "UNEXPLORED · REACH IN THE WORLD",
+                "UNEXPLORED",
             )
         };
         let card = commands
@@ -973,7 +966,7 @@ fn render_world_map_graph(
         bevy_presentation::spawn_muted_label(commands, card, node.location.region_name.clone());
         bevy_presentation::spawn_label(commands, card, node.location.name.clone());
         let detail = if node.location.dangerous {
-            format!("{status}  ·  DANGEROUS")
+            format!("{status} | DANGER")
         } else {
             status.to_string()
         };

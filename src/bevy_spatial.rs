@@ -1038,7 +1038,7 @@ fn map_mark_discovered(state: &mut SpatialExplorationState, position: Vec2) -> V
         return Vec::new();
     };
 
-    // Reveal the same 5×5 local tile area that is brightened by the exploration view.
+    // Reveal the same 5x5 local tile area that is brightened by the exploration view.
     let center = GridPosition {
         x: position.x.floor().max(0.0) as u16,
         y: position.y.floor().max(0.0) as u16,
@@ -2026,7 +2026,7 @@ fn render_spatial_screen(
             &mut commands,
             vitals,
             format!(
-                "SANDBOX · {} × {} · SEED {}",
+                "SANDBOX | {} x {} | SEED {}",
                 map.width, map.height, map.seed
             ),
         );

@@ -13,7 +13,7 @@ use bevy_picking::events::PointerRelease;
 use crate::{
     bevy_combat, bevy_console, bevy_dev_tools, bevy_feedback, bevy_gameplay, bevy_interactions,
     bevy_lifecycle, bevy_navigation_bridge, bevy_options, bevy_presentation, bevy_records,
-    bevy_runtime, bevy_spatial, bevy_touch, ui_settings,
+    bevy_runtime, bevy_spatial, bevy_touch, bevy_world_map_viewport, ui_settings,
 };
 
 const WINDOW_TITLE: &str = "The Ever-Unfolding Saga";
@@ -44,6 +44,7 @@ pub fn run() {
     bevy_runtime::install(&mut app);
     bevy_lifecycle::install(&mut app);
     bevy_gameplay::install(&mut app);
+    bevy_world_map_viewport::install(&mut app);
     bevy_spatial::install(&mut app);
     bevy_combat::install(&mut app);
     bevy_console::install(&mut app);

@@ -63,6 +63,155 @@ fn standalone_labels_retain_intrinsic_height() {
     assert_eq!(node.flex_shrink, 0.0);
 }
 
+#[derive(Resource)]
+struct ButtonGroupingFixture {
+    canvas: Entity,
+    positioned: Entity,
+    absolute_stacked: Entity,
+    ordinary: Entity,
+}
+
+fn spawn_button_grouping_fixture(mut commands: Commands) {
+    let canvas = commands.spawn_empty().id();
+
+    let positioned = spawn_positioned_action_button_with_detail(
+        &mut commands,
+        canvas,
+        0,
+        "travel",
+        "Old Shrine",
+        "FAST TRAVEL | 1 route step",
+    );
+    commands.entity(positioned).insert((
+        UiManualActivation,
+        UiWarmButton,
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(120.0),
+            top: px(84.0),
+            width: px(204.0),
+            height: px(84.0),
+            ..default()
+        },
+    ));
+
+    // The layout organizer must also protect absolute buttons created through
+    // the generic helper, in case a caller assigns absolute positioning later.
+    let absolute_stacked = spawn_action_button_with_detail(
+        &mut commands,
+        canvas,
+        1,
+        "travel",
+        "Cinder Hamlet",
+        "FAST TRAVEL | 1 route step",
+    );
+    commands.entity(absolute_stacked).insert((
+        UiManualActivation,
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(428.0),
+            top: px(84.0),
+            width: px(204.0),
+            height: px(84.0),
+            ..default()
+        },
+    ));
+
+    let ordinary = spawn_action_button_with_detail(
+        &mut commands,
+        canvas,
+        2,
+        "character",
+        "Ordinary menu action",
+        "This belongs in the vertical action group",
+    );
+
+    commands.insert_resource(ButtonGroupingFixture {
+        canvas,
+        positioned,
+        absolute_stacked,
+        ordinary,
+    });
+}
+
+#[test]
+fn action_grouping_preserves_canvas_positioned_map_destinations() {
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems((spawn_button_grouping_fixture, organize_action_button_groups).chain());
+    schedule.run(&mut world);
+    world.flush();
+
+    let fixture = world.resource::<ButtonGroupingFixture>();
+    let canvas_children = world
+        .get::<Children>(fixture.canvas)
+        .expect("the canvas should retain its children")
+        .iter()
+        .collect::<Vec<_>>();
+
+    assert!(canvas_children.contains(&fixture.positioned));
+    assert!(canvas_children.contains(&fixture.absolute_stacked));
+    assert!(!canvas_children.contains(&fixture.ordinary));
+
+    assert!(world
+        .get::<UiManualActivation>(fixture.positioned)
+        .is_some());
+    assert!(world.get::<UiWarmButton>(fixture.positioned).is_some());
+    assert!(world
+        .get::<UiStackedActionButton>(fixture.positioned)
+        .is_none());
+    assert_eq!(
+        world.get::<Node>(fixture.positioned).unwrap().left,
+        px(120.0)
+    );
+
+    // An absolute node is never pulled into the menu group, even if it carries
+    // the legacy stacked-button marker.
+    assert!(world
+        .get::<UiStackedActionButton>(fixture.absolute_stacked)
+        .is_some());
+    assert_eq!(
+        world.get::<Node>(fixture.absolute_stacked).unwrap().left,
+        px(428.0)
+    );
+
+    let groups = canvas_children
+        .iter()
+        .filter(|entity| world.get::<UiActionButtonGroup>(**entity).is_some())
+        .copied()
+        .collect::<Vec<_>>();
+    assert_eq!(groups.len(), 1);
+    assert!(world
+        .get::<Children>(groups[0])
+        .unwrap()
+        .iter()
+        .any(|entity| entity == fixture.ordinary));
+}
+
+#[test]
+fn warm_map_buttons_have_a_visible_resting_state_and_distinct_interaction_feedback() {
+    assert_eq!(
+        button_visual_colors(false, false, false, true),
+        (THEME_ACCENT, THEME_SELECTED)
+    );
+    assert_eq!(
+        button_visual_colors(false, true, false, true),
+        (THEME_ACCENT, THEME_HOVER)
+    );
+    assert_eq!(
+        button_visual_colors(true, true, false, true),
+        (THEME_ACCENT, THEME_PRESSED)
+    );
+    assert_eq!(
+        button_visual_colors(false, false, true, true),
+        (THEME_ACCENT, THEME_HOVER)
+    );
+    assert_eq!(
+        button_visual_colors(false, false, false, false),
+        (THEME_BORDER, THEME_SURFACE)
+    );
+}
+
 #[test]
 fn action_groups_are_bottom_left_and_width_capped() {
     let node = action_button_group_node();

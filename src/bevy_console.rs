@@ -318,7 +318,7 @@ fn render(commands: &mut Commands, view: &ConsoleView) {
             bevy_presentation::spawn_label(
                 commands,
                 panel,
-                format!("{marker} {} — {}", candidate.value, candidate.hint),
+                format!("{marker} {} - {}", candidate.value, candidate.hint),
             );
         }
     }

@@ -33,24 +33,61 @@ pub(crate) fn has_reciprocal_location_connection(state: &GameState, target_id: E
         && target_location.exits.contains(&current_location.id)
 }
 
-fn is_known_location(state: &GameState, location_id: EntityId) -> bool {
+/// Whether the campaign has established this location as visited.
+///
+/// Persistent local maps are authoritative. For saves made before local maps
+/// were persisted in the world, recover visited destinations from the retained
+/// travel history of the current character and its recorded predecessors.
+pub(crate) fn has_visited_location(state: &GameState, location_id: EntityId) -> bool {
     let stable_id = format!("location.{location_id}");
-    state
+    if state
         .world
         .local_maps
         .iter()
         .any(|map| map.location_id == stable_id)
+    {
+        return true;
+    }
+
+    let Some(location) = state.world.location_by_id(location_id) else {
+        return false;
+    };
+    let mut traveler_names = HashSet::from([state.character.display_name()]);
+    for entry in &state.world.history {
+        if entry.entry_type != HistoryEntryType::Narrative {
+            continue;
+        }
+        if let Some(name) = entry
+            .text
+            .strip_suffix(" entered the world.")
+            .or_else(|| entry.text.strip_suffix(" inherited the world."))
+        {
+            if !name.is_empty() {
+                traveler_names.insert(name.to_string());
+            }
+        }
+    }
+
+    let travel_suffix = format!(" traveled to {}.", location.name);
+    state.world.history.iter().any(|entry| {
+        entry.entry_type == HistoryEntryType::Narrative
+            && entry
+                .text
+                .strip_suffix(&travel_suffix)
+                .is_some_and(|traveler| traveler_names.contains(traveler))
+    })
 }
 
 /// Find a shortest route to a previously visited location using only reciprocal
-/// connections between locations whose local maps have already been established.
+/// connections between visited locations. Persistent local maps are authoritative;
+/// retained character-lineage travel history supports saves predating map persistence.
 /// The returned IDs are ordered hops and exclude the current location.
 pub(crate) fn find_known_travel_path(
     state: &GameState,
     target_id: EntityId,
 ) -> Option<Vec<EntityId>> {
     let start_id = state.character.location_id;
-    if target_id == start_id || !is_known_location(state, target_id) {
+    if target_id == start_id || !has_visited_location(state, target_id) {
         return None;
     }
 
@@ -66,7 +103,7 @@ pub(crate) fn find_known_travel_path(
 
         for next_id in exits {
             if visited.contains(&next_id)
-                || !is_known_location(state, next_id)
+                || !has_visited_location(state, next_id)
                 || !state
                     .world
                     .location_by_id(next_id)

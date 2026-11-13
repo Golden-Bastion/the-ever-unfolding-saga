@@ -163,6 +163,92 @@ fn unvisited_frontier_locations_are_visible_but_not_fast_travel_targets() {
 }
 
 #[test]
+fn retained_travel_history_recovers_legacy_visited_locations() {
+    let mut state = test_state();
+    state
+        .world
+        .record_history(3, "Tester the Wanderer traveled to Old Shrine.");
+
+    let view = build_view(&state);
+    let old_shrine = view
+        .nodes
+        .iter()
+        .find(|node| node.location.id == 11)
+        .expect("the visited location should be visible");
+
+    assert!(old_shrine.explored);
+    assert_eq!(
+        view.fast_travel_destinations
+            .iter()
+            .map(|destination| destination.location.id)
+            .collect::<Vec<_>>(),
+        vec![11]
+    );
+    assert!(view.nodes.iter().any(|node| node.location.id == 13));
+}
+
+#[test]
+fn retained_travel_history_recovers_visits_across_multiple_inheritance_generations() {
+    let mut state = test_state();
+    state.world.history.clear();
+    state
+        .world
+        .record_history(0, "First Heir the Wanderer entered the world.");
+    state
+        .world
+        .record_history(3, "First Heir the Wanderer traveled to Old Shrine.");
+    state
+        .world
+        .record_history(10, "Second Heir the Warden inherited the world.");
+    state
+        .world
+        .record_history(15, "Second Heir the Warden traveled to Sunken Watch.");
+    state
+        .world
+        .record_history(20, "Tester the Wanderer inherited the world.");
+
+    let view = build_view(&state);
+    let old_shrine = view
+        .nodes
+        .iter()
+        .find(|node| node.location.id == 11)
+        .expect("the first-generation visit should remain visible");
+    let sunken_watch = view
+        .nodes
+        .iter()
+        .find(|node| node.location.id == 13)
+        .expect("the second-generation visit should remain visible");
+
+    assert!(old_shrine.explored);
+    assert!(sunken_watch.explored);
+    assert_eq!(
+        view.fast_travel_destinations
+            .iter()
+            .map(|destination| (destination.location.id, destination.route_steps))
+            .collect::<Vec<_>>(),
+        vec![(11, 1), (13, 2)]
+    );
+}
+
+#[test]
+fn unrelated_travel_history_does_not_mark_a_location_as_visited() {
+    let mut state = test_state();
+    state
+        .world
+        .record_history(3, "A band of hunters traveled to Old Shrine.");
+
+    let view = build_view(&state);
+    let old_shrine = view
+        .nodes
+        .iter()
+        .find(|node| node.location.id == 11)
+        .expect("the frontier location should remain visible");
+
+    assert!(!old_shrine.explored);
+    assert!(view.fast_travel_destinations.is_empty());
+}
+
+#[test]
 fn map_routes_are_derived_only_from_established_graph_edges() {
     let mut state = test_state();
     state.world.local_maps.push(explored_map(11));

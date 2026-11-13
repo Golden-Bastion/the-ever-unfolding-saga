@@ -80,6 +80,17 @@ pub struct UiContextMessage;
 #[derive(Component)]
 pub struct UiStyledButton;
 
+/// Keeps map destinations visually distinct from ordinary menu actions while
+/// preserving standard pointer and selection feedback.
+#[derive(Component)]
+pub(crate) struct UiWarmButton;
+
+/// Marks a button whose activation is resolved by a custom gesture controller.
+/// The normal Bevy UI activation observer ignores these buttons; the owner must
+/// emit UiButtonActivation after it has distinguished a tap from a drag gesture.
+#[derive(Component)]
+pub(crate) struct UiManualActivation;
+
 #[derive(Component)]
 pub struct UiSelected;
 
@@ -1415,90 +1426,115 @@ pub fn spawn_action_button_with_detail(
     label: impl Into<String>,
     detail: impl Into<String>,
 ) -> Entity {
+    spawn_action_button_with_detail_layout(commands, parent, index, icon, label, detail, true)
+}
+
+/// Creates a detail button whose position is owned by its containing canvas.
+/// It is not enrolled in the shared vertical action-button group.
+pub(crate) fn spawn_positioned_action_button_with_detail(
+    commands: &mut Commands,
+    parent: Entity,
+    index: usize,
+    icon: impl Into<String>,
+    label: impl Into<String>,
+    detail: impl Into<String>,
+) -> Entity {
+    spawn_action_button_with_detail_layout(commands, parent, index, icon, label, detail, false)
+}
+
+fn spawn_action_button_with_detail_layout(
+    commands: &mut Commands,
+    parent: Entity,
+    index: usize,
+    icon: impl Into<String>,
+    label: impl Into<String>,
+    detail: impl Into<String>,
+    stacked: bool,
+) -> Entity {
     let label = label.into();
     let detail = detail.into();
-    let button = commands
-        .spawn((
-            Button,
-            Hovered::default(),
-            UiTouchTargetShape::MinimumHeight,
-            ChoiceButton { index },
-            UiActionButton,
-            UiStackedActionButton,
-            UiStyledButton,
-            action_button_node(),
-            BorderColor::all(THEME_BORDER),
-            BackgroundColor(THEME_SURFACE),
-            children![(
-                Node {
-                    width: percent(100),
-                    min_width: px(0),
-                    max_width: percent(100),
-                    flex_direction: FlexDirection::Row,
-                    column_gap: responsive_compact_gap(),
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                children![
-                    (
-                        Node {
-                            width: px(22),
-                            height: px(22),
-                            min_width: px(22),
-                            min_height: px(22),
-                            flex_shrink: 0.0,
-                            ..default()
-                        },
-                        UiIconName(icon.into()),
-                    ),
-                    (
-                        Node {
-                            width: percent(100),
-                            min_width: px(0),
-                            max_width: percent(100),
-                            flex_grow: 1.0,
-                            flex_shrink: 1.0,
-                            flex_direction: FlexDirection::Column,
-                            row_gap: px(2),
-                            ..default()
-                        },
-                        children![
-                            (
-                                Text::new(label),
-                                Node {
-                                    width: percent(100),
-                                    min_width: px(0),
-                                    max_width: percent(100),
-                                    ..default()
-                                },
-                                TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
-                                TextContent,
-                                TextFont::from_font_size(label_font_size()),
-                                TextColor(THEME_TEXT),
-                            ),
-                            (
-                                Text::new(detail),
-                                Node {
-                                    width: percent(100),
-                                    min_width: px(0),
-                                    max_width: percent(100),
-                                    ..default()
-                                },
-                                TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
-                                TextContent,
-                                TextFont::from_font_size(muted_font_size()),
-                                TextColor(THEME_MUTED),
-                            ),
-                        ],
-                    ),
-                ],
-            )],
-        ))
-        .id();
+    let mut button = commands.spawn((
+        Button,
+        Hovered::default(),
+        UiTouchTargetShape::MinimumHeight,
+        ChoiceButton { index },
+        UiActionButton,
+        UiStyledButton,
+        action_button_node(),
+        BorderColor::all(THEME_BORDER),
+        BackgroundColor(THEME_SURFACE),
+        children![(
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                max_width: percent(100),
+                flex_direction: FlexDirection::Row,
+                column_gap: responsive_compact_gap(),
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            children![
+                (
+                    Node {
+                        width: px(22),
+                        height: px(22),
+                        min_width: px(22),
+                        min_height: px(22),
+                        flex_shrink: 0.0,
+                        ..default()
+                    },
+                    UiIconName(icon.into()),
+                ),
+                (
+                    Node {
+                        width: percent(100),
+                        min_width: px(0),
+                        max_width: percent(100),
+                        flex_grow: 1.0,
+                        flex_shrink: 1.0,
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(2),
+                        ..default()
+                    },
+                    children![
+                        (
+                            Text::new(label),
+                            Node {
+                                width: percent(100),
+                                min_width: px(0),
+                                max_width: percent(100),
+                                ..default()
+                            },
+                            TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
+                            TextContent,
+                            TextFont::from_font_size(label_font_size()),
+                            TextColor(THEME_TEXT),
+                        ),
+                        (
+                            Text::new(detail),
+                            Node {
+                                width: percent(100),
+                                min_width: px(0),
+                                max_width: percent(100),
+                                ..default()
+                            },
+                            TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
+                            TextContent,
+                            TextFont::from_font_size(muted_font_size()),
+                            TextColor(THEME_MUTED),
+                        ),
+                    ],
+                ),
+            ],
+        )],
+    ));
+    if stacked {
+        button.insert(UiStackedActionButton);
+    }
+    let button = button.id();
     commands.entity(parent).add_child(button);
     button
 }
-
 pub fn spawn_menu_button(
     commands: &mut Commands,
     parent: Entity,
@@ -1669,6 +1705,31 @@ fn sync_ui_health_gauges(
     }
 }
 
+fn button_visual_colors(
+    pressed: bool,
+    hovered: bool,
+    selected: bool,
+    warm: bool,
+) -> (Color, Color) {
+    if warm {
+        if pressed {
+            (THEME_ACCENT, THEME_PRESSED)
+        } else if hovered || selected {
+            (THEME_ACCENT, THEME_HOVER)
+        } else {
+            (THEME_ACCENT, THEME_SELECTED)
+        }
+    } else if pressed {
+        (THEME_ACCENT, THEME_PRESSED)
+    } else if hovered {
+        (THEME_ACCENT, THEME_HOVER)
+    } else if selected {
+        (THEME_ACCENT, THEME_SELECTED)
+    } else {
+        (THEME_BORDER, THEME_SURFACE)
+    }
+}
+
 #[allow(clippy::type_complexity)] // ECS query combines widget state and visual components.
 fn sync_ui_button_visuals(
     mut buttons: Query<
@@ -1676,22 +1737,16 @@ fn sync_ui_button_visuals(
             &Hovered,
             Has<Pressed>,
             Option<&UiSelected>,
+            Has<UiWarmButton>,
             &mut BorderColor,
             &mut BackgroundColor,
         ),
         With<UiStyledButton>,
     >,
 ) {
-    for (hovered, pressed, selected, mut border, mut background) in &mut buttons {
-        let (border_color, background_color) = if pressed {
-            (THEME_ACCENT, THEME_PRESSED)
-        } else if hovered.get() {
-            (THEME_ACCENT, THEME_HOVER)
-        } else if selected.is_some() {
-            (THEME_ACCENT, THEME_SELECTED)
-        } else {
-            (THEME_BORDER, THEME_SURFACE)
-        };
+    for (hovered, pressed, selected, warm, mut border, mut background) in &mut buttons {
+        let (border_color, background_color) =
+            button_visual_colors(pressed, hovered.get(), selected.is_some(), warm);
         border.set_all(border_color);
         *background = BackgroundColor(background_color);
     }
@@ -1891,11 +1946,13 @@ pub(crate) fn queue_choice_activation(queue: &mut Vec<InputEvent>, index: usize)
 fn queue_button_activation(
     activation: On<Activate>,
     touches: Res<Touches>,
-    scroll_state: Res<TouchScrollState>,
+    scroll_state: ResMut<TouchScrollState>,
+    manual_buttons: Query<(), With<UiManualActivation>>,
     mut activations: MessageWriter<UiButtonActivation>,
 ) {
     let button = activation.event_target();
-    if scroll_state.should_suppress_activation(button, &touches) {
+    if manual_buttons.contains(button) || scroll_state.should_suppress_activation(button, &touches)
+    {
         return;
     }
     activations.write(UiButtonActivation(button));
@@ -1979,7 +2036,7 @@ fn contextual_touch_input(
 fn organize_action_button_groups(
     mut commands: Commands,
     parents: Query<(Entity, &Children, Option<&UiActionButtonGroup>)>,
-    action_buttons: Query<(), With<UiStackedActionButton>>,
+    action_buttons: Query<&Node, With<UiStackedActionButton>>,
     action_groups: Query<(), With<UiActionButtonGroup>>,
 ) {
     for (parent, children, is_action_group) in &parents {
@@ -1989,7 +2046,11 @@ fn organize_action_button_groups(
 
         let buttons = children
             .iter()
-            .filter(|entity| action_buttons.contains(*entity))
+            .filter(|entity| {
+                action_buttons
+                    .get(*entity)
+                    .is_ok_and(|node| !matches!(node.position_type, PositionType::Absolute))
+            })
             .collect::<Vec<_>>();
         if buttons.is_empty() {
             continue;

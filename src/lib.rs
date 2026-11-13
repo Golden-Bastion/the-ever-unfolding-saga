@@ -14,6 +14,7 @@ mod bevy_records;
 mod bevy_runtime;
 mod bevy_spatial;
 mod bevy_touch;
+mod bevy_world_map_viewport;
 mod character_appearance;
 mod content;
 #[cfg(not(target_os = "android"))]

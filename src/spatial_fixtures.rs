@@ -40,7 +40,7 @@ pub fn save_spatial_fixture(directory: &Path, name: &str, map: &LocalMap) -> io:
     validate_local_map(map).map_err(invalid_data)?;
     let display_name = name.trim();
     if display_name.is_empty() || display_name.chars().count() > 80 {
-        return Err(invalid_input("fixture name must contain 1–80 characters"));
+        return Err(invalid_input("fixture name must contain 1-80 characters"));
     }
 
     let file_stem = fixture_file_stem(display_name);
@@ -152,7 +152,7 @@ pub fn list_spatial_fixtures(directories: &[&Path]) -> io::Result<Vec<SpatialFix
                 path,
                 name: fixture.name,
                 details: format!(
-                    "{} × {} · seed {} · {} props · {} discoveries · {} passages · {} actor placements",
+                    "{} x {} | seed {} | {} props | {} discoveries | {} passages | {} actor placements",
                     fixture.map.width,
                     fixture.map.height,
                     fixture.map.seed,
@@ -197,7 +197,7 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
         || !(MIN_MAP_DIMENSION..=MAX_MAP_DIMENSION).contains(&map.height)
     {
         return Err(format!(
-            "map dimensions {} × {} are outside the supported 8–128 range",
+            "map dimensions {} x {} are outside the supported 8-128 range",
             map.width, map.height
         ));
     }
@@ -205,7 +205,7 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
     let tile_count = usize::from(map.width) * usize::from(map.height);
     if map.terrain.len() != tile_count {
         return Err(format!(
-            "terrain has {} cells; {} × {} requires {tile_count}",
+            "terrain has {} cells; {} x {} requires {tile_count}",
             map.terrain.len(),
             map.width,
             map.height
