@@ -432,8 +432,7 @@ fn appearance_buttons_change_the_part_for_the_slot_the_row_represents() {
         "The left arrow must wrap to the previous part in its own slot"
     );
     assert_eq!(
-        lifecycle.appearance_slots[other_slot].selected_part,
-        other_part_before,
+        lifecycle.appearance_slots[other_slot].selected_part, other_part_before,
         "Changing one layer must not change another layer"
     );
 

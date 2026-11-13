@@ -1676,7 +1676,7 @@ fn developer_tools_input(
                                 _ => {}
                             }
                         }
-                    },
+                    }
                     ScreenId::WorldLab => {
                         match navigation.selected {
                             0 => {
@@ -1885,13 +1885,8 @@ fn render_hub(commands: &mut Commands, navigation: &NavigationState) {
         "Visual development workspaces. No campaign or save is required.",
     );
 
-    let character_lab = bevy_presentation::spawn_action_button(
-        commands,
-        panel,
-        0,
-        "character",
-        "Character Lab",
-    );
+    let character_lab =
+        bevy_presentation::spawn_action_button(commands, panel, 0, "character", "Character Lab");
     if navigation.selected == 0 {
         commands
             .entity(character_lab)
@@ -2159,13 +2154,8 @@ fn render_character_lab(
     let action_offset = state.slots.len().saturating_mul(2);
     for (index, (icon, label)) in CHARACTER_LAB_ACTIONS.iter().enumerate() {
         let action_index = action_offset + index;
-        let button = bevy_presentation::spawn_action_button(
-            commands,
-            controls,
-            action_index,
-            *icon,
-            *label,
-        );
+        let button =
+            bevy_presentation::spawn_action_button(commands, controls, action_index, *icon, *label);
         if navigation.selected == action_index {
             commands
                 .entity(button)

@@ -489,14 +489,17 @@ fn character_lab_has_two_part_controls_per_slot_before_its_global_actions() {
     for selected in 0..slot_count * 2 {
         assert_eq!(
             character_lab_control_target(selected, slot_count),
-            Some((
-                selected / 2,
-                if selected % 2 == 0 { -1 } else { 1 }
-            ))
+            Some((selected / 2, if selected % 2 == 0 { -1 } else { 1 }))
         );
     }
-    assert_eq!(character_lab_control_target(slot_count * 2, slot_count), None);
-    assert_eq!(character_lab_control_target(slot_count * 2 + 3, slot_count), None);
+    assert_eq!(
+        character_lab_control_target(slot_count * 2, slot_count),
+        None
+    );
+    assert_eq!(
+        character_lab_control_target(slot_count * 2 + 3, slot_count),
+        None
+    );
 }
 
 #[test]

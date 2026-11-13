@@ -1056,7 +1056,11 @@ pub(crate) fn render_character_appearance_viewer(
                 position_type: PositionType::Absolute,
                 left: px(0),
                 right: px(0),
-                top: percent(portrait_slot_anchor(&control.name, index, slot_controls.len())),
+                top: percent(portrait_slot_anchor(
+                    &control.name,
+                    index,
+                    slot_controls.len(),
+                )),
                 height: bevy_presentation::touch_target_size(),
                 min_width: px(0),
                 flex_direction: FlexDirection::Row,
@@ -1075,7 +1079,9 @@ pub(crate) fn render_character_appearance_viewer(
             "back",
         );
         if selected == control.previous_index {
-            commands.entity(previous).insert(bevy_presentation::UiSelected);
+            commands
+                .entity(previous)
+                .insert(bevy_presentation::UiSelected);
         }
 
         let label = commands
