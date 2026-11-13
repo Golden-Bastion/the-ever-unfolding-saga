@@ -249,7 +249,9 @@ fn world_map_viewport_input(
         return;
     };
 
-    let viewport_size = viewport_node.content_size * viewport_node.inverse_scale_factor();
+    // Use the visible viewport bounds, not its content extent. The map canvas
+    // is absolutely positioned and does not contribute to normal content size.
+    let viewport_size = viewport_node.size * viewport_node.inverse_scale_factor();
     let canvas_size = canvas.size;
     if viewport_size.min_element() <= 0.0 || canvas_size.min_element() <= 0.0 {
         return;
