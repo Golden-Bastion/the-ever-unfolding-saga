@@ -126,7 +126,7 @@ fn gameplay_input(
             InputEvent::SetSelection(index) => {
                 set_selection(&mut gameplay, &mut navigation_state, index, &lifecycle);
             }
-            InputEvent::End => {}
+            InputEvent::End => {
                 move_selection_to_end(&mut gameplay, &mut navigation_state, &lifecycle)
             }
             InputEvent::Cancel | InputEvent::Backspace => match gameplay.screen {
