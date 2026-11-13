@@ -476,5 +476,5 @@ fn creation_appearance_slots_follow_the_portrait_view_order() {
         .map(|slot| slot.name.as_str())
         .collect::<Vec<_>>();
 
-    assert_eq!(order, ["headgear", "hair", "face", "accessory", "body"]);
+    assert_eq!(order, vec!["headgear", "hair", "face", "accessory", "body"]);
 }
