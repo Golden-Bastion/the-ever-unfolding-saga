@@ -2522,6 +2522,14 @@ fn render_world_lab_fixtures(
     }
 }
 
+fn developer_tools_screen_requires_render(
+    rendered_screen: Option<ScreenId>,
+    active_screen: ScreenId,
+    dirty: bool,
+) -> bool {
+    rendered_screen != Some(active_screen) || dirty
+}
+
 fn render_if_active(
     mut commands: Commands,
     navigation: Res<NavigationState>,
@@ -2538,7 +2546,7 @@ fn render_if_active(
         state.rendered_screen = None;
         return;
     };
-    if state.rendered_screen == Some(screen) && !state.dirty && !spatial.is_changed() {
+    if !developer_tools_screen_requires_render(state.rendered_screen, screen, state.dirty) {
         return;
     }
 
