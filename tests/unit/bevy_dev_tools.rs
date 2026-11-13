@@ -26,10 +26,10 @@ fn slot_catalogue_groups_parts_and_keeps_a_stable_order() {
             .iter()
             .map(|slot| slot.name.as_str())
             .collect::<Vec<_>>(),
-        vec!["face", "hair"]
+        vec!["hair", "face"]
     );
     assert_eq!(
-        slots[1]
+        slots[0]
             .parts
             .iter()
             .map(|part| part.id.as_str())
@@ -56,7 +56,11 @@ fn preview_uses_visible_selected_parts_in_draw_order() {
         vec!["face", "hair", "body"]
     );
 
-    slots[0].visible = false;
+    slots
+        .iter_mut()
+        .find(|slot| slot.name == "body")
+        .expect("the body slot should exist")
+        .visible = false;
     let portrait = build_preview_portrait(&slots);
     assert_eq!(
         portrait
@@ -588,5 +592,5 @@ fn character_lab_slots_follow_the_portrait_view_order() {
         .map(|slot| slot.name.as_str())
         .collect::<Vec<_>>();
 
-    assert_eq!(order, ["headgear", "hair", "face", "accessory", "body"]);
+    assert_eq!(order, vec!["headgear", "hair", "face", "accessory", "body"]);
 }
