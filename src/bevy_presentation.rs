@@ -1933,13 +1933,11 @@ fn keyboard_to_semantic_input(
     }
 }
 
-// Reproduce keyboard navigation for pointer/touch activation so every choice
-// uses the same selection and confirmation path.
+// Pointer/touch activation selects the exact button index before confirming.
+// Replaying Home + Down is incorrect for screens whose selectable range starts
+// above zero (for example, the Appearance tab in character creation).
 pub(crate) fn queue_choice_activation(queue: &mut Vec<InputEvent>, index: usize) {
-    queue.push(InputEvent::Home);
-    for _ in 0..index {
-        queue.push(InputEvent::Down);
-    }
+    queue.push(InputEvent::SetSelection(index));
     queue.push(InputEvent::Confirm);
 }
 
