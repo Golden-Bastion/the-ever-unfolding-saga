@@ -1,8 +1,9 @@
 //! Renderer-neutral world-map view derived from established locations and routes.
 //!
 //! The interim map deliberately contains no geography or persistent layout data.
-//! Its visible graph is based on locations whose local maps have been established,
-//! plus their immediate exits. Presentation code arranges these stable identities.
+//! Its visible graph is based on locations with persistent local maps, plus legacy
+//! visits recoverable from retained character-lineage travel history and their exits.
+//! Presentation code arranges these stable identities.
 
 use std::collections::{HashMap, HashSet};
 
