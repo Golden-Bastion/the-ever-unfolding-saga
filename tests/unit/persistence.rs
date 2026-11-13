@@ -138,7 +138,7 @@ fn save_list_metadata_exposes_character_world_and_format_details() {
     assert_eq!(metadata.mod_dependency_count, 1);
     assert_eq!(
         metadata.details_line(),
-        "Level 4 · The Cinder March · Day 12 · Format v3 · 1 mod"
+        "Level 4 | The Cinder March | Day 12 | Format v3 | 1 mod"
     );
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }
@@ -156,7 +156,7 @@ fn save_metadata_details_line_pluralizes_multiple_mod_dependencies() {
 
     assert_eq!(
         metadata.details_line(),
-        "Level 1 · The Cinder March · Day 1 · Format v3 · 2 mods"
+        "Level 1 | The Cinder March | Day 1 | Format v3 | 2 mods"
     );
 }
 
