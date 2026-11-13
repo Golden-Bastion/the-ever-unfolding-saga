@@ -9,6 +9,7 @@ use bevy::ui::UiTransform;
 use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, PresentationTransition, ScreenId,
+    TextContent,
 };
 use crate::bevy_spatial::{SpatialInteractionRequest, SpatialSceneRoot};
 use crate::game::{interactions, legacy};
