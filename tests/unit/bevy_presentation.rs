@@ -321,19 +321,14 @@ fn compact_action_buttons_keep_touch_sized_bounds_without_filling_the_row() {
 }
 
 #[test]
-fn choice_activation_uses_home_down_confirm_sequence() {
+fn choice_activation_selects_the_exact_index_before_confirming() {
     let mut queue = Vec::new();
 
-    queue_choice_activation(&mut queue, 2);
+    queue_choice_activation(&mut queue, 5);
 
     assert_eq!(
         queue,
-        vec![
-            InputEvent::Home,
-            InputEvent::Down,
-            InputEvent::Down,
-            InputEvent::Confirm
-        ]
+        vec![InputEvent::SetSelection(5), InputEvent::Confirm]
     );
 }
 
