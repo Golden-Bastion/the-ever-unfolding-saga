@@ -401,7 +401,7 @@ fn creation_appearance_slots(parts: Vec<CharacterPartContent>) -> Vec<CreationAp
     }) {
         grouped.entry(part.slot.clone()).or_default().push(part);
     }
-    grouped
+    let mut slots = grouped
         .into_iter()
         .map(|(name, mut parts)| {
             parts.sort_by(|left, right| left.id.cmp(&right.id));
@@ -411,7 +411,13 @@ fn creation_appearance_slots(parts: Vec<CharacterPartContent>) -> Vec<CreationAp
                 selected_part: 0,
             }
         })
-        .collect()
+        .collect::<Vec<_>>();
+    slots.sort_by(|left, right| {
+        crate::bevy_interactions::portrait_slot_order_rank(&left.name)
+            .cmp(&crate::bevy_interactions::portrait_slot_order_rank(&right.name))
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    slots
 }
 
 fn cycle_appearance_part(lifecycle: &mut LifecycleState, direction: isize) {
