@@ -260,7 +260,7 @@ fn character_lab_control_target(selected: usize, slot_count: usize) -> Option<(u
     let control_count = slot_count.saturating_mul(2);
     (selected < control_count).then(|| {
         let control = selected / 2;
-        (control, if selected % 2 == 0 { -1 } else { 1 })
+        (control, if selected.is_multiple_of(2) { -1 } else { 1 })
     })
 }
 
