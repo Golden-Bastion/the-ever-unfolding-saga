@@ -878,6 +878,19 @@ fn populate_portrait_canvas(
     }
 }
 
+/// Gives the portrait slots a stable top-to-bottom navigation order.
+/// Unknown mod-defined slots follow the built-in body regions alphabetically.
+pub(crate) fn portrait_slot_order_rank(slot: &str) -> u8 {
+    match slot.to_ascii_lowercase().as_str() {
+        "headgear" => 0,
+        "hair" => 1,
+        "face" => 2,
+        "accessory" => 3,
+        "body" => 4,
+        _ => 5,
+    }
+}
+
 pub(crate) fn portrait_slot_anchor(slot: &str, index: usize, total: usize) -> f32 {
     match slot.to_ascii_lowercase().as_str() {
         "headgear" => 7.0,
@@ -1087,7 +1100,7 @@ pub(crate) fn render_character_appearance_viewer(
         let label = commands
             .spawn((
                 Text::new(format!(
-                    "{} {}/{} · {}",
+                    "{} {}/{} | {}",
                     control.name,
                     control.selected_part + 1,
                     control.part_count,
