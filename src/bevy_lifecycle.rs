@@ -4,7 +4,7 @@
 //! validation, inheritance, and save-path rules remain in the existing model,
 //! persistence, and game modules.
 
-use crate::bevy_interactions::{self, PortraitImageCache};
+use crate::bevy_interactions::{self, PortraitImageCache, PortraitSlotControl};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, LifecycleTextField, NavigationState, ScreenId, SemanticInputQueue,
 };
@@ -342,7 +342,7 @@ fn max_selection(lifecycle: &LifecycleState) -> usize {
     match lifecycle.phase {
         LifecyclePhase::Start => start_option_count(lifecycle).saturating_sub(1),
         LifecyclePhase::Load => lifecycle.save_files.len(),
-        LifecyclePhase::CreateCharacter => creation_selection_bounds(lifecycle.creation_tab).1,
+        LifecyclePhase::CreateCharacter => creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).1,
         LifecyclePhase::QuitConfirm => 1,
         LifecyclePhase::Death => 2,
         LifecyclePhase::Complete => 0,
@@ -351,16 +351,19 @@ fn max_selection(lifecycle: &LifecycleState) -> usize {
 
 fn min_selection(lifecycle: &LifecycleState) -> usize {
     match lifecycle.phase {
-        LifecyclePhase::CreateCharacter => creation_selection_bounds(lifecycle.creation_tab).0,
+        LifecyclePhase::CreateCharacter => creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).0,
         _ => 0,
     }
 }
 
-fn creation_selection_bounds(tab: usize) -> (usize, usize) {
+fn creation_selection_bounds(tab: usize, appearance_slot_count: usize) -> (usize, usize) {
     match tab {
         0 => (0, 0),
         1 => (1, 2),
-        2 => (3, 6),
+        2 => {
+            let control_count = appearance_slot_count.saturating_mul(2);
+            (3, 3 + control_count.saturating_sub(1))
+        }
         _ => (7, 7),
     }
 }
@@ -382,7 +385,7 @@ fn select_creation_tab(
         return;
     }
     lifecycle.creation_tab = tab;
-    lifecycle.selected = creation_selection_bounds(tab).0;
+    lifecycle.selected = creation_selection_bounds(tab, lifecycle.appearance_slots.len()).0;
     navigation.selected = lifecycle.selected;
     lifecycle.dirty = true;
 }
@@ -419,16 +422,6 @@ fn cycle_appearance_part(lifecycle: &mut LifecycleState, direction: isize) {
     }
     slot.selected_part =
         (slot.selected_part as isize + direction).rem_euclid(slot.parts.len() as isize) as usize;
-    lifecycle.dirty = true;
-}
-
-fn cycle_appearance_slot(lifecycle: &mut LifecycleState, direction: isize) {
-    if lifecycle.appearance_slots.is_empty() {
-        return;
-    }
-    lifecycle.selected_appearance_slot = (lifecycle.selected_appearance_slot as isize + direction)
-        .rem_euclid(lifecycle.appearance_slots.len() as isize)
-        as usize;
     lifecycle.dirty = true;
 }
 
@@ -589,10 +582,15 @@ fn activate_selection(
             (0, 0) => select_creation_tab(lifecycle, navigation, 1),
             (1, 1) => set_selection(lifecycle, navigation, 2),
             (1, 2) => select_creation_tab(lifecycle, navigation, 2),
-            (2, 3) => cycle_appearance_part(lifecycle, -1),
-            (2, 4) => cycle_appearance_part(lifecycle, 1),
-            (2, 5) => cycle_appearance_slot(lifecycle, -1),
-            (2, 6) => cycle_appearance_slot(lifecycle, 1),
+            (2, selection)
+                if (3..3 + lifecycle.appearance_slots.len().saturating_mul(2))
+                    .contains(&selection) =>
+            {
+                let control = selection - 3;
+                let slot_index = control / 2;
+                lifecycle.selected_appearance_slot = slot_index;
+                cycle_appearance_part(lifecycle, if control % 2 == 0 { -1 } else { 1 });
+            }
             (3, 7) => lifecycle.create_character(),
             _ => {}
         },
@@ -1163,6 +1161,7 @@ fn render_creation_content(
                     width: percent(100),
                     height: px(270),
                     min_height: px(240),
+                    min_width: px(0),
                     flex_direction: FlexDirection::Row,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
@@ -1177,70 +1176,30 @@ fn render_creation_content(
                 lifecycle.effective_character_name(),
                 lifecycle.effective_character_title()
             );
-            bevy_interactions::render_character_portrait(
+            let slot_controls = lifecycle
+                .appearance_slots
+                .iter()
+                .enumerate()
+                .map(|(index, slot)| PortraitSlotControl {
+                    name: slot.name.clone(),
+                    selected_part: slot.selected_part,
+                    part_count: slot.parts.len(),
+                    previous_index: 3 + index * 2,
+                    next_index: 4 + index * 2,
+                })
+                .collect::<Vec<_>>();
+            bevy_interactions::render_character_appearance_viewer(
                 commands,
                 preview,
                 &character_name,
                 Some("PLAYER CHARACTER"),
                 &portrait,
+                &slot_controls,
+                lifecycle.selected,
                 Some("No compatible portrait parts are available."),
                 images,
                 portrait_images,
             );
-
-            if let Some(slot) = lifecycle
-                .appearance_slots
-                .get(lifecycle.selected_appearance_slot)
-            {
-                bevy_presentation::spawn_label(
-                    commands,
-                    content,
-                    format!(
-                        "SLOT {}/{}: {}",
-                        lifecycle.selected_appearance_slot + 1,
-                        lifecycle.appearance_slots.len(),
-                        slot.name
-                    ),
-                );
-                if let Some(part) = slot.parts.get(slot.selected_part) {
-                    bevy_presentation::spawn_label(
-                        commands,
-                        content,
-                        format!(
-                            "PART {}/{}: {}",
-                            slot.selected_part + 1,
-                            slot.parts.len(),
-                            part.id
-                        ),
-                    );
-                }
-            } else {
-                bevy_presentation::spawn_muted_label(
-                    commands,
-                    content,
-                    "No compatible portrait parts are available in the loaded content or mods.",
-                );
-            }
-
-            for (index, (icon, label)) in [
-                ("back", "Previous part"),
-                ("continue", "Next part"),
-                ("back", "Previous slot"),
-                ("continue", "Next slot"),
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                let selection = index + 3;
-                let button = bevy_presentation::spawn_action_button(
-                    commands, content, selection, icon, label,
-                );
-                if lifecycle.selected == selection {
-                    commands
-                        .entity(button)
-                        .insert(bevy_presentation::UiSelected);
-                }
-            }
         }
         3 => {
             bevy_presentation::spawn_label(commands, content, "WORLD");
