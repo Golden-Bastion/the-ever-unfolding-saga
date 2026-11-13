@@ -222,10 +222,11 @@ fn default_creation_values_match_legacy_flow() {
 
 #[test]
 fn creation_tabs_have_independent_selection_ranges() {
-    assert_eq!(creation_selection_bounds(0), (0, 0));
-    assert_eq!(creation_selection_bounds(1), (1, 2));
-    assert_eq!(creation_selection_bounds(2), (3, 6));
-    assert_eq!(creation_selection_bounds(3), (7, 7));
+    assert_eq!(creation_selection_bounds(0, 5), (0, 0));
+    assert_eq!(creation_selection_bounds(1, 5), (1, 2));
+    assert_eq!(creation_selection_bounds(2, 0), (3, 3));
+    assert_eq!(creation_selection_bounds(2, 2), (3, 6));
+    assert_eq!(creation_selection_bounds(3, 5), (7, 7));
     assert_eq!(creation_tab_for_field(0), 0);
     assert_eq!(creation_tab_for_field(1), 1);
     assert_eq!(creation_tab_for_field(2), 1);
