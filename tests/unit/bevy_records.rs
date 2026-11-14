@@ -131,3 +131,90 @@ fn character_detail_and_journal_editor_back_paths_keep_spatial_parent() {
         assert_eq!(navigation.return_screen, None);
     }
 }
+
+
+#[derive(Resource, Clone, Copy)]
+struct RecordDetailShellFixture {
+    root: Entity,
+    content: Entity,
+}
+
+fn spawn_record_detail_shell_fixture(mut commands: Commands) {
+    let (root, content) =
+        spawn_record_detail_shell(&mut commands, RecordScreen::InventoryDetail);
+    bevy_presentation::spawn_label(&mut commands, content, "Initial detail content");
+    commands.insert_resource(RecordDetailShellFixture { root, content });
+}
+
+fn clear_record_detail_content(
+    mut commands: Commands,
+    hosts: Query<Entity, With<RecordDetailContentHost>>,
+    children: Query<&Children>,
+) {
+    for host in &hosts {
+        bevy_presentation::clear_content_host(&mut commands, host, &children);
+    }
+}
+
+#[test]
+fn record_detail_content_refresh_preserves_root_and_scroll_panel_state() {
+    let mut world = World::new();
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_record_detail_shell_fixture);
+    setup.run(&mut world);
+    world.flush();
+
+    let fixture = *world.resource::<RecordDetailShellFixture>();
+    assert!(world.get::<BevyScreenRoot>(fixture.root).is_some());
+    assert_eq!(
+        world
+            .get::<RecordDetailScreen>(fixture.root)
+            .map(|detail| detail.screen),
+        Some(RecordScreen::InventoryDetail)
+    );
+    assert!(world
+        .get::<RecordDetailContentHost>(fixture.content)
+        .is_some());
+    assert!(world
+        .get::<bevy_presentation::TouchScrollablePanel>(fixture.content)
+        .is_some());
+    world
+        .entity_mut(fixture.content)
+        .insert(bevy::ui::ScrollPosition(Vec2::new(0.0, 116.0)));
+
+    let mut clear = Schedule::default();
+    clear.add_systems(clear_record_detail_content);
+    clear.run(&mut world);
+    world.flush();
+
+    assert!(world.get::<RecordDetailScreen>(fixture.root).is_some());
+    assert!(world
+        .get::<RecordDetailContentHost>(fixture.content)
+        .is_some());
+    assert_eq!(
+        world
+            .get::<bevy::ui::ScrollPosition>(fixture.content)
+            .unwrap()
+            .0,
+        Vec2::new(0.0, 116.0)
+    );
+    assert!(world
+        .get::<Children>(fixture.content)
+        .is_none_or(|children| children.is_empty()));
+}
+
+#[test]
+fn record_detail_screens_keep_distinct_screen_titles() {
+    assert_eq!(record_detail_title(RecordScreen::InventoryDetail), "INVENTORY | ITEM");
+    assert_eq!(record_detail_title(RecordScreen::QuestDetail), "QUEST | DETAILS");
+    assert_eq!(record_detail_title(RecordScreen::Meditation), "MEDITATION");
+    assert_eq!(
+        record_detail_title(RecordScreen::MeditationResult),
+        "MEDITATION | COMPLETE"
+    );
+    assert_eq!(
+        record_detail_title(RecordScreen::ChronicleDetail),
+        "JOURNAL | CHRONICLE"
+    );
+    assert_eq!(record_detail_title(RecordScreen::JournalEntry), "WRITE IN JOURNAL");
+}
