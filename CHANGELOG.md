@@ -210,3 +210,8 @@ The entries below cover the v0.52.x development line through v0.52.49. This line
 ### Documentation structure
 
 - Established a dedicated design-specification library and separated the active roadmap, current changelog, and prior changelog history so future plans, completed work, and technical documentation have distinct homes.
+
+### v0.52.50: South-facing player sprite palette correction
+
+- Corrected the green/olive tones in the south-facing idle and walk sprite rows with a targeted 12% luminance reduction on saturated green pixels. Other directions, non-green pixels, alpha, frame positions, and the animation manifest remain unchanged.
+- Bumped Rust and Android fallback version metadata to 0.52.50.
