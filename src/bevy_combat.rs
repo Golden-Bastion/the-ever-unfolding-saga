@@ -156,7 +156,6 @@ fn set_selection(
     }
     combat_state.selected = selected.min(combat_state.action_count() - 1);
     navigation.selected = combat_state.selected;
-    combat_state.dirty = true;
 }
 
 fn activate_current_selection(
