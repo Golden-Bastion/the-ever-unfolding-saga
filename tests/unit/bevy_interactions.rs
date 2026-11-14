@@ -138,5 +138,5 @@ fn interaction_content_refresh_preserves_the_screen_root_and_scroll_position() {
     );
     assert!(world
         .get::<Children>(host)
-        .map_or(true, |children| children.is_empty()));
+        .is_none_or(|children| children.is_empty()));
 }
