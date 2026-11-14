@@ -294,7 +294,7 @@ fn render_if_active(
         );
 
         if let Some(host) = event_hosts.iter().next() {
-            bevy_presentation::clear_tab_content(&mut commands, host, &children);
+            bevy_presentation::clear_content_host(&mut commands, host, &children);
             render_combat_events(&mut commands, host, &view.events);
         }
     }
