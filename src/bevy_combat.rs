@@ -391,14 +391,14 @@ fn spawn_combat_screen(
         commands,
         actions,
         CombatTextKind::ResultTitle,
-        result_title_text(view, false),
+        String::new(),
         false,
     );
     spawn_combat_text(
         commands,
         actions,
         CombatTextKind::ResultNote,
-        result_note_text(view, false),
+        String::new(),
         true,
     );
     spawn_combat_text(
