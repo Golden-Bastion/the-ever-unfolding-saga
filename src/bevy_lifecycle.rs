@@ -1187,7 +1187,15 @@ impl LifecycleState {
     }
 
     pub(crate) fn start_load_game(&mut self, navigation: &mut NavigationState) -> bool {
-        self.refresh_saves();
+        self.start_load_game_with_saves(navigation, available_save_files())
+    }
+
+    fn start_load_game_with_saves(
+        &mut self,
+        navigation: &mut NavigationState,
+        save_files: Vec<SaveEntry>,
+    ) -> bool {
+        self.save_files = save_files;
         self.phase = LifecyclePhase::Load;
         self.selected = 0;
         self.pending_delete_save = None;

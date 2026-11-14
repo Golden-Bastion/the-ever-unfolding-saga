@@ -270,7 +270,7 @@ fn load_screen_opens_without_saves_so_import_remains_available() {
         ..NavigationState::default()
     };
 
-    assert!(lifecycle.start_load_game(&mut navigation));
+    assert!(lifecycle.start_load_game_with_saves(&mut navigation, Vec::new()));
     assert_eq!(lifecycle.phase, LifecyclePhase::Load);
     assert!(lifecycle.save_files.is_empty());
     assert_eq!(super::save_import_action_index(&lifecycle), 0);
@@ -374,7 +374,7 @@ fn options_activation_keeps_navigation_on_the_options_screen() {
     };
 
     lifecycle.phase = LifecyclePhase::Start;
-    lifecycle.selected = 2;
+    lifecycle.selected = super::start_options_index(&lifecycle);
 
     super::activate_selection(&mut lifecycle, &mut navigation);
 
