@@ -18,7 +18,7 @@ use super::*;
 
 #[test]
 fn load_save_action_indices_reserve_footer_and_confirmation_actions() {
-    let lifecycle = LifecycleState {
+    let mut lifecycle = LifecycleState {
         phase: LifecyclePhase::Load,
         ..LifecycleState::default()
     };
