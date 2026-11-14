@@ -134,17 +134,19 @@ fn save_rows_reconcile_by_path_and_preserve_entities_when_reordered() {
     let first = PathBuf::from("saves/first.json.gz");
     let second = PathBuf::from("saves/second.json.gz");
     let third = PathBuf::from("saves/third.json.gz");
-    let mut options = OptionsState::default();
-    options.saves = vec![
-        SaveEntry {
-            path: first.clone(),
-            metadata: None,
-        },
-        SaveEntry {
-            path: second.clone(),
-            metadata: None,
-        },
-    ];
+    let options = OptionsState {
+        saves: vec![
+            SaveEntry {
+                path: first.clone(),
+                metadata: None,
+            },
+            SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+        ],
+        ..Default::default()
+    };
 
     let mut world = World::new();
     world.insert_resource(options);
@@ -248,11 +250,13 @@ fn find_mod_row(world: &mut World, key: &str) -> Entity {
 
 #[test]
 fn mod_rows_reconcile_by_stable_id_and_update_action_indices() {
-    let mut options = OptionsState::default();
-    options.mods = vec![
-        test_installed_mod("mod.one", "First Mod", 1),
-        test_installed_mod("mod.two", "Second Mod", 2),
-    ];
+    let options = OptionsState {
+        mods: vec![
+            test_installed_mod("mod.one", "First Mod", 1),
+            test_installed_mod("mod.two", "Second Mod", 2),
+        ],
+        ..Default::default()
+    };
 
     let mut world = World::new();
     world.insert_resource(options);
