@@ -10,6 +10,7 @@ fn developer_console_shortcut_is_available_from_spatial_exploration() {
     assert!(!console_shortcut_screen_active(None));
 }
 
+
 #[derive(Resource, Clone, Copy)]
 struct ConsoleShellFixture {
     output: Entity,
@@ -20,19 +21,15 @@ struct ConsoleShellFixture {
 
 fn spawn_console_shell_fixture(mut commands: Commands) {
     let view = ConsoleView::default();
-    let (output, completion, input) = spawn_console_screen(&mut commands, &view);
+    let (output, completion, input, scroll) = spawn_console_screen(&mut commands, &view);
     commands.entity(input).insert(ConsoleInputText);
     bevy_presentation::spawn_label(&mut commands, output, "Initial output");
-    let scroll = commands
-        .spawn((ConsoleScrollableOutput, bevy_presentation::TouchScrollablePanel))
-        .id();
     commands.insert_resource(ConsoleShellFixture {
         output,
         completion,
         input,
         scroll,
     });
-    let _ = scroll;
 }
 
 fn clear_console_output_for_test(
@@ -57,20 +54,56 @@ fn console_shell_separates_scrollable_output_from_the_fixed_input_control() {
     assert!(world.get::<ConsoleOutputLines>(fixture.output).is_some());
     assert!(world.get::<ConsoleCompletionLines>(fixture.completion).is_some());
     assert!(world.get::<ConsoleInputText>(fixture.input).is_some());
+    assert!(world
+        .get::<ConsoleScrollableOutput>(fixture.scroll)
+        .is_some());
+    assert!(world
+        .get::<bevy_presentation::TouchScrollablePanel>(fixture.scroll)
+        .is_some());
+    assert_eq!(
+        world
+            .query_filtered::<Entity, With<ConsoleScreenRoot>>()
+            .iter(&world)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn clearing_console_output_keeps_the_shell_input_and_scroll_state_alive() {
+    let mut world = World::new();
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_console_shell_fixture);
+    setup.run(&mut world);
+    world.flush();
+
+    let fixture = *world.resource::<ConsoleShellFixture>();
+    world
+        .entity_mut(fixture.scroll)
+        .insert(bevy::ui::ScrollPosition(Vec2::new(0.0, 126.0)));
+
+    let mut clear = Schedule::default();
+    clear.add_systems(clear_console_output_for_test);
+    clear.run(&mut world);
+    world.flush();
+
     assert!(world.get::<ConsoleScreenRoot>(
         world
             .query_filtered::<Entity, With<ConsoleScreenRoot>>()
-            .single(&world)
-            .unwrap()
-    ).is_some());
-    assert_eq!(
-        world
-            .query_filtered::<Entity, With<ConsoleScrollableOutput>>()
             .iter(&world)
-            .count(),
+            .next()
+            .expect("the console root should remain mounted")
+    ).is_some());
+    assert!(world.get::<ConsoleInputText>(fixture.input).is_some());
+    assert!(world.get::<ConsoleScrollableOutput>(fixture.scroll).is_some());
+    assert_eq!(
+        world.get::<bevy::ui::ScrollPosition>(fixture.scroll).unwrap().0,
+        Vec2::new(0.0, 126.0)
+    );
+    assert_eq!(
+        world.get::<Children>(fixture.output).unwrap().len(),
         0
     );
-    assert!(world.get::<bevy_presentation::TouchScrollablePanel>(fixture.scroll).is_some());
 }
 
 #[test]
