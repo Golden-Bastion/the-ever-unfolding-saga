@@ -605,6 +605,7 @@ fn render_if_active(
                     .entity(hosts.list)
                     .insert(bevy::ui::ScrollPosition::default());
                 bevy_presentation::clear_content_host(&mut commands, hosts.list, &children);
+                spawn_options_list_header(&mut commands, hosts.list, options.tab);
                 hosts.rows = spawn_options_rows_host(&mut commands, hosts.list);
                 hosts.tab = options.tab;
                 commands.entity(content).insert(hosts);
@@ -707,6 +708,7 @@ fn spawn_options_content_hosts(
     tab: usize,
 ) -> OptionsContent {
     let list = bevy_presentation::spawn_scrollable_list(commands, parent);
+    spawn_options_list_header(commands, list, tab);
     let rows = spawn_options_rows_host(commands, list);
     let messages = commands
         .spawn(Node {
@@ -729,6 +731,21 @@ fn spawn_options_content_hosts(
     };
     commands.entity(parent).insert(hosts);
     hosts
+}
+
+fn spawn_options_list_header(commands: &mut Commands, list: Entity, tab: usize) {
+    match tab {
+        0 => {
+            bevy_presentation::spawn_label(commands, list, "SAVES");
+            bevy_presentation::spawn_muted_label(
+                commands,
+                list,
+                "Imports never overwrite existing saves.",
+            );
+        }
+        1 => bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT"),
+        _ => {}
+    }
 }
 
 fn spawn_options_rows_host(commands: &mut Commands, parent: Entity) -> Entity {
@@ -810,8 +827,6 @@ fn render_saves_tab(
     save_rows: &Query<(Entity, &SaveListRow)>,
     empty_states: &Query<(), With<OptionsEmptyState>>,
 ) {
-    bevy_presentation::spawn_label(commands, rows, "SAVES");
-    bevy_presentation::spawn_muted_label(commands, rows, "Imports never overwrite existing saves.");
     reconcile_save_rows(commands, rows, options, children, save_rows, empty_states);
 }
 
@@ -918,7 +933,6 @@ fn render_mods_tab(
     mod_rows: &Query<(Entity, &ModListRow)>,
     empty_states: &Query<(), With<OptionsEmptyState>>,
 ) {
-    bevy_presentation::spawn_label(commands, rows, "MOD MANAGEMENT");
     reconcile_mod_rows(commands, rows, options, children, mod_rows, empty_states);
 }
 
