@@ -1170,10 +1170,6 @@ impl LifecycleState {
         self.selected = 0;
     }
 
-    pub(crate) fn refresh_saved_games(&mut self) {
-        self.refresh_save_catalog();
-    }
-
     pub(crate) fn start_new_game(&mut self, navigation: &mut NavigationState) {
         self.phase = LifecyclePhase::CreateCharacter;
         self.selected = 0;
