@@ -570,11 +570,8 @@ fn spawn_options_content_hosts(
 }
 
 fn spawn_options_list_header(commands: &mut Commands, list: Entity, tab: usize) {
-    match tab {
-        0 => {
-            bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT");
-        }
-        _ => {}
+    if tab == 0 {
+        bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT");
     }
 }
 
