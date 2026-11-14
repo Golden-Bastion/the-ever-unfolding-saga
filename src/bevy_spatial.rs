@@ -2928,6 +2928,7 @@ fn spawn_celestial_visual(
     Some(visual)
 }
 
+#[allow(clippy::too_many_arguments)] // Keep the presentation regions independently queried.
 fn sync_spatial_time_presentation(
     mut commands: Commands,
     lifecycle: Res<LifecycleState>,
