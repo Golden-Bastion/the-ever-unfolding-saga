@@ -320,7 +320,8 @@ fn render_if_active(
         for root in &roots {
             commands.entity(root).despawn();
         }
-        let (output_host, completion_host, input) = spawn_console_screen(&mut commands, &view);
+        let (output_host, completion_host, input, _scroll) =
+            spawn_console_screen(&mut commands, &view);
         commands.entity(input).insert(ConsoleInputText);
         render_console_output(&mut commands, output_host, &view);
         render_console_completions(&mut commands, completion_host, &view);
@@ -383,7 +384,7 @@ fn console_input_region_changed(previous: Option<&ConsoleView>, current: &Consol
 fn spawn_console_screen(
     commands: &mut Commands,
     view: &ConsoleView,
-) -> (Entity, Entity, Entity) {
+) -> (Entity, Entity, Entity, Entity) {
     let root = bevy_presentation::spawn_screen(commands, "DEVELOPER CONSOLE");
     commands.entity(root).insert(ConsoleScreenRoot);
     spawn_console_close_button(commands, root);
@@ -428,7 +429,7 @@ fn spawn_console_screen(
         panel,
         format!("> {}", view.input),
     );
-    (output_host, completion_host, input)
+    (output_host, completion_host, input, scroll)
 }
 
 fn render_console_output(commands: &mut Commands, host: Entity, view: &ConsoleView) {
