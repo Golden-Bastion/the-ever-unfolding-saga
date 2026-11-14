@@ -65,6 +65,7 @@ fn build_quest_view(quest: &Quest) -> QuestView {
         })
         .collect();
     QuestView {
+        id: quest.id,
         title: quest.title.clone(),
         description: quest.description.clone(),
         objectives,
