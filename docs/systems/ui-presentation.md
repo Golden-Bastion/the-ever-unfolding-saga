@@ -22,7 +22,9 @@ Combat retains its screen root and actor, event-log, and action panels between t
 
 Talk, conversation, remains, and remains-result screens retain their outer root and content host while their current screen state remains active. The content host is the only region rebuilt for a new dialogue line, message, result, or refreshed list; the ordinary talk/remains scroll panel and the specialized conversation scene root remain mounted. Changing between interaction modes creates the appropriate shell once for the new mode.
 
-Character Records now gives Inventory Detail, Quest Detail, Meditation, Meditation Result, Chronicle Detail, and Journal Entry screen-specific roots with named scrollable content hosts. Refreshes within the same record screen replace only the host children, keeping the root heading and scroll panel mounted. Moving between record screen types creates the matching shell rather than reusing a heading or content surface from another screen. Journal drafts remain in the renderer-neutral screen state while their visible content refreshes.\n\nThe lifecycle creation and Options/Character tab views already use stable content hosts for their tab frames. Scroll-position snapshots remain a compatibility fallback for screens that still recreate scrollable panels.
+Character Records now gives Inventory Detail, Quest Detail, Meditation, Meditation Result, Chronicle Detail, and Journal Entry screen-specific roots with named scrollable content hosts. Refreshes within the same record screen replace only the host children, keeping the root heading and scroll panel mounted. Moving between record screen types creates the matching shell rather than reusing a heading or content surface from another screen. Journal drafts remain in screen state while their visible content refreshes.
+
+The lifecycle creation and Options/Character tab views already use stable content hosts for their tab frames. Scroll-position snapshots remain a compatibility fallback for screens that still recreate scrollable panels.
 
 ## Visual language
 
