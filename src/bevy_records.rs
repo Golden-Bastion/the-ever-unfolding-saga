@@ -561,10 +561,15 @@ fn render_if_active(
                     .entity(hosts.list)
                     .insert(bevy::ui::ScrollPosition::default());
             }
-            if tab_changed || !matches!(
+            let previous_uses_keyed_rows = matches!(
+                hosts.tab,
+                CharacterTab::Inventory | CharacterTab::Quests
+            );
+            let next_uses_keyed_rows = matches!(
                 records_state.character_tab,
                 CharacterTab::Inventory | CharacterTab::Quests
-            ) {
+            );
+            if !previous_uses_keyed_rows || !next_uses_keyed_rows {
                 bevy_presentation::clear_content_host(&mut commands, hosts.rows, &children);
             }
             bevy_presentation::clear_content_host(&mut commands, hosts.footer, &children);
