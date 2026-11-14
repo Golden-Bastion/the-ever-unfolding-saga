@@ -429,12 +429,12 @@ fn lifecycle_renderer_allows_initial_screen_but_not_dedicated_screen_overwrite()
 }
 
 #[test]
-fn start_screen_has_expected_options_without_saves() {
+fn start_screen_keeps_load_available_without_saves() {
     let state = LifecycleState::default();
-    assert_eq!(start_option_count(&state), 4);
-    assert_eq!(start_developer_tools_index(&state), 1);
-    assert_eq!(start_options_index(&state), 2);
-    assert!(!start_has_load(&state));
+    assert_eq!(start_option_count(&state), 5);
+    assert_eq!(start_developer_tools_index(&state), 2);
+    assert_eq!(start_options_index(&state), 3);
+    assert!(start_has_load(&state));
 }
 
 #[test]
