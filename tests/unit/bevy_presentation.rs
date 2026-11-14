@@ -1,5 +1,70 @@
 use super::*;
 
+
+#[derive(Resource, Clone, Copy)]
+struct ConfirmationDialogFixture(ConfirmationDialogButtons);
+
+fn spawn_confirmation_dialog_fixture(mut commands: Commands) {
+    let root = commands.spawn(Node::default()).id();
+    let buttons = spawn_confirmation_dialog(
+        &mut commands,
+        root,
+        "DELETE SAVE?",
+        "Permanently delete this save?",
+        8,
+        9,
+        "Delete permanently",
+        "Cancel",
+    );
+    commands.insert_resource(ConfirmationDialogFixture(buttons));
+}
+
+#[test]
+fn shared_confirmation_dialog_marks_only_its_confirm_action_as_dangerous() {
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(spawn_confirmation_dialog_fixture);
+    schedule.run(&mut world);
+    world.flush();
+
+    let buttons = world.resource::<ConfirmationDialogFixture>().0;
+    assert_eq!(
+        world.get::<ChoiceButton>(buttons.confirm).unwrap().index,
+        8
+    );
+    assert_eq!(
+        world.get::<ChoiceButton>(buttons.cancel).unwrap().index,
+        9
+    );
+    assert!(world.get::<UiDangerButton>(buttons.confirm).is_some());
+    assert!(world.get::<UiDangerButton>(buttons.cancel).is_none());
+
+    let mut dialogs = world.query_filtered::<Entity, With<UiConfirmationDialog>>();
+    assert_eq!(dialogs.iter(&world).count(), 1);
+
+    let confirm_label = world
+        .get::<Children>(buttons.confirm)
+        .unwrap()
+        .iter()
+        .find_map(|entity| world.get::<Text>(*entity))
+        .unwrap();
+    let cancel_label = world
+        .get::<Children>(buttons.cancel)
+        .unwrap()
+        .iter()
+        .find_map(|entity| world.get::<Text>(*entity))
+        .unwrap();
+    assert_eq!(confirm_label.as_str(), "Delete permanently");
+    assert_eq!(cancel_label.as_str(), "Cancel");
+}
+
+#[test]
+fn danger_button_visual_states_use_the_red_palette() {
+    let (border, background) = button_visual_colors(false, false, false, false, true);
+    assert_eq!(border, Color::srgba(0.48, 0.10, 0.08, 0.95));
+    assert_eq!(background, THEME_BLOOD_DARK);
+}
+
 #[test]
 fn touch_scroll_requires_a_deliberate_drag() {
     assert!(!touch_scroll_dragged(Vec2::ZERO, Vec2::new(12.0, 0.0)));
