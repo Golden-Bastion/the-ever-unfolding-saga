@@ -1075,7 +1075,7 @@ fn android_request_storage_import(kind: &str) -> bool {
 }
 
 #[cfg(target_os = "android")]
-fn android_request_storage_export(source: &Path, file_name: &str, mime_type: &str) -> bool {
+pub(crate) fn android_request_storage_export(source: &Path, file_name: &str, mime_type: &str) -> bool {
     let Some(app) = bevy::android::ANDROID_APP.get().cloned() else {
         return false;
     };
