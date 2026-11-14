@@ -492,9 +492,6 @@ fn set_selection(
 ) {
     lifecycle.selected = selected.clamp(min_selection(lifecycle), max_selection(lifecycle));
     navigation.selected = lifecycle.selected;
-    if lifecycle.phase != LifecyclePhase::CreateCharacter {
-        lifecycle.dirty = true;
-    }
 }
 
 fn move_selection(
