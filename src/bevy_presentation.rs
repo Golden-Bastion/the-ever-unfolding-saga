@@ -1225,10 +1225,18 @@ pub(crate) fn spawn_confirmation_dialog(
         .id();
     commands.entity(panel).add_child(actions);
 
-    let (confirm, _) =
-        spawn_danger_action_button_with_text(commands, actions, spec.confirm_index, spec.confirm_label);
-    let (cancel, _) =
-        spawn_compact_action_button_with_text(commands, actions, spec.cancel_index, spec.cancel_label);
+    let (confirm, _) = spawn_danger_action_button_with_text(
+        commands,
+        actions,
+        spec.confirm_index,
+        spec.confirm_label,
+    );
+    let (cancel, _) = spawn_compact_action_button_with_text(
+        commands,
+        actions,
+        spec.cancel_index,
+        spec.cancel_label,
+    );
 
     ConfirmationDialogButtons { confirm, cancel }
 }
