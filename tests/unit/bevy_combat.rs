@@ -91,5 +91,5 @@ fn combat_updates_can_replace_log_content_without_rebuilding_the_screen_or_gauge
     );
     assert!(world
         .get::<Children>(event_lines)
-        .map_or(true, |children| children.is_empty()));
+        .is_none_or(|children| children.is_empty()));
 }
