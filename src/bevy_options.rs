@@ -649,6 +649,7 @@ fn render_if_active(
                 }
             }
 
+            clear_options_content_hosts(&mut commands, hosts, &children);
             render_options_aux_content(
                 &mut commands,
                 hosts.messages,
@@ -786,8 +787,6 @@ fn render_options_aux_content(
     footer: Entity,
     options: &OptionsState,
 ) {
-    let children = Query::<&Children>::default();
-    let _ = children;
     if options.pending_restart {
         bevy_presentation::spawn_context_message(
             commands,
@@ -835,7 +834,7 @@ fn save_row_title(save: &SaveEntry) -> String {
 fn save_row_detail(save: &SaveEntry) -> String {
     save.metadata
         .as_ref()
-        .map(crate::persistence::SaveMetadata::details_line)
+        .map(|metadata| metadata.details_line())
         .unwrap_or_else(|| "Save metadata unavailable.".to_string())
 }
 
