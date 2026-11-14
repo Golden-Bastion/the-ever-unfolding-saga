@@ -181,7 +181,7 @@ fn load_rows_reconcile_by_path_and_keep_entities_across_reordering() {
     let first = PathBuf::from("saves/first.json.gz");
     let second = PathBuf::from("saves/second.json.gz");
     let third = PathBuf::from("saves/third.json.gz");
-    let mut lifecycle = LifecycleState {
+    let lifecycle = LifecycleState {
         phase: LifecyclePhase::Load,
         save_files: vec![
             super::SaveEntry {
