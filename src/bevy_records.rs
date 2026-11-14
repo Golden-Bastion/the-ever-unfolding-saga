@@ -556,11 +556,6 @@ fn render_if_active(
             let history = history_screen::build_view(&session.state);
             let mut hosts = *retained;
             let tab_changed = hosts.tab != records_state.character_tab;
-            if tab_changed {
-                commands
-                    .entity(hosts.list)
-                    .insert(bevy::ui::ScrollPosition::default());
-            }
             let previous_uses_keyed_rows = matches!(
                 hosts.tab,
                 CharacterTab::Inventory | CharacterTab::Quests
