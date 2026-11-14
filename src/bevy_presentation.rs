@@ -2239,9 +2239,7 @@ fn restore_rebuilt_scroll_positions(
     let Some(screen) = navigation.current_screen else {
         return;
     };
-    let mut current = panels
-        .iter_mut()
-        .collect::<Vec<_>>();
+    let mut current = panels.iter_mut().collect::<Vec<_>>();
     current.sort_by_key(|(entity, _)| entity.to_bits());
     let current_entities = current
         .iter()
