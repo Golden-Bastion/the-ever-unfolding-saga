@@ -711,6 +711,7 @@ pub fn spawn_panel(commands: &mut Commands, parent: Entity) -> Entity {
                 flex_direction: FlexDirection::Column,
                 row_gap: panel_gap(),
                 border: UiRect::all(px(1)),
+                border_radius: BorderRadius::all(px(4)),
                 overflow: Overflow::scroll(),
                 ..default()
             },
@@ -733,6 +734,8 @@ fn fixed_panel_node() -> Node {
         padding: UiRect::all(panel_padding()),
         flex_direction: FlexDirection::Column,
         row_gap: panel_gap(),
+        border: UiRect::all(px(1)),
+        border_radius: BorderRadius::all(px(4)),
         overflow: Overflow::clip(),
         ..default()
     }
@@ -1166,6 +1169,7 @@ fn action_button_node() -> Node {
             responsive_vmin(UI_ACTION_PADDING_VERTICAL_VMIN),
         ),
         border: UiRect::all(px(1)),
+        border_radius: BorderRadius::all(px(3)),
         justify_content: JustifyContent::Start,
         align_items: AlignItems::Center,
         ..default()
