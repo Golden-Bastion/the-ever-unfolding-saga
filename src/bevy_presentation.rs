@@ -2170,7 +2170,6 @@ fn restore_rebuilt_scroll_positions(
     };
     let mut current = panels
         .iter_mut()
-        .map(|(entity, position)| (entity, position))
         .collect::<Vec<_>>();
     current.sort_by_key(|(entity, _)| entity.to_bits());
     let current_entities = current
