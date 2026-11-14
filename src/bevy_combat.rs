@@ -275,18 +275,16 @@ fn render_if_active(
         }
         spawn_combat_screen(&mut commands, &view, combat_state.selected);
     } else {
-        update_combat_labels(&mut labels, &view, combat_state.phase);
+        update_combat_labels(&mut labels, &view, &combat_state);
         update_combat_gauge(
             &mut commands,
             &player_gauges,
-            CombatPlayerGauge::default(),
             view.character.hp,
             view.character.max_hp,
         );
         update_combat_gauge(
             &mut commands,
             &enemy_gauges,
-            CombatEnemyGauge::default(),
             view.enemy.current_hp,
             view.enemy.max_hp,
         );
@@ -383,7 +381,7 @@ fn spawn_combat_screen(
             icon,
             format!("{}: {}", index + 1, action),
         );
-        if index == selected && index == 0 {
+        if index == selected {
             commands
                 .entity(button)
                 .insert(bevy_presentation::UiSelected);
@@ -435,9 +433,10 @@ fn condition_text(view: &crate::presentation::CombatView) -> String {
         .unwrap_or_else(|| "Condition: none".to_string())
 }
 
-fn result_title_text(view: &crate::presentation::CombatView, result: bool) -> String {
+fn result_title_text(state: &CombatState, result: bool) -> String {
     if result {
-        view.result
+        state
+            .result
             .as_ref()
             .map(|result| result.result_title.clone())
             .unwrap_or_default()
@@ -446,9 +445,10 @@ fn result_title_text(view: &crate::presentation::CombatView, result: bool) -> St
     }
 }
 
-fn result_note_text(view: &crate::presentation::CombatView, result: bool) -> String {
+fn result_note_text(state: &CombatState, result: bool) -> String {
     if result {
-        view.result
+        state
+            .result
             .as_ref()
             .map(|result| result.result_note.clone())
             .unwrap_or_default()
@@ -468,9 +468,9 @@ fn instruction_text(result: bool) -> String {
 fn update_combat_labels(
     labels: &mut Query<(&CombatText, &mut Text)>,
     view: &crate::presentation::CombatView,
-    phase: Option<CombatScreenPhase>,
+    state: &CombatState,
 ) {
-    let result = phase == Some(CombatScreenPhase::Result);
+    let result = state.phase == Some(CombatScreenPhase::Result);
     for (label, mut text) in labels.iter_mut() {
         let next = match label.0 {
             CombatTextKind::Summary => format!(
@@ -482,8 +482,8 @@ fn update_combat_labels(
             CombatTextKind::Condition => condition_text(view),
             CombatTextKind::EnemyName => view.enemy.name.clone(),
             CombatTextKind::EnemyPower => format!("Power: {}", view.enemy_power),
-            CombatTextKind::ResultTitle => result_title_text(view, result),
-            CombatTextKind::ResultNote => result_note_text(view, result),
+            CombatTextKind::ResultTitle => result_title_text(state, result),
+            CombatTextKind::ResultNote => result_note_text(state, result),
             CombatTextKind::Instruction => instruction_text(result),
         };
         if text.as_str() != next {
@@ -492,10 +492,9 @@ fn update_combat_labels(
     }
 }
 
-fn update_combat_gauge(
+fn update_combat_gauge<M: Component>(
     commands: &mut Commands,
-    gauges: &Query<(Entity, &bevy_presentation::UiHealthGauge), With<CombatPlayerGauge>>,
-    _marker: CombatPlayerGauge,
+    gauges: &Query<(Entity, &bevy_presentation::UiHealthGauge), With<M>>,
     current: i32,
     maximum: i32,
 ) {
