@@ -429,11 +429,13 @@ fn cycle_appearance_part(lifecycle: &mut LifecycleState, direction: isize) {
     else {
         return;
     };
-    if slot.parts.is_empty() {
+    let choice_count =
+        crate::character_appearance::appearance_slot_choice_count(&slot.name, slot.parts.len());
+    if choice_count == 0 {
         return;
     }
     slot.selected_part =
-        (slot.selected_part as isize + direction).rem_euclid(slot.parts.len() as isize) as usize;
+        (slot.selected_part as isize + direction).rem_euclid(choice_count as isize) as usize;
     lifecycle.dirty = true;
 }
 
@@ -452,6 +454,12 @@ fn selected_appearance_part_ids(lifecycle: &LifecycleState) -> Vec<String> {
             slot.parts
                 .get(slot.selected_part)
                 .map(|part| part.id.clone())
+                .or_else(|| {
+                    (slot.selected_part == slot.parts.len()
+                        && !slot.parts.is_empty()
+                        && crate::character_appearance::appearance_slot_has_none_choice(&slot.name))
+                    .then(|| crate::character_appearance::appearance_slot_none_id(&slot.name))
+                })
         })
         .collect()
 }
@@ -484,9 +492,6 @@ fn set_selection(
 ) {
     lifecycle.selected = selected.clamp(min_selection(lifecycle), max_selection(lifecycle));
     navigation.selected = lifecycle.selected;
-    if lifecycle.phase != LifecyclePhase::CreateCharacter {
-        lifecycle.dirty = true;
-    }
 }
 
 fn move_selection(
@@ -1195,12 +1200,10 @@ fn render_creation_content(
                 .map(|(index, slot)| PortraitSlotControl {
                     name: slot.name.clone(),
                     selected_part: slot.selected_part,
-                    part_count: slot.parts.len(),
-                    selected_part_label: slot
-                        .parts
-                        .get(slot.selected_part)
-                        .map(|part| part.id.rsplit('.').next().unwrap_or(&part.id).to_owned())
-                        .unwrap_or_else(|| "none".into()),
+                    choice_count: crate::character_appearance::appearance_slot_choice_count(
+                        &slot.name,
+                        slot.parts.len(),
+                    ),
                     previous_index: 3 + index * 2,
                     next_index: 4 + index * 2,
                 })

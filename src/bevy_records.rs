@@ -226,13 +226,11 @@ fn record_input(
             InputEvent::Down => move_selection(&mut records_state, &lifecycle, 1),
             InputEvent::Home => {
                 records_state.selected = 0;
-                records_state.dirty = true;
             }
             InputEvent::SetSelection(index) => {
                 let count = selection_count(&records_state, &lifecycle);
                 if count > 0 {
                     records_state.selected = index.min(count - 1);
-                    records_state.dirty = true;
                 }
             }
             InputEvent::End => move_to_end(&mut records_state, &lifecycle),
@@ -326,14 +324,12 @@ fn move_selection(
     }
     records_state.selected =
         (records_state.selected as isize + direction).rem_euclid(count as isize) as usize;
-    records_state.dirty = true;
 }
 
 fn move_to_end(records_state: &mut RecordScreenState, lifecycle: &LifecycleState) {
     let count = selection_count(records_state, lifecycle);
     if count > 0 {
         records_state.selected = count - 1;
-        records_state.dirty = true;
     }
 }
 

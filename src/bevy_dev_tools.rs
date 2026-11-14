@@ -139,6 +139,18 @@ impl From<SpatialFixtureEntry> for WorldLabFixtureEntry {
     }
 }
 
+#[derive(Component)]
+struct CharacterLabRoot;
+
+#[derive(Component)]
+struct CharacterLabWorkspace;
+
+#[derive(Component)]
+struct CharacterLabViewerHost;
+
+#[derive(Component)]
+struct CharacterLabControlsHost;
+
 #[derive(Resource, Default)]
 struct DeveloperToolsState {
     slots: Vec<CharacterLabSlot>,
@@ -275,7 +287,9 @@ fn cycle_slot_part(state: &mut DeveloperToolsState, slot_index: usize, direction
         return;
     };
     state.selected_slot = slot_index;
-    slot.selected_part = cycle_index(slot.selected_part, slot.parts.len(), direction);
+    let choice_count =
+        crate::character_appearance::appearance_slot_choice_count(&slot.name, slot.parts.len());
+    slot.selected_part = cycle_index(slot.selected_part, choice_count, direction);
     state.dirty = true;
 }
 
@@ -292,11 +306,14 @@ fn randomize_combination(state: &mut DeveloperToolsState) {
     state.seed = state.seed.wrapping_add(1);
     let generated = generate_character_portrait(&parts, state.seed, &[]);
     for slot in &mut state.slots {
-        let Some(layer) = generated.iter().find(|layer| layer.slot == slot.name) else {
-            continue;
-        };
-        if let Some(index) = slot.parts.iter().position(|part| part.id == layer.id) {
-            slot.selected_part = index;
+        if let Some(layer) = generated.iter().find(|layer| layer.slot == slot.name) {
+            if let Some(index) = slot.parts.iter().position(|part| part.id == layer.id) {
+                slot.selected_part = index;
+            }
+        } else if crate::character_appearance::appearance_slot_has_none_choice(&slot.name)
+            && !slot.parts.is_empty()
+        {
+            slot.selected_part = slot.parts.len();
         }
     }
     state.dirty = true;
@@ -1611,23 +1628,18 @@ fn developer_tools_input(
         match event {
             InputEvent::Up => {
                 navigation.selected = navigation.selected.saturating_sub(1);
-                state.dirty = true;
             }
             InputEvent::Down => {
                 navigation.selected = (navigation.selected + 1).min(count.saturating_sub(1));
-                state.dirty = true;
             }
             InputEvent::Home => {
                 navigation.selected = 0;
-                state.dirty = true;
             }
             InputEvent::SetSelection(index) => {
                 navigation.selected = index.min(count.saturating_sub(1));
-                state.dirty = true;
             }
             InputEvent::End => {
                 navigation.selected = count.saturating_sub(1);
-                state.dirty = true;
             }
             InputEvent::Confirm => {
                 match screen {
@@ -1934,28 +1946,84 @@ fn render_character_lab(
     state: &DeveloperToolsState,
     images: &mut Assets<Image>,
     cache: &mut PortraitImageCache,
+    existing_hosts: Option<(Entity, Entity, Entity, Entity)>,
+    children: &Query<&Children>,
 ) {
-    let root = bevy_presentation::spawn_screen(commands, "CHARACTER LAB");
-    bevy_presentation::spawn_muted_label(
-        commands,
-        root,
-        "Temporary portrait sandbox. Changes never touch campaign characters or content files.",
-    );
+    let (_root, _workspace, viewer, controls) = if let Some(hosts) = existing_hosts {
+        let (root, workspace, viewer, controls) = hosts;
+        bevy_presentation::clear_tab_content(commands, viewer, children);
+        bevy_presentation::clear_tab_content(commands, controls, children);
+        (root, workspace, viewer, controls)
+    } else {
+        let root = bevy_presentation::spawn_screen(commands, "CHARACTER LAB");
+        commands.entity(root).insert(CharacterLabRoot);
+        bevy_presentation::spawn_muted_label(
+            commands,
+            root,
+            "Temporary portrait sandbox. Changes never touch campaign characters or content files.",
+        );
 
-    let workspace = commands
-        .spawn(Node {
-            width: percent(100),
-            min_width: px(0),
-            min_height: px(0),
-            flex_basis: px(0),
-            flex_grow: 1.0,
-            flex_shrink: 1.0,
-            flex_direction: FlexDirection::Row,
-            column_gap: px(10),
-            ..default()
-        })
-        .id();
-    commands.entity(root).add_child(workspace);
+        let workspace = commands
+            .spawn((
+                CharacterLabWorkspace,
+                Node {
+                    width: percent(100),
+                    min_width: px(0),
+                    min_height: px(0),
+                    flex_basis: px(0),
+                    flex_grow: 1.0,
+                    flex_shrink: 1.0,
+                    flex_direction: FlexDirection::Row,
+                    column_gap: px(10),
+                    ..default()
+                },
+            ))
+            .id();
+        commands.entity(root).add_child(workspace);
+
+        let viewer = commands
+            .spawn((
+                CharacterLabViewerHost,
+                Node {
+                    width: percent(50),
+                    height: percent(100),
+                    min_width: px(0),
+                    min_height: px(0),
+                    flex_grow: 1.0,
+                    flex_shrink: 1.0,
+                    ..default()
+                },
+            ))
+            .id();
+        commands.entity(workspace).add_child(viewer);
+
+        let controls = commands
+            .spawn((
+                CharacterLabControlsHost,
+                bevy_presentation::TouchScrollablePanel,
+                Node {
+                    width: percent(50),
+                    height: percent(100),
+                    min_width: px(0),
+                    min_height: px(0),
+                    flex_grow: 1.0,
+                    flex_shrink: 1.0,
+                    padding: UiRect::all(px(8)),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: px(5),
+                    border: UiRect::all(px(1)),
+                    border_radius: BorderRadius::all(px(4)),
+                    overflow: Overflow::scroll(),
+                    ..default()
+                },
+                bevy_presentation::UiSurface,
+                BackgroundColor(bevy_presentation::THEME_SURFACE),
+                BorderColor::all(bevy_presentation::THEME_BORDER),
+            ))
+            .id();
+        commands.entity(workspace).add_child(controls);
+        (root, workspace, viewer, controls)
+    };
 
     let portrait = build_preview_portrait(&state.slots);
     let detail = format!(
@@ -1963,18 +2031,6 @@ fn render_character_lab(
         state.seed,
         portrait.layers.len()
     );
-    let viewer = commands
-        .spawn(Node {
-            width: percent(50),
-            height: percent(100),
-            min_width: px(0),
-            min_height: px(0),
-            flex_grow: 1.0,
-            flex_shrink: 1.0,
-            ..default()
-        })
-        .id();
-    commands.entity(workspace).add_child(viewer);
     let slot_controls = state
         .slots
         .iter()
@@ -1982,12 +2038,10 @@ fn render_character_lab(
         .map(|(index, slot)| PortraitSlotControl {
             name: slot.name.clone(),
             selected_part: slot.selected_part,
-            part_count: slot.parts.len(),
-            selected_part_label: slot
-                .parts
-                .get(slot.selected_part)
-                .map(|part| part.id.rsplit('.').next().unwrap_or(&part.id).to_owned())
-                .unwrap_or_else(|| "none".into()),
+            choice_count: crate::character_appearance::appearance_slot_choice_count(
+                &slot.name,
+                slot.parts.len(),
+            ),
             previous_index: index * 2,
             next_index: index * 2 + 1,
         })
@@ -2004,28 +2058,6 @@ fn render_character_lab(
         images,
         cache,
     );
-
-    let controls = commands
-        .spawn((
-            bevy_presentation::TouchScrollablePanel,
-            Node {
-                width: percent(50),
-                height: percent(100),
-                min_width: px(0),
-                min_height: px(0),
-                flex_grow: 1.0,
-                flex_shrink: 1.0,
-                padding: UiRect::all(px(8)),
-                flex_direction: FlexDirection::Column,
-                row_gap: px(5),
-                overflow: Overflow::scroll(),
-                ..default()
-            },
-            BackgroundColor(bevy_presentation::THEME_SURFACE),
-            BorderColor::all(bevy_presentation::THEME_BORDER),
-        ))
-        .id();
-    commands.entity(workspace).add_child(controls);
 
     bevy_presentation::spawn_label(commands, controls, "ASSEMBLY CONTROLS");
     bevy_presentation::spawn_muted_label(
@@ -2082,8 +2114,15 @@ fn render_character_lab(
                     format!("Excludes tags: {}", part.excludes_tags.join(", ")),
                 );
             }
-        } else {
+        } else if slot.parts.is_empty() {
             bevy_presentation::spawn_muted_label(commands, controls, "This slot has no parts.");
+        } else {
+            bevy_presentation::spawn_label(commands, controls, "PART: none");
+            bevy_presentation::spawn_muted_label(
+                commands,
+                controls,
+                "No portrait layer is selected for this slot.",
+            );
         }
         bevy_presentation::spawn_muted_label(
             commands,
@@ -2106,6 +2145,16 @@ fn render_character_lab(
                 controls,
                 format!("{marker} {} - {}", part.id, part.asset),
             );
+        }
+        if crate::character_appearance::appearance_slot_has_none_choice(&slot.name)
+            && !slot.parts.is_empty()
+        {
+            let marker = if slot.selected_part == slot.parts.len() {
+                ">"
+            } else {
+                " "
+            };
+            bevy_presentation::spawn_muted_label(commands, controls, format!("{marker} None"));
         }
     } else {
         bevy_presentation::spawn_muted_label(
@@ -2577,6 +2626,7 @@ fn developer_tools_screen_requires_render(
     rendered_screen != Some(active_screen) || dirty
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_if_active(
     mut commands: Commands,
     navigation: Res<NavigationState>,
@@ -2585,6 +2635,11 @@ fn render_if_active(
     mut cache: ResMut<PortraitImageCache>,
     spatial: Res<SpatialExplorationState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
+    character_lab_roots: Query<Entity, With<CharacterLabRoot>>,
+    character_lab_workspaces: Query<Entity, With<CharacterLabWorkspace>>,
+    character_lab_viewers: Query<Entity, With<CharacterLabViewerHost>>,
+    character_lab_controls: Query<Entity, With<CharacterLabControlsHost>>,
+    children: Query<&Children>,
 ) {
     let Some(screen) = navigation
         .current_screen
@@ -2597,14 +2652,41 @@ fn render_if_active(
         return;
     }
 
+    if screen == ScreenId::CharacterLab && state.rendered_screen == Some(screen) {
+        if let (Some(root), Some(workspace), Some(viewer), Some(controls)) = (
+            character_lab_roots.iter().next(),
+            character_lab_workspaces.iter().next(),
+            character_lab_viewers.iter().next(),
+            character_lab_controls.iter().next(),
+        ) {
+            render_character_lab(
+                &mut commands,
+                &navigation,
+                &state,
+                &mut images,
+                &mut cache,
+                Some((root, workspace, viewer, controls)),
+                &children,
+            );
+            state.dirty = false;
+            return;
+        }
+    }
+
     for root in &roots {
         commands.entity(root).despawn();
     }
     match screen {
         ScreenId::DeveloperTools => render_hub(&mut commands, &navigation),
-        ScreenId::CharacterLab => {
-            render_character_lab(&mut commands, &navigation, &state, &mut images, &mut cache)
-        }
+        ScreenId::CharacterLab => render_character_lab(
+            &mut commands,
+            &navigation,
+            &state,
+            &mut images,
+            &mut cache,
+            None,
+            &children,
+        ),
         ScreenId::WorldLab => render_world_lab(&mut commands, &navigation, &state, &spatial),
         ScreenId::WorldLabEditor => {
             render_world_lab_editor(&mut commands, &navigation, &state, &spatial)

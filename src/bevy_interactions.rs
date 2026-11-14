@@ -87,8 +87,7 @@ pub(crate) struct PortraitImageCache {
 pub(crate) struct PortraitSlotControl {
     pub(crate) name: String,
     pub(crate) selected_part: usize,
-    pub(crate) part_count: usize,
-    pub(crate) selected_part_label: String,
+    pub(crate) choice_count: usize,
     pub(crate) previous_index: usize,
     pub(crate) next_index: usize,
 }
@@ -248,7 +247,6 @@ fn move_selection(
     }
     state.selected = (state.selected as isize + direction).rem_euclid(count as isize) as usize;
     navigation.selected = state.selected;
-    state.dirty = true;
 }
 
 fn set_selection(
@@ -263,7 +261,6 @@ fn set_selection(
     }
     state.selected = selected.min(count - 1);
     navigation.selected = state.selected;
-    state.dirty = true;
 }
 
 fn move_to_end(
@@ -275,7 +272,6 @@ fn move_to_end(
     if count > 0 {
         state.selected = count - 1;
         navigation.selected = state.selected;
-        state.dirty = true;
     }
 }
 
@@ -1063,7 +1059,7 @@ pub(crate) fn render_character_appearance_viewer(
     commands.entity(stage).add_child(controls);
 
     for (index, control) in slot_controls.iter().enumerate() {
-        if control.part_count == 0 {
+        if control.choice_count == 0 {
             continue;
         }
         let row = commands
@@ -1102,11 +1098,10 @@ pub(crate) fn render_character_appearance_viewer(
         let label = commands
             .spawn((
                 Text::new(format!(
-                    "{} {}/{} | {}",
+                    "{} {}/{}",
                     control.name,
                     control.selected_part + 1,
-                    control.part_count,
-                    control.selected_part_label
+                    control.choice_count
                 )),
                 Node {
                     min_width: px(0),
@@ -1133,7 +1128,10 @@ pub(crate) fn render_character_appearance_viewer(
         }
     }
 
-    if slot_controls.iter().all(|control| control.part_count == 0) {
+    if slot_controls
+        .iter()
+        .all(|control| control.choice_count == 0)
+    {
         bevy_presentation::spawn_muted_label(
             commands,
             controls,

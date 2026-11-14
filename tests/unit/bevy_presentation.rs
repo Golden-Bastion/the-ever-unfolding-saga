@@ -13,6 +13,46 @@ fn touch_coordinates_convert_from_logical_to_physical_space() {
     assert_eq!(position, Vec2::new(250.0, 125.0));
 }
 
+#[test]
+fn rebuilt_scroll_panel_restores_its_previous_offset_for_the_same_screen() {
+    let mut world = World::new();
+    world.insert_resource(NavigationState {
+        current_screen: Some(ScreenId::CharacterLab),
+        ..NavigationState::default()
+    });
+    world.insert_resource(ScrollPositionMemory::default());
+
+    let original = world
+        .spawn((TouchScrollablePanel, ScrollPosition(Vec2::new(0.0, 180.0))))
+        .id();
+    let mut capture = Schedule::default();
+    capture.add_systems(capture_scroll_positions);
+    capture.run(&mut world);
+
+    world.despawn(original);
+    let rebuilt = world
+        .spawn((TouchScrollablePanel, ScrollPosition(Vec2::ZERO)))
+        .id();
+    let mut restore = Schedule::default();
+    restore.add_systems(restore_rebuilt_scroll_positions);
+    restore.run(&mut world);
+
+    assert_eq!(
+        world.get::<ScrollPosition>(rebuilt).unwrap().0,
+        Vec2::new(0.0, 180.0)
+    );
+}
+
+#[test]
+fn new_scroll_panels_keep_their_default_offset_when_no_cached_panel_exists() {
+    let cached: [Vec2; 0] = [];
+    let mut current = [Vec2::ZERO, Vec2::new(0.0, 12.0)];
+
+    restore_cached_scroll_positions(&cached, &mut current);
+
+    assert_eq!(current, [Vec2::ZERO, Vec2::new(0.0, 12.0)]);
+}
+
 fn spawn_console_input_regression_fixture(mut commands: Commands) {
     let panel = commands.spawn_empty().id();
     spawn_label(&mut commands, panel, "> help");
@@ -491,4 +531,89 @@ fn dedicated_screen_navigation_uses_its_fallback_without_a_previous_screen() {
         Some(ScreenId::SpatialExploration)
     );
     assert_eq!(navigation.return_screen, None);
+}
+
+#[test]
+fn action_button_selection_updates_without_rebuilding_the_screen() {
+    let mut world = World::new();
+    world.insert_resource(NavigationState {
+        current_screen: Some(ScreenId::Combat),
+        return_screen: None,
+        selected: 1,
+    });
+    let first = world
+        .spawn((ChoiceButton { index: 0 }, UiActionButton, UiSelected))
+        .id();
+    let second = world
+        .spawn((ChoiceButton { index: 1 }, UiActionButton))
+        .id();
+
+    let mut schedule = Schedule::default();
+    schedule.add_systems(sync_action_button_selection);
+    schedule.run(&mut world);
+
+    assert!(world.get::<UiSelected>(first).is_none());
+    assert!(world.get::<UiSelected>(second).is_some());
+}
+
+#[test]
+fn button_colour_interpolation_reaches_target_without_overshooting() {
+    let start = Color::srgb(0.0, 0.0, 0.0);
+    let end = Color::srgb(1.0, 0.5, 0.25);
+    let halfway = interpolate_ui_color(start, end, 0.5).to_srgba();
+
+    assert!((halfway.red - 0.5).abs() < 0.001);
+    assert!((halfway.green - 0.25).abs() < 0.001);
+    assert!((halfway.blue - 0.125).abs() < 0.001);
+    assert_eq!(
+        interpolate_ui_color(start, end, 2.0).to_srgba(),
+        end.to_srgba()
+    );
+}
+
+#[test]
+fn shared_screen_roots_receive_the_standard_entry_transition() {
+    #[derive(Resource)]
+    struct Fixture(Entity);
+
+    fn setup(mut commands: Commands) {
+        let root = spawn_screen(&mut commands, "TEST SCREEN");
+        commands.insert_resource(Fixture(root));
+    }
+
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(setup);
+    schedule.run(&mut world);
+
+    let root = world.resource::<Fixture>().0;
+    assert!(world.get::<BevyScreenRoot>(root).is_some());
+    assert_eq!(
+        world.get::<UiTransform>(root).unwrap().scale,
+        Vec2::splat(0.96)
+    );
+    assert!(world.get::<PresentationTransition>(root).is_some());
+}
+
+#[test]
+fn shared_panels_expose_the_common_surface_contract() {
+    #[derive(Resource)]
+    struct Fixture(Entity);
+
+    fn setup(mut commands: Commands) {
+        let parent = commands.spawn_empty().id();
+        let panel = spawn_panel(&mut commands, parent);
+        commands.insert_resource(Fixture(panel));
+    }
+
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(setup);
+    schedule.run(&mut world);
+
+    let panel = world.resource::<Fixture>().0;
+    assert!(world.get::<UiSurface>(panel).is_some());
+    assert!(world.get::<TouchScrollablePanel>(panel).is_some());
+    assert!(world.get::<BorderColor>(panel).is_some());
+    assert!(world.get::<Node>(panel).is_some());
 }

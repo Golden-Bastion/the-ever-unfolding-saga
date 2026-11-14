@@ -8,6 +8,32 @@ use std::collections::{BTreeMap, HashSet};
 use crate::content::CharacterPartContent;
 use crate::rng::DeterministicRng;
 
+/// Slots that may deliberately contain no portrait layer. Keep this convention
+/// renderer-neutral so NPC generation, character creation, and Character Lab
+/// agree on which layers are optional.
+pub(crate) fn appearance_slot_has_none_choice(slot: &str) -> bool {
+    matches!(slot, "headgear" | "accessory")
+}
+
+/// Stable save marker for an explicit empty choice. Missing markers retain the
+/// legacy behavior of resolving to the slot's first available part.
+pub(crate) fn appearance_slot_none_id(slot: &str) -> String {
+    format!("__teus_none__:{slot}")
+}
+
+pub(crate) fn appearance_slot_choice_count(slot: &str, part_count: usize) -> usize {
+    if part_count == 0 {
+        0
+    } else {
+        part_count
+            + if appearance_slot_has_none_choice(slot) {
+                1
+            } else {
+                0
+            }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CharacterPortraitLayer {
     pub id: String,
@@ -38,6 +64,10 @@ pub(crate) fn resolve_character_portrait(
         .collect::<HashSet<_>>();
     let mut selected = Vec::new();
     for (slot, candidates) in selectable_player_parts(parts) {
+        let none_id = appearance_slot_none_id(&slot);
+        if selected_ids.contains(none_id.as_str()) {
+            continue;
+        }
         let chosen = candidates
             .iter()
             .find(|part| selected_ids.contains(part.id.as_str()))
@@ -82,7 +112,7 @@ pub(crate) fn actor_appearance_seed(world_seed: u64, actor_id: u64) -> u64 {
     DeterministicRng::new(mixed).next_u64()
 }
 
-/// Select one compatible part per slot through weighted, deterministic selection.
+/// Select zero or one compatible part per slot through weighted, deterministic selection.
 pub(crate) fn generate_character_portrait(
     parts: &[CharacterPartContent],
     seed: u64,
@@ -121,8 +151,18 @@ pub(crate) fn generate_character_portrait(
         if total_weight == 0 {
             continue;
         }
-
-        let mut draw = rng.next_u64() % total_weight;
+        // One additional unit of weight represents choosing no layer. This is
+        // deterministic per actor seed and only applies to the optional slots.
+        let none_weight = if appearance_slot_has_none_choice(&slot) {
+            1
+        } else {
+            0
+        };
+        let selection_weight = total_weight + none_weight;
+        let mut draw = rng.next_u64() % selection_weight;
+        if draw >= total_weight {
+            continue;
+        }
         let mut chosen = candidates[0];
         for candidate in candidates {
             let weight = u64::from(candidate.weight);

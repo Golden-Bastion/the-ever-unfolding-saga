@@ -80,6 +80,13 @@ pub struct UiContextMessage;
 #[derive(Component)]
 pub struct UiStyledButton;
 
+/// Current animated colours for a shared action button.
+#[derive(Component, Debug, Clone, Copy)]
+struct UiButtonVisualState {
+    border: Color,
+    background: Color,
+}
+
 /// Keeps map destinations visually distinct from ordinary menu actions while
 /// preserving standard pointer and selection feedback.
 #[derive(Component)]
@@ -283,6 +290,23 @@ struct TouchScrollState {
     active: Option<ActiveTouchScroll>,
 }
 
+#[derive(Default)]
+struct ScrollPositionSnapshot {
+    panel_entities: Vec<Entity>,
+    positions: Vec<Vec2>,
+}
+
+#[derive(Resource, Default)]
+struct ScrollPositionMemory {
+    screens: HashMap<ScreenId, ScrollPositionSnapshot>,
+}
+
+fn restore_cached_scroll_positions(cached: &[Vec2], current: &mut [Vec2]) {
+    for (current, cached) in current.iter_mut().zip(cached) {
+        *current = *cached;
+    }
+}
+
 impl TouchScrollState {
     fn should_suppress_activation(&self, button: Entity, touches: &Touches) -> bool {
         let Some(active) = self.active else {
@@ -383,7 +407,7 @@ impl NavigationState {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ScreenId {
     Lifecycle,
     DeveloperTools,
@@ -542,7 +566,9 @@ pub fn install(app: &mut App) {
         .init_resource::<NavigationState>()
         .init_resource::<ConsoleTextInputFocus>()
         .init_resource::<TouchScrollState>()
+        .init_resource::<ScrollPositionMemory>()
         .init_resource::<UiIconAssets>()
+        .add_systems(PreUpdate, capture_scroll_positions)
         .add_systems(
             PreUpdate,
             process_ime_events
@@ -555,10 +581,18 @@ pub fn install(app: &mut App) {
         .add_systems(Update, choice_button_input)
         .add_systems(Update, contextual_touch_input)
         .add_systems(PostUpdate, sync_ui_health_gauges)
-        .add_systems(PostUpdate, sync_ui_button_visuals)
+        .add_systems(PostUpdate, sync_action_button_selection)
+        .add_systems(
+            PostUpdate,
+            sync_ui_button_visuals.after(sync_action_button_selection),
+        )
         .add_systems(Update, touch_scroll)
         .add_systems(PostUpdate, resolve_ui_icons)
         .add_systems(PostUpdate, organize_action_button_groups)
+        .add_systems(
+            PostUpdate,
+            restore_rebuilt_scroll_positions.after(organize_action_button_groups),
+        )
         .add_systems(PostUpdate, sync_ime_window)
         .add_systems(PostUpdate, sync_lifecycle_field_visuals);
 
@@ -570,6 +604,11 @@ pub fn spawn_screen(commands: &mut Commands, title: impl Into<String>) -> Entity
     commands
         .spawn((
             BevyScreenRoot,
+            UiTransform {
+                scale: Vec2::splat(0.96),
+                ..default()
+            },
+            PresentationTransition::entering(),
             Node {
                 width: percent(100),
                 height: percent(100),
@@ -614,6 +653,11 @@ pub fn spawn_screen_with_right_detail(
     commands
         .spawn((
             BevyScreenRoot,
+            UiTransform {
+                scale: Vec2::splat(0.96),
+                ..default()
+            },
+            PresentationTransition::entering(),
             Node {
                 width: percent(100),
                 height: percent(100),
@@ -675,9 +719,13 @@ pub fn spawn_panel(commands: &mut Commands, parent: Entity) -> Entity {
                 padding: UiRect::all(panel_padding()),
                 flex_direction: FlexDirection::Column,
                 row_gap: panel_gap(),
+                border: UiRect::all(px(1)),
+                border_radius: BorderRadius::all(px(4)),
                 overflow: Overflow::scroll(),
                 ..default()
             },
+            UiSurface,
+            BorderColor::all(THEME_BORDER),
             BackgroundColor(THEME_PANEL),
         ))
         .id();
@@ -695,6 +743,8 @@ fn fixed_panel_node() -> Node {
         padding: UiRect::all(panel_padding()),
         flex_direction: FlexDirection::Column,
         row_gap: panel_gap(),
+        border: UiRect::all(px(1)),
+        border_radius: BorderRadius::all(px(4)),
         overflow: Overflow::clip(),
         ..default()
     }
@@ -706,6 +756,8 @@ pub fn spawn_fixed_panel(commands: &mut Commands, parent: Entity) -> Entity {
         .spawn((
             TabGroup::modal(),
             fixed_panel_node(),
+            UiSurface,
+            BorderColor::all(THEME_BORDER),
             BackgroundColor(THEME_PANEL),
         ))
         .id();
@@ -1126,6 +1178,7 @@ fn action_button_node() -> Node {
             responsive_vmin(UI_ACTION_PADDING_VERTICAL_VMIN),
         ),
         border: UiRect::all(px(1)),
+        border_radius: BorderRadius::all(px(3)),
         justify_content: JustifyContent::Start,
         align_items: AlignItems::Center,
         ..default()
@@ -1778,22 +1831,74 @@ fn button_visual_colors(
 }
 
 #[allow(clippy::type_complexity)] // ECS query combines widget state and visual components.
+fn interpolate_ui_color(from: Color, to: Color, amount: f32) -> Color {
+    let from = from.to_srgba();
+    let to = to.to_srgba();
+    let amount = amount.clamp(0.0, 1.0);
+    Color::srgba(
+        from.red + (to.red - from.red) * amount,
+        from.green + (to.green - from.green) * amount,
+        from.blue + (to.blue - from.blue) * amount,
+        from.alpha + (to.alpha - from.alpha) * amount,
+    )
+}
+
+/// Updates action-button selection without rebuilding the owning screen.
+fn sync_action_button_selection(
+    navigation: Res<NavigationState>,
+    mut commands: Commands,
+    buttons: Query<(Entity, &ChoiceButton, Has<UiSelected>), With<UiActionButton>>,
+) {
+    if !navigation.is_changed() {
+        return;
+    }
+    for (entity, choice, selected) in &buttons {
+        let should_be_selected = choice.index == navigation.selected;
+        if should_be_selected == selected {
+            continue;
+        }
+        if should_be_selected {
+            commands.entity(entity).insert(UiSelected);
+        } else {
+            commands.entity(entity).remove::<UiSelected>();
+        }
+    }
+}
+
 fn sync_ui_button_visuals(
+    time: Res<Time>,
+    mut commands: Commands,
     mut buttons: Query<
         (
+            Entity,
             &Hovered,
             Has<Pressed>,
             Option<&UiSelected>,
             Has<UiWarmButton>,
             &mut BorderColor,
             &mut BackgroundColor,
+            Option<&mut UiButtonVisualState>,
         ),
         With<UiStyledButton>,
     >,
 ) {
-    for (hovered, pressed, selected, warm, mut border, mut background) in &mut buttons {
-        let (border_color, background_color) =
+    let smoothing = 1.0 - (-20.0 * time.delta_secs()).exp();
+    for (entity, hovered, pressed, selected, warm, mut border, mut background, mut state) in
+        &mut buttons
+    {
+        let (target_border, target_background) =
             button_visual_colors(pressed, hovered.get(), selected.is_some(), warm);
+        let (border_color, background_color) = if let Some(state) = state.as_deref_mut() {
+            state.border = interpolate_ui_color(state.border, target_border, smoothing);
+            state.background = interpolate_ui_color(state.background, target_background, smoothing);
+            (state.border, state.background)
+        } else {
+            commands.entity(entity).insert(UiButtonVisualState {
+                border: target_border,
+                background: target_background,
+            });
+            (target_border, target_background)
+        };
         border.set_all(border_color);
         *background = BackgroundColor(background_color);
     }
@@ -2116,6 +2221,62 @@ fn organize_action_button_groups(
             commands.entity(group).add_child(button);
         }
     }
+}
+
+fn capture_scroll_positions(
+    navigation: Res<NavigationState>,
+    panels: Query<(Entity, &ScrollPosition), With<TouchScrollablePanel>>,
+    mut memory: ResMut<ScrollPositionMemory>,
+) {
+    let Some(screen) = navigation.current_screen else {
+        return;
+    };
+    let mut current = panels
+        .iter()
+        .map(|(entity, position)| (entity, position.0))
+        .collect::<Vec<_>>();
+    current.sort_by_key(|(entity, _)| entity.to_bits());
+
+    let snapshot = memory.screens.entry(screen).or_default();
+    snapshot.panel_entities = current.iter().map(|(entity, _)| *entity).collect();
+    snapshot.positions = current.iter().map(|(_, position)| *position).collect();
+}
+
+fn restore_rebuilt_scroll_positions(
+    navigation: Res<NavigationState>,
+    mut memory: ResMut<ScrollPositionMemory>,
+    mut panels: Query<(Entity, &mut ScrollPosition), With<TouchScrollablePanel>>,
+) {
+    let Some(screen) = navigation.current_screen else {
+        return;
+    };
+    let mut current = panels.iter_mut().collect::<Vec<_>>();
+    current.sort_by_key(|(entity, _)| entity.to_bits());
+    let current_entities = current
+        .iter()
+        .map(|(entity, _)| *entity)
+        .collect::<Vec<_>>();
+
+    let snapshot = memory.screens.entry(screen).or_default();
+    if snapshot.panel_entities == current_entities {
+        return;
+    }
+
+    let mut current_positions = current
+        .iter()
+        .map(|(_, position)| position.0)
+        .collect::<Vec<_>>();
+    if snapshot.positions.is_empty() {
+        snapshot.positions = current_positions.clone();
+    } else {
+        restore_cached_scroll_positions(&snapshot.positions, &mut current_positions);
+    }
+
+    for ((_, mut position), restored) in current.into_iter().zip(current_positions.iter().copied())
+    {
+        position.0 = restored;
+    }
+    snapshot.panel_entities = current_entities;
 }
 
 fn touch_scroll(
