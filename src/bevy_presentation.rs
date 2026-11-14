@@ -1172,17 +1172,22 @@ pub(crate) struct ConfirmationDialogButtons {
     pub(crate) cancel: Entity,
 }
 
+/// Configuration for the reusable confirmation dialog primitive.
+pub(crate) struct ConfirmationDialogSpec<'a> {
+    pub(crate) title: &'a str,
+    pub(crate) message: &'a str,
+    pub(crate) confirm_index: usize,
+    pub(crate) cancel_index: usize,
+    pub(crate) confirm_label: &'a str,
+    pub(crate) cancel_label: &'a str,
+}
+
 /// Creates a modal confirmation surface with a danger-styled confirm action
 /// and a neutral cancel action. The caller owns the decision and its effects.
 pub(crate) fn spawn_confirmation_dialog(
     commands: &mut Commands,
     parent: Entity,
-    title: &str,
-    message: &str,
-    confirm_index: usize,
-    cancel_index: usize,
-    confirm_label: &str,
-    cancel_label: &str,
+    spec: ConfirmationDialogSpec<'_>,
 ) -> ConfirmationDialogButtons {
     let overlay = spawn_overlay(commands, parent);
     commands.entity(overlay).insert(UiConfirmationDialog);
@@ -1205,8 +1210,8 @@ pub(crate) fn spawn_confirmation_dialog(
         ))
         .id();
     commands.entity(overlay).add_child(panel);
-    spawn_label(commands, panel, title);
-    spawn_muted_label(commands, panel, message);
+    spawn_label(commands, panel, spec.title);
+    spawn_muted_label(commands, panel, spec.message);
 
     let actions = commands
         .spawn(Node {
@@ -1221,9 +1226,9 @@ pub(crate) fn spawn_confirmation_dialog(
     commands.entity(panel).add_child(actions);
 
     let (confirm, _) =
-        spawn_danger_action_button_with_text(commands, actions, confirm_index, confirm_label);
+        spawn_danger_action_button_with_text(commands, actions, spec.confirm_index, spec.confirm_label);
     let (cancel, _) =
-        spawn_compact_action_button_with_text(commands, actions, cancel_index, cancel_label);
+        spawn_compact_action_button_with_text(commands, actions, spec.cancel_index, spec.cancel_label);
 
     ConfirmationDialogButtons { confirm, cancel }
 }
@@ -1458,16 +1463,6 @@ pub(crate) fn spawn_compact_action_button_with_text(
     commands.entity(button).add_child(label);
     commands.entity(parent).add_child(button);
     (button, label)
-}
-
-/// Creates a compact destructive action using the shared danger palette.
-pub(crate) fn spawn_danger_action_button(
-    commands: &mut Commands,
-    parent: Entity,
-    index: usize,
-    label: impl Into<String>,
-) -> Entity {
-    spawn_danger_action_button_with_text(commands, parent, index, label).0
 }
 
 /// Creates a danger action and returns its label entity for retained-row updates.
