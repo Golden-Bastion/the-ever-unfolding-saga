@@ -213,5 +213,5 @@ The entries below cover the v0.52.x development line through v0.52.49. This line
 
 ### v0.52.50: South-facing player sprite palette correction
 
-- Corrected the green/olive tones in the south-facing idle and walk sprite rows with a targeted 12% luminance reduction on saturated green pixels. Other directions, non-green pixels, alpha, frame positions, and the animation manifest remain unchanged.
+- Recolored the 1,427 olive pixels in the south-facing idle and walk rows (atlas rows 4–5, zero-indexed) to a restrained warm-charcoal palette while preserving per-pixel luminance to rounding, alpha, frame positions, all unselected pixels, and the animation manifest.
 - Bumped Rust and Android fallback version metadata to 0.52.50.
