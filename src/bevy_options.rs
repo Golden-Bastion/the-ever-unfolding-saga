@@ -858,7 +858,7 @@ fn reconcile_save_rows(
         }
     }
 
-    let mut ordered = Vec::with_capacity(options.saves.len() + usize::from(options.saves.is_empty()));
+    let mut ordered = Vec::with_capacity(options.saves.len().saturating_add(1));
     for (index, save) in options.saves.iter().enumerate() {
         let key = save.path.clone();
         let title = save_row_title(save);
@@ -936,12 +936,12 @@ fn mod_row_detail(item: &InstalledMod) -> String {
 
 fn mod_row_action_labels(item: &InstalledMod, options: &OptionsState) -> [String; MOD_ACTIONS_PER_MOD] {
     [
-        if item.enabled { "Disable" } else { "Enable" }.to_string(),
-        if options.pending_remove_id.as_deref() == Some(item.manifest.id.as_str()) {
+        (if item.enabled { "Disable" } else { "Enable" }).to_string(),
+        (if options.pending_remove_id.as_deref() == Some(item.manifest.id.as_str()) {
             "Confirm"
         } else {
             "Delete"
-        }
+        })
         .to_string(),
         "Priority+".to_string(),
         "Priority:".to_string(),
@@ -968,7 +968,7 @@ fn reconcile_mod_rows(
         }
     }
 
-    let mut ordered = Vec::with_capacity(options.mods.len() + usize::from(options.mods.is_empty()));
+    let mut ordered = Vec::with_capacity(options.mods.len().saturating_add(1));
     for (mod_index, item) in options.mods.iter().enumerate() {
         let key = item.manifest.id.clone();
         let title = item.manifest.name.clone();
