@@ -567,3 +567,47 @@ fn button_colour_interpolation_reaches_target_without_overshooting() {
     assert!((halfway.blue - 0.125).abs() < 0.001);
     assert_eq!(interpolate_ui_color(start, end, 2.0).to_srgba(), end.to_srgba());
 }
+
+#[test]
+fn shared_screen_roots_receive_the_standard_entry_transition() {
+    #[derive(Resource)]
+    struct Fixture(Entity);
+
+    fn setup(mut commands: Commands) {
+        let root = spawn_screen(&mut commands, "TEST SCREEN");
+        commands.insert_resource(Fixture(root));
+    }
+
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(setup);
+    schedule.run(&mut world);
+
+    let root = world.resource::<Fixture>().0;
+    assert!(world.get::<BevyScreenRoot>(root).is_some());
+    assert!(world.get::<UiTransform>(root).is_some());
+    assert!(world.get::<PresentationTransition>(root).is_some());
+}
+
+#[test]
+fn shared_panels_expose_the_common_surface_contract() {
+    #[derive(Resource)]
+    struct Fixture(Entity);
+
+    fn setup(mut commands: Commands) {
+        let parent = commands.spawn_empty().id();
+        let panel = spawn_panel(&mut commands, parent);
+        commands.insert_resource(Fixture(panel));
+    }
+
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(setup);
+    schedule.run(&mut world);
+
+    let panel = world.resource::<Fixture>().0;
+    assert!(world.get::<UiSurface>(panel).is_some());
+    assert!(world.get::<TouchScrollablePanel>(panel).is_some());
+    assert!(world.get::<BorderColor>(panel).is_some());
+    assert!(world.get::<Node>(panel).is_some());
+}
