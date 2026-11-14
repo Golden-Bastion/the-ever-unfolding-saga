@@ -2626,6 +2626,7 @@ fn developer_tools_screen_requires_render(
     rendered_screen != Some(active_screen) || dirty
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_if_active(
     mut commands: Commands,
     navigation: Res<NavigationState>,
