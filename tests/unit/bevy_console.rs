@@ -38,7 +38,7 @@ fn clear_console_output_for_test(
     children: Query<&Children>,
 ) {
     for host in &output_hosts {
-        bevy_presentation::clear_tab_content(&mut commands, host, &children);
+        bevy_presentation::clear_content_host(&mut commands, host, &children);
     }
 }
 
