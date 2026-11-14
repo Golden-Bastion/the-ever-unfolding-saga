@@ -1,6 +1,7 @@
 //! Options-owned mod management and interface preferences.
 
 use std::collections::HashMap;
+#[cfg(target_os = "android")]
 use std::path::PathBuf;
 
 use bevy::prelude::*;
