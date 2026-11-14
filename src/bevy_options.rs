@@ -1,5 +1,6 @@
 //! Options-owned save import/export and mod management workflows.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use bevy::prelude::*;
@@ -40,10 +41,32 @@ struct OptionsScreen;
 #[derive(Component, Clone, Copy)]
 struct OptionsContent {
     list: Entity,
+    rows: Entity,
     messages: Entity,
     footer: Entity,
     tab: usize,
 }
+
+#[derive(Component)]
+struct SaveListRow {
+    key: PathBuf,
+    title: Entity,
+    detail: Entity,
+    button: Entity,
+    button_label: Entity,
+}
+
+#[derive(Component)]
+struct ModListRow {
+    key: String,
+    title: Entity,
+    detail: Entity,
+    buttons: [Entity; MOD_ACTIONS_PER_MOD],
+    button_labels: [Entity; MOD_ACTIONS_PER_MOD],
+}
+
+#[derive(Component)]
+struct OptionsEmptyState;
 
 #[derive(Resource)]
 pub(crate) struct OptionsState {
@@ -557,6 +580,9 @@ fn render_if_active(
     roots: Query<Entity, With<BevyScreenRoot>>,
     options_screens: Query<(), With<OptionsScreen>>,
     options_content: Query<(Entity, &OptionsContent)>,
+    save_rows: Query<(Entity, &SaveListRow)>,
+    mod_rows: Query<(Entity, &ModListRow)>,
+    empty_states: Query<(), With<OptionsEmptyState>>,
     children: Query<&Children>,
     tab_buttons: Query<(Entity, &bevy_presentation::UiTabButton)>,
 ) {
@@ -573,21 +599,61 @@ fn render_if_active(
     if !options_screens.is_empty() {
         if let Some((content, retained)) = options_content.iter().next() {
             let mut hosts = *retained;
-            if hosts.tab != options.tab {
+            let tab_changed = hosts.tab != options.tab;
+            if tab_changed {
                 commands
                     .entity(hosts.list)
                     .insert(bevy::ui::ScrollPosition::default());
+                bevy_presentation::clear_content_host(&mut commands, hosts.list, &children);
+                hosts.rows = spawn_options_rows_host(&mut commands, hosts.list);
                 hosts.tab = options.tab;
+                commands.entity(content).insert(hosts);
+                render_options_list_content(
+                    &mut commands,
+                    hosts.list,
+                    hosts.rows,
+                    &options,
+                    &ui_settings,
+                    &children,
+                    &save_rows,
+                    &mod_rows,
+                    &empty_states,
+                );
+            } else {
+                match options.tab {
+                    0 => reconcile_save_rows(
+                        &mut commands,
+                        hosts.rows,
+                        &options,
+                        &children,
+                        &save_rows,
+                        &empty_states,
+                    ),
+                    1 => reconcile_mod_rows(
+                        &mut commands,
+                        hosts.rows,
+                        &options,
+                        &children,
+                        &mod_rows,
+                        &empty_states,
+                    ),
+                    2 => {
+                        bevy_presentation::clear_content_host(
+                            &mut commands,
+                            hosts.rows,
+                            &children,
+                        );
+                        render_interface_tab(&mut commands, hosts.rows, &options, &ui_settings);
+                    }
+                    _ => {}
+                }
             }
-            commands.entity(content).insert(hosts);
-            clear_options_content_hosts(&mut commands, hosts, &children);
-            render_options_content(
+
+            render_options_aux_content(
                 &mut commands,
-                hosts.list,
                 hosts.messages,
                 hosts.footer,
                 &options,
-                &ui_settings,
             );
             bevy_presentation::update_tab_strip_selection(&mut commands, &tab_buttons, options.tab);
             options.dirty = false;
@@ -616,13 +682,22 @@ fn render_if_active(
 
     let content = bevy_presentation::spawn_tab_content(&mut commands, panel);
     let hosts = spawn_options_content_hosts(&mut commands, content, options.tab);
-    render_options_content(
+    render_options_list_content(
         &mut commands,
         hosts.list,
+        hosts.rows,
+        &options,
+        &ui_settings,
+        &children,
+        &save_rows,
+        &mod_rows,
+        &empty_states,
+    );
+    render_options_aux_content(
+        &mut commands,
         hosts.messages,
         hosts.footer,
         &options,
-        &ui_settings,
     );
     options.dirty = false;
 }
@@ -633,6 +708,7 @@ fn spawn_options_content_hosts(
     tab: usize,
 ) -> OptionsContent {
     let list = bevy_presentation::spawn_scrollable_list(commands, parent);
+    let rows = spawn_options_rows_host(commands, list);
     let messages = commands
         .spawn(Node {
             width: percent(100),
@@ -647,6 +723,7 @@ fn spawn_options_content_hosts(
     let footer = bevy_presentation::spawn_option_footer(commands, parent);
     let hosts = OptionsContent {
         list,
+        rows,
         messages,
         footer,
         tab,
@@ -655,30 +732,62 @@ fn spawn_options_content_hosts(
     hosts
 }
 
+fn spawn_options_rows_host(commands: &mut Commands, parent: Entity) -> Entity {
+    let rows = commands
+        .spawn(Node {
+            width: percent(100),
+            min_width: px(0),
+            flex_direction: FlexDirection::Column,
+            row_gap: responsive_option_row_gap(),
+            ..default()
+        })
+        .id();
+    commands.entity(parent).add_child(rows);
+    rows
+}
+
+fn responsive_option_row_gap() -> Val {
+    bevy_presentation::responsive_vmin(1.389)
+}
+
 fn clear_options_content_hosts(
     commands: &mut Commands,
     hosts: OptionsContent,
     children: &Query<&Children>,
 ) {
-    for host in [hosts.list, hosts.messages, hosts.footer] {
+    for host in [hosts.messages, hosts.footer] {
         bevy_presentation::clear_content_host(commands, host, children);
     }
 }
 
-fn render_options_content(
+#[allow(clippy::too_many_arguments)]
+fn render_options_list_content(
     commands: &mut Commands,
     list: Entity,
+    rows: Entity,
+    options: &OptionsState,
+    ui_settings: &crate::ui_settings::UiSettings,
+    children: &Query<&Children>,
+    save_rows: &Query<(Entity, &SaveListRow)>,
+    mod_rows: &Query<(Entity, &ModListRow)>,
+    empty_states: &Query<(), With<OptionsEmptyState>>,
+) {
+    match options.tab {
+        0 => render_saves_tab(commands, list, rows, options, children, save_rows, empty_states),
+        1 => render_mods_tab(commands, list, rows, options, children, mod_rows, empty_states),
+        2 => render_interface_tab(commands, rows, options, ui_settings),
+        _ => {}
+    }
+}
+
+fn render_options_aux_content(
+    commands: &mut Commands,
     messages: Entity,
     footer: Entity,
     options: &OptionsState,
-    ui_settings: &crate::ui_settings::UiSettings,
 ) {
-    match options.tab {
-        0 => render_saves_tab(commands, list, options),
-        1 => render_mods_tab(commands, list, options),
-        2 => render_interface_tab(commands, list, options, ui_settings),
-        _ => {}
-    }
+    let children = Query::<&Children>::default();
+    let _ = children;
     if options.pending_restart {
         bevy_presentation::spawn_context_message(
             commands,
@@ -697,37 +806,252 @@ fn render_options_content(
     }
 }
 
-fn render_saves_tab(commands: &mut Commands, list: Entity, options: &OptionsState) {
+fn render_saves_tab(
+    commands: &mut Commands,
+    list: Entity,
+    rows: Entity,
+    options: &OptionsState,
+    children: &Query<&Children>,
+    save_rows: &Query<(Entity, &SaveListRow)>,
+    empty_states: &Query<(), With<OptionsEmptyState>>,
+) {
     bevy_presentation::spawn_label(commands, list, "SAVES");
     bevy_presentation::spawn_muted_label(commands, list, "Imports never overwrite existing saves.");
-    if options.saves.is_empty() {
-        bevy_presentation::spawn_muted_label(commands, list, "No saves found.");
-    }
-    for (index, save) in options.saves.iter().enumerate() {
-        let row = bevy_presentation::spawn_option_row(commands, list);
-        if let Some(metadata) = &save.metadata {
-            bevy_presentation::spawn_label(
-                commands,
-                row.label,
-                metadata.character_display_name.clone(),
-            );
-            bevy_presentation::spawn_muted_label(commands, row.label, metadata.details_line());
-        } else {
-            let name = save
-                .path
+    reconcile_save_rows(commands, rows, options, children, save_rows, empty_states);
+}
+
+fn save_row_title(save: &SaveEntry) -> String {
+    save.metadata
+        .as_ref()
+        .map(|metadata| metadata.character_display_name.clone())
+        .unwrap_or_else(|| {
+            save.path
                 .file_name()
                 .map(|value| value.to_string_lossy().to_string())
-                .unwrap_or_else(|| save.path.display().to_string());
-            bevy_presentation::spawn_label(commands, row.label, name);
-            bevy_presentation::spawn_muted_label(commands, row.label, "Save metadata unavailable.");
+                .unwrap_or_else(|| save.path.display().to_string())
+        })
+}
+
+fn save_row_detail(save: &SaveEntry) -> String {
+    save.metadata
+        .as_ref()
+        .map(crate::persistence::SaveMetadata::details_line)
+        .unwrap_or_else(|| "Save metadata unavailable.".to_string())
+}
+
+fn reconcile_save_rows(
+    commands: &mut Commands,
+    rows_host: Entity,
+    options: &OptionsState,
+    children: &Query<&Children>,
+    existing_rows: &Query<(Entity, &SaveListRow)>,
+    empty_states: &Query<(), With<OptionsEmptyState>>,
+) {
+    let mut existing = HashMap::new();
+    let mut empty_state = None;
+    if let Ok(current_children) = children.get(rows_host) {
+        for child in current_children.iter() {
+            if let Ok((entity, row)) = existing_rows.get(child) {
+                existing.insert(row.key.clone(), (entity, row));
+            } else if empty_states.contains(child) {
+                empty_state = Some(child);
+            }
         }
-        spawn_option_control_button(
-            commands,
-            row.controls,
-            index,
-            "Export",
-            options.selected == index,
-        );
+    }
+
+    let mut ordered = Vec::with_capacity(options.saves.len() + usize::from(options.saves.is_empty()));
+    for (index, save) in options.saves.iter().enumerate() {
+        let key = save.path.clone();
+        let title = save_row_title(save);
+        let detail = save_row_detail(save);
+        let entity = if let Some((entity, row)) = existing.remove(&key) {
+            commands.entity(row.title).insert(Text::new(title));
+            commands.entity(row.detail).insert(Text::new(detail));
+            commands.entity(row.button_label).insert(Text::new("Export"));
+            update_option_row_button(commands, row.button, index, options.selected == index);
+            entity
+        } else {
+            let row = bevy_presentation::spawn_option_row(commands, rows_host);
+            let title_entity = bevy_presentation::spawn_label(commands, row.label, title);
+            let detail_entity = bevy_presentation::spawn_muted_label(commands, row.label, detail);
+            let (button, button_label) = bevy_presentation::spawn_compact_action_button_with_text(
+                commands,
+                row.controls,
+                index,
+                "Export",
+            );
+            update_option_row_button(commands, button, index, options.selected == index);
+            commands.entity(row.row).insert(SaveListRow {
+                key,
+                title: title_entity,
+                detail: detail_entity,
+                button,
+                button_label,
+            });
+            row.row
+        };
+        ordered.push(entity);
+    }
+
+    for (_, (entity, _)) in existing {
+        commands.entity(entity).despawn();
+    }
+
+    if options.saves.is_empty() {
+        let entity = empty_state.unwrap_or_else(|| {
+            let label = bevy_presentation::spawn_muted_label(
+                commands,
+                rows_host,
+                "No saves found.",
+            );
+            commands.entity(label).insert(OptionsEmptyState);
+            label
+        });
+        commands.entity(entity).insert(Text::new("No saves found."));
+        ordered.push(entity);
+    } else if let Some(entity) = empty_state {
+        commands.entity(entity).despawn();
+    }
+    commands.entity(rows_host).replace_children(&ordered);
+}
+
+fn render_mods_tab(
+    commands: &mut Commands,
+    list: Entity,
+    rows: Entity,
+    options: &OptionsState,
+    children: &Query<&Children>,
+    mod_rows: &Query<(Entity, &ModListRow)>,
+    empty_states: &Query<(), With<OptionsEmptyState>>,
+) {
+    bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT");
+    reconcile_mod_rows(commands, rows, options, children, mod_rows, empty_states);
+}
+
+fn mod_row_detail(item: &InstalledMod) -> String {
+    format!(
+        "id={} | version={} | priority={} | assets={}",
+        item.manifest.id, item.manifest.version, item.priority, item.asset_count
+    )
+}
+
+fn mod_row_action_labels(item: &InstalledMod, options: &OptionsState) -> [String; MOD_ACTIONS_PER_MOD] {
+    [
+        if item.enabled { "Disable" } else { "Enable" }.to_string(),
+        if options.pending_remove_id.as_deref() == Some(item.manifest.id.as_str()) {
+            "Confirm"
+        } else {
+            "Delete"
+        }
+        .to_string(),
+        "Priority+".to_string(),
+        "Priority:".to_string(),
+    ]
+}
+
+fn reconcile_mod_rows(
+    commands: &mut Commands,
+    rows_host: Entity,
+    options: &OptionsState,
+    children: &Query<&Children>,
+    existing_rows: &Query<(Entity, &ModListRow)>,
+    empty_states: &Query<(), With<OptionsEmptyState>>,
+) {
+    let mut existing = HashMap::new();
+    let mut empty_state = None;
+    if let Ok(current_children) = children.get(rows_host) {
+        for child in current_children.iter() {
+            if let Ok((entity, row)) = existing_rows.get(child) {
+                existing.insert(row.key.clone(), (entity, row));
+            } else if empty_states.contains(child) {
+                empty_state = Some(child);
+            }
+        }
+    }
+
+    let mut ordered = Vec::with_capacity(options.mods.len() + usize::from(options.mods.is_empty()));
+    for (mod_index, item) in options.mods.iter().enumerate() {
+        let key = item.manifest.id.clone();
+        let title = item.manifest.name.clone();
+        let detail = mod_row_detail(item);
+        let action_labels = mod_row_action_labels(item, options);
+        let base = mod_action_start_index(mod_index);
+        let entity = if let Some((entity, row)) = existing.remove(&key) {
+            commands.entity(row.title).insert(Text::new(title));
+            commands.entity(row.detail).insert(Text::new(detail));
+            for action in 0..MOD_ACTIONS_PER_MOD {
+                commands.entity(row.button_labels[action]).insert(Text::new(action_labels[action].clone()));
+                update_option_row_button(
+                    commands,
+                    row.buttons[action],
+                    base + action,
+                    options.selected == base + action,
+                );
+            }
+            entity
+        } else {
+            let row = bevy_presentation::spawn_option_row(commands, rows_host);
+            let title_entity = bevy_presentation::spawn_label(commands, row.label, title);
+            let detail_entity = bevy_presentation::spawn_muted_label(commands, row.label, detail);
+            let mut buttons = Vec::with_capacity(MOD_ACTIONS_PER_MOD);
+            let mut button_labels = Vec::with_capacity(MOD_ACTIONS_PER_MOD);
+            for action in 0..MOD_ACTIONS_PER_MOD {
+                let (button, button_label) =
+                    bevy_presentation::spawn_compact_action_button_with_text(
+                        commands,
+                        row.controls,
+                        base + action,
+                        action_labels[action].clone(),
+                    );
+                update_option_row_button(
+                    commands,
+                    button,
+                    base + action,
+                    options.selected == base + action,
+                );
+                buttons.push(button);
+                button_labels.push(button_label);
+            }
+            commands.entity(row.row).insert(ModListRow {
+                key,
+                title: title_entity,
+                detail: detail_entity,
+                buttons: buttons.try_into().expect("mod row has four action buttons"),
+                button_labels: button_labels
+                    .try_into()
+                    .expect("mod row has four action labels"),
+            });
+            row.row
+        };
+        ordered.push(entity);
+    }
+
+    for (_, (entity, _)) in existing {
+        commands.entity(entity).despawn();
+    }
+
+    if options.mods.is_empty() {
+        let entity = empty_state.unwrap_or_else(|| {
+            let label = bevy_presentation::spawn_muted_label(commands, rows_host, "No mods installed.");
+            commands.entity(label).insert(OptionsEmptyState);
+            label
+        });
+        commands.entity(entity).insert(Text::new("No mods installed."));
+        ordered.push(entity);
+    } else if let Some(entity) = empty_state {
+        commands.entity(entity).despawn();
+    }
+    commands.entity(rows_host).replace_children(&ordered);
+}
+
+fn update_option_row_button(commands: &mut Commands, button: Entity, index: usize, selected: bool) {
+    commands
+        .entity(button)
+        .insert(bevy_presentation::ChoiceButton { index });
+    if selected {
+        commands.entity(button).insert(UiSelected);
+    } else {
+        commands.entity(button).remove::<UiSelected>();
     }
 }
 
@@ -747,59 +1071,6 @@ fn render_saves_footer(commands: &mut Commands, footer: Entity, options: &Option
         "Back",
         options.selected == import_index + 1,
     );
-}
-
-fn render_mods_tab(commands: &mut Commands, list: Entity, options: &OptionsState) {
-    bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT");
-    if options.mods.is_empty() {
-        bevy_presentation::spawn_muted_label(commands, list, "No mods installed.");
-    }
-    for (mod_index, item) in options.mods.iter().enumerate() {
-        let row = bevy_presentation::spawn_option_row(commands, list);
-        bevy_presentation::spawn_label(commands, row.label, &item.manifest.name);
-        bevy_presentation::spawn_muted_label(
-            commands,
-            row.label,
-            format!(
-                "id={} | version={} | priority={} | assets={}",
-                item.manifest.id, item.manifest.version, item.priority, item.asset_count
-            ),
-        );
-
-        let base = mod_action_start_index(mod_index);
-        spawn_option_control_button(
-            commands,
-            row.controls,
-            base + MOD_ENABLE_ACTION,
-            if item.enabled { "Disable" } else { "Enable" },
-            options.selected == base + MOD_ENABLE_ACTION,
-        );
-        spawn_option_control_button(
-            commands,
-            row.controls,
-            base + MOD_DELETE_ACTION,
-            if options.pending_remove_id.as_deref() == Some(item.manifest.id.as_str()) {
-                "Confirm"
-            } else {
-                "Delete"
-            },
-            options.selected == base + MOD_DELETE_ACTION,
-        );
-        spawn_option_control_button(
-            commands,
-            row.controls,
-            base + MOD_PRIORITY_UP_ACTION,
-            "Priority+",
-            options.selected == base + MOD_PRIORITY_UP_ACTION,
-        );
-        spawn_option_control_button(
-            commands,
-            row.controls,
-            base + MOD_PRIORITY_DOWN_ACTION,
-            "Priority:",
-            options.selected == base + MOD_PRIORITY_DOWN_ACTION,
-        );
-    }
 }
 
 fn render_mods_footer(commands: &mut Commands, footer: Entity, options: &OptionsState) {
