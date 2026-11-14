@@ -144,7 +144,6 @@ fn move_selection(
     combat_state.selected =
         (combat_state.selected as isize + direction).rem_euclid(count as isize) as usize;
     navigation.selected = combat_state.selected;
-    combat_state.dirty = true;
 }
 
 fn set_selection(
