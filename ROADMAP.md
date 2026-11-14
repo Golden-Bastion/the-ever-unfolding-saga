@@ -20,7 +20,7 @@ The console, combat, and interaction screens now use stable presentation shells.
 
 Character Records now also keeps screen-specific roots and named scrollable content hosts for Inventory Detail, Quest Detail, Meditation, Meditation Result, Chronicle Detail, and Journal Entry. Updates within one of these screens replace only its content children, preserving the root and scroll state; switching to a different record screen creates the corresponding shell and heading. Regression coverage checks retained root/host identity and scroll-position preservation.
 
-This extends the retained UI work beyond Character Lab. It does not claim that every screen is now retained: Options content, feedback overlays, the spatial scene, and World Map still have separate rebuild paths. The remaining migration is documented in [UI presentation architecture](docs/systems/ui-presentation.md).
+Options now retains its scrolling list, feedback-message region, and footer while refreshing their content children; the list keeps its scroll position within a tab and resets when switching tabs. Level-up and quest-reward feedback entries now share one retained, touch-scrollable overlay shell. In spatial exploration, player movement, animation, camera follow, discovery tint, and world-clock visuals update in place; a clock tick no longer rebuilds the complete spatial scene. World Map was not changed. Further keyed row reconciliation and topology/UI separation remain follow-up work, as documented in [UI presentation architecture](docs/systems/ui-presentation.md).
 
 ## Spatial-first gameplay direction
 

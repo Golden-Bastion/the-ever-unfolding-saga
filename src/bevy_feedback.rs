@@ -282,6 +282,7 @@ fn render_if_active(
     mut feedback: ResMut<FeedbackState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
     overlays: Query<Entity, With<FeedbackOverlay>>,
+    children: Query<&Children>,
 ) {
     if !feedback.active {
         for overlay in &overlays {
@@ -299,34 +300,15 @@ fn render_if_active(
         return;
     }
 
-    for overlay in &overlays {
-        commands.entity(overlay).despawn();
-    }
-
-    let Some(parent) = roots.iter().next() else {
-        return;
+    let overlay = if let Some(overlay) = overlays.iter().next() {
+        bevy_presentation::clear_content_host(&mut commands, overlay, &children);
+        overlay
+    } else {
+        let Some(parent) = roots.iter().next() else {
+            return;
+        };
+        spawn_feedback_overlay(&mut commands, parent)
     };
-    let overlay = commands
-        .spawn((
-            FeedbackOverlay,
-            Node {
-                position_type: PositionType::Absolute,
-                left: bevy_presentation::responsive_vmin(3.333),
-                right: bevy_presentation::responsive_vmin(3.333),
-                top: bevy_presentation::responsive_vmin(3.333),
-                bottom: bevy_presentation::responsive_vmin(3.333),
-                padding: UiRect::all(bevy_presentation::responsive_vmin(2.778)),
-                min_width: px(0),
-                min_height: px(0),
-                flex_direction: FlexDirection::Column,
-                row_gap: bevy_presentation::responsive_vmin(1.944),
-                overflow: Overflow::scroll(),
-                ..default()
-            },
-            BackgroundColor(Color::srgba(7.0 / 255.0, 7.0 / 255.0, 7.0 / 255.0, 0.97)),
-        ))
-        .id();
-    commands.entity(parent).add_child(overlay);
 
     match feedback.entries.front() {
         Some(FeedbackEntry::LevelUp { level }) => {
@@ -346,6 +328,32 @@ fn render_if_active(
         None => {}
     }
     feedback.dirty = false;
+}
+
+fn spawn_feedback_overlay(commands: &mut Commands, parent: Entity) -> Entity {
+    let overlay = commands
+        .spawn((
+            FeedbackOverlay,
+            bevy_presentation::TouchScrollablePanel,
+            Node {
+                position_type: PositionType::Absolute,
+                left: bevy_presentation::responsive_vmin(3.333),
+                right: bevy_presentation::responsive_vmin(3.333),
+                top: bevy_presentation::responsive_vmin(3.333),
+                bottom: bevy_presentation::responsive_vmin(3.333),
+                padding: UiRect::all(bevy_presentation::responsive_vmin(2.778)),
+                min_width: px(0),
+                min_height: px(0),
+                flex_direction: FlexDirection::Column,
+                row_gap: bevy_presentation::responsive_vmin(1.944),
+                overflow: Overflow::scroll(),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(7.0 / 255.0, 7.0 / 255.0, 7.0 / 255.0, 0.97)),
+        ))
+        .id();
+    commands.entity(parent).add_child(overlay);
+    overlay
 }
 
 fn render_level_up(commands: &mut Commands, parent: Entity, level: u32, selected: usize) {
