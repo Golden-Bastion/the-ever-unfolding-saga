@@ -139,8 +139,7 @@ struct RecordDetailShellFixture {
 }
 
 fn spawn_record_detail_shell_fixture(mut commands: Commands) {
-    let (root, content) =
-        spawn_record_detail_shell(&mut commands, RecordScreen::InventoryDetail);
+    let (root, content) = spawn_record_detail_shell(&mut commands, RecordScreen::InventoryDetail);
     bevy_presentation::spawn_label(&mut commands, content, "Initial detail content");
     commands.insert_resource(RecordDetailShellFixture { root, content });
 }
@@ -204,8 +203,14 @@ fn record_detail_content_refresh_preserves_root_and_scroll_panel_state() {
 
 #[test]
 fn record_detail_screens_keep_distinct_screen_titles() {
-    assert_eq!(record_detail_title(RecordScreen::InventoryDetail), "INVENTORY | ITEM");
-    assert_eq!(record_detail_title(RecordScreen::QuestDetail), "QUEST | DETAILS");
+    assert_eq!(
+        record_detail_title(RecordScreen::InventoryDetail),
+        "INVENTORY | ITEM"
+    );
+    assert_eq!(
+        record_detail_title(RecordScreen::QuestDetail),
+        "QUEST | DETAILS"
+    );
     assert_eq!(record_detail_title(RecordScreen::Meditation), "MEDITATION");
     assert_eq!(
         record_detail_title(RecordScreen::MeditationResult),
@@ -215,5 +220,8 @@ fn record_detail_screens_keep_distinct_screen_titles() {
         record_detail_title(RecordScreen::ChronicleDetail),
         "JOURNAL | CHRONICLE"
     );
-    assert_eq!(record_detail_title(RecordScreen::JournalEntry), "WRITE IN JOURNAL");
+    assert_eq!(
+        record_detail_title(RecordScreen::JournalEntry),
+        "WRITE IN JOURNAL"
+    );
 }

@@ -619,14 +619,13 @@ fn record_detail_title(screen: RecordScreen) -> &'static str {
     }
 }
 
-fn spawn_record_detail_shell(
-    commands: &mut Commands,
-    screen: RecordScreen,
-) -> (Entity, Entity) {
+fn spawn_record_detail_shell(commands: &mut Commands, screen: RecordScreen) -> (Entity, Entity) {
     let root = bevy_presentation::spawn_screen(commands, record_detail_title(screen));
     let content = bevy_presentation::spawn_panel(commands, root);
     commands.entity(content).insert(RecordDetailContentHost);
-    commands.entity(root).insert(RecordDetailScreen { screen, content });
+    commands
+        .entity(root)
+        .insert(RecordDetailScreen { screen, content });
     (root, content)
 }
 
@@ -657,11 +656,9 @@ fn render_record_detail_content(
             records_state.selected,
             records_state.message.as_deref(),
         ),
-        RecordScreen::MeditationResult => render_meditation_result(
-            commands,
-            content,
-            records_state.meditation_result.as_ref(),
-        ),
+        RecordScreen::MeditationResult => {
+            render_meditation_result(commands, content, records_state.meditation_result.as_ref())
+        }
         RecordScreen::ChronicleDetail => {
             let history_view = history_screen::build_view(state);
             let entries = journal_chronicle_entries(&history_view, character_view);
