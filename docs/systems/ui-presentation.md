@@ -34,8 +34,14 @@ The spatial scene continues to update player position, directional animation, ca
 
 The shared palette remains onyx-black with restrained warm accents. Panels use a consistent bordered surface, action buttons use compact corners and a common touch-target size, and typography continues to scale through the existing responsive font tokens. Feedback should clarify hierarchy and interaction without adding decorative effects that compete with the world.
 
+## Keyed dynamic rows
+
+Options save rows are keyed by normalized save path; mod rows are keyed by stable mod ID. Character Inventory rows use persistent item IDs, while Quest rows use persistent quest IDs carried through the renderer-neutral quest view. A refresh updates the existing row's text, action labels, selection index, and selected feedback in place. Insertions create only new rows, removals despawn only obsolete rows, and reordering changes the parent-child order without replacing unaffected row entities.
+
+The Options scroll viewport and row host remain mounted during same-tab refreshes. Message and footer regions are refreshed independently. Switching tabs clears the prior tab's contents, resets its scroll position, and creates the new tab's row host. The Character hub retains its scroll viewport, row host, and footer; Inventory/Quest refreshes reconcile keyed rows while changes between unrelated tabs replace only the row contents and reset the scroll position.
+
 ## Open work
 
-The retained-shell architecture described above is established across the listed high-churn screens, but dynamic child rows are not all keyed and every screen transition is not yet coordinated. Remaining migration goals—keyed row reconciliation, further separation of spatial topology from HUD/content updates, and coordinated exit transitions—are tracked centrally in the [roadmap](../../ROADMAP.md). This document describes current presentation contracts rather than maintaining a separate task list.
+The retained-shell and keyed-row foundations now cover the high-churn screens and collections listed above. Remaining migration goals—further separation of spatial topology changes from HUD/content refreshes and coordinated screen-exit transitions—are tracked centrally in the [roadmap](../../ROADMAP.md). Other dynamic collections should adopt the same keyed identity and stable-host contract as they are migrated; this document records current behavior rather than maintaining a separate task list.
 
 Desktop and Android behavior must remain equivalent. Stable hosts should preserve scroll position, focus, selection, and touch-gesture ownership across content updates.
