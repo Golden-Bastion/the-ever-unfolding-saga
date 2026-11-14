@@ -1567,17 +1567,20 @@ fn render_remains_result_content(
         .insert(bevy_presentation::UiSelected);
 }
 
-fn render_talk(commands: &mut Commands, view: &TalkView, selected: usize) {
-    let root = bevy_presentation::spawn_screen(commands, "TALK");
-    let panel = bevy_presentation::spawn_panel(commands, root);
-    bevy_presentation::spawn_muted_label(commands, panel, "Choose someone to speak with.");
+fn render_talk(
+    commands: &mut Commands,
+    parent: Entity,
+    view: &TalkView,
+    selected: usize,
+) {
+    bevy_presentation::spawn_muted_label(commands, parent, "Choose someone to speak with.");
     if view.npcs.is_empty() {
-        bevy_presentation::spawn_muted_label(commands, panel, "There is no one here to talk to.");
+        bevy_presentation::spawn_muted_label(commands, parent, "There is no one here to talk to.");
     } else {
         for (index, npc) in view.npcs.iter().enumerate() {
             let button = bevy_presentation::spawn_action_button(
                 commands,
-                panel,
+                parent,
                 index,
                 "character",
                 npc.display_name(),
@@ -1591,7 +1594,7 @@ fn render_talk(commands: &mut Commands, view: &TalkView, selected: usize) {
     }
     let back_index = view.npcs.len();
     let button =
-        bevy_presentation::spawn_action_button(commands, panel, back_index, "back", "Back");
+        bevy_presentation::spawn_action_button(commands, parent, back_index, "back", "Back");
     if selected == back_index {
         commands
             .entity(button)
@@ -1599,74 +1602,33 @@ fn render_talk(commands: &mut Commands, view: &TalkView, selected: usize) {
     }
 }
 
-fn render_conversation(
-    commands: &mut Commands,
-    view: Option<&ConversationView>,
-    selected: usize,
-    message: Option<&str>,
-    images: &mut Assets<Image>,
-    portrait_images: &mut PortraitImageCache,
-) {
-    let root = commands
-        .spawn((
-            BevyScreenRoot,
-            PresentationTransition::entering(),
-            UiTransform {
-                scale: Vec2::splat(0.96),
-                ..default()
-            },
-            Node {
-                width: percent(100),
-                height: percent(100),
-                min_width: px(0),
-                min_height: px(0),
-                padding: UiRect::all(px(12)),
-                flex_direction: FlexDirection::Column,
-                row_gap: px(8),
-                overflow: Overflow::clip(),
-                ..default()
-            },
-            BackgroundColor(bevy_presentation::THEME_BACKGROUND),
-        ))
-        .id();
-    render_dialogue_scene_content(
-        commands,
-        root,
-        view,
-        selected,
-        message,
-        images,
-        portrait_images,
-    );
-}
 
 fn render_remains(
     commands: &mut Commands,
+    parent: Entity,
     view: &RemainsView,
     selected: usize,
     message: Option<&str>,
 ) {
-    let root = bevy_presentation::spawn_screen(commands, "REMAINS");
-    let panel = bevy_presentation::spawn_panel(commands, root);
     bevy_presentation::spawn_muted_label(
         commands,
-        panel,
+        parent,
         format!("Search the remains at {}.", view.location_name),
     );
     if let Some(message) = message {
-        bevy_presentation::spawn_muted_label(commands, panel, message);
+        bevy_presentation::spawn_muted_label(commands, parent, message);
     }
     if view.remains.is_empty() {
         bevy_presentation::spawn_muted_label(
             commands,
-            panel,
+            parent,
             "There are no remains worth searching here.",
         );
     } else {
         for (index, remains) in view.remains.iter().enumerate() {
             let button = bevy_presentation::spawn_action_button(
                 commands,
-                panel,
+                parent,
                 index,
                 "remains",
                 remains.label.clone(),
@@ -1680,7 +1642,7 @@ fn render_remains(
     }
     let back_index = view.remains.len();
     let button =
-        bevy_presentation::spawn_action_button(commands, panel, back_index, "back", "Back");
+        bevy_presentation::spawn_action_button(commands, parent, back_index, "back", "Back");
     if selected == back_index {
         commands
             .entity(button)
@@ -1688,12 +1650,14 @@ fn render_remains(
     }
 }
 
-fn render_remains_result(commands: &mut Commands, result: Option<&RemainsResultView>) {
-    let root = bevy_presentation::spawn_screen(commands, "REMAINS RECOVERED");
-    let panel = bevy_presentation::spawn_panel(commands, root);
+fn render_remains_result(
+    commands: &mut Commands,
+    parent: Entity,
+    result: Option<&RemainsResultView>,
+) {
     let Some(result) = result else {
-        bevy_presentation::spawn_muted_label(commands, panel, "Nothing was recovered.");
-        let button = bevy_presentation::spawn_action_button(commands, panel, 0, "back", "Back");
+        bevy_presentation::spawn_muted_label(commands, parent, "Nothing was recovered.");
+        let button = bevy_presentation::spawn_action_button(commands, parent, 0, "back", "Back");
         commands
             .entity(button)
             .insert(bevy_presentation::UiSelected);
@@ -1701,26 +1665,27 @@ fn render_remains_result(commands: &mut Commands, result: Option<&RemainsResultV
     };
     bevy_presentation::spawn_label(
         commands,
-        panel,
+        parent,
         format!(
             "{} the {} at {}",
             result.former_name, result.former_title, result.location_name
         ),
     );
     for item in &result.items {
-        bevy_presentation::spawn_label(commands, panel, format!("Recovered: {}", item.name));
+        bevy_presentation::spawn_label(commands, parent, format!("Recovered: {}", item.name));
         if !item.description.is_empty() {
-            bevy_presentation::spawn_muted_label(commands, panel, item.description.clone());
+            bevy_presentation::spawn_muted_label(commands, parent, item.description.clone());
         }
     }
     if let Some(item) = &result.hidden_item {
-        bevy_presentation::spawn_label(commands, panel, format!("Discovered: {}", item.name));
-        bevy_presentation::spawn_muted_label(commands, panel, item.description.clone());
+        bevy_presentation::spawn_label(commands, parent, format!("Discovered: {}", item.name));
+        bevy_presentation::spawn_muted_label(commands, parent, item.description.clone());
     }
     for note in &result.notes {
-        bevy_presentation::spawn_muted_label(commands, panel, note.clone());
+        bevy_presentation::spawn_muted_label(commands, parent, note.clone());
     }
-    let button = bevy_presentation::spawn_action_button(commands, panel, 0, "continue", "Continue");
+    let button =
+        bevy_presentation::spawn_action_button(commands, parent, 0, "continue", "Continue");
     commands
         .entity(button)
         .insert(bevy_presentation::UiSelected);
