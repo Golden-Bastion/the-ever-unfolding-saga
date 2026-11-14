@@ -30,12 +30,19 @@ fn mod_action_slots_match_the_row_control_order() {
 struct OptionsContentHostsFixture {
     content: Entity,
     hosts: OptionsContent,
+    retained_row: Entity,
 }
 
 fn spawn_options_content_hosts_fixture(mut commands: Commands) {
     let content = commands.spawn_empty().id();
     let hosts = spawn_options_content_hosts(&mut commands, content, 0);
-    commands.insert_resource(OptionsContentHostsFixture { content, hosts });
+    let retained_row = commands.spawn_empty().id();
+    commands.entity(hosts.rows).add_child(retained_row);
+    commands.insert_resource(OptionsContentHostsFixture {
+        content,
+        hosts,
+        retained_row,
+    });
 }
 
 fn clear_options_content_hosts_fixture(
@@ -47,7 +54,7 @@ fn clear_options_content_hosts_fixture(
 }
 
 #[test]
-fn options_refresh_preserves_scroll_host_and_all_content_regions() {
+fn options_auxiliary_refresh_preserves_scroll_and_dynamic_rows_host() {
     let mut world = World::new();
     let mut setup = Schedule::default();
     setup.add_systems(spawn_options_content_hosts_fixture);
@@ -79,5 +86,232 @@ fn options_refresh_preserves_scroll_host_and_all_content_regions() {
     );
     assert!(world
         .get::<Children>(fixture.hosts.list)
-        .is_none_or(|children| children.is_empty()));
+        .unwrap()
+        .iter()
+        .any(|child| child == fixture.hosts.rows));
+    assert!(world
+        .get::<Children>(fixture.hosts.rows)
+        .unwrap()
+        .iter()
+        .any(|child| child == fixture.retained_row));
+}
+
+#[derive(Resource)]
+struct SaveRowsFixture(Entity);
+
+fn spawn_save_rows_host(mut commands: Commands) {
+    let host = commands.spawn(Node::default()).id();
+    commands.insert_resource(SaveRowsFixture(host));
+}
+
+fn reconcile_test_save_rows(
+    mut commands: Commands,
+    options: Res<OptionsState>,
+    fixture: Res<SaveRowsFixture>,
+    children: Query<&Children>,
+    rows: Query<(Entity, &SaveListRow)>,
+    empty_states: Query<(), With<OptionsEmptyState>>,
+) {
+    reconcile_save_rows(
+        &mut commands,
+        fixture.0,
+        &options,
+        &children,
+        &rows,
+        &empty_states,
+    );
+}
+
+fn find_save_row(world: &mut World, key: &PathBuf) -> Entity {
+    let mut rows = world.query::<(Entity, &SaveListRow)>();
+    rows.iter(world)
+        .find_map(|(entity, row)| (&row.key == key).then_some(entity))
+        .expect("save row should exist")
+}
+
+#[test]
+fn save_rows_reconcile_by_path_and_preserve_entities_when_reordered() {
+    let first = PathBuf::from("saves/first.json.gz");
+    let second = PathBuf::from("saves/second.json.gz");
+    let third = PathBuf::from("saves/third.json.gz");
+    let options = OptionsState {
+        saves: vec![
+            SaveEntry {
+                path: first.clone(),
+                metadata: None,
+            },
+            SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+        ],
+        ..Default::default()
+    };
+
+    let mut world = World::new();
+    world.insert_resource(options);
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_save_rows_host);
+    setup.run(&mut world);
+    world.flush();
+    let host = world.resource::<SaveRowsFixture>().0;
+
+    let mut render = Schedule::default();
+    render.add_systems(reconcile_test_save_rows);
+    render.run(&mut world);
+    world.flush();
+
+    let first_entity = find_save_row(&mut world, &first);
+    let second_entity = find_save_row(&mut world, &second);
+
+    {
+        let mut options = world.resource_mut::<OptionsState>();
+        options.saves = vec![
+            SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+            SaveEntry {
+                path: third.clone(),
+                metadata: None,
+            },
+        ];
+    }
+
+    render.run(&mut world);
+    world.flush();
+
+    let second_after = find_save_row(&mut world, &second);
+    let third_entity = find_save_row(&mut world, &third);
+    assert_eq!(second_after, second_entity);
+    assert_ne!(third_entity, first_entity);
+    assert!(world.get::<SaveListRow>(first_entity).is_none());
+
+    let ordered = world
+        .get::<Children>(host)
+        .unwrap()
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(ordered, vec![second_entity, third_entity]);
+    let second_row = world.get::<SaveListRow>(second_entity).unwrap();
+    assert_eq!(
+        world
+            .get::<bevy_presentation::ChoiceButton>(second_row.button)
+            .unwrap()
+            .index,
+        0
+    );
+}
+
+#[derive(Resource)]
+struct ModRowsFixture(Entity);
+
+fn reconcile_test_mod_rows(
+    mut commands: Commands,
+    options: Res<OptionsState>,
+    fixture: Res<ModRowsFixture>,
+    children: Query<&Children>,
+    rows: Query<(Entity, &ModListRow)>,
+    empty_states: Query<(), With<OptionsEmptyState>>,
+) {
+    reconcile_mod_rows(
+        &mut commands,
+        fixture.0,
+        &options,
+        &children,
+        &rows,
+        &empty_states,
+    );
+}
+
+fn test_installed_mod(id: &str, name: &str, priority: i32) -> InstalledMod {
+    InstalledMod {
+        manifest: crate::content::ModManifest {
+            id: id.to_string(),
+            name: name.to_string(),
+            version: "1.0.0".to_string(),
+            priority,
+            enabled: true,
+            content_file: None,
+        },
+        directory: PathBuf::from(format!("mods/{id}")),
+        enabled: true,
+        priority,
+        asset_count: 3,
+    }
+}
+
+fn find_mod_row(world: &mut World, key: &str) -> Entity {
+    let mut rows = world.query::<(Entity, &ModListRow)>();
+    rows.iter(world)
+        .find_map(|(entity, row)| (row.key == key).then_some(entity))
+        .expect("mod row should exist")
+}
+
+#[test]
+fn mod_rows_reconcile_by_stable_id_and_update_action_indices() {
+    let options = OptionsState {
+        mods: vec![
+            test_installed_mod("mod.one", "First Mod", 1),
+            test_installed_mod("mod.two", "Second Mod", 2),
+        ],
+        ..Default::default()
+    };
+
+    let mut world = World::new();
+    world.insert_resource(options);
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_save_rows_host);
+    setup.run(&mut world);
+    world.flush();
+    let host = world.resource::<SaveRowsFixture>().0;
+    world.insert_resource(ModRowsFixture(host));
+
+    let mut render = Schedule::default();
+    render.add_systems(reconcile_test_mod_rows);
+    render.run(&mut world);
+    world.flush();
+
+    let first = find_mod_row(&mut world, "mod.one");
+    let second = find_mod_row(&mut world, "mod.two");
+    {
+        let mut options = world.resource_mut::<OptionsState>();
+        options.mods = vec![
+            test_installed_mod("mod.two", "Renamed Second Mod", 1),
+            test_installed_mod("mod.three", "Third Mod", 3),
+        ];
+        options.selected = MOD_ENABLE_ACTION;
+        options.pending_remove_id = Some("mod.two".to_string());
+    }
+
+    render.run(&mut world);
+    world.flush();
+
+    let second_after = find_mod_row(&mut world, "mod.two");
+    let third = find_mod_row(&mut world, "mod.three");
+    assert_eq!(second_after, second);
+    assert_ne!(third, first);
+    assert!(world.get::<ModListRow>(first).is_none());
+
+    let second_row = world.get::<ModListRow>(second).unwrap();
+    assert_eq!(
+        world
+            .get::<bevy_presentation::ChoiceButton>(second_row.buttons[MOD_ENABLE_ACTION])
+            .unwrap()
+            .index,
+        MOD_ENABLE_ACTION
+    );
+    assert_eq!(
+        world
+            .get::<bevy_presentation::ChoiceButton>(second_row.buttons[MOD_DELETE_ACTION])
+            .unwrap()
+            .index,
+        MOD_DELETE_ACTION
+    );
+    let ordered = world
+        .get::<Children>(host)
+        .unwrap()
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(ordered, vec![second, third]);
 }

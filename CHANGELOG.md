@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.49. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.51. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -215,3 +215,12 @@ The entries below cover the v0.52.x development line through v0.52.49. This line
 
 - Recolored the 1,427 olive pixels in the south-facing idle and walk rows (atlas rows 4–5, zero-indexed) to a restrained warm-charcoal palette while preserving per-pixel luminance to rounding, alpha, frame positions, all unselected pixels, and the animation manifest.
 - Bumped Rust and Android fallback version metadata to 0.52.50.
+
+### v0.52.51: Keyed dynamic UI row reconciliation
+
+- Added stable keyed reconciliation for Options save rows and installed-mod rows, using save paths and stable mod IDs as identity. Existing row entities and controls now survive refreshes, while text, action labels, navigation indices, and selection feedback update in place.
+- Applied the same reconciliation model to Character Inventory and Quest rows, keyed by persistent item and quest IDs. Added the quest ID to the renderer-neutral QuestView so row identity is independent of list position and display text.
+- Kept the Options scroll viewport, tab-specific row host, Character hub scroll viewport, and Character footer mounted during same-tab data refreshes. Insertions, removals, and reordering affect only the rows that need changing.
+- Kept Options messages and footer actions as independently refreshed regions; tab changes reset scroll and replace only the old tab's content.
+- Added regression coverage for save-path and item/quest identity, row reordering, retained entity identity, obsolete-row removal, and updated action indices.
+- Bumped Rust and Android version metadata to 0.52.51.

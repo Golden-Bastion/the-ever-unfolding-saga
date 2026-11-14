@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.52.50.**
+**Repository version at this roadmap revision: 0.52.51.**
 
 **Theme:** spatial gameplay and presentation foundations.
 
@@ -14,10 +14,9 @@ The line has established the spatial exploration prototype, character/world auth
 
 ### Remaining work
 
-1. **Manual spatial validation.** Complete desktop and Android landscape visual/interaction playtesting for directional idle/walk animation, foot grounding and sword alignment, Old Shrine prop and wall occlusion, camera framing, HUD readability, and movement controls. Record reproducible defects as focused follow-up issues. [#446](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/446)
-2. **Continue the retained UI migration.** Introduce keyed row reconciliation for dynamic inventories, quests, save slots, and mod lists; further isolate spatial topology changes from HUD/content refreshes; and define coordinated screen-exit transitions. Stable hosts must preserve scroll, focus, and selection. See [UI presentation architecture](docs/systems/ui-presentation.md).
-3. **Extend the spatial gameplay foundation.** Define explicit room/door topology before introducing room-aware camera transitions; add further authored local layouts and authoring support; and expand investigation beyond the initial points of interest into clue/evidence progression and dynamic encounters. Preserve renderer-neutral action/target identity and authoritative gameplay rules. See [spatial gameplay design](docs/design/spatial-gameplay.md) and [spatial exploration](docs/systems/spatial-exploration.md).
-4. **Formalize the visual and interface language.** Establish the shared pixel-art style, palette, scale, character proportions, perspective, layering, and asset workflow; continue evolving contextual HUD hierarchy, objective/orientation cues, character-hub presentation, and platform-adaptive controls without overloading the spatial view. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
+1. **Continue the retained UI migration.** Keyed row reconciliation is now implemented for inventories, quests, save lists, and mod lists. Remaining work is to further isolate spatial topology changes from HUD/content refreshes and define coordinated screen-exit transitions. Stable hosts must preserve scroll, focus, and selection. See [UI presentation architecture](docs/systems/ui-presentation.md).
+2. **Extend the spatial gameplay foundation.** Define explicit room/door topology before introducing room-aware camera transitions; add further authored local layouts and authoring support; and expand investigation beyond the initial points of interest into clue/evidence progression and dynamic encounters. Preserve renderer-neutral action/target identity and authoritative gameplay rules. See [spatial gameplay design](docs/design/spatial-gameplay.md) and [spatial exploration](docs/systems/spatial-exploration.md).
+3. **Formalize the visual and interface language.** Establish the shared pixel-art style, palette, scale, character proportions, perspective, layering, and asset workflow; continue evolving contextual HUD hierarchy, objective/orientation cues, character-hub presentation, and platform-adaptive controls without overloading the spatial view. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
 
 The interim World Map is complete for its current purpose: a topological view of known locations with pan/zoom and existing fast-travel behavior. Its screen and current presentation are not a pending redesign. A future geography-backed map depends on the world-generation and topology foundations below, not another interim-map UI pass.
 

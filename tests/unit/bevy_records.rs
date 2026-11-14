@@ -225,3 +225,192 @@ fn record_detail_screens_keep_distinct_screen_titles() {
         "WRITE IN JOURNAL"
     );
 }
+
+#[derive(Resource)]
+struct InventoryRowsFixture {
+    host: Entity,
+    view: InventoryView,
+    selected: usize,
+}
+
+fn spawn_inventory_rows_fixture(mut commands: Commands) {
+    let parent = commands.spawn_empty().id();
+    let host = bevy_presentation::spawn_action_button_group(&mut commands, parent);
+    commands.insert_resource(InventoryRowsFixture {
+        host,
+        view: InventoryView {
+            items: vec![
+                crate::presentation::ItemView {
+                    id: 101,
+                    name: "Iron sword".to_string(),
+                    description: String::new(),
+                },
+                crate::presentation::ItemView {
+                    id: 102,
+                    name: "Wooden shield".to_string(),
+                    description: String::new(),
+                },
+            ],
+            ..Default::default()
+        },
+        selected: 0,
+    });
+}
+
+fn render_inventory_rows_fixture(
+    mut commands: Commands,
+    fixture: Res<InventoryRowsFixture>,
+    children: Query<&Children>,
+    rows: Query<(Entity, &CharacterListRow)>,
+    empty_states: Query<(), With<CharacterEmptyState>>,
+) {
+    render_inventory_tab(
+        &mut commands,
+        fixture.host,
+        &fixture.view,
+        fixture.selected,
+        &children,
+        &rows,
+        &empty_states,
+    );
+}
+
+#[derive(Resource)]
+struct QuestRowsFixture {
+    host: Entity,
+    view: QuestLogView,
+    selected: usize,
+}
+
+fn spawn_quest_rows_fixture(mut commands: Commands) {
+    let parent = commands.spawn_empty().id();
+    let host = bevy_presentation::spawn_action_button_group(&mut commands, parent);
+    commands.insert_resource(QuestRowsFixture {
+        host,
+        view: QuestLogView {
+            quests: vec![QuestView {
+                id: 701,
+                title: "Find the sealed letter".to_string(),
+                status: "ACTIVE".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        },
+        selected: 0,
+    });
+}
+
+fn render_quest_rows_fixture(
+    mut commands: Commands,
+    fixture: Res<QuestRowsFixture>,
+    children: Query<&Children>,
+    rows: Query<(Entity, &CharacterListRow)>,
+    empty_states: Query<(), With<CharacterEmptyState>>,
+) {
+    render_quests_tab(
+        &mut commands,
+        fixture.host,
+        &fixture.view,
+        fixture.selected,
+        &children,
+        &rows,
+        &empty_states,
+    );
+}
+
+fn find_character_row(world: &mut World, key: &str) -> Entity {
+    let mut rows = world.query::<(Entity, &CharacterListRow)>();
+    rows.iter(world)
+        .find_map(|(entity, row)| (row.key == key).then_some(entity))
+        .expect("character list row should exist")
+}
+
+#[test]
+fn inventory_rows_reconcile_by_item_identity_and_reorder_in_place() {
+    let mut world = World::new();
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_inventory_rows_fixture);
+    setup.run(&mut world);
+    world.flush();
+
+    let mut render = Schedule::default();
+    render.add_systems(render_inventory_rows_fixture);
+    render.run(&mut world);
+    world.flush();
+
+    let first = find_character_row(&mut world, "inventory:101");
+    let second = find_character_row(&mut world, "inventory:102");
+    let host = world.resource::<InventoryRowsFixture>().host;
+
+    {
+        let mut fixture = world.resource_mut::<InventoryRowsFixture>();
+        fixture.view.items = vec![
+            crate::presentation::ItemView {
+                id: 102,
+                name: "Repaired wooden shield".to_string(),
+                description: String::new(),
+            },
+            crate::presentation::ItemView {
+                id: 103,
+                name: "Torch".to_string(),
+                description: String::new(),
+            },
+        ];
+        fixture.selected = 1;
+    }
+
+    render.run(&mut world);
+    world.flush();
+
+    let second_after = find_character_row(&mut world, "inventory:102");
+    let third = find_character_row(&mut world, "inventory:103");
+    assert_eq!(second_after, second);
+    assert_ne!(third, first);
+    assert!(world.get::<CharacterListRow>(first).is_none());
+    assert_eq!(
+        world
+            .get::<bevy_presentation::ChoiceButton>(third)
+            .unwrap()
+            .index,
+        1
+    );
+    assert!(world.get::<bevy_presentation::UiSelected>(third).is_some());
+    let ordered = world
+        .get::<Children>(host)
+        .unwrap()
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(ordered, vec![second, third]);
+}
+
+#[test]
+fn quest_rows_use_persistent_quest_ids_for_retention() {
+    let mut world = World::new();
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_quest_rows_fixture);
+    setup.run(&mut world);
+    world.flush();
+
+    let mut render = Schedule::default();
+    render.add_systems(render_quest_rows_fixture);
+    render.run(&mut world);
+    world.flush();
+
+    let original = find_character_row(&mut world, "quest:701");
+    {
+        let mut fixture = world.resource_mut::<QuestRowsFixture>();
+        fixture.view.quests[0].title = "Find the sealed letter and return it".to_string();
+        fixture.view.quests[0].status = "READY".to_string();
+        fixture.selected = 0;
+    }
+
+    render.run(&mut world);
+    world.flush();
+
+    assert_eq!(find_character_row(&mut world, "quest:701"), original);
+    let row = world.get::<CharacterListRow>(original).unwrap();
+    assert!(world.get::<Text>(row.label).is_some());
+    assert!(world
+        .get::<bevy_presentation::UiSelected>(original)
+        .is_some());
+}

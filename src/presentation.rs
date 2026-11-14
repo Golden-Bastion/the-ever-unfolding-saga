@@ -120,6 +120,7 @@ pub(crate) struct QuestObjectiveView {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct QuestView {
+    pub id: u64,
     pub title: String,
     pub description: String,
     pub objectives: Vec<QuestObjectiveView>,

@@ -617,3 +617,51 @@ fn shared_panels_expose_the_common_surface_contract() {
     assert!(world.get::<BorderColor>(panel).is_some());
     assert!(world.get::<Node>(panel).is_some());
 }
+
+#[derive(Resource, Clone, Copy)]
+struct KeyedActionGroupFixture {
+    parent: Entity,
+    group: Entity,
+    button: Entity,
+}
+
+fn spawn_keyed_action_group_fixture(mut commands: Commands) {
+    let parent = commands.spawn_empty().id();
+    let group = spawn_action_button_group(&mut commands, parent);
+    let (button, _) = spawn_action_button_with_text(&mut commands, group, 0, "item", "Test item");
+    commands.insert_resource(KeyedActionGroupFixture {
+        parent,
+        group,
+        button,
+    });
+}
+
+#[test]
+fn explicit_action_groups_keep_keyed_buttons_under_their_stable_host() {
+    let mut world = World::new();
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_keyed_action_group_fixture);
+    setup.run(&mut world);
+    world.flush();
+
+    let fixture = *world.resource::<KeyedActionGroupFixture>();
+    let mut organize = Schedule::default();
+    organize.add_systems(organize_action_button_groups);
+    organize.run(&mut world);
+    world.flush();
+
+    let parent_children = world
+        .get::<Children>(fixture.parent)
+        .unwrap()
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(parent_children, vec![fixture.group]);
+
+    let group_children = world
+        .get::<Children>(fixture.group)
+        .unwrap()
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(group_children, vec![fixture.button]);
+    assert!(world.get::<UiActionButtonGroup>(fixture.group).is_some());
+}

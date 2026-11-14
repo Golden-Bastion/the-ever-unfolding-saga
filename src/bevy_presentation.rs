@@ -1172,6 +1172,16 @@ fn action_button_group_node() -> Node {
     }
 }
 
+/// Creates a stable vertical action-button group. Its marker prevents the
+/// automatic organizer from moving keyed children into a different entity.
+pub(crate) fn spawn_action_button_group(commands: &mut Commands, parent: Entity) -> Entity {
+    let group = commands
+        .spawn((UiActionButtonGroup, action_button_group_node()))
+        .id();
+    commands.entity(parent).add_child(group);
+    group
+}
+
 fn action_button_node() -> Node {
     Node {
         width: percent(100),
@@ -1332,6 +1342,30 @@ pub fn spawn_compact_action_button(
     index: usize,
     label: impl Into<String>,
 ) -> Entity {
+    spawn_compact_action_button_with_text(commands, parent, index, label).0
+}
+
+/// Creates a compact action button and returns its text entity for retained-row updates.
+pub(crate) fn spawn_compact_action_button_with_text(
+    commands: &mut Commands,
+    parent: Entity,
+    index: usize,
+    label: impl Into<String>,
+) -> (Entity, Entity) {
+    let label = commands
+        .spawn((
+            Text::new(label.into()),
+            Node {
+                min_width: px(52),
+                max_width: percent(100),
+                ..default()
+            },
+            TextLayout::new(Justify::Center, LineBreak::WordOrCharacter),
+            TextContent,
+            TextFont::from_font_size(muted_font_size()),
+            TextColor(THEME_TEXT),
+        ))
+        .id();
     let button = commands
         .spawn((
             Button,
@@ -1346,22 +1380,11 @@ pub fn spawn_compact_action_button(
             compact_action_button_node(),
             BorderColor::all(THEME_BORDER),
             BackgroundColor(THEME_SURFACE),
-            children![(
-                Text::new(label.into()),
-                Node {
-                    min_width: px(52),
-                    max_width: percent(100),
-                    ..default()
-                },
-                TextLayout::new(Justify::Center, LineBreak::WordOrCharacter),
-                TextContent,
-                TextFont::from_font_size(muted_font_size()),
-                TextColor(THEME_TEXT),
-            )],
         ))
         .id();
+    commands.entity(button).add_child(label);
     commands.entity(parent).add_child(button);
-    button
+    (button, label)
 }
 
 #[derive(Component)]
@@ -1422,6 +1445,62 @@ pub fn spawn_action_button(
     icon: impl Into<String>,
     label: impl Into<String>,
 ) -> Entity {
+    spawn_action_button_with_text(commands, parent, index, icon, label).0
+}
+
+/// Creates an action button and returns its text entity for retained-row updates.
+pub(crate) fn spawn_action_button_with_text(
+    commands: &mut Commands,
+    parent: Entity,
+    index: usize,
+    icon: impl Into<String>,
+    label: impl Into<String>,
+) -> (Entity, Entity) {
+    let icon = icon.into();
+    let label = label.into();
+    let icon_entity = commands
+        .spawn((
+            Node {
+                width: px(22),
+                height: px(22),
+                min_width: px(22),
+                min_height: px(22),
+                flex_shrink: 0.0,
+                ..default()
+            },
+            UiIconName(icon),
+        ))
+        .id();
+    let label_entity = commands
+        .spawn((
+            Text::new(label),
+            Node {
+                min_width: px(0),
+                max_width: percent(100),
+                flex_grow: 1.0,
+                flex_shrink: 1.0,
+                ..default()
+            },
+            TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
+            TextContent,
+            TextFont::from_font_size(label_font_size()),
+            TextColor(THEME_TEXT),
+        ))
+        .id();
+    let content = commands
+        .spawn(Node {
+            width: percent(100),
+            min_width: px(0),
+            max_width: percent(100),
+            flex_direction: FlexDirection::Row,
+            column_gap: responsive_compact_gap(),
+            align_items: AlignItems::Center,
+            ..default()
+        })
+        .id();
+    commands
+        .entity(content)
+        .add_children(&[icon_entity, label_entity]);
     let button = commands
         .spawn((
             Button,
@@ -1434,48 +1513,11 @@ pub fn spawn_action_button(
             action_button_node(),
             BorderColor::all(THEME_BORDER),
             BackgroundColor(THEME_SURFACE),
-            children![(
-                Node {
-                    width: percent(100),
-                    min_width: px(0),
-                    max_width: percent(100),
-                    flex_direction: FlexDirection::Row,
-                    column_gap: responsive_compact_gap(),
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                children![
-                    (
-                        Node {
-                            width: px(22),
-                            height: px(22),
-                            min_width: px(22),
-                            min_height: px(22),
-                            flex_shrink: 0.0,
-                            ..default()
-                        },
-                        UiIconName(icon.into()),
-                    ),
-                    (
-                        Text::new(label.into()),
-                        Node {
-                            min_width: px(0),
-                            max_width: percent(100),
-                            flex_grow: 1.0,
-                            flex_shrink: 1.0,
-                            ..default()
-                        },
-                        TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
-                        TextContent,
-                        TextFont::from_font_size(label_font_size()),
-                        TextColor(THEME_TEXT),
-                    ),
-                ],
-            )],
         ))
         .id();
+    commands.entity(button).add_child(content);
     commands.entity(parent).add_child(button);
-    button
+    (button, label_entity)
 }
 
 /// Creates a compact, icon-only action button that participates in the shared
