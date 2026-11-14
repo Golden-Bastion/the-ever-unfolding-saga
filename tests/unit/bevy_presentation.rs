@@ -532,3 +532,38 @@ fn dedicated_screen_navigation_uses_its_fallback_without_a_previous_screen() {
     );
     assert_eq!(navigation.return_screen, None);
 }
+
+#[test]
+fn action_button_selection_updates_without_rebuilding_the_screen() {
+    let mut world = World::new();
+    world.insert_resource(NavigationState {
+        current_screen: Some(ScreenId::Combat),
+        return_screen: None,
+        selected: 1,
+    });
+    let first = world
+        .spawn((ChoiceButton { index: 0 }, UiActionButton, UiSelected))
+        .id();
+    let second = world
+        .spawn((ChoiceButton { index: 1 }, UiActionButton))
+        .id();
+
+    let mut schedule = Schedule::default();
+    schedule.add_systems(sync_action_button_selection);
+    schedule.run(&mut world);
+
+    assert!(world.get::<UiSelected>(first).is_none());
+    assert!(world.get::<UiSelected>(second).is_some());
+}
+
+#[test]
+fn button_colour_interpolation_reaches_target_without_overshooting() {
+    let start = Color::srgb(0.0, 0.0, 0.0);
+    let end = Color::srgb(1.0, 0.5, 0.25);
+    let halfway = interpolate_ui_color(start, end, 0.5).to_srgba();
+
+    assert!((halfway.red - 0.5).abs() < 0.001);
+    assert!((halfway.green - 0.25).abs() < 0.001);
+    assert!((halfway.blue - 0.125).abs() < 0.001);
+    assert_eq!(interpolate_ui_color(start, end, 2.0).to_srgba(), end.to_srgba());
+}
