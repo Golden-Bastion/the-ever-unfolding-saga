@@ -1,4 +1,5 @@
 use super::*;
+use std::path::PathBuf;
 
 #[test]
 fn options_tabs_have_two_categories() {
