@@ -1954,7 +1954,7 @@ fn render_character_lab(
     existing_hosts: Option<(Entity, Entity, Entity, Entity)>,
     children: &Query<&Children>,
 ) {
-    let (_root, workspace, viewer, controls) = if let Some(hosts) = existing_hosts {
+    let (_root, _workspace, viewer, controls) = if let Some(hosts) = existing_hosts {
         let (root, workspace, viewer, controls) = hosts;
         bevy_presentation::clear_tab_content(commands, viewer, children);
         bevy_presentation::clear_tab_content(commands, controls, children);
