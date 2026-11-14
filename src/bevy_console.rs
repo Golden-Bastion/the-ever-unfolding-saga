@@ -313,7 +313,7 @@ fn render_if_active(
     }
 
     let view = state.console.view();
-    let Some(root) = console_roots.iter().next() else {
+    if console_roots.iter().next().is_none() {
         for root in &roots {
             commands.entity(root).despawn();
         }
@@ -331,7 +331,7 @@ fn render_if_active(
     }
 
     let previous = state.rendered_view.clone();
-    if previous.as_ref().is_none_or(|previous| {
+    if previous.as_ref().map_or(true, |previous| {
         previous.output != view.output || previous.scroll != view.scroll
     }) {
         if let Some(host) = output_hosts.iter().next() {
@@ -352,7 +352,7 @@ fn render_if_active(
         }
     }
 
-    if previous.as_ref().is_none_or(|previous| previous.input != view.input) {
+    if previous.as_ref().map_or(true, |previous| previous.input != view.input) {
         if let Some(mut text) = input_texts.iter_mut().next() {
             *text = Text::new(format!("> {}", view.input));
         }
@@ -360,7 +360,6 @@ fn render_if_active(
 
     state.rendered_view = Some(view);
     state.dirty = false;
-    let _ = root;
 }
 
 fn spawn_console_screen(
