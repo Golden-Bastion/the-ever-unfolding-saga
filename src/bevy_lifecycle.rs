@@ -1191,12 +1191,6 @@ impl LifecycleState {
 
     pub(crate) fn start_load_game(&mut self, navigation: &mut NavigationState) -> bool {
         self.refresh_saves();
-        if self.save_files.is_empty() {
-            self.message = None;
-            self.dirty = false;
-            return false;
-        }
-
         self.phase = LifecyclePhase::Load;
         self.selected = 0;
         self.pending_delete_save = None;
