@@ -8,12 +8,14 @@ fn spawn_confirmation_dialog_fixture(mut commands: Commands) {
     let buttons = spawn_confirmation_dialog(
         &mut commands,
         root,
-        "DELETE SAVE?",
-        "Permanently delete this save?",
-        8,
-        9,
-        "Delete permanently",
-        "Cancel",
+        ConfirmationDialogSpec {
+            title: "DELETE SAVE?",
+            message: "Permanently delete this save?",
+            confirm_index: 8,
+            cancel_index: 9,
+            confirm_label: "Delete permanently",
+            cancel_label: "Cancel",
+        },
     );
     commands.insert_resource(ConfirmationDialogFixture(buttons));
 }
