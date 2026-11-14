@@ -2141,7 +2141,6 @@ fn organize_action_button_groups(
     }
 }
 
-fn touch_scroll(
 fn capture_scroll_positions(
     navigation: Res<NavigationState>,
     panels: Query<(Entity, &ScrollPosition), With<TouchScrollablePanel>>,
@@ -2200,6 +2199,7 @@ fn restore_rebuilt_scroll_positions(
     snapshot.panel_entities = current_entities;
 }
 
+fn touch_scroll(
     touches: Res<Touches>,
     mut mouse_wheel: MessageReader<MouseWheel>,
     window: Single<&Window, With<PrimaryWindow>>,

@@ -461,8 +461,6 @@ fn appearance_buttons_change_the_part_for_the_slot_the_row_represents() {
 }
 
 #[test]
-fn creation_appearance_slots_follow_the_portrait_view_order() {
-#[test]
 fn optional_creation_slot_none_choice_is_saved_and_omitted_from_preview() {
     let mut lifecycle = LifecycleState::default();
     let mut navigation = NavigationState::default();
@@ -490,6 +488,8 @@ fn optional_creation_slot_none_choice_is_saved_and_omitted_from_preview() {
     ));
 }
 
+#[test]
+fn creation_appearance_slots_follow_the_portrait_view_order() {
     let parts = ["body", "face", "headgear", "accessory", "hair"]
         .into_iter()
         .map(|slot| crate::content::CharacterPartContent {

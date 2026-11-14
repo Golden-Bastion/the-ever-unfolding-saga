@@ -113,8 +113,6 @@ fn player_portrait_uses_explicit_part_ids_in_draw_order() {
 }
 
 #[test]
-fn player_portrait_defaults_and_missing_parts_are_stable() {
-#[test]
 fn explicit_none_choices_remove_optional_player_slots_and_legacy_saves_still_default() {
     let parts = vec![
         part("body.one", "body", 1, 10, &[], &[]),
@@ -170,6 +168,8 @@ fn optional_npc_slots_are_sometimes_omitted_but_required_slots_remain() {
     assert!(accessory_present > 0 && accessory_omitted > 0);
 }
 
+#[test]
+fn player_portrait_defaults_and_missing_parts_are_stable() {
     let parts = vec![
         part("hair.z", "hair", 1, 20, &[], &[]),
         part("face.z", "face", 1, 10, &[], &[]),
