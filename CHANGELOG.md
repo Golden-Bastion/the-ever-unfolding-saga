@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.51. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.52. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -215,6 +215,15 @@ The entries below cover the v0.52.x development line through v0.52.51. This line
 
 - Recolored the 1,427 olive pixels in the south-facing idle and walk rows (atlas rows 4–5, zero-indexed) to a restrained warm-charcoal palette while preserving per-pixel luminance to rounding, alpha, frame positions, all unselected pixels, and the animation manifest.
 - Bumped Rust and Android fallback version metadata to 0.52.50.
+
+### v0.52.52: Unified save management and destructive confirmation
+
+- Moved save discovery, metadata, import, and export into the existing Load screen and removed the duplicate Saves tab from Options; Options now contains only Mods and Interface.
+- Kept Load accessible when no saves exist so new installations can import saves from the title screen or in-game pause menu.
+- Added Load, Export, and Delete actions to each retained, path-keyed save row. Import and Back remain in the fixed footer, and Android save-import staging is now owned by the lifecycle Load flow.
+- Added a reusable modal confirmation primitive and a red danger palette for destructive actions. Save deletion permanently removes a file only after the player confirms.
+- Added regression coverage for retained save-row identity, action-index updates, empty-catalogue import access, and confirmed/cancelled deletion.
+- Bumped Rust and Android version metadata to 0.52.52.
 
 ### v0.52.51: Keyed dynamic UI row reconciliation
 
