@@ -37,6 +37,9 @@ struct InteractionRoot {
 #[derive(Component)]
 struct InteractionContentHost;
 
+#[derive(Component)]
+struct InteractionScrollPanel;
+
 #[derive(Resource)]
 pub(crate) struct BevyInteractionState {
     screen: InteractionScreen,
@@ -605,6 +608,9 @@ fn render_if_active(
         return;
     }
     if navigation.current_screen == Some(ScreenId::SpatialExploration) {
+        for (root, _) in &interaction_roots {
+            commands.entity(root).despawn();
+        }
         if state.spatial_overlay_closing {
             state.dirty = false;
             return;
@@ -688,7 +694,7 @@ fn render_if_active(
 }
 
 fn spawn_interaction_screen(commands: &mut Commands, screen: InteractionScreen) -> Entity {
-    let (root, host) = match screen {
+    let (_root, host) = match screen {
         InteractionScreen::Conversation => {
             let root = commands
                 .spawn((
@@ -742,6 +748,7 @@ fn spawn_interaction_screen(commands: &mut Commands, screen: InteractionScreen) 
             let root = bevy_presentation::spawn_screen(commands, title);
             commands.entity(root).insert(InteractionRoot { screen });
             let panel = bevy_presentation::spawn_panel(commands, root);
+            commands.entity(panel).insert(InteractionScrollPanel);
             let host = commands
                 .spawn((
                     InteractionContentHost,
@@ -760,7 +767,6 @@ fn spawn_interaction_screen(commands: &mut Commands, screen: InteractionScreen) 
             (root, host)
         }
     };
-    let _ = root;
     host
 }
 
