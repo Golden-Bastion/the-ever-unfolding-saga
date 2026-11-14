@@ -729,7 +729,9 @@ fn spawn_options_list_header(commands: &mut Commands, list: Entity, tab: usize) 
                 "Imports never overwrite existing saves.",
             );
         }
-        1 => bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT"),
+        1 => {
+            bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT");
+        }
         _ => {}
     }
 }
@@ -762,7 +764,6 @@ fn clear_options_content_hosts(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
 fn render_options_list_content(
     commands: &mut Commands,
