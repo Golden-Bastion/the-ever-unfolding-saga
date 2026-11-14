@@ -977,10 +977,10 @@ fn reconcile_mod_rows(
         let entity = if let Some((entity, row)) = existing.remove(&key) {
             commands.entity(row.title).insert(Text::new(title));
             commands.entity(row.detail).insert(Text::new(detail));
-            for action in 0..MOD_ACTIONS_PER_MOD {
+            for (action, action_label) in action_labels.iter().enumerate() {
                 commands
                     .entity(row.button_labels[action])
-                    .insert(Text::new(action_labels[action].clone()));
+                    .insert(Text::new(action_label.clone()));
                 update_option_row_button(
                     commands,
                     row.buttons[action],
@@ -995,13 +995,13 @@ fn reconcile_mod_rows(
             let detail_entity = bevy_presentation::spawn_muted_label(commands, row.label, detail);
             let mut buttons = Vec::with_capacity(MOD_ACTIONS_PER_MOD);
             let mut button_labels = Vec::with_capacity(MOD_ACTIONS_PER_MOD);
-            for action in 0..MOD_ACTIONS_PER_MOD {
+            for (action, action_label) in action_labels.iter().enumerate() {
                 let (button, button_label) =
                     bevy_presentation::spawn_compact_action_button_with_text(
                         commands,
                         row.controls,
                         base + action,
-                        action_labels[action].clone(),
+                        action_label.clone(),
                     );
                 update_option_row_button(
                     commands,
