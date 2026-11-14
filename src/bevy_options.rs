@@ -777,6 +777,7 @@ fn clear_options_content_hosts(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn render_options_list_content(
     commands: &mut Commands,
     rows: Entity,
