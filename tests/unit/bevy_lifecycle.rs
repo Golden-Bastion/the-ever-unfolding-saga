@@ -1,9 +1,9 @@
 #[test]
-fn start_menu_indices_account_for_developer_tools_and_load_slot() {
+fn start_menu_keeps_load_available_when_no_saves_exist() {
     let mut lifecycle = super::LifecycleState::default();
-    assert_eq!(super::start_option_count(&lifecycle), 4);
-    assert_eq!(super::start_developer_tools_index(&lifecycle), 1);
-    assert_eq!(super::start_options_index(&lifecycle), 2);
+    assert_eq!(super::start_option_count(&lifecycle), 5);
+    assert_eq!(super::start_developer_tools_index(&lifecycle), 2);
+    assert_eq!(super::start_options_index(&lifecycle), 3);
 
     lifecycle.save_files.push(super::SaveEntry {
         path: std::path::PathBuf::from("save.json"),
