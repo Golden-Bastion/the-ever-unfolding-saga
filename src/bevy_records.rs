@@ -98,7 +98,7 @@ struct CharacterHubScreen;
 #[derive(Component, Clone, Copy)]
 struct CharacterHubContent {
     list: Entity,
-    rows: Entity,
+    rows: Option<Entity>,
     footer: Entity,
     tab: CharacterTab,
 }
@@ -569,15 +569,20 @@ fn render_if_active(
                 records_state.character_tab,
                 CharacterTab::Inventory | CharacterTab::Quests
             );
+            if tab_changed {
+                commands
+                    .entity(hosts.list)
+                    .insert(bevy::ui::ScrollPosition::default());
+            }
             if !previous_uses_keyed_rows || !next_uses_keyed_rows {
-                bevy_presentation::clear_content_host(&mut commands, hosts.rows, &children);
+                bevy_presentation::clear_content_host(&mut commands, hosts.list, &children);
+                hosts.rows = None;
             }
             bevy_presentation::clear_content_host(&mut commands, hosts.footer, &children);
             hosts.tab = records_state.character_tab;
-            commands.entity(content).insert(hosts);
             render_character_hub_content(
                 &mut commands,
-                hosts,
+                &mut hosts,
                 &character_view,
                 &inventory,
                 &quests,
@@ -587,6 +592,7 @@ fn render_if_active(
                 &character_rows,
                 &empty_states,
             );
+            commands.entity(content).insert(hosts);
             bevy_presentation::update_tab_strip_selection(
                 &mut commands,
                 &tab_buttons,
@@ -757,18 +763,16 @@ fn render_character_hub(
     bevy_presentation::spawn_tab_strip(commands, panel, &CHARACTER_TAB_LABELS, tab.index());
     let content = bevy_presentation::spawn_tab_content(commands, panel);
     let list = bevy_presentation::spawn_scrollable_list(commands, content);
-    let rows = spawn_character_rows_host(commands, list);
     let footer = bevy_presentation::spawn_option_footer(commands, content);
-    let hosts = CharacterHubContent {
+    let mut hosts = CharacterHubContent {
         list,
-        rows,
+        rows: None,
         footer,
         tab,
     };
-    commands.entity(content).insert(hosts);
     render_character_hub_content(
         commands,
-        hosts,
+        &mut hosts,
         character,
         inventory,
         quests,
@@ -778,26 +782,13 @@ fn render_character_hub(
         character_rows,
         empty_states,
     );
-}
-
-fn spawn_character_rows_host(commands: &mut Commands, parent: Entity) -> Entity {
-    let rows = commands
-        .spawn(Node {
-            width: percent(100),
-            min_width: px(0),
-            flex_direction: FlexDirection::Column,
-            row_gap: bevy_presentation::responsive_vmin(1.389),
-            ..default()
-        })
-        .id();
-    commands.entity(parent).add_child(rows);
-    rows
+    commands.entity(content).insert(hosts);
 }
 
 #[allow(clippy::too_many_arguments)]
 fn render_character_hub_content(
     commands: &mut Commands,
-    hosts: CharacterHubContent,
+    hosts: &mut CharacterHubContent,
     character: &CharacterSheetView,
     inventory: &InventoryView,
     quests: &QuestLogView,
@@ -809,31 +800,41 @@ fn render_character_hub_content(
 ) {
     match hosts.tab {
         CharacterTab::General => {
-            render_character_general_tab(commands, hosts.rows, character);
+            render_character_general_tab(commands, hosts.list, character);
         }
         CharacterTab::Reputation => {
-            render_character_reputation_tab(commands, hosts.rows, character);
+            render_character_reputation_tab(commands, hosts.list, character);
         }
-        CharacterTab::Inventory => render_inventory_tab(
-            commands,
-            hosts.rows,
-            inventory,
-            selected,
-            children,
-            character_rows,
-            empty_states,
-        ),
-        CharacterTab::Quests => render_quests_tab(
-            commands,
-            hosts.rows,
-            quests,
-            selected,
-            children,
-            character_rows,
-            empty_states,
-        ),
+        CharacterTab::Inventory => {
+            let rows = *hosts.rows.get_or_insert_with(|| {
+                bevy_presentation::spawn_action_button_group(commands, hosts.list)
+            });
+            render_inventory_tab(
+                commands,
+                rows,
+                inventory,
+                selected,
+                children,
+                character_rows,
+                empty_states,
+            );
+        }
+        CharacterTab::Quests => {
+            let rows = *hosts.rows.get_or_insert_with(|| {
+                bevy_presentation::spawn_action_button_group(commands, hosts.list)
+            });
+            render_quests_tab(
+                commands,
+                rows,
+                quests,
+                selected,
+                children,
+                character_rows,
+                empty_states,
+            );
+        }
         CharacterTab::Journal => {
-            render_journal_tab(commands, hosts.rows, character, history, selected);
+            render_journal_tab(commands, hosts.list, character, history, selected);
         }
     }
 
