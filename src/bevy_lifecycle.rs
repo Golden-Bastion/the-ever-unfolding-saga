@@ -1737,7 +1737,15 @@ fn render_load_content(
     render_load_message(commands, hosts.messages, lifecycle);
     render_load_footer(commands, hosts.footer, lifecycle);
 
-    let existing_dialogs = confirmation_dialogs.iter().collect::<Vec<_>>();
+    let existing_dialogs = children
+        .get(root)
+        .map(|root_children| {
+            root_children
+                .iter()
+                .filter(|entity| confirmation_dialogs.get(*entity).is_ok())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     if lifecycle.pending_delete_save.is_some() {
         if existing_dialogs.is_empty() {
             render_load_confirmation(commands, root, lifecycle);
