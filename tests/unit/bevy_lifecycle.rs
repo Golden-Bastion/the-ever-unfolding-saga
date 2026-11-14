@@ -770,3 +770,133 @@ fn creation_appearance_slots_follow_the_portrait_view_order() {
     assert!(crate::character_appearance::appearance_slot_has_none_choice("accessory"));
     assert!(!crate::character_appearance::appearance_slot_has_none_choice("body"));
 }
+
+
+#[derive(Resource, Clone, Copy)]
+struct RetainedLoadScreenFixture {
+    root: Entity,
+    list: Entity,
+    hosts: super::LoadScreenContent,
+}
+
+fn spawn_retained_load_screen_fixture(mut commands: Commands) {
+    let root = commands.spawn_empty().id();
+    let list = commands
+        .spawn((
+            Node::default(),
+            bevy_presentation::TouchScrollablePanel,
+            ScrollPosition(Vec2::ZERO),
+        ))
+        .id();
+    let rows = commands.spawn(Node::default()).id();
+    let messages = commands.spawn(Node::default()).id();
+    let footer = commands.spawn(Node::default()).id();
+    commands.entity(root).add_child(list);
+    commands.entity(list).add_child(rows);
+    commands.entity(root).add_child(messages);
+    commands.entity(root).add_child(footer);
+
+    let hosts = super::LoadScreenContent {
+        rows,
+        messages,
+        footer,
+    };
+    commands.entity(root).insert(hosts);
+    commands.insert_resource(RetainedLoadScreenFixture { root, list, hosts });
+}
+
+fn refresh_retained_load_screen_fixture(
+    mut commands: Commands,
+    fixture: Res<RetainedLoadScreenFixture>,
+    lifecycle: Res<LifecycleState>,
+    children: Query<&Children>,
+    rows: Query<(Entity, &super::LoadSaveRow)>,
+    empty_states: Query<(), With<super::LoadEmptyState>>,
+    confirmation_dialogs: Query<Entity, With<bevy_presentation::UiConfirmationDialog>>,
+) {
+    super::render_load_content(
+        &mut commands,
+        fixture.root,
+        fixture.hosts,
+        &lifecycle,
+        &children,
+        &rows,
+        &empty_states,
+        &confirmation_dialogs,
+    );
+}
+
+#[test]
+fn load_refresh_keeps_the_scroll_shell_and_host_entities_mounted() {
+    let first = PathBuf::from("saves/first.json.gz");
+    let second = PathBuf::from("saves/second.json.gz");
+    let third = PathBuf::from("saves/third.json.gz");
+    let lifecycle = LifecycleState {
+        phase: LifecyclePhase::Load,
+        save_files: vec![
+            super::SaveEntry {
+                path: first.clone(),
+                metadata: None,
+            },
+            super::SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+        ],
+        ..LifecycleState::default()
+    };
+
+    let mut world = World::new();
+    world.insert_resource(lifecycle);
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_retained_load_screen_fixture);
+    setup.run(&mut world);
+    world.flush();
+
+    let fixture = *world.resource::<RetainedLoadScreenFixture>();
+    world
+        .entity_mut(fixture.list)
+        .insert(ScrollPosition(Vec2::new(0.0, 132.0)));
+
+    let mut refresh = Schedule::default();
+    refresh.add_systems(refresh_retained_load_screen_fixture);
+    refresh.run(&mut world);
+    world.flush();
+
+    let first_entity = find_load_row(&mut world, &first);
+    let second_entity = find_load_row(&mut world, &second);
+    {
+        let mut state = world.resource_mut::<LifecycleState>();
+        state.save_files = vec![
+            super::SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+            super::SaveEntry {
+                path: third.clone(),
+                metadata: None,
+            },
+        ];
+        state.message = Some("Save catalogue refreshed.".to_string());
+        state.selected = super::save_export_action_index(0);
+    }
+
+    refresh.run(&mut world);
+    world.flush();
+
+    assert!(world.get::<super::LoadScreenContent>(fixture.root).is_some());
+    assert!(world
+        .get::<bevy_presentation::TouchScrollablePanel>(fixture.list)
+        .is_some());
+    assert_eq!(
+        world.get::<ScrollPosition>(fixture.list).unwrap().0,
+        Vec2::new(0.0, 132.0)
+    );
+    assert!(world.get::<Node>(fixture.hosts.rows).is_some());
+    assert!(world.get::<Node>(fixture.hosts.messages).is_some());
+    assert!(world.get::<Node>(fixture.hosts.footer).is_some());
+    assert_eq!(find_load_row(&mut world, &second), second_entity);
+    assert_ne!(find_load_row(&mut world, &third), first_entity);
+    assert!(world.get::<super::LoadSaveRow>(first_entity).is_none());
+}
+
