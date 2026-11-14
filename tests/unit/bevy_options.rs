@@ -30,12 +30,19 @@ fn mod_action_slots_match_the_row_control_order() {
 struct OptionsContentHostsFixture {
     content: Entity,
     hosts: OptionsContent,
+    retained_row: Entity,
 }
 
 fn spawn_options_content_hosts_fixture(mut commands: Commands) {
     let content = commands.spawn_empty().id();
     let hosts = spawn_options_content_hosts(&mut commands, content, 0);
-    commands.insert_resource(OptionsContentHostsFixture { content, hosts });
+    let retained_row = commands.spawn_empty().id();
+    commands.entity(hosts.rows).add_child(retained_row);
+    commands.insert_resource(OptionsContentHostsFixture {
+        content,
+        hosts,
+        retained_row,
+    });
 }
 
 fn clear_options_content_hosts_fixture(
@@ -47,7 +54,7 @@ fn clear_options_content_hosts_fixture(
 }
 
 #[test]
-fn options_refresh_preserves_scroll_host_and_all_content_regions() {
+fn options_auxiliary_refresh_preserves_scroll_and_dynamic_rows_host() {
     let mut world = World::new();
     let mut setup = Schedule::default();
     setup.add_systems(spawn_options_content_hosts_fixture);
@@ -79,5 +86,117 @@ fn options_refresh_preserves_scroll_host_and_all_content_regions() {
     );
     assert!(world
         .get::<Children>(fixture.hosts.list)
-        .is_none_or(|children| children.is_empty()));
+        .unwrap()
+        .iter()
+        .any(|child| child == fixture.hosts.rows));
+    assert!(world
+        .get::<Children>(fixture.hosts.rows)
+        .unwrap()
+        .iter()
+        .any(|child| child == fixture.retained_row));
+}
+
+#[derive(Resource)]
+struct SaveRowsFixture(Entity);
+
+fn spawn_save_rows_host(mut commands: Commands) {
+    let host = commands.spawn(Node::default()).id();
+    commands.insert_resource(SaveRowsFixture(host));
+}
+
+fn reconcile_test_save_rows(
+    mut commands: Commands,
+    options: Res<OptionsState>,
+    fixture: Res<SaveRowsFixture>,
+    children: Query<&Children>,
+    rows: Query<(Entity, &SaveListRow)>,
+    empty_states: Query<(), With<OptionsEmptyState>>,
+) {
+    reconcile_save_rows(
+        &mut commands,
+        fixture.0,
+        &options,
+        &children,
+        &rows,
+        &empty_states,
+    );
+}
+
+fn find_save_row(world: &mut World, key: &PathBuf) -> Entity {
+    let mut rows = world.query::<(Entity, &SaveListRow)>();
+    rows.iter(world)
+        .find_map(|(entity, row)| (&row.key == key).then_some(entity))
+        .expect("save row should exist")
+}
+
+#[test]
+fn save_rows_reconcile_by_path_and_preserve_entities_when_reordered() {
+    let first = PathBuf::from("saves/first.json.gz");
+    let second = PathBuf::from("saves/second.json.gz");
+    let third = PathBuf::from("saves/third.json.gz");
+    let mut options = OptionsState::default();
+    options.saves = vec![
+        SaveEntry {
+            path: first.clone(),
+            metadata: None,
+        },
+        SaveEntry {
+            path: second.clone(),
+            metadata: None,
+        },
+    ];
+
+    let mut world = World::new();
+    world.insert_resource(options);
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_save_rows_host);
+    setup.run(&mut world);
+    world.flush();
+    let host = world.resource::<SaveRowsFixture>().0;
+
+    let mut render = Schedule::default();
+    render.add_systems(reconcile_test_save_rows);
+    render.run(&mut world);
+    world.flush();
+
+    let first_entity = find_save_row(&mut world, &first);
+    let second_entity = find_save_row(&mut world, &second);
+
+    {
+        let mut options = world.resource_mut::<OptionsState>();
+        options.saves = vec![
+            SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+            SaveEntry {
+                path: third.clone(),
+                metadata: None,
+            },
+        ];
+    }
+
+    render.run(&mut world);
+    world.flush();
+
+    let second_after = find_save_row(&mut world, &second);
+    let third_entity = find_save_row(&mut world, &third);
+    assert_eq!(second_after, second_entity);
+    assert_ne!(third_entity, first_entity);
+    assert!(world.get::<SaveListRow>(first_entity).is_none());
+
+    let ordered = world
+        .get::<Children>(host)
+        .unwrap()
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(ordered, vec![second_entity, third_entity]);
+    let second_row = world.get::<SaveListRow>(second_entity).unwrap();
+    assert_eq!(
+        world
+            .get::<bevy_presentation::ChoiceButton>(second_row.button)
+            .unwrap()
+            .index,
+        0
+    );
 }
