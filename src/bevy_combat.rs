@@ -309,7 +309,7 @@ fn spawn_combat_screen(
     let root = bevy_presentation::spawn_screen(commands, "COMBAT");
     commands.entity(root).insert(CombatScreenRoot);
 
-    let actors = bevy_presentation::spawn_fixed_panel(commands, root);
+    let actors = bevy_presentation::spawn_panel(commands, root);
     spawn_combat_text(
         commands,
         actors,
@@ -371,7 +371,7 @@ fn spawn_combat_screen(
     commands.entity(events).add_child(event_lines);
     render_combat_events(commands, event_lines, &view.events);
 
-    let actions = bevy_presentation::spawn_fixed_panel(commands, root);
+    let actions = bevy_presentation::spawn_panel(commands, root);
     for (index, action) in view.actions.iter().enumerate() {
         let icon = match index {
             0 => "attack",
