@@ -457,9 +457,7 @@ fn selected_appearance_part_ids(lifecycle: &LifecycleState) -> Vec<String> {
                 .or_else(|| {
                     (slot.selected_part == slot.parts.len()
                         && !slot.parts.is_empty()
-                        && crate::character_appearance::appearance_slot_has_none_choice(
-                            &slot.name,
-                        ))
+                        && crate::character_appearance::appearance_slot_has_none_choice(&slot.name))
                     .then(|| crate::character_appearance::appearance_slot_none_id(&slot.name))
                 })
         })

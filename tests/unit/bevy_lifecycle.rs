@@ -432,8 +432,7 @@ fn appearance_buttons_change_the_part_for_the_slot_the_row_represents() {
         part_count,
     ) - 1;
     assert_eq!(
-        lifecycle.appearance_slots[part_slot].selected_part,
-        expected_previous,
+        lifecycle.appearance_slots[part_slot].selected_part, expected_previous,
         "The left arrow must wrap to the previous choice in its own slot"
     );
     assert_eq!(
@@ -474,9 +473,11 @@ fn optional_creation_slot_none_choice_is_saved_and_omitted_from_preview() {
 
     lifecycle.appearance_slots[headgear].selected_part = count;
     let selected = selected_appearance_part_ids(&lifecycle);
-    assert!(selected.contains(&crate::character_appearance::appearance_slot_none_id(
-        "headgear"
-    )));
+    assert!(
+        selected.contains(&crate::character_appearance::appearance_slot_none_id(
+            "headgear"
+        ))
+    );
     assert!(creation_appearance_portrait(&lifecycle)
         .layers
         .iter()
@@ -510,11 +511,7 @@ fn creation_appearance_slots_follow_the_portrait_view_order() {
         .collect::<Vec<_>>();
 
     assert_eq!(order, vec!["headgear", "hair", "face", "accessory", "body"]);
-    assert!(crate::character_appearance::appearance_slot_has_none_choice(
-        "headgear"
-    ));
-    assert!(crate::character_appearance::appearance_slot_has_none_choice(
-        "accessory"
-    ));
+    assert!(crate::character_appearance::appearance_slot_has_none_choice("headgear"));
+    assert!(crate::character_appearance::appearance_slot_has_none_choice("accessory"));
     assert!(!crate::character_appearance::appearance_slot_has_none_choice("body"));
 }

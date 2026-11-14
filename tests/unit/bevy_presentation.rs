@@ -23,10 +23,7 @@ fn rebuilt_scroll_panel_restores_its_previous_offset_for_the_same_screen() {
     world.insert_resource(ScrollPositionMemory::default());
 
     let original = world
-        .spawn((
-            TouchScrollablePanel,
-            ScrollPosition(Vec2::new(0.0, 180.0)),
-        ))
+        .spawn((TouchScrollablePanel, ScrollPosition(Vec2::new(0.0, 180.0))))
         .id();
     let mut capture = Schedule::default();
     capture.add_systems(capture_scroll_positions);

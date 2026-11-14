@@ -2193,7 +2193,8 @@ fn restore_rebuilt_scroll_positions(
         restore_cached_scroll_positions(&snapshot.positions, &mut current_positions);
     }
 
-    for ((_, mut position), restored) in current.into_iter().zip(current_positions.iter().copied()) {
+    for ((_, mut position), restored) in current.into_iter().zip(current_positions.iter().copied())
+    {
         position.0 = restored;
     }
     snapshot.panel_entities = current_entities;

@@ -1131,7 +1131,10 @@ pub(crate) fn render_character_appearance_viewer(
         }
     }
 
-    if slot_controls.iter().all(|control| control.choice_count == 0) {
+    if slot_controls
+        .iter()
+        .all(|control| control.choice_count == 0)
+    {
         bevy_presentation::spawn_muted_label(
             commands,
             controls,

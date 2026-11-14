@@ -118,20 +118,23 @@ fn explicit_none_choices_remove_optional_player_slots_and_legacy_saves_still_def
         part("body.one", "body", 1, 10, &[], &[]),
         part("headgear.hood", "headgear", 1, 20, &[], &[]),
     ];
-    let selected = vec![
-        "body.one".to_string(),
-        appearance_slot_none_id("headgear"),
-    ];
+    let selected = vec!["body.one".to_string(), appearance_slot_none_id("headgear")];
 
     let chosen = resolve_character_portrait(&parts, &selected);
     assert_eq!(
-        chosen.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
+        chosen
+            .iter()
+            .map(|layer| layer.id.as_str())
+            .collect::<Vec<_>>(),
         vec!["body.one"]
     );
 
     let legacy = resolve_character_portrait(&parts, &["body.one".to_string()]);
     assert_eq!(
-        legacy.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
+        legacy
+            .iter()
+            .map(|layer| layer.id.as_str())
+            .collect::<Vec<_>>(),
         vec!["body.one", "headgear.hood"]
     );
 }
