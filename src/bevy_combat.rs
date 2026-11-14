@@ -26,6 +26,9 @@ struct CombatScreenRoot;
 struct CombatEventLines;
 
 #[derive(Component)]
+struct CombatEventsPanel;
+
+#[derive(Component)]
 struct CombatPlayerGauge;
 
 #[derive(Component)]
@@ -352,6 +355,7 @@ fn spawn_combat_screen(
     commands.entity(player_gauge).insert(CombatPlayerGauge);
 
     let events = bevy_presentation::spawn_panel(commands, root);
+    commands.entity(events).insert(CombatEventsPanel);
     bevy_presentation::spawn_label(commands, events, "Combat log");
     let event_lines = commands
         .spawn((
