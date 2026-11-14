@@ -16,6 +16,12 @@ Button hover, pressed, and selected colours are interpolated over time by the sh
 
 Character Lab retains its root, workspace, viewer host, and scrollable controls host after first creation. When its data changes, only the children of the viewer and controls hosts are replaced. The controls host itself remains alive, so its current ScrollPosition is not discarded during an appearance edit.
 
+The developer console keeps its screen root, close control, output scroll region, and input control mounted. Its renderer compares the previous and current renderer-neutral ConsoleView and updates output, autocomplete, and input independently. Typing therefore changes the input label and, when needed, autocomplete rows without rebuilding the output history or replacing the input control that owns focus. The output and autocomplete lists have separate child hosts inside one retained scroll region.
+
+Combat retains its screen root and actor, event-log, and action panels between turns. Player/enemy HP gauges and status labels update in place through stable component markers; only the combat-log rows are replaced when new events arrive. Navigation selection still flows through the shared action-button selection system and does not mark the combat view dirty.
+
+Talk, conversation, remains, and remains-result screens retain their outer root and content host while their current screen state remains active. The content host is the only region rebuilt for a new dialogue line, message, result, or refreshed list; the ordinary talk/remains scroll panel and the specialized conversation scene root remain mounted. Changing between interaction modes creates the appropriate shell once for the new mode.
+
 The lifecycle creation and Options/Character tab views already use stable content hosts for their tab frames. Scroll-position snapshots remain a compatibility fallback for screens that still recreate scrollable panels.
 
 ## Visual language
@@ -24,12 +30,13 @@ The shared palette remains onyx-black with restrained warm accents. Panels use a
 
 ## Remaining migration
 
-This work establishes the first retained-presentation slice. It does not yet make every screen retained: several screen modules still destroy and recreate their full UI trees when their underlying content changes. Continue migrating those screens toward:
+This pass removes full-tree rebuilds from the console's typing path, combat turns, and interaction-content refreshes. It still does not make every screen retained. Character records retain their tab frame but several detail screens still recreate their root; Options retains its tab shell but replaces active tab content; feedback overlays are still replaced as entries advance; and the spatial scene and World Map still have their own rebuild paths.
 
-1. A stable root and stable layout frame owned by each ScreenId.
-2. Named content regions for independently changing parts of a screen.
-3. In-place updates for values, gauges, labels, and selection state.
-4. Keyed row reconciliation for dynamic lists, preserving entity identity where items remain.
-5. Explicit lifecycle transitions that animate out before a screen is removed, without delaying input or gameplay state changes.
+The next steps should focus on:
+
+1. Stable roots and named content regions for the remaining high-churn records, Options, and feedback screens.
+2. Keyed row reconciliation for dynamic inventories, quests, save slots, and mod lists, preserving entity identity where items remain.
+3. A deliberate spatial presentation update path that distinguishes world topology changes from player movement, animation, time-of-day, and HUD updates.
+4. Explicit exit transitions for screen changes, coordinating removal only after animation completes without delaying input or gameplay state changes.
 
 Keep desktop and Android behavior equivalent. Stable hosts must preserve scroll position, focus, selection, and touch gesture ownership across content updates.

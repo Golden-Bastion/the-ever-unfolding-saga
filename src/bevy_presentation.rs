@@ -145,9 +145,6 @@ pub struct ChoiceButton {
 pub struct TextContent;
 
 #[derive(Component)]
-pub struct GaugeFill;
-
-#[derive(Component)]
 pub(crate) struct TouchScrollablePanel;
 
 #[derive(Component)]
@@ -801,8 +798,9 @@ pub(crate) fn spawn_tab_content(commands: &mut Commands, parent: Entity) -> Enti
     content
 }
 
-/// Removes only the current children of a stable tab-content host.
-pub(crate) fn clear_tab_content(
+/// Removes the current children of a stable content host without replacing
+/// the host entity or any state attached to it (for example, ScrollPosition).
+pub(crate) fn clear_content_host(
     commands: &mut Commands,
     content: Entity,
     children: &Query<&Children>,
@@ -812,6 +810,15 @@ pub(crate) fn clear_tab_content(
             commands.entity(child).despawn();
         }
     }
+}
+
+/// Backwards-compatible tab-specific name for the shared content-host operation.
+pub(crate) fn clear_tab_content(
+    commands: &mut Commands,
+    content: Entity,
+    children: &Query<&Children>,
+) {
+    clear_content_host(commands, content, children);
 }
 
 /// Creates the only scrolling region inside a fixed Options-style panel.
@@ -1903,32 +1910,6 @@ fn sync_ui_button_visuals(
         border.set_all(border_color);
         *background = BackgroundColor(background_color);
     }
-}
-
-pub fn spawn_gauge(commands: &mut Commands, parent: Entity, current: i32, maximum: i32) -> Entity {
-    let ratio = gauge_ratio(current, maximum);
-    let gauge = commands
-        .spawn((
-            Node {
-                width: percent(100),
-                min_width: px(0),
-                height: px(18),
-                ..default()
-            },
-            BackgroundColor(THEME_PANEL_ALT),
-            children![(
-                GaugeFill,
-                Node {
-                    width: percent(ratio * 100.0),
-                    height: percent(100),
-                    ..default()
-                },
-                BackgroundColor(THEME_ACCENT),
-            )],
-        ))
-        .id();
-    commands.entity(parent).add_child(gauge);
-    gauge
 }
 
 pub(crate) fn gauge_ratio(current: i32, maximum: i32) -> f32 {

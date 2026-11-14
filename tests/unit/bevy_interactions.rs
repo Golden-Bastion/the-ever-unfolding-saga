@@ -81,3 +81,62 @@ fn closing_spatial_dialogue_keeps_movement_suspended_during_transition() {
     assert!(spatial_overlay_open(&state));
     assert!(!state.dirty);
 }
+
+#[derive(Resource, Clone, Copy)]
+struct InteractionShellFixture(Entity);
+
+fn spawn_interaction_shell_fixture(mut commands: Commands) {
+    let host = spawn_interaction_screen(&mut commands, InteractionScreen::Talk);
+    bevy_presentation::spawn_label(&mut commands, host, "Initial interaction content");
+    commands.insert_resource(InteractionShellFixture(host));
+}
+
+fn clear_interaction_content_for_test(
+    mut commands: Commands,
+    hosts: Query<Entity, With<InteractionContentHost>>,
+    children: Query<&Children>,
+) {
+    for host in &hosts {
+        bevy_presentation::clear_content_host(&mut commands, host, &children);
+    }
+}
+
+#[test]
+fn interaction_content_refresh_preserves_the_screen_root_and_scroll_position() {
+    let mut world = World::new();
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_interaction_shell_fixture);
+    setup.run(&mut world);
+    world.flush();
+
+    let host = world.resource::<InteractionShellFixture>().0;
+    let root = world
+        .query_filtered::<Entity, With<InteractionRoot>>()
+        .iter(&world)
+        .next()
+        .expect("interaction root should be mounted");
+    let panel = world
+        .query_filtered::<Entity, With<InteractionScrollPanel>>()
+        .iter(&world)
+        .next()
+        .expect("interaction scroll panel should be mounted");
+    world
+        .entity_mut(panel)
+        .insert(bevy::ui::ScrollPosition(Vec2::new(0.0, 142.0)));
+
+    let mut clear = Schedule::default();
+    clear.add_systems(clear_interaction_content_for_test);
+    clear.run(&mut world);
+    world.flush();
+
+    assert!(world.get::<InteractionRoot>(root).is_some());
+    assert!(world.get::<InteractionContentHost>(host).is_some());
+    assert!(world.get::<InteractionScrollPanel>(panel).is_some());
+    assert_eq!(
+        world.get::<bevy::ui::ScrollPosition>(panel).unwrap().0,
+        Vec2::new(0.0, 142.0)
+    );
+    assert!(world
+        .get::<Children>(host)
+        .is_none_or(|children| children.is_empty()));
+}

@@ -22,10 +22,26 @@ struct AndroidConsoleTextSync {
 #[derive(Component)]
 struct ConsoleCloseButton;
 
+#[derive(Component)]
+struct ConsoleScreenRoot;
+
+#[derive(Component)]
+struct ConsoleScrollableOutput;
+
+#[derive(Component)]
+struct ConsoleOutputLines;
+
+#[derive(Component)]
+struct ConsoleCompletionLines;
+
+#[derive(Component)]
+struct ConsoleInputText;
+
 #[derive(Resource)]
 pub(crate) struct BevyConsoleState {
     pub(crate) console: ConsoleSession,
     dirty: bool,
+    rendered_view: Option<ConsoleView>,
 }
 
 impl Default for BevyConsoleState {
@@ -33,6 +49,7 @@ impl Default for BevyConsoleState {
         Self {
             console: ConsoleSession::default(),
             dirty: true,
+            rendered_view: None,
         }
     }
 }
@@ -275,53 +292,166 @@ fn console_input(
 fn leave_console(state: &mut BevyConsoleState, navigation: &mut NavigationState) {
     navigation.return_to_previous_screen(ScreenId::SpatialExploration);
     state.console = ConsoleSession::default();
+    state.rendered_view = None;
     state.dirty = true;
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_if_active(
     mut commands: Commands,
     mut state: ResMut<BevyConsoleState>,
     navigation: Res<NavigationState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
+    console_roots: Query<Entity, With<ConsoleScreenRoot>>,
+    output_hosts: Query<Entity, With<ConsoleOutputLines>>,
+    completion_hosts: Query<Entity, With<ConsoleCompletionLines>>,
+    mut input_texts: Query<&mut Text, With<ConsoleInputText>>,
+    children: Query<&Children>,
 ) {
-    if navigation.current_screen != Some(ScreenId::Console) || !state.dirty {
+    if navigation.current_screen != Some(ScreenId::Console) {
+        for root in &console_roots {
+            commands.entity(root).despawn();
+        }
+        state.rendered_view = None;
         return;
     }
-    for root in &roots {
-        commands.entity(root).despawn();
-    }
+
     let view = state.console.view();
-    render(&mut commands, &view);
+    if console_roots.iter().next().is_none() {
+        for root in &roots {
+            commands.entity(root).despawn();
+        }
+        let (output_host, completion_host, input, _scroll) =
+            spawn_console_screen(&mut commands, &view);
+        commands.entity(input).insert(ConsoleInputText);
+        render_console_output(&mut commands, output_host, &view);
+        render_console_completions(&mut commands, completion_host, &view);
+        state.rendered_view = Some(view);
+        state.dirty = false;
+        return;
+    }
+
+    if !state.dirty {
+        return;
+    }
+
+    let previous = state.rendered_view.clone();
+    if console_output_region_changed(previous.as_ref(), &view) {
+        if let Some(host) = output_hosts.iter().next() {
+            bevy_presentation::clear_content_host(&mut commands, host, &children);
+            render_console_output(&mut commands, host, &view);
+        }
+    }
+
+    if console_completion_region_changed(previous.as_ref(), &view) {
+        if let Some(host) = completion_hosts.iter().next() {
+            bevy_presentation::clear_content_host(&mut commands, host, &children);
+            render_console_completions(&mut commands, host, &view);
+        }
+    }
+
+    if console_input_region_changed(previous.as_ref(), &view) {
+        if let Some(mut text) = input_texts.iter_mut().next() {
+            *text = Text::new(format!("> {}", view.input));
+        }
+    }
+
+    state.rendered_view = Some(view);
     state.dirty = false;
 }
 
-fn render(commands: &mut Commands, view: &ConsoleView) {
+fn console_output_region_changed(previous: Option<&ConsoleView>, current: &ConsoleView) -> bool {
+    previous.is_none_or(|previous| {
+        previous.output != current.output || previous.scroll != current.scroll
+    })
+}
+
+fn console_completion_region_changed(
+    previous: Option<&ConsoleView>,
+    current: &ConsoleView,
+) -> bool {
+    previous.is_none_or(|previous| {
+        previous.autocomplete != current.autocomplete
+            || previous.candidates != current.candidates
+            || previous.selected != current.selected
+            || previous.completion_scroll != current.completion_scroll
+    })
+}
+
+fn console_input_region_changed(previous: Option<&ConsoleView>, current: &ConsoleView) -> bool {
+    previous.is_none_or(|previous| previous.input != current.input)
+}
+
+fn spawn_console_screen(
+    commands: &mut Commands,
+    view: &ConsoleView,
+) -> (Entity, Entity, Entity, Entity) {
     let root = bevy_presentation::spawn_screen(commands, "DEVELOPER CONSOLE");
+    commands.entity(root).insert(ConsoleScreenRoot);
     spawn_console_close_button(commands, root);
-    let panel = bevy_presentation::spawn_panel(commands, root);
+
+    let panel = bevy_presentation::spawn_fixed_panel(commands, root);
     bevy_presentation::spawn_muted_label(
         commands,
         panel,
         "Enter commands directly. Esc closes the console.",
     );
+
+    let scroll = bevy_presentation::spawn_scrollable_list(commands, panel);
+    commands.entity(scroll).insert(ConsoleScrollableOutput);
+    let output_host = commands
+        .spawn((
+            ConsoleOutputLines,
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+        ))
+        .id();
+    commands.entity(scroll).add_child(output_host);
+
+    let completion_host = commands
+        .spawn((
+            ConsoleCompletionLines,
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+        ))
+        .id();
+    commands.entity(scroll).add_child(completion_host);
+
+    let input =
+        bevy_presentation::spawn_console_input_row(commands, panel, format!("> {}", view.input));
+    (output_host, completion_host, input, scroll)
+}
+
+fn render_console_output(commands: &mut Commands, host: Entity, view: &ConsoleView) {
     for line in visible_output(view) {
-        bevy_presentation::spawn_label(commands, panel, line);
+        bevy_presentation::spawn_label(commands, host, line);
     }
-    bevy_presentation::spawn_console_input_row(commands, panel, format!("> {}", view.input));
-    if view.autocomplete && !view.candidates.is_empty() {
-        bevy_presentation::spawn_muted_label(commands, panel, "Completions:");
-        let visible = view.candidates.len().min(8);
-        let start = view
-            .completion_scroll
-            .min(view.candidates.len().saturating_sub(visible));
-        for (index, candidate) in view.candidates.iter().enumerate().skip(start).take(visible) {
-            let marker = if index == view.selected { ">" } else { " " };
-            bevy_presentation::spawn_label(
-                commands,
-                panel,
-                format!("{marker} {} - {}", candidate.value, candidate.hint),
-            );
-        }
+}
+
+fn render_console_completions(commands: &mut Commands, host: Entity, view: &ConsoleView) {
+    if !view.autocomplete || view.candidates.is_empty() {
+        return;
+    }
+    bevy_presentation::spawn_muted_label(commands, host, "Completions:");
+    let visible = view.candidates.len().min(8);
+    let start = view
+        .completion_scroll
+        .min(view.candidates.len().saturating_sub(visible));
+    for (index, candidate) in view.candidates.iter().enumerate().skip(start).take(visible) {
+        let marker = if index == view.selected { ">" } else { " " };
+        bevy_presentation::spawn_label(
+            commands,
+            host,
+            format!("{marker} {} - {}", candidate.value, candidate.hint),
+        );
     }
 }
 
