@@ -1447,7 +1447,7 @@ fn export_world_lab_fixture(state: &mut DeveloperToolsState, spatial: &SpatialEx
     }
     #[cfg(target_os = "android")]
     {
-        if crate::bevy_options::android_request_storage_export(
+        if crate::bevy_lifecycle::android_request_storage_export(
             &saved,
             &file_name,
             "application/json",
