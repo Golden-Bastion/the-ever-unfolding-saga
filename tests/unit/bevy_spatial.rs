@@ -1713,6 +1713,17 @@ fn sky_visual_keeps_distinct_night_dawn_day_and_dusk_states() {
 }
 
 #[test]
+fn sun_rises_in_the_east_left_and_sets_in_the_west_right() {
+    let sunrise = sky_visual(2);
+    let midday = sky_visual(4);
+    let sunset = sky_visual(7);
+
+    assert!(sunrise.celestial_x < midday.celestial_x);
+    assert!(midday.celestial_x < sunset.celestial_x);
+    assert!(sky_visual(8).celestial_x > sunset.celestial_x);
+}
+
+#[test]
 fn spatial_time_visuals_cycle_across_the_full_world_clock() {
     for time_points in 0..12 {
         let sky = sky_visual(time_points);
