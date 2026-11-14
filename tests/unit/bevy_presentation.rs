@@ -39,13 +39,13 @@ fn shared_confirmation_dialog_marks_only_its_confirm_action_as_dangerous() {
         .get::<Children>(buttons.confirm)
         .unwrap()
         .iter()
-        .find_map(|entity| world.get::<Text>(*entity))
+        .find_map(|entity| world.get::<Text>(entity))
         .unwrap();
     let cancel_label = world
         .get::<Children>(buttons.cancel)
         .unwrap()
         .iter()
-        .find_map(|entity| world.get::<Text>(*entity))
+        .find_map(|entity| world.get::<Text>(entity))
         .unwrap();
     assert_eq!(confirm_label.as_str(), "Delete permanently");
     assert_eq!(cancel_label.as_str(), "Cancel");
@@ -289,23 +289,23 @@ fn action_grouping_preserves_canvas_positioned_map_destinations() {
 #[test]
 fn warm_map_buttons_have_a_visible_resting_state_and_distinct_interaction_feedback() {
     assert_eq!(
-        button_visual_colors(false, false, false, true),
+        button_visual_colors(false, false, false, true, false),
         (THEME_ACCENT, THEME_SELECTED)
     );
     assert_eq!(
-        button_visual_colors(false, true, false, true),
+        button_visual_colors(false, true, false, true, false),
         (THEME_ACCENT, THEME_HOVER)
     );
     assert_eq!(
-        button_visual_colors(true, true, false, true),
+        button_visual_colors(true, true, false, true, false),
         (THEME_ACCENT, THEME_PRESSED)
     );
     assert_eq!(
-        button_visual_colors(false, false, true, true),
+        button_visual_colors(false, false, true, true, false),
         (THEME_ACCENT, THEME_HOVER)
     );
     assert_eq!(
-        button_visual_colors(false, false, false, false),
+        button_visual_colors(false, false, false, false, false),
         (THEME_BORDER, THEME_SURFACE)
     );
 }
