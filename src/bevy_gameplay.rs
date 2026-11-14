@@ -296,7 +296,7 @@ fn meditation_is_available(lifecycle: &LifecycleState) -> bool {
 
 fn pause_action_count(meditation_available: bool) -> usize {
     pause_actions_from(
-        crate::bevy_lifecycle::has_available_saves(),
+        crate::bevy_lifecycle::load_screen_available(),
         meditation_available,
     )
     .len()
@@ -304,7 +304,7 @@ fn pause_action_count(meditation_available: bool) -> usize {
 
 fn pause_actions(meditation_available: bool) -> Vec<PauseAction> {
     pause_actions_from(
-        crate::bevy_lifecycle::has_available_saves(),
+        crate::bevy_lifecycle::load_screen_available(),
         meditation_available,
     )
 }

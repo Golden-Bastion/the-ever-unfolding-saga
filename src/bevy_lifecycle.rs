@@ -24,8 +24,10 @@ use bevy::prelude::*;
 use bevy::text::EditableText;
 #[cfg(any(target_os = "android", test))]
 use bevy::text::TextEdit;
-use std::collections::BTreeMap;
-use std::path::PathBuf;
+#[cfg(target_os = "android")]
+use std::collections::HashSet;
+use std::collections::{BTreeMap, HashMap};
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(target_os = "android")]
@@ -41,6 +43,63 @@ struct LifecycleCreationScreen;
 #[derive(Component)]
 struct LifecycleCreationContent;
 
+#[derive(Debug, Clone)]
+struct SaveEntry {
+    path: PathBuf,
+    metadata: Option<crate::persistence::SaveMetadata>,
+}
+
+#[derive(Component, Clone, Copy)]
+struct LoadScreenContent {
+    root: Entity,
+    rows: Entity,
+    messages: Entity,
+    footer: Entity,
+}
+
+#[derive(Component)]
+struct LoadSaveRow {
+    key: PathBuf,
+    title: Entity,
+    detail: Entity,
+    load_button: Entity,
+    load_label: Entity,
+    export_button: Entity,
+    export_label: Entity,
+    delete_button: Entity,
+    delete_label: Entity,
+}
+
+#[derive(Component)]
+struct LoadEmptyState;
+
+const SAVE_ACTIONS_PER_ENTRY: usize = 3;
+
+fn save_load_action_index(save_index: usize) -> usize {
+    save_index * SAVE_ACTIONS_PER_ENTRY
+}
+
+fn save_export_action_index(save_index: usize) -> usize {
+    save_load_action_index(save_index) + 1
+}
+
+fn save_delete_action_index(save_index: usize) -> usize {
+    save_load_action_index(save_index) + 2
+}
+
+fn save_import_action_index(lifecycle: &LifecycleState) -> usize {
+    lifecycle.save_files.len() * SAVE_ACTIONS_PER_ENTRY
+}
+
+fn save_back_action_index(lifecycle: &LifecycleState) -> usize {
+    save_import_action_index(lifecycle) + 1
+}
+
+fn delete_dialog_action_indices(lifecycle: &LifecycleState) -> (usize, usize) {
+    let confirm = save_back_action_index(lifecycle) + 1;
+    (confirm, confirm + 1)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecyclePhase {
     Start,
@@ -54,8 +113,9 @@ pub(crate) enum LifecyclePhase {
 #[derive(Resource)]
 pub(crate) struct LifecycleState {
     pub(crate) phase: LifecyclePhase,
-    pub(crate) save_files: Vec<PathBuf>,
-    save_metadata: Vec<Option<crate::persistence::SaveMetadata>>,
+    save_files: Vec<SaveEntry>,
+    pending_delete_save: Option<PathBuf>,
+    delete_return_selection: usize,
     pub(crate) selected: usize,
     pub(crate) creation_tab: usize,
     pub(crate) world_name: String,
@@ -68,6 +128,10 @@ pub(crate) struct LifecycleState {
     pub(crate) message: Option<String>,
     quit_variant: usize,
     dirty: bool,
+    #[cfg(target_os = "android")]
+    last_storage_poll: f32,
+    #[cfg(target_os = "android")]
+    processed_imports: HashSet<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -82,7 +146,8 @@ impl Default for LifecycleState {
         Self {
             phase: LifecyclePhase::Start,
             save_files: Vec::new(),
-            save_metadata: Vec::new(),
+            pending_delete_save: None,
+            delete_return_selection: 0,
             selected: 0,
             creation_tab: 0,
             world_name: "The Ashen Crown".to_string(),
@@ -95,6 +160,10 @@ impl Default for LifecycleState {
             message: None,
             quit_variant: 0,
             dirty: true,
+            #[cfg(target_os = "android")]
+            last_storage_poll: 0.0,
+            #[cfg(target_os = "android")]
+            processed_imports: HashSet::new(),
         }
     }
 }
@@ -112,6 +181,7 @@ pub(crate) fn install(app: &mut App) {
             Update,
             (
                 lifecycle_input,
+                refresh_storage,
                 sync_character_field_values,
                 render_if_dirty,
             )
@@ -126,6 +196,74 @@ pub(crate) fn install(app: &mut App) {
 
 fn initialize(mut lifecycle: ResMut<LifecycleState>) {
     lifecycle.refresh_saves();
+}
+
+#[cfg(target_os = "android")]
+fn refresh_storage(
+    time: Res<Time>,
+    navigation: Res<NavigationState>,
+    mut lifecycle: ResMut<LifecycleState>,
+) {
+    if navigation.current_screen != Some(ScreenId::Lifecycle)
+        || lifecycle.phase != LifecyclePhase::Load
+    {
+        return;
+    }
+
+    let elapsed = time.elapsed_secs();
+    if elapsed - lifecycle.last_storage_poll < 0.5 {
+        return;
+    }
+    lifecycle.last_storage_poll = elapsed;
+
+    let paths = GamePaths::get();
+    let entries = match std::fs::read_dir(&paths.save_imports_dir) {
+        Ok(entries) => entries,
+        Err(error) => {
+            lifecycle.message = Some(format!("Could not inspect imported saves: {error}"));
+            lifecycle.dirty = true;
+            return;
+        }
+    };
+
+    let mut changed = false;
+    for entry in entries.flatten() {
+        let source = entry.path();
+        if !source.is_file()
+            || source.extension().and_then(|value| value.to_str()) != Some("save")
+            || lifecycle.processed_imports.contains(&source)
+        {
+            continue;
+        }
+
+        lifecycle.processed_imports.insert(source.clone());
+        match crate::persistence::install_imported_save(&source) {
+            Ok(target) => {
+                let _ = std::fs::remove_file(&source);
+                lifecycle.message = Some(format!(
+                    "Imported save as {}.",
+                    target.file_name().unwrap_or_default().to_string_lossy()
+                ));
+                changed = true;
+            }
+            Err(error) => {
+                lifecycle.message = Some(format!("Could not import save: {error}"));
+                lifecycle.dirty = true;
+            }
+        }
+    }
+
+    if changed {
+        lifecycle.refresh_save_catalog();
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn refresh_storage(
+    _time: Res<Time>,
+    _navigation: Res<NavigationState>,
+    _lifecycle: ResMut<LifecycleState>,
+) {
 }
 
 fn lifecycle_input(
@@ -341,7 +479,13 @@ fn on_lifecycle_field_focus_gained(
 fn max_selection(lifecycle: &LifecycleState) -> usize {
     match lifecycle.phase {
         LifecyclePhase::Start => start_option_count(lifecycle).saturating_sub(1),
-        LifecyclePhase::Load => lifecycle.save_files.len(),
+        LifecyclePhase::Load => {
+            if lifecycle.pending_delete_save.is_some() {
+                delete_dialog_action_indices(lifecycle).1
+            } else {
+                save_back_action_index(lifecycle)
+            }
+        }
         LifecyclePhase::CreateCharacter => {
             creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).1
         }
@@ -353,6 +497,9 @@ fn max_selection(lifecycle: &LifecycleState) -> usize {
 
 fn min_selection(lifecycle: &LifecycleState) -> usize {
     match lifecycle.phase {
+        LifecyclePhase::Load if lifecycle.pending_delete_save.is_some() => {
+            delete_dialog_action_indices(lifecycle).0
+        }
         LifecyclePhase::CreateCharacter => {
             creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).0
         }
@@ -506,6 +653,97 @@ fn move_selection(
     set_selection(lifecycle, navigation, selected);
 }
 
+fn load_save(lifecycle: &mut LifecycleState, path: PathBuf) {
+    match load_game_with_metadata(&path) {
+        Ok(loaded) => {
+            let state = loaded.game;
+            let mut warnings = validate_loaded_state(&state);
+            let active_mods = crate::mod_manager::active_mods();
+            for dependency in &loaded.mod_dependencies {
+                match active_mods
+                    .iter()
+                    .find(|item| item.manifest.id == dependency.id)
+                {
+                    None => warnings.push(format!(
+                        "Missing mod: {} ({}) version {}.",
+                        dependency.name, dependency.id, dependency.version
+                    )),
+                    Some(item) if !item.enabled => warnings.push(format!(
+                        "Required mod is disabled: {} ({}) version {}.",
+                        dependency.name, dependency.id, dependency.version
+                    )),
+                    Some(item) if item.manifest.version != dependency.version => {
+                        warnings.push(format!(
+                            "Mod version mismatch: {} ({}) save={} installed={}.",
+                            dependency.name,
+                            dependency.id,
+                            dependency.version,
+                            item.manifest.version
+                        ))
+                    }
+                    Some(_) => {}
+                }
+            }
+
+            // Preserve the exact selected path, including imported saves that
+            // received a collision-safe alternate filename.
+            lifecycle.pending_state = Some((state, path));
+            lifecycle.message = if warnings.is_empty() {
+                None
+            } else {
+                Some(format!(
+                    "Save has warnings. Confirm to continue at your own responsibility:\n{}",
+                    warnings.join("\n")
+                ))
+            };
+            if warnings.is_empty() {
+                lifecycle.finish_loading();
+            } else {
+                lifecycle.phase = LifecyclePhase::Complete;
+                lifecycle.selected = 0;
+            }
+            lifecycle.dirty = true;
+        }
+        Err(error) => {
+            lifecycle.message = Some(format!("Could not load save: {error}"));
+            lifecycle.dirty = true;
+        }
+    }
+}
+
+fn confirm_delete_save(lifecycle: &mut LifecycleState) {
+    let Some(path) = lifecycle.pending_delete_save.take() else {
+        return;
+    };
+    let Some(index) = lifecycle
+        .save_files
+        .iter()
+        .position(|save| save.path == path)
+    else {
+        lifecycle.message = Some("The selected save is no longer available.".to_string());
+        lifecycle.dirty = true;
+        return;
+    };
+    let title = save_title(&lifecycle.save_files[index]);
+
+    match std::fs::remove_file(&path) {
+        Ok(()) => {
+            lifecycle.save_files.remove(index);
+            lifecycle.selected = if lifecycle.save_files.is_empty() {
+                save_import_action_index(lifecycle)
+            } else {
+                save_load_action_index(index.min(lifecycle.save_files.len() - 1))
+            };
+            lifecycle.message = Some(format!("Deleted save for {title}."));
+        }
+        Err(error) => {
+            lifecycle.selected = lifecycle.delete_return_selection;
+            lifecycle.message = Some(format!("Could not delete save: {error}"));
+        }
+    }
+    lifecycle.dirty = true;
+}
+
 fn activate_selection(
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
@@ -527,70 +765,47 @@ fn activate_selection(
             }
         }
         LifecyclePhase::Load => {
-            if lifecycle.selected == lifecycle.save_files.len() {
-                lifecycle.phase = LifecyclePhase::Start;
-                lifecycle.selected = 0;
-                lifecycle.message = None;
-                lifecycle.pending_state = None;
-                navigation.return_screen = None;
-                navigation.current_screen = Some(ScreenId::Lifecycle);
-                navigation.selected = 0;
-                lifecycle.dirty = true;
-                return None;
-            }
-            if let Some(path) = lifecycle.save_files.get(lifecycle.selected).cloned() {
-                match load_game_with_metadata(&path) {
-                    Ok(loaded) => {
-                        let state = loaded.game;
-                        let mut warnings = validate_loaded_state(&state);
-                        let active_mods = crate::mod_manager::active_mods();
-                        for dependency in &loaded.mod_dependencies {
-                            match active_mods
-                                .iter()
-                                .find(|item| item.manifest.id == dependency.id)
-                            {
-                                None => warnings.push(format!(
-                                    "Missing mod: {} ({}) version {}.",
-                                    dependency.name, dependency.id, dependency.version
-                                )),
-                                Some(item) if !item.enabled => warnings.push(format!(
-                                    "Required mod is disabled: {} ({}) version {}.",
-                                    dependency.name, dependency.id, dependency.version
-                                )),
-                                Some(item) if item.manifest.version != dependency.version => {
-                                    warnings.push(format!(
-                                        "Mod version mismatch: {} ({}) save={} installed={}.",
-                                        dependency.name,
-                                        dependency.id,
-                                        dependency.version,
-                                        item.manifest.version
-                                    ))
-                                }
-                                Some(_) => {}
+            if lifecycle.pending_delete_save.is_some() {
+                let (confirm, cancel) = delete_dialog_action_indices(lifecycle);
+                if lifecycle.selected == confirm {
+                    confirm_delete_save(lifecycle);
+                } else if lifecycle.selected == cancel {
+                    lifecycle.pending_delete_save = None;
+                    lifecycle.selected = lifecycle.delete_return_selection;
+                    lifecycle.message = None;
+                    lifecycle.dirty = true;
+                }
+            } else {
+                let import_index = save_import_action_index(lifecycle);
+                let back_index = save_back_action_index(lifecycle);
+                if lifecycle.selected == back_index {
+                    lifecycle.phase = LifecyclePhase::Start;
+                    lifecycle.selected = 0;
+                    lifecycle.message = None;
+                    lifecycle.pending_state = None;
+                    navigation.return_screen = None;
+                    navigation.current_screen = Some(ScreenId::Lifecycle);
+                    navigation.selected = 0;
+                    lifecycle.dirty = true;
+                    return None;
+                } else if lifecycle.selected == import_index {
+                    import_save(lifecycle);
+                } else {
+                    let save_index = lifecycle.selected / SAVE_ACTIONS_PER_ENTRY;
+                    let action = lifecycle.selected % SAVE_ACTIONS_PER_ENTRY;
+                    if let Some(save) = lifecycle.save_files.get(save_index).cloned() {
+                        match action {
+                            0 => load_save(lifecycle, save.path),
+                            1 => export_save(lifecycle, &save.path),
+                            2 => {
+                                lifecycle.delete_return_selection = lifecycle.selected;
+                                lifecycle.pending_delete_save = Some(save.path);
+                                lifecycle.message = None;
+                                lifecycle.selected = delete_dialog_action_indices(lifecycle).1;
+                                lifecycle.dirty = true;
                             }
+                            _ => {}
                         }
-                        // Keep the selected slot as the active save path, including
-                        // imported slots with collision-safe alternate filenames.
-                        lifecycle.pending_state = Some((state, path.clone()));
-                        lifecycle.message = if warnings.is_empty() {
-                            None
-                        } else {
-                            Some(format!(
-                                "Save has warnings. Confirm to continue at your own responsibility:\n{}",
-                                warnings.join("\n")
-                            ))
-                        };
-                        if warnings.is_empty() {
-                            lifecycle.finish_loading();
-                        } else {
-                            lifecycle.phase = LifecyclePhase::Complete;
-                            lifecycle.selected = 0;
-                        }
-                        lifecycle.dirty = true;
-                    }
-                    Err(err) => {
-                        lifecycle.message = Some(format!("Could not load save: {err}"));
-                        lifecycle.dirty = true;
                     }
                 }
             }
@@ -668,12 +883,22 @@ fn request_android_game_exit() {
 }
 
 fn handle_cancel(lifecycle: &mut LifecycleState, navigation: &mut NavigationState) {
+    if lifecycle.phase == LifecyclePhase::Load && lifecycle.pending_delete_save.is_some() {
+        lifecycle.pending_delete_save = None;
+        lifecycle.selected = lifecycle.delete_return_selection;
+        lifecycle.message = None;
+        lifecycle.dirty = true;
+        navigation.selected = lifecycle.selected;
+        return;
+    }
+
     match lifecycle.phase {
         LifecyclePhase::Start => lifecycle.start_quit_confirmation(navigation, None),
         LifecyclePhase::Load | LifecyclePhase::CreateCharacter => {
             lifecycle.phase = LifecyclePhase::Start;
             lifecycle.creation_tab = 0;
             lifecycle.selected = 0;
+            lifecycle.pending_delete_save = None;
             lifecycle.message = None;
             navigation.return_screen = None;
             navigation.current_screen = Some(ScreenId::Lifecycle);
@@ -694,7 +919,7 @@ fn handle_cancel(lifecycle: &mut LifecycleState, navigation: &mut NavigationStat
     }
 }
 
-fn available_save_files() -> Vec<PathBuf> {
+fn available_save_files() -> Vec<SaveEntry> {
     let paths = GamePaths::get();
     let mut save_files = find_save_files(&paths.saves_dir).unwrap_or_default();
     let legacy = legacy_save_path(&paths.root);
@@ -702,21 +927,196 @@ fn available_save_files() -> Vec<PathBuf> {
         save_files.push(legacy);
     }
     save_files
-}
-pub(crate) fn has_available_saves() -> bool {
-    !available_save_files().is_empty()
+        .into_iter()
+        .map(|path| SaveEntry {
+            metadata: crate::persistence::read_save_metadata(&path).ok(),
+            path,
+        })
+        .collect()
 }
 
-fn start_option_count(lifecycle: &LifecycleState) -> usize {
-    if start_has_load(lifecycle) {
-        5
-    } else {
-        4
+/// The Load screen remains available without existing saves because it also
+/// owns save import.
+pub(crate) fn load_screen_available() -> bool {
+    true
+}
+
+fn save_title(save: &SaveEntry) -> String {
+    save.metadata
+        .as_ref()
+        .map(|metadata| metadata.character_display_name.clone())
+        .unwrap_or_else(|| {
+            save.path
+                .file_name()
+                .map(|value| value.to_string_lossy().to_string())
+                .unwrap_or_else(|| save.path.display().to_string())
+        })
+}
+
+fn save_detail(save: &SaveEntry) -> String {
+    save.metadata
+        .as_ref()
+        .map(|metadata| metadata.details_line())
+        .unwrap_or_else(|| "Save metadata unavailable.".to_string())
+}
+
+fn import_save(lifecycle: &mut LifecycleState) {
+    #[cfg(not(target_os = "android"))]
+    {
+        let Some(source) = rfd::FileDialog::new()
+            .set_title("Import a save")
+            .add_filter("The Ever-Unfolding Saga saves", &["gz", "json", "save"])
+            .pick_file()
+        else {
+            lifecycle.message = Some("Save import cancelled.".to_string());
+            lifecycle.dirty = true;
+            return;
+        };
+
+        match crate::persistence::install_imported_save(&source) {
+            Ok(target) => {
+                lifecycle.message = Some(format!(
+                    "Imported save as {}.",
+                    target.file_name().unwrap_or_default().to_string_lossy()
+                ));
+                lifecycle.refresh_save_catalog();
+            }
+            Err(error) => {
+                lifecycle.message = Some(format!("Could not import save: {error}"));
+                lifecycle.dirty = true;
+            }
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        if android_request_storage_import("saves") {
+            lifecycle.message =
+                Some("Choose a save file in the Android document picker.".to_string());
+        } else {
+            lifecycle.message = Some("The Android document picker is unavailable.".to_string());
+        }
+        lifecycle.dirty = true;
     }
 }
 
-fn start_has_load(lifecycle: &LifecycleState) -> bool {
-    !lifecycle.save_files.is_empty()
+fn export_save(lifecycle: &mut LifecycleState, source: &Path) {
+    if let Err(error) = crate::persistence::validate_save(source) {
+        lifecycle.message = Some(format!("Could not export invalid save: {error}"));
+        lifecycle.dirty = true;
+        return;
+    }
+
+    let file_name = source
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| "ever_unfolding_saga_save.json.gz".to_string());
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let Some(destination) = rfd::FileDialog::new()
+            .set_title("Export save")
+            .set_file_name(&file_name)
+            .save_file()
+        else {
+            lifecycle.message = Some("Save export cancelled.".to_string());
+            lifecycle.dirty = true;
+            return;
+        };
+
+        match crate::persistence::export_save(source, &destination) {
+            Ok(()) => {
+                lifecycle.message = Some(format!("Exported save to {}.", destination.display()));
+            }
+            Err(error) => {
+                lifecycle.message = Some(format!("Could not export save: {error}"));
+            }
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        if android_request_storage_export(source, &file_name, "application/gzip") {
+            lifecycle.message = Some("Choose a destination for the save export.".to_string());
+        } else {
+            lifecycle.message = Some("The Android document picker is unavailable.".to_string());
+        }
+    }
+    lifecycle.dirty = true;
+}
+
+#[cfg(target_os = "android")]
+fn android_request_storage_import(kind: &str) -> bool {
+    let Some(app) = bevy::android::ANDROID_APP.get().cloned() else {
+        return false;
+    };
+    let kind = kind.to_owned();
+    let java_app = app.clone();
+    app.run_on_java_main_thread(Box::new(move || {
+        let vm = unsafe { jni::JavaVM::from_raw(java_app.vm_as_ptr().cast()) };
+        if let Err(error) = vm.attach_current_thread(|env| -> jni::errors::Result<()> {
+            let raw_activity = java_app.activity_as_ptr() as jni::sys::jobject;
+            let activity = unsafe {
+                env.as_cast_raw::<jni::refs::Global<jni::objects::JObject>>(&raw_activity)?
+            };
+            let value = env.new_string(&kind)?;
+            env.call_method(
+                activity.as_ref(),
+                jni::jni_str!("requestStorageImport"),
+                jni::jni_sig!("(Ljava/lang/String;)V"),
+                &[jni::JValue::from(&value)],
+            )?;
+            Ok(())
+        }) {
+            bevy::log::warn!("Could not open Android document picker: {error}");
+        }
+    }));
+    true
+}
+
+#[cfg(target_os = "android")]
+fn android_request_storage_export(source: &Path, file_name: &str, mime_type: &str) -> bool {
+    let Some(app) = bevy::android::ANDROID_APP.get().cloned() else {
+        return false;
+    };
+    let source = source.to_string_lossy().to_string();
+    let file_name = file_name.to_owned();
+    let mime_type = mime_type.to_owned();
+    let java_app = app.clone();
+    app.run_on_java_main_thread(Box::new(move || {
+        let vm = unsafe { jni::JavaVM::from_raw(java_app.vm_as_ptr().cast()) };
+        if let Err(error) = vm.attach_current_thread(|env| -> jni::errors::Result<()> {
+            let raw_activity = java_app.activity_as_ptr() as jni::sys::jobject;
+            let activity = unsafe {
+                env.as_cast_raw::<jni::refs::Global<jni::objects::JObject>>(&raw_activity)?
+            };
+            let source = env.new_string(&source)?;
+            let file_name = env.new_string(&file_name)?;
+            let mime_type = env.new_string(&mime_type)?;
+            env.call_method(
+                activity.as_ref(),
+                jni::jni_str!("requestStorageExport"),
+                jni::jni_sig!("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V"),
+                &[
+                    jni::JValue::from(&source),
+                    jni::JValue::from(&file_name),
+                    jni::JValue::from(&mime_type),
+                ],
+            )?;
+            Ok(())
+        }) {
+            bevy::log::warn!("Could not open Android export picker: {error}");
+        }
+    }));
+    true
+}
+
+fn start_option_count(lifecycle: &LifecycleState) -> usize {
+    start_action_visuals(start_has_load(lifecycle)).len()
+}
+
+fn start_has_load(_lifecycle: &LifecycleState) -> bool {
+    load_screen_available()
 }
 
 fn start_developer_tools_index(lifecycle: &LifecycleState) -> usize {
@@ -760,19 +1160,15 @@ impl LifecycleState {
         self.dirty = true;
     }
 
-    fn refresh_saves(&mut self) {
+    fn refresh_save_catalog(&mut self) {
         self.save_files = available_save_files();
-        self.save_metadata = self
-            .save_files
-            .iter()
-            .map(|path| crate::persistence::read_save_metadata(path).ok())
-            .collect();
-        self.selected = 0;
+        self.selected = self.selected.min(save_back_action_index(self));
         self.dirty = true;
     }
 
-    pub(crate) fn refresh_saved_games(&mut self) {
-        self.refresh_saves();
+    fn refresh_saves(&mut self) {
+        self.refresh_save_catalog();
+        self.selected = 0;
     }
 
     pub(crate) fn start_new_game(&mut self, navigation: &mut NavigationState) {
@@ -791,15 +1187,18 @@ impl LifecycleState {
     }
 
     pub(crate) fn start_load_game(&mut self, navigation: &mut NavigationState) -> bool {
-        self.refresh_saves();
-        if self.save_files.is_empty() {
-            self.message = None;
-            self.dirty = false;
-            return false;
-        }
+        self.start_load_game_with_saves(navigation, available_save_files())
+    }
 
+    fn start_load_game_with_saves(
+        &mut self,
+        navigation: &mut NavigationState,
+        save_files: Vec<SaveEntry>,
+    ) -> bool {
+        self.save_files = save_files;
         self.phase = LifecyclePhase::Load;
         self.selected = 0;
+        self.pending_delete_save = None;
         self.message = None;
         navigation.return_screen = None;
         navigation.current_screen = Some(ScreenId::Lifecycle);
@@ -908,6 +1307,10 @@ fn render_if_dirty(
     roots: Query<Entity, With<BevyScreenRoot>>,
     creation_screens: Query<(), With<LifecycleCreationScreen>>,
     creation_content: Query<Entity, With<LifecycleCreationContent>>,
+    load_content: Query<&LoadScreenContent>,
+    save_rows: Query<(Entity, &LoadSaveRow)>,
+    empty_states: Query<(), With<LoadEmptyState>>,
+    confirmation_dialogs: Query<Entity, With<bevy_presentation::UiConfirmationDialog>>,
     children: Query<&Children>,
     tab_buttons: Query<(Entity, &bevy_presentation::UiTabButton)>,
 ) {
@@ -920,6 +1323,24 @@ fn render_if_dirty(
     // None state is still accepted so Startup can render the start screen.
     if !should_render_lifecycle(navigation.current_screen) {
         return;
+    }
+
+    if lifecycle.phase == LifecyclePhase::Load {
+        if let Some(hosts) = load_content.iter().next() {
+            render_load_content(
+                &mut commands,
+                *hosts,
+                &lifecycle,
+                &children,
+                &save_rows,
+                &empty_states,
+                &confirmation_dialogs,
+            );
+            navigation.current_screen = Some(ScreenId::Lifecycle);
+            navigation.selected = lifecycle.selected;
+            lifecycle.dirty = false;
+            return;
+        }
     }
 
     if lifecycle.phase == LifecyclePhase::CreateCharacter && !creation_screens.is_empty() {
@@ -1003,7 +1424,7 @@ fn render(
 
     match lifecycle.phase {
         LifecyclePhase::Start => render_start(commands, panel, lifecycle),
-        LifecyclePhase::Load => render_load(commands, panel, lifecycle),
+        LifecyclePhase::Load => render_load(commands, root, panel, lifecycle),
         LifecyclePhase::CreateCharacter => {
             render_creation(commands, panel, lifecycle, images, portrait_images)
         }
@@ -1013,7 +1434,6 @@ fn render(
     }
 }
 
-const SAVE_SLOT_ICON: &str = "folder";
 const BEGIN_LIFE_ICON: &str = "new-game";
 
 const START_ACTIONS_WITH_LOAD: &[(&str, &str)] = &[
@@ -1060,44 +1480,310 @@ fn render_start(commands: &mut Commands, panel: Entity, lifecycle: &LifecycleSta
     }
 }
 
-fn render_load(commands: &mut Commands, panel: Entity, lifecycle: &LifecycleState) {
-    bevy_presentation::spawn_muted_label(commands, panel, "Choose a life to continue.");
-    if let Some(message) = &lifecycle.message {
-        bevy_presentation::spawn_muted_label(commands, panel, message);
+fn load_rows_host_node() -> Node {
+    Node {
+        width: percent(100),
+        min_width: px(0),
+        flex_direction: FlexDirection::Column,
+        row_gap: bevy_presentation::responsive_vmin(1.389),
+        ..default()
     }
-    for (index, path) in lifecycle.save_files.iter().enumerate() {
-        let (label, details) = match lifecycle.save_metadata.get(index).and_then(Option::as_ref) {
-            Some(metadata) => (
-                metadata.character_display_name.clone(),
-                metadata.details_line(),
-            ),
-            None => (
-                path.file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or("Unknown save")
-                    .to_string(),
-                "Save metadata unavailable.".to_string(),
-            ),
-        };
-        let button = bevy_presentation::spawn_action_button_with_detail(
-            commands,
-            panel,
-            index,
-            SAVE_SLOT_ICON,
-            label,
-            details,
-        );
-        if lifecycle.selected == index {
-            commands
-                .entity(button)
-                .insert(bevy_presentation::UiSelected);
+}
+
+fn load_auxiliary_host_node() -> Node {
+    Node {
+        width: percent(100),
+        min_width: px(0),
+        flex_direction: FlexDirection::Column,
+        row_gap: px(4),
+        flex_shrink: 0.0,
+        ..default()
+    }
+}
+
+fn update_load_row_button(commands: &mut Commands, button: Entity, index: usize, selected: bool) {
+    commands
+        .entity(button)
+        .insert(bevy_presentation::ChoiceButton { index });
+    if selected {
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
+    } else {
+        commands
+            .entity(button)
+            .remove::<bevy_presentation::UiSelected>();
+    }
+}
+
+fn spawn_load_save_row(
+    commands: &mut Commands,
+    rows_host: Entity,
+    index: usize,
+    save: &SaveEntry,
+    selected: usize,
+) -> Entity {
+    let row = bevy_presentation::spawn_option_row(commands, rows_host);
+    let title = bevy_presentation::spawn_label(commands, row.label, save_title(save));
+    let detail = bevy_presentation::spawn_muted_label(commands, row.label, save_detail(save));
+    let (load_button, load_label) = bevy_presentation::spawn_compact_action_button_with_text(
+        commands,
+        row.controls,
+        save_load_action_index(index),
+        "Load",
+    );
+    let (export_button, export_label) = bevy_presentation::spawn_compact_action_button_with_text(
+        commands,
+        row.controls,
+        save_export_action_index(index),
+        "Export",
+    );
+    let (delete_button, delete_label) = bevy_presentation::spawn_danger_action_button_with_text(
+        commands,
+        row.controls,
+        save_delete_action_index(index),
+        "Delete",
+    );
+    update_load_row_button(
+        commands,
+        load_button,
+        save_load_action_index(index),
+        selected == save_load_action_index(index),
+    );
+    update_load_row_button(
+        commands,
+        export_button,
+        save_export_action_index(index),
+        selected == save_export_action_index(index),
+    );
+    update_load_row_button(
+        commands,
+        delete_button,
+        save_delete_action_index(index),
+        selected == save_delete_action_index(index),
+    );
+    commands.entity(row.row).insert(LoadSaveRow {
+        key: save.path.clone(),
+        title,
+        detail,
+        load_button,
+        load_label,
+        export_button,
+        export_label,
+        delete_button,
+        delete_label,
+    });
+    row.row
+}
+
+fn reconcile_load_save_rows(
+    commands: &mut Commands,
+    rows_host: Entity,
+    lifecycle: &LifecycleState,
+    children: &Query<&Children>,
+    existing_rows: &Query<(Entity, &LoadSaveRow)>,
+    empty_states: &Query<(), With<LoadEmptyState>>,
+) {
+    let mut existing = HashMap::new();
+    let mut empty_state = None;
+    if let Ok(current_children) = children.get(rows_host) {
+        for child in current_children.iter() {
+            if let Ok((entity, row)) = existing_rows.get(child) {
+                existing.insert(row.key.clone(), (entity, row));
+            } else if empty_states.get(child).is_ok() {
+                empty_state = Some(child);
+            }
         }
     }
-    let back_index = lifecycle.save_files.len();
-    let back = bevy_presentation::spawn_action_button(commands, panel, back_index, "back", "Back");
-    if lifecycle.selected == back_index {
-        commands.entity(back).insert(bevy_presentation::UiSelected);
+
+    let mut ordered = Vec::with_capacity(lifecycle.save_files.len().saturating_add(1));
+    for (index, save) in lifecycle.save_files.iter().enumerate() {
+        let key = save.path.clone();
+        let title = save_title(save);
+        let detail = save_detail(save);
+        let entity = if let Some((entity, row)) = existing.remove(&key) {
+            commands.entity(row.title).insert(Text::new(title));
+            commands.entity(row.detail).insert(Text::new(detail));
+            commands.entity(row.load_label).insert(Text::new("Load"));
+            commands
+                .entity(row.export_label)
+                .insert(Text::new("Export"));
+            commands
+                .entity(row.delete_label)
+                .insert(Text::new("Delete"));
+            update_load_row_button(
+                commands,
+                row.load_button,
+                save_load_action_index(index),
+                lifecycle.selected == save_load_action_index(index),
+            );
+            update_load_row_button(
+                commands,
+                row.export_button,
+                save_export_action_index(index),
+                lifecycle.selected == save_export_action_index(index),
+            );
+            update_load_row_button(
+                commands,
+                row.delete_button,
+                save_delete_action_index(index),
+                lifecycle.selected == save_delete_action_index(index),
+            );
+            entity
+        } else {
+            spawn_load_save_row(commands, rows_host, index, save, lifecycle.selected)
+        };
+        ordered.push(entity);
     }
+
+    for (_, (entity, _)) in existing {
+        commands.entity(entity).despawn();
+    }
+
+    if lifecycle.save_files.is_empty() {
+        let entity = empty_state.unwrap_or_else(|| {
+            let label =
+                bevy_presentation::spawn_muted_label(commands, rows_host, "No saves found.");
+            commands.entity(label).insert(LoadEmptyState);
+            label
+        });
+        commands.entity(entity).insert(Text::new("No saves found."));
+        ordered.push(entity);
+    } else if let Some(entity) = empty_state {
+        commands.entity(entity).despawn();
+    }
+    commands.entity(rows_host).replace_children(&ordered);
+}
+
+fn render_load_footer(commands: &mut Commands, footer: Entity, lifecycle: &LifecycleState) {
+    let import_index = save_import_action_index(lifecycle);
+    let import = bevy_presentation::spawn_compact_action_button(
+        commands,
+        footer,
+        import_index,
+        "Import save",
+    );
+    update_load_row_button(
+        commands,
+        import,
+        import_index,
+        lifecycle.selected == import_index,
+    );
+
+    let back_index = save_back_action_index(lifecycle);
+    let back = bevy_presentation::spawn_compact_action_button(commands, footer, back_index, "Back");
+    update_load_row_button(commands, back, back_index, lifecycle.selected == back_index);
+}
+
+fn render_load_message(commands: &mut Commands, messages: Entity, lifecycle: &LifecycleState) {
+    if let Some(message) = &lifecycle.message {
+        bevy_presentation::spawn_context_message(commands, messages, message);
+    }
+}
+
+fn render_load_confirmation(commands: &mut Commands, root: Entity, lifecycle: &LifecycleState) {
+    let Some(path) = lifecycle.pending_delete_save.as_ref() else {
+        return;
+    };
+    let title = lifecycle
+        .save_files
+        .iter()
+        .find(|save| &save.path == path)
+        .map(save_title)
+        .unwrap_or_else(|| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.display().to_string())
+        });
+    let (confirm, cancel) = delete_dialog_action_indices(lifecycle);
+    bevy_presentation::spawn_confirmation_dialog(
+        commands,
+        root,
+        bevy_presentation::ConfirmationDialogSpec {
+            title: "DELETE SAVE?",
+            message: &format!("Permanently delete {title}? This cannot be undone."),
+            confirm_index: confirm,
+            cancel_index: cancel,
+            confirm_label: "Delete permanently",
+            cancel_label: "Cancel",
+        },
+    );
+}
+
+fn render_load_content(
+    commands: &mut Commands,
+    hosts: LoadScreenContent,
+    lifecycle: &LifecycleState,
+    children: &Query<&Children>,
+    save_rows: &Query<(Entity, &LoadSaveRow)>,
+    empty_states: &Query<(), With<LoadEmptyState>>,
+    confirmation_dialogs: &Query<Entity, With<bevy_presentation::UiConfirmationDialog>>,
+) {
+    reconcile_load_save_rows(
+        commands,
+        hosts.rows,
+        lifecycle,
+        children,
+        save_rows,
+        empty_states,
+    );
+    bevy_presentation::clear_content_host(commands, hosts.messages, children);
+    bevy_presentation::clear_content_host(commands, hosts.footer, children);
+    render_load_message(commands, hosts.messages, lifecycle);
+    render_load_footer(commands, hosts.footer, lifecycle);
+
+    let existing_dialogs = children
+        .get(hosts.root)
+        .map(|root_children| {
+            root_children
+                .iter()
+                .filter(|entity| confirmation_dialogs.get(*entity).is_ok())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if lifecycle.pending_delete_save.is_some() {
+        if existing_dialogs.is_empty() {
+            render_load_confirmation(commands, hosts.root, lifecycle);
+        }
+    } else {
+        for dialog in existing_dialogs {
+            commands.entity(dialog).despawn();
+        }
+    }
+}
+
+fn render_load(commands: &mut Commands, root: Entity, panel: Entity, lifecycle: &LifecycleState) {
+    let list = bevy_presentation::spawn_scrollable_list(commands, panel);
+    bevy_presentation::spawn_label(commands, list, "SAVES");
+    bevy_presentation::spawn_muted_label(
+        commands,
+        list,
+        "Choose a life to continue. Imports never overwrite existing saves.",
+    );
+
+    let rows = commands.spawn(load_rows_host_node()).id();
+    commands.entity(list).add_child(rows);
+    let messages = commands.spawn(load_auxiliary_host_node()).id();
+    commands.entity(panel).add_child(messages);
+    let footer = bevy_presentation::spawn_option_footer(commands, panel);
+    commands.entity(root).insert(LoadScreenContent {
+        root,
+        rows,
+        messages,
+        footer,
+    });
+
+    if lifecycle.save_files.is_empty() {
+        let empty = bevy_presentation::spawn_muted_label(commands, rows, "No saves found.");
+        commands.entity(empty).insert(LoadEmptyState);
+    } else {
+        for (index, save) in lifecycle.save_files.iter().enumerate() {
+            spawn_load_save_row(commands, rows, index, save, lifecycle.selected);
+        }
+    }
+    render_load_message(commands, messages, lifecycle);
+    render_load_footer(commands, footer, lifecycle);
+    render_load_confirmation(commands, root, lifecycle);
 }
 
 fn render_creation(

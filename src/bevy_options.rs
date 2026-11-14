@@ -1,6 +1,7 @@
-//! Options-owned save import/export and mod management workflows.
+//! Options-owned mod management and interface preferences.
 
 use std::collections::HashMap;
+#[cfg(target_os = "android")]
 use std::path::PathBuf;
 
 use bevy::prelude::*;
@@ -17,11 +18,6 @@ const MOD_ENABLE_ACTION: usize = 0;
 const MOD_DELETE_ACTION: usize = 1;
 const MOD_PRIORITY_UP_ACTION: usize = 2;
 const MOD_PRIORITY_DOWN_ACTION: usize = 3;
-
-struct SaveEntry {
-    path: PathBuf,
-    metadata: Option<crate::persistence::SaveMetadata>,
-}
 
 fn mod_action_start_index(mod_index: usize) -> usize {
     mod_index * MOD_ACTIONS_PER_MOD
@@ -48,15 +44,6 @@ struct OptionsContent {
 }
 
 #[derive(Component)]
-struct SaveListRow {
-    key: PathBuf,
-    title: Entity,
-    detail: Entity,
-    button: Entity,
-    button_label: Entity,
-}
-
-#[derive(Component)]
 struct ModListRow {
     key: String,
     title: Entity,
@@ -75,7 +62,6 @@ pub(crate) struct OptionsState {
     message: Option<String>,
     active: bool,
     dirty: bool,
-    saves: Vec<SaveEntry>,
     mods: Vec<InstalledMod>,
     pending_restart: bool,
     pending_remove_id: Option<String>,
@@ -93,7 +79,6 @@ impl Default for OptionsState {
             message: None,
             active: false,
             dirty: true,
-            saves: Vec::new(),
             mods: Vec::new(),
             pending_restart: false,
             pending_remove_id: None,
@@ -146,19 +131,6 @@ fn sync_screen(
 }
 
 fn refresh_catalogs(options: &mut OptionsState) {
-    let paths = crate::game_paths::GamePaths::get();
-    let mut save_paths = crate::persistence::find_save_files(&paths.saves_dir).unwrap_or_default();
-    let legacy = crate::persistence::legacy_save_path(&paths.root);
-    if legacy.is_file() && !save_paths.iter().any(|path| path == &legacy) {
-        save_paths.push(legacy);
-    }
-    options.saves = save_paths
-        .into_iter()
-        .map(|path| SaveEntry {
-            metadata: crate::persistence::read_save_metadata(&path).ok(),
-            path,
-        })
-        .collect();
     options.mods = match crate::mod_manager::list_installed_mods() {
         Ok(mods) => mods,
         Err(error) => {
@@ -175,7 +147,6 @@ fn refresh_storage(
     time: Res<Time>,
     navigation: Res<NavigationState>,
     mut options: ResMut<OptionsState>,
-    mut lifecycle: ResMut<LifecycleState>,
 ) {
     if navigation.current_screen != Some(ScreenId::Options) {
         return;
@@ -187,57 +158,41 @@ fn refresh_storage(
     options.last_storage_poll = elapsed;
 
     let paths = crate::game_paths::GamePaths::get();
+    let entries = match std::fs::read_dir(&paths.mod_imports_dir) {
+        Ok(entries) => entries,
+        Err(error) => {
+            options.message = Some(format!("Could not inspect imported mods: {error}"));
+            options.dirty = true;
+            return;
+        }
+    };
+
     let mut changed = false;
-    for (directory, kind) in [
-        (&paths.save_imports_dir, "save"),
-        (&paths.mod_imports_dir, "mod"),
-    ] {
-        let entries = match std::fs::read_dir(directory) {
-            Ok(entries) => entries,
+    for entry in entries.flatten() {
+        let source = entry.path();
+        if !source.is_file()
+            || source.extension().and_then(|value| value.to_str()) != Some("zip")
+            || options.processed_imports.contains(&source)
+        {
+            continue;
+        }
+
+        options.processed_imports.insert(source.clone());
+        match crate::mod_manager::install_mod_archive(&source) {
+            Ok(item) => {
+                let _ = std::fs::remove_file(&source);
+                options.pending_restart = true;
+                options.message = Some(format!("Installed {}.", item.manifest.name));
+                changed = true;
+            }
             Err(error) => {
-                options.message = Some(format!("Could not inspect imported files: {error}"));
+                options.message = Some(format!("Could not import {}: {error}", source.display()));
                 options.dirty = true;
-                continue;
-            }
-        };
-        for entry in entries.flatten() {
-            let source = entry.path();
-            if !source.is_file() || options.processed_imports.contains(&source) {
-                continue;
-            }
-            let result = match kind {
-                "save" if source.extension().and_then(|value| value.to_str()) == Some("save") => {
-                    crate::persistence::install_imported_save(&source).map(|_| None)
-                }
-                "mod" if source.extension().and_then(|value| value.to_str()) == Some("zip") => {
-                    crate::mod_manager::install_mod_archive(&source)
-                        .map(|item| Some(item.manifest.name))
-                }
-                _ => continue,
-            };
-            options.processed_imports.insert(source.clone());
-            match result {
-                Ok(installed_mod_name) => {
-                    let _ = std::fs::remove_file(&source);
-                    options.message = if let Some(name) = installed_mod_name {
-                        options.pending_restart = true;
-                        Some(format!("Installed {name}."))
-                    } else {
-                        Some("Save imported successfully.".to_string())
-                    };
-                    changed = true;
-                }
-                Err(error) => {
-                    options.message =
-                        Some(format!("Could not import {}: {error}", source.display()));
-                    options.dirty = true;
-                }
             }
         }
     }
     if changed {
         refresh_catalogs(&mut options);
-        lifecycle.refresh_saved_games();
         options.dirty = true;
     }
 }
@@ -247,7 +202,6 @@ fn refresh_storage(
     _time: Res<Time>,
     _navigation: Res<NavigationState>,
     _options: ResMut<OptionsState>,
-    _lifecycle: ResMut<LifecycleState>,
 ) {
 }
 
@@ -290,22 +244,21 @@ fn options_input(
                 options.selected = index.min(options_selection_end(&options));
                 options.pending_remove_id = None;
             }
-            InputEvent::SelectTab(tab) if tab < 3 => {
+            InputEvent::SelectTab(tab) if tab < 2 => {
                 options.tab = tab;
                 options.selected = 0;
                 options.message = None;
                 options.pending_remove_id = None;
             }
             InputEvent::Tab => {
-                options.tab = (options.tab + 1) % 3;
+                options.tab = (options.tab + 1) % 2;
                 options.selected = 0;
                 options.message = None;
                 options.pending_remove_id = None;
             }
             InputEvent::Confirm => match options.tab {
-                0 => activate_saves_action(&mut options, &mut lifecycle, &mut navigation),
-                1 => activate_mods_action(&mut options, &mut lifecycle, &mut navigation),
-                2 => activate_interface_action(
+                0 => activate_mods_action(&mut options, &mut lifecycle, &mut navigation),
+                1 => activate_interface_action(
                     &mut options,
                     &mut ui_settings,
                     &mut lifecycle,
@@ -323,25 +276,9 @@ fn options_input(
 
 fn options_selection_end(options: &OptionsState) -> usize {
     match options.tab {
-        0 => options.saves.len() + 1,
-        1 => mod_back_action_index(options.mods.len()),
-        2 => 5,
+        0 => mod_back_action_index(options.mods.len()),
+        1 => 5,
         _ => 0,
-    }
-}
-
-fn activate_saves_action(
-    options: &mut OptionsState,
-    lifecycle: &mut LifecycleState,
-    navigation: &mut NavigationState,
-) {
-    if options.selected < options.saves.len() {
-        let path = options.saves[options.selected].path.clone();
-        export_save(options, &path);
-    } else if options.selected == options.saves.len() {
-        import_save(options, lifecycle);
-    } else {
-        close_options(lifecycle, navigation, options);
     }
 }
 
@@ -451,76 +388,6 @@ fn activate_interface_action(
     }
 }
 
-fn import_save(options: &mut OptionsState, _lifecycle: &mut LifecycleState) {
-    #[cfg(not(target_os = "android"))]
-    {
-        let Some(source) = rfd::FileDialog::new()
-            .set_title("Import a save")
-            .add_filter("The Ever-Unfolding Saga saves", &["gz", "json", "save"])
-            .pick_file()
-        else {
-            options.message = Some("Save import cancelled.".to_string());
-            return;
-        };
-        match crate::persistence::install_imported_save(&source) {
-            Ok(target) => {
-                options.message = Some(format!(
-                    "Imported save as {}.",
-                    target.file_name().unwrap_or_default().to_string_lossy()
-                ));
-                refresh_catalogs(options);
-                _lifecycle.refresh_saved_games();
-            }
-            Err(error) => options.message = Some(format!("Could not import save: {error}")),
-        }
-    }
-    #[cfg(target_os = "android")]
-    {
-        if android_request_storage_import("saves") {
-            options.message =
-                Some("Choose a save file in the Android document picker.".to_string());
-        } else {
-            options.message = Some("The Android document picker is unavailable.".to_string());
-        }
-    }
-}
-
-fn export_save(options: &mut OptionsState, source: &std::path::Path) {
-    if let Err(error) = crate::persistence::validate_save(source) {
-        options.message = Some(format!("Could not export invalid save: {error}"));
-        return;
-    }
-    let file_name = source
-        .file_name()
-        .map(|name| name.to_string_lossy().to_string())
-        .unwrap_or_else(|| "ever_unfolding_saga_save.json.gz".to_string());
-    #[cfg(not(target_os = "android"))]
-    {
-        let Some(destination) = rfd::FileDialog::new()
-            .set_title("Export save")
-            .set_file_name(&file_name)
-            .save_file()
-        else {
-            options.message = Some("Save export cancelled.".to_string());
-            return;
-        };
-        match crate::persistence::export_save(source, &destination) {
-            Ok(()) => {
-                options.message = Some(format!("Exported save to {}.", destination.display()))
-            }
-            Err(error) => options.message = Some(format!("Could not export save: {error}")),
-        }
-    }
-    #[cfg(target_os = "android")]
-    {
-        if android_request_storage_export(source, &file_name, "application/gzip") {
-            options.message = Some("Choose a destination for the save export.".to_string());
-        } else {
-            options.message = Some("The Android document picker is unavailable.".to_string());
-        }
-    }
-}
-
 fn import_mod(options: &mut OptionsState) {
     #[cfg(not(target_os = "android"))]
     {
@@ -557,7 +424,6 @@ fn close_options(
     options: &mut OptionsState,
 ) {
     let return_screen = navigation.return_to_previous_screen(ScreenId::SpatialExploration);
-    lifecycle.refresh_saved_games();
     options.active = false;
     options.selected = 0;
     options.tab = 0;
@@ -580,7 +446,6 @@ fn render_if_active(
     roots: Query<Entity, With<BevyScreenRoot>>,
     options_screens: Query<(), With<OptionsScreen>>,
     options_content: Query<(Entity, &OptionsContent)>,
-    save_rows: Query<(Entity, &SaveListRow)>,
     mod_rows: Query<(Entity, &ModListRow)>,
     empty_states: Query<(), With<OptionsEmptyState>>,
     children: Query<&Children>,
@@ -615,21 +480,12 @@ fn render_if_active(
                     &options,
                     &ui_settings,
                     &children,
-                    &save_rows,
                     &mod_rows,
                     &empty_states,
                 );
             } else {
                 match options.tab {
-                    0 => reconcile_save_rows(
-                        &mut commands,
-                        hosts.rows,
-                        &options,
-                        &children,
-                        &save_rows,
-                        &empty_states,
-                    ),
-                    1 => reconcile_mod_rows(
+                    0 => reconcile_mod_rows(
                         &mut commands,
                         hosts.rows,
                         &options,
@@ -637,7 +493,7 @@ fn render_if_active(
                         &mod_rows,
                         &empty_states,
                     ),
-                    2 => {
+                    1 => {
                         bevy_presentation::clear_content_host(&mut commands, hosts.rows, &children);
                         render_interface_tab(&mut commands, hosts.rows, &options, &ui_settings);
                     }
@@ -665,12 +521,7 @@ fn render_if_active(
         BorderColor::all(bevy_presentation::THEME_BORDER),
         BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
     ));
-    bevy_presentation::spawn_tab_strip(
-        &mut commands,
-        panel,
-        &["Saves", "Mods", "Interface"],
-        options.tab,
-    );
+    bevy_presentation::spawn_tab_strip(&mut commands, panel, &["Mods", "Interface"], options.tab);
 
     let content = bevy_presentation::spawn_tab_content(&mut commands, panel);
     let hosts = spawn_options_content_hosts(&mut commands, content, options.tab);
@@ -680,7 +531,6 @@ fn render_if_active(
         &options,
         &ui_settings,
         &children,
-        &save_rows,
         &mod_rows,
         &empty_states,
     );
@@ -720,19 +570,8 @@ fn spawn_options_content_hosts(
 }
 
 fn spawn_options_list_header(commands: &mut Commands, list: Entity, tab: usize) {
-    match tab {
-        0 => {
-            bevy_presentation::spawn_label(commands, list, "SAVES");
-            bevy_presentation::spawn_muted_label(
-                commands,
-                list,
-                "Imports never overwrite existing saves.",
-            );
-        }
-        1 => {
-            bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT");
-        }
-        _ => {}
+    if tab == 0 {
+        bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT");
     }
 }
 
@@ -771,14 +610,12 @@ fn render_options_list_content(
     options: &OptionsState,
     ui_settings: &crate::ui_settings::UiSettings,
     children: &Query<&Children>,
-    save_rows: &Query<(Entity, &SaveListRow)>,
     mod_rows: &Query<(Entity, &ModListRow)>,
     empty_states: &Query<(), With<OptionsEmptyState>>,
 ) {
     match options.tab {
-        0 => render_saves_tab(commands, rows, options, children, save_rows, empty_states),
-        1 => render_mods_tab(commands, rows, options, children, mod_rows, empty_states),
-        2 => render_interface_tab(commands, rows, options, ui_settings),
+        0 => render_mods_tab(commands, rows, options, children, mod_rows, empty_states),
+        1 => render_interface_tab(commands, rows, options, ui_settings),
         _ => {}
     }
 }
@@ -800,116 +637,10 @@ fn render_options_aux_content(
         bevy_presentation::spawn_context_message(commands, messages, message);
     }
     match options.tab {
-        0 => render_saves_footer(commands, footer, options),
-        1 => render_mods_footer(commands, footer, options),
-        2 => render_interface_footer(commands, footer, options),
+        0 => render_mods_footer(commands, footer, options),
+        1 => render_interface_footer(commands, footer, options),
         _ => {}
     }
-}
-
-fn render_saves_tab(
-    commands: &mut Commands,
-    rows: Entity,
-    options: &OptionsState,
-    children: &Query<&Children>,
-    save_rows: &Query<(Entity, &SaveListRow)>,
-    empty_states: &Query<(), With<OptionsEmptyState>>,
-) {
-    reconcile_save_rows(commands, rows, options, children, save_rows, empty_states);
-}
-
-fn save_row_title(save: &SaveEntry) -> String {
-    save.metadata
-        .as_ref()
-        .map(|metadata| metadata.character_display_name.clone())
-        .unwrap_or_else(|| {
-            save.path
-                .file_name()
-                .map(|value| value.to_string_lossy().to_string())
-                .unwrap_or_else(|| save.path.display().to_string())
-        })
-}
-
-fn save_row_detail(save: &SaveEntry) -> String {
-    save.metadata
-        .as_ref()
-        .map(|metadata| metadata.details_line())
-        .unwrap_or_else(|| "Save metadata unavailable.".to_string())
-}
-
-fn reconcile_save_rows(
-    commands: &mut Commands,
-    rows_host: Entity,
-    options: &OptionsState,
-    children: &Query<&Children>,
-    existing_rows: &Query<(Entity, &SaveListRow)>,
-    empty_states: &Query<(), With<OptionsEmptyState>>,
-) {
-    let mut existing = HashMap::new();
-    let mut empty_state = None;
-    if let Ok(current_children) = children.get(rows_host) {
-        for child in current_children.iter() {
-            if let Ok((entity, row)) = existing_rows.get(child) {
-                existing.insert(row.key.clone(), (entity, row));
-            } else if empty_states.get(child).is_ok() {
-                empty_state = Some(child);
-            }
-        }
-    }
-
-    let mut ordered = Vec::with_capacity(options.saves.len().saturating_add(1));
-    for (index, save) in options.saves.iter().enumerate() {
-        let key = save.path.clone();
-        let title = save_row_title(save);
-        let detail = save_row_detail(save);
-        let entity = if let Some((entity, row)) = existing.remove(&key) {
-            commands.entity(row.title).insert(Text::new(title));
-            commands.entity(row.detail).insert(Text::new(detail));
-            commands
-                .entity(row.button_label)
-                .insert(Text::new("Export"));
-            update_option_row_button(commands, row.button, index, options.selected == index);
-            entity
-        } else {
-            let row = bevy_presentation::spawn_option_row(commands, rows_host);
-            let title_entity = bevy_presentation::spawn_label(commands, row.label, title);
-            let detail_entity = bevy_presentation::spawn_muted_label(commands, row.label, detail);
-            let (button, button_label) = bevy_presentation::spawn_compact_action_button_with_text(
-                commands,
-                row.controls,
-                index,
-                "Export",
-            );
-            update_option_row_button(commands, button, index, options.selected == index);
-            commands.entity(row.row).insert(SaveListRow {
-                key,
-                title: title_entity,
-                detail: detail_entity,
-                button,
-                button_label,
-            });
-            row.row
-        };
-        ordered.push(entity);
-    }
-
-    for (_, (entity, _)) in existing {
-        commands.entity(entity).despawn();
-    }
-
-    if options.saves.is_empty() {
-        let entity = empty_state.unwrap_or_else(|| {
-            let label =
-                bevy_presentation::spawn_muted_label(commands, rows_host, "No saves found.");
-            commands.entity(label).insert(OptionsEmptyState);
-            label
-        });
-        commands.entity(entity).insert(Text::new("No saves found."));
-        ordered.push(entity);
-    } else if let Some(entity) = empty_state {
-        commands.entity(entity).despawn();
-    }
-    commands.entity(rows_host).replace_children(&ordered);
 }
 
 fn render_mods_tab(
@@ -1058,24 +789,6 @@ fn update_option_row_button(commands: &mut Commands, button: Entity, index: usiz
     }
 }
 
-fn render_saves_footer(commands: &mut Commands, footer: Entity, options: &OptionsState) {
-    let import_index = options.saves.len();
-    spawn_option_control_button(
-        commands,
-        footer,
-        import_index,
-        "Import save",
-        options.selected == import_index,
-    );
-    spawn_option_control_button(
-        commands,
-        footer,
-        import_index + 1,
-        "Back",
-        options.selected == import_index + 1,
-    );
-}
-
 fn render_mods_footer(commands: &mut Commands, footer: Entity, options: &OptionsState) {
     let install_index = mod_install_action_index(options.mods.len());
     spawn_option_control_button(
@@ -1167,47 +880,6 @@ pub(crate) fn android_request_storage_import(kind: &str) -> bool {
             Ok(())
         }) {
             bevy::log::warn!("Could not open Android document picker: {error}");
-        }
-    }));
-    true
-}
-
-#[cfg(target_os = "android")]
-pub(crate) fn android_request_storage_export(
-    source: &std::path::Path,
-    file_name: &str,
-    mime_type: &str,
-) -> bool {
-    let Some(app) = bevy::android::ANDROID_APP.get().cloned() else {
-        return false;
-    };
-    let source = source.to_string_lossy().to_string();
-    let file_name = file_name.to_owned();
-    let mime_type = mime_type.to_owned();
-    let java_app = app.clone();
-    app.run_on_java_main_thread(Box::new(move || {
-        let vm = unsafe { jni::JavaVM::from_raw(java_app.vm_as_ptr().cast()) };
-        if let Err(error) = vm.attach_current_thread(|env| -> jni::errors::Result<()> {
-            let raw_activity = java_app.activity_as_ptr() as jni::sys::jobject;
-            let activity = unsafe {
-                env.as_cast_raw::<jni::refs::Global<jni::objects::JObject>>(&raw_activity)?
-            };
-            let source = env.new_string(&source)?;
-            let file_name = env.new_string(&file_name)?;
-            let mime_type = env.new_string(&mime_type)?;
-            env.call_method(
-                activity.as_ref(),
-                jni::jni_str!("requestStorageExport"),
-                jni::jni_sig!("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V"),
-                &[
-                    jni::JValue::from(&source),
-                    jni::JValue::from(&file_name),
-                    jni::JValue::from(&mime_type),
-                ],
-            )?;
-            Ok(())
-        }) {
-            bevy::log::warn!("Could not open Android export picker: {error}");
         }
     }));
     true

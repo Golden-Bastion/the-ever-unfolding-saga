@@ -1,19 +1,282 @@
 #[test]
-fn start_menu_indices_account_for_developer_tools_and_load_slot() {
+fn start_menu_keeps_load_available_when_no_saves_exist() {
     let mut lifecycle = super::LifecycleState::default();
-    assert_eq!(super::start_option_count(&lifecycle), 4);
-    assert_eq!(super::start_developer_tools_index(&lifecycle), 1);
-    assert_eq!(super::start_options_index(&lifecycle), 2);
+    assert_eq!(super::start_option_count(&lifecycle), 5);
+    assert_eq!(super::start_developer_tools_index(&lifecycle), 2);
+    assert_eq!(super::start_options_index(&lifecycle), 3);
 
-    lifecycle
-        .save_files
-        .push(std::path::PathBuf::from("save.json"));
+    lifecycle.save_files.push(super::SaveEntry {
+        path: std::path::PathBuf::from("save.json"),
+        metadata: None,
+    });
     assert_eq!(super::start_option_count(&lifecycle), 5);
     assert_eq!(super::start_developer_tools_index(&lifecycle), 2);
     assert_eq!(super::start_options_index(&lifecycle), 3);
 }
 
 use super::*;
+
+#[test]
+fn load_save_action_indices_reserve_footer_and_confirmation_actions() {
+    let mut lifecycle = LifecycleState {
+        phase: LifecyclePhase::Load,
+        ..LifecycleState::default()
+    };
+    lifecycle.save_files = vec![
+        super::SaveEntry {
+            path: PathBuf::from("saves/first.json.gz"),
+            metadata: None,
+        },
+        super::SaveEntry {
+            path: PathBuf::from("saves/second.json.gz"),
+            metadata: None,
+        },
+    ];
+
+    assert_eq!(super::save_load_action_index(0), 0);
+    assert_eq!(super::save_export_action_index(0), 1);
+    assert_eq!(super::save_delete_action_index(0), 2);
+    assert_eq!(super::save_load_action_index(1), 3);
+    assert_eq!(super::save_export_action_index(1), 4);
+    assert_eq!(super::save_delete_action_index(1), 5);
+    assert_eq!(super::save_import_action_index(&lifecycle), 6);
+    assert_eq!(super::save_back_action_index(&lifecycle), 7);
+    assert_eq!(super::delete_dialog_action_indices(&lifecycle), (8, 9));
+
+    lifecycle.pending_delete_save = Some(PathBuf::from("saves/first.json.gz"));
+    assert_eq!(super::min_selection(&lifecycle), 8);
+    assert_eq!(super::max_selection(&lifecycle), 9);
+}
+
+#[test]
+fn deleting_a_save_requires_confirmation_before_removing_the_file() {
+    let directory = std::env::temp_dir().join(format!(
+        "teus-save-delete-test-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&directory).unwrap();
+    let path = directory.join("character.save");
+    std::fs::write(&path, b"test save contents").unwrap();
+
+    let mut lifecycle = LifecycleState {
+        phase: LifecyclePhase::Load,
+        save_files: vec![super::SaveEntry {
+            path: path.clone(),
+            metadata: None,
+        }],
+        selected: super::save_delete_action_index(0),
+        ..LifecycleState::default()
+    };
+    let mut navigation = NavigationState {
+        current_screen: Some(ScreenId::Lifecycle),
+        ..NavigationState::default()
+    };
+
+    super::activate_selection(&mut lifecycle, &mut navigation);
+    assert_eq!(
+        lifecycle.pending_delete_save.as_deref(),
+        Some(path.as_path())
+    );
+    assert!(path.is_file());
+    assert_eq!(
+        lifecycle.selected,
+        super::delete_dialog_action_indices(&lifecycle).1
+    );
+
+    lifecycle.selected = super::delete_dialog_action_indices(&lifecycle).0;
+    super::activate_selection(&mut lifecycle, &mut navigation);
+    assert!(lifecycle.pending_delete_save.is_none());
+    assert!(!path.exists());
+    assert!(lifecycle.save_files.is_empty());
+    assert_eq!(
+        lifecycle.selected,
+        super::save_import_action_index(&lifecycle)
+    );
+    assert_eq!(
+        lifecycle.message.as_deref(),
+        Some("Deleted save for character.save.")
+    );
+
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn cancelling_save_deletion_keeps_the_file_and_restores_the_row_action() {
+    let directory = std::env::temp_dir().join(format!(
+        "teus-save-delete-cancel-test-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&directory).unwrap();
+    let path = directory.join("character.save");
+    std::fs::write(&path, b"test save contents").unwrap();
+
+    let mut lifecycle = LifecycleState {
+        phase: LifecyclePhase::Load,
+        save_files: vec![super::SaveEntry {
+            path: path.clone(),
+            metadata: None,
+        }],
+        selected: super::save_delete_action_index(0),
+        ..LifecycleState::default()
+    };
+    let mut navigation = NavigationState {
+        current_screen: Some(ScreenId::Lifecycle),
+        ..NavigationState::default()
+    };
+
+    super::activate_selection(&mut lifecycle, &mut navigation);
+    super::handle_cancel(&mut lifecycle, &mut navigation);
+
+    assert!(lifecycle.pending_delete_save.is_none());
+    assert!(path.is_file());
+    assert_eq!(lifecycle.selected, super::save_delete_action_index(0));
+    assert!(lifecycle.message.is_none());
+
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[derive(Resource)]
+struct LoadRowsFixture(Entity);
+
+fn spawn_load_rows_host(mut commands: Commands) {
+    let host = commands.spawn(Node::default()).id();
+    commands.insert_resource(LoadRowsFixture(host));
+}
+
+fn reconcile_test_load_rows(
+    mut commands: Commands,
+    lifecycle: Res<LifecycleState>,
+    fixture: Res<LoadRowsFixture>,
+    children: Query<&Children>,
+    rows: Query<(Entity, &super::LoadSaveRow)>,
+    empty_states: Query<(), With<super::LoadEmptyState>>,
+) {
+    super::reconcile_load_save_rows(
+        &mut commands,
+        fixture.0,
+        &lifecycle,
+        &children,
+        &rows,
+        &empty_states,
+    );
+}
+
+fn find_load_row(world: &mut World, key: &PathBuf) -> Entity {
+    let mut rows = world.query::<(Entity, &super::LoadSaveRow)>();
+    rows.iter(world)
+        .find_map(|(entity, row)| (&row.key == key).then_some(entity))
+        .expect("save row should exist")
+}
+
+#[test]
+fn load_rows_reconcile_by_path_and_keep_entities_across_reordering() {
+    let first = PathBuf::from("saves/first.json.gz");
+    let second = PathBuf::from("saves/second.json.gz");
+    let third = PathBuf::from("saves/third.json.gz");
+    let lifecycle = LifecycleState {
+        phase: LifecyclePhase::Load,
+        save_files: vec![
+            super::SaveEntry {
+                path: first.clone(),
+                metadata: None,
+            },
+            super::SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+        ],
+        ..LifecycleState::default()
+    };
+
+    let mut world = World::new();
+    world.insert_resource(lifecycle);
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_load_rows_host);
+    setup.run(&mut world);
+    world.flush();
+    let host = world.resource::<LoadRowsFixture>().0;
+
+    let mut render = Schedule::default();
+    render.add_systems(reconcile_test_load_rows);
+    render.run(&mut world);
+    world.flush();
+
+    let first_entity = find_load_row(&mut world, &first);
+    let second_entity = find_load_row(&mut world, &second);
+
+    {
+        let mut state = world.resource_mut::<LifecycleState>();
+        state.save_files = vec![
+            super::SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+            super::SaveEntry {
+                path: third.clone(),
+                metadata: None,
+            },
+        ];
+        state.selected = super::save_export_action_index(0);
+    }
+
+    render.run(&mut world);
+    world.flush();
+
+    let second_after = find_load_row(&mut world, &second);
+    let third_entity = find_load_row(&mut world, &third);
+    assert_eq!(second_after, second_entity);
+    assert_ne!(third_entity, first_entity);
+    assert!(world.get::<super::LoadSaveRow>(first_entity).is_none());
+
+    let ordered = world
+        .get::<Children>(host)
+        .unwrap()
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(ordered, vec![second_entity, third_entity]);
+
+    let second_row = world.get::<super::LoadSaveRow>(second_entity).unwrap();
+    for (button, expected_index) in [
+        (second_row.load_button, super::save_load_action_index(0)),
+        (second_row.export_button, super::save_export_action_index(0)),
+        (second_row.delete_button, super::save_delete_action_index(0)),
+    ] {
+        assert_eq!(
+            world
+                .get::<bevy_presentation::ChoiceButton>(button)
+                .unwrap()
+                .index,
+            expected_index
+        );
+    }
+    assert!(world
+        .get::<bevy_presentation::UiSelected>(second_row.export_button)
+        .is_some());
+}
+
+#[test]
+fn load_screen_opens_without_saves_so_import_remains_available() {
+    let mut lifecycle = LifecycleState::default();
+    let mut navigation = NavigationState {
+        current_screen: Some(ScreenId::Lifecycle),
+        ..NavigationState::default()
+    };
+
+    assert!(lifecycle.start_load_game_with_saves(&mut navigation, Vec::new()));
+    assert_eq!(lifecycle.phase, LifecyclePhase::Load);
+    assert!(lifecycle.save_files.is_empty());
+    assert_eq!(super::save_import_action_index(&lifecycle), 0);
+    assert_eq!(super::save_back_action_index(&lifecycle), 1);
+    assert_eq!(navigation.current_screen, Some(ScreenId::Lifecycle));
+}
 
 #[test]
 fn display_version_uses_package_version_when_no_suffix_is_supplied() {
@@ -111,7 +374,7 @@ fn options_activation_keeps_navigation_on_the_options_screen() {
     };
 
     lifecycle.phase = LifecyclePhase::Start;
-    lifecycle.selected = 2;
+    lifecycle.selected = super::start_options_index(&lifecycle);
 
     super::activate_selection(&mut lifecycle, &mut navigation);
 
@@ -145,10 +408,11 @@ fn load_back_returns_to_the_start_screen() {
         phase: LifecyclePhase::Load,
         ..LifecycleState::default()
     };
-    lifecycle
-        .save_files
-        .push(std::path::PathBuf::from("saves/test.json.gz"));
-    lifecycle.selected = lifecycle.save_files.len();
+    lifecycle.save_files.push(super::SaveEntry {
+        path: std::path::PathBuf::from("saves/test.json.gz"),
+        metadata: None,
+    });
+    lifecycle.selected = super::save_back_action_index(&lifecycle);
     let mut navigation = NavigationState {
         current_screen: Some(ScreenId::Lifecycle),
         return_screen: None,
@@ -174,12 +438,12 @@ fn lifecycle_renderer_allows_initial_screen_but_not_dedicated_screen_overwrite()
 }
 
 #[test]
-fn start_screen_has_expected_options_without_saves() {
+fn start_screen_keeps_load_available_without_saves() {
     let state = LifecycleState::default();
-    assert_eq!(start_option_count(&state), 4);
-    assert_eq!(start_developer_tools_index(&state), 1);
-    assert_eq!(start_options_index(&state), 2);
-    assert!(!start_has_load(&state));
+    assert_eq!(start_option_count(&state), 5);
+    assert_eq!(start_developer_tools_index(&state), 2);
+    assert_eq!(start_options_index(&state), 3);
+    assert!(start_has_load(&state));
 }
 
 #[test]
@@ -296,7 +560,7 @@ fn empty_creation_values_keep_the_existing_effective_defaults() {
 
 #[test]
 fn lifecycle_buttons_reference_existing_ui_icon_assets() {
-    let mut icons = vec![SAVE_SLOT_ICON, BEGIN_LIFE_ICON];
+    let mut icons = vec![BEGIN_LIFE_ICON];
     icons.extend(
         start_action_visuals(true)
             .iter()
@@ -514,4 +778,134 @@ fn creation_appearance_slots_follow_the_portrait_view_order() {
     assert!(crate::character_appearance::appearance_slot_has_none_choice("headgear"));
     assert!(crate::character_appearance::appearance_slot_has_none_choice("accessory"));
     assert!(!crate::character_appearance::appearance_slot_has_none_choice("body"));
+}
+
+#[derive(Resource, Clone, Copy)]
+struct RetainedLoadScreenFixture {
+    root: Entity,
+    list: Entity,
+    hosts: super::LoadScreenContent,
+}
+
+fn spawn_retained_load_screen_fixture(mut commands: Commands) {
+    let root = commands.spawn_empty().id();
+    let list = commands
+        .spawn((
+            Node::default(),
+            bevy_presentation::TouchScrollablePanel,
+            ScrollPosition(Vec2::ZERO),
+        ))
+        .id();
+    let rows = commands.spawn(Node::default()).id();
+    let messages = commands.spawn(Node::default()).id();
+    let footer = commands.spawn(Node::default()).id();
+    commands.entity(root).add_child(list);
+    commands.entity(list).add_child(rows);
+    commands.entity(root).add_child(messages);
+    commands.entity(root).add_child(footer);
+
+    let hosts = super::LoadScreenContent {
+        root,
+        rows,
+        messages,
+        footer,
+    };
+    commands.entity(root).insert(hosts);
+    commands.insert_resource(RetainedLoadScreenFixture { root, list, hosts });
+}
+
+fn refresh_retained_load_screen_fixture(
+    mut commands: Commands,
+    fixture: Res<RetainedLoadScreenFixture>,
+    lifecycle: Res<LifecycleState>,
+    children: Query<&Children>,
+    rows: Query<(Entity, &super::LoadSaveRow)>,
+    empty_states: Query<(), With<super::LoadEmptyState>>,
+    confirmation_dialogs: Query<Entity, With<bevy_presentation::UiConfirmationDialog>>,
+) {
+    super::render_load_content(
+        &mut commands,
+        fixture.hosts,
+        &lifecycle,
+        &children,
+        &rows,
+        &empty_states,
+        &confirmation_dialogs,
+    );
+}
+
+#[test]
+fn load_refresh_keeps_the_scroll_shell_and_host_entities_mounted() {
+    let first = PathBuf::from("saves/first.json.gz");
+    let second = PathBuf::from("saves/second.json.gz");
+    let third = PathBuf::from("saves/third.json.gz");
+    let lifecycle = LifecycleState {
+        phase: LifecyclePhase::Load,
+        save_files: vec![
+            super::SaveEntry {
+                path: first.clone(),
+                metadata: None,
+            },
+            super::SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+        ],
+        ..LifecycleState::default()
+    };
+
+    let mut world = World::new();
+    world.insert_resource(lifecycle);
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_retained_load_screen_fixture);
+    setup.run(&mut world);
+    world.flush();
+
+    let fixture = *world.resource::<RetainedLoadScreenFixture>();
+    world
+        .entity_mut(fixture.list)
+        .insert(ScrollPosition(Vec2::new(0.0, 132.0)));
+
+    let mut refresh = Schedule::default();
+    refresh.add_systems(refresh_retained_load_screen_fixture);
+    refresh.run(&mut world);
+    world.flush();
+
+    let first_entity = find_load_row(&mut world, &first);
+    let second_entity = find_load_row(&mut world, &second);
+    {
+        let mut state = world.resource_mut::<LifecycleState>();
+        state.save_files = vec![
+            super::SaveEntry {
+                path: second.clone(),
+                metadata: None,
+            },
+            super::SaveEntry {
+                path: third.clone(),
+                metadata: None,
+            },
+        ];
+        state.message = Some("Save catalogue refreshed.".to_string());
+        state.selected = super::save_export_action_index(0);
+    }
+
+    refresh.run(&mut world);
+    world.flush();
+
+    assert!(world
+        .get::<super::LoadScreenContent>(fixture.root)
+        .is_some());
+    assert!(world
+        .get::<bevy_presentation::TouchScrollablePanel>(fixture.list)
+        .is_some());
+    assert_eq!(
+        world.get::<ScrollPosition>(fixture.list).unwrap().0,
+        Vec2::new(0.0, 132.0)
+    );
+    assert!(world.get::<Node>(fixture.hosts.rows).is_some());
+    assert!(world.get::<Node>(fixture.hosts.messages).is_some());
+    assert!(world.get::<Node>(fixture.hosts.footer).is_some());
+    assert_eq!(find_load_row(&mut world, &second), second_entity);
+    assert_ne!(find_load_row(&mut world, &third), first_entity);
+    assert!(world.get::<super::LoadSaveRow>(first_entity).is_none());
 }
