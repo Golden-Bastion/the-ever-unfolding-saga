@@ -10,7 +10,7 @@ Each installation has one authoritative, application-managed game-data root.
 - Android uses private application files storage.
 - The root contains the save collection, installed mods, import staging folders, and game-managed configuration.
 - The active root is not configurable from the Options screen. The process working directory is not used to locate saves, mods, or assets.
-- External storage is accessed only when the player explicitly imports or exports a file through the Options screen.
+- External storage is accessed only when the player explicitly imports or exports a file through the Load screen.
 
 Bundled base content and base-game art remain protected package resources. Bundled default mods are seeded into the internal mod catalog on first initialization. User-installed mods and mod preferences are managed in that same catalog.
 
@@ -24,14 +24,15 @@ There is no automatic mod upgrade, save migration, or compatibility layer. Mod a
 
 Legacy uncompressed `ever_unfolding_saga_save.json` payloads remain readable when encountered inside the current internal root. The new application identity uses a new private data directory, so saves from previous installations are not discovered automatically; export and import them explicitly before removing an older installation.
 
-## Options: save import and export
+## Load screen: save management
 
-The Options screen lists available saves and supports importing or exporting individual saves.
+The Load screen lists saved lives and owns the complete save-management workflow. Each save row offers Load, Export, and Delete; Import and Back remain in the fixed footer. The Load screen remains available even when the catalogue is empty so a fresh installation can import a save.
 
 - Imported saves are parsed and validated before installation.
 - Import never overwrites an existing save slot. A collision receives a distinct imported filename.
 - Export validates the selected save and refuses to overwrite an existing destination.
-- Desktop uses native file dialogs. Android uses the system document picker and copies the selected file into a private import staging directory before validation.
+- Delete permanently removes the selected save only after the player confirms in the shared destructive-action dialog.
+- Desktop uses native file dialogs. Android uses the system document picker and copies the selected file into a private import staging directory before validation. Import staging is polled by the lifecycle Load flow, not by Options.
 - Readable save entries in Options and Load show the character's full display name, level, world name and day, save-format version, and saved mod-dependency count. This metadata is read without reloading campaign definitions; unreadable files fall back to their filename.
 - The current save envelope does not record the game release version or a creation timestamp. The displayed version is the save-format version, not the application version.
 
