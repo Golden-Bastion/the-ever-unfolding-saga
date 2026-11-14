@@ -11,6 +11,10 @@ The root [ROADMAP.md](../../ROADMAP.md) is the only project-wide index of remain
 - [Pixel-art visual direction](pixel-art-direction.md) — graphics-first visual identity, asset consistency, and incremental migration.
 - [Audio system](audio-system.md) — music, ambient sound, state-driven transitions, volume settings, and asset provenance.
 
+## Presentation and interface
+
+- [Presentation direction](presentation-direction.md) — intended visual language, exploration/combat HUD hierarchy, character hub, map presentation, shared feedback, and desktop/Android adaptation.
+
 ## World and character systems
 
 - [World topology and hybrid travel](world-topology-and-travel.md) — regional geography, location graphs, local maps, physical exits, fast travel, persistence, and expansion.

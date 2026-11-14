@@ -56,7 +56,7 @@ Text remains a first-class presentation tool for dialogue, description, logs, re
 
 ## Future presentation designs
 
-Future spatial exploration and combat presentation concepts are maintained in [Spatial Gameplay](../design/spatial-gameplay.md) and [Real-Time Spatial Combat](../design/real-time-spatial-combat.md). Their implementation status and sequencing belong in the root [roadmap](../../ROADMAP.md); this system document focuses on current UI architecture and behavior.
+Future visual hierarchy and interface composition are maintained in [Presentation Direction](../design/presentation-direction.md). Related gameplay-specific presentation contracts are documented in [Spatial Gameplay](../design/spatial-gameplay.md) and [Real-Time Spatial Combat](../design/real-time-spatial-combat.md). Their implementation status and sequencing belong in the root [roadmap](../../ROADMAP.md); this system document focuses on current UI architecture and behavior.
 ## v0.51 graphical foundation
 
 Issue #278 establishes the reusable presentation primitives for the redesigned gameplay HUD and menu surfaces. Issue #279 applies those primitives to the gameplay surface with a world-first composition, responsive primary/contextual actions, dynamic time-of-day sky treatment, and the compact player HUD. Issue #317 unifies the former secondary-navigation and pause flows into the gameplay pause/navigation menu, while #227 supplies the dedicated tabbed Options screen.
