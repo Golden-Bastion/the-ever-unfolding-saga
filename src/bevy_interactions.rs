@@ -272,7 +272,6 @@ fn move_to_end(
     if count > 0 {
         state.selected = count - 1;
         navigation.selected = state.selected;
-        state.dirty = true;
     }
 }
 
