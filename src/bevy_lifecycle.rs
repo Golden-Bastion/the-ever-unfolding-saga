@@ -24,7 +24,7 @@ use bevy::prelude::*;
 use bevy::text::EditableText;
 #[cfg(any(target_os = "android", test))]
 use bevy::text::TextEdit;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 #[cfg(target_os = "android")]
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -51,7 +51,6 @@ struct SaveEntry {
 
 #[derive(Component, Clone, Copy)]
 struct LoadScreenContent {
-    list: Entity,
     rows: Entity,
     messages: Entity,
     footer: Entity,
@@ -1528,6 +1527,7 @@ fn spawn_load_save_row(
     rows_host: Entity,
     index: usize,
     save: &SaveEntry,
+    selected: usize,
 ) -> Entity {
     let row = bevy_presentation::spawn_option_row(commands, rows_host);
     let title = bevy_presentation::spawn_label(commands, row.label, save_title(save));
@@ -1557,19 +1557,19 @@ fn spawn_load_save_row(
         commands,
         load_button,
         save_load_action_index(index),
-        false,
+        selected == save_load_action_index(index),
     );
     update_load_row_button(
         commands,
         export_button,
         save_export_action_index(index),
-        false,
+        selected == save_export_action_index(index),
     );
     update_load_row_button(
         commands,
         delete_button,
         save_delete_action_index(index),
-        false,
+        selected == save_delete_action_index(index),
     );
     commands.entity(row.row).insert(LoadSaveRow {
         key: save.path.clone(),
@@ -1636,7 +1636,7 @@ fn reconcile_load_save_rows(
             );
             entity
         } else {
-            spawn_load_save_row(commands, rows_host, index, save)
+            spawn_load_save_row(commands, rows_host, index, save, lifecycle.selected)
         };
         ordered.push(entity);
     }
@@ -1765,7 +1765,6 @@ fn render_load(commands: &mut Commands, root: Entity, panel: Entity, lifecycle: 
     commands.entity(panel).add_child(messages);
     let footer = bevy_presentation::spawn_option_footer(commands, panel);
     commands.entity(root).insert(LoadScreenContent {
-        list,
         rows,
         messages,
         footer,
@@ -1776,7 +1775,7 @@ fn render_load(commands: &mut Commands, root: Entity, panel: Entity, lifecycle: 
         commands.entity(empty).insert(LoadEmptyState);
     } else {
         for (index, save) in lifecycle.save_files.iter().enumerate() {
-            spawn_load_save_row(commands, rows, index, save);
+            spawn_load_save_row(commands, rows, index, save, lifecycle.selected);
         }
     }
     render_load_message(commands, messages, lifecycle);
