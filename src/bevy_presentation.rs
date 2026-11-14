@@ -604,7 +604,10 @@ pub fn spawn_screen(commands: &mut Commands, title: impl Into<String>) -> Entity
     commands
         .spawn((
             BevyScreenRoot,
-            UiTransform::default(),
+            UiTransform {
+                scale: Vec2::splat(0.96),
+                ..default()
+            },
             PresentationTransition::entering(),
             Node {
                 width: percent(100),
@@ -650,7 +653,10 @@ pub fn spawn_screen_with_right_detail(
     commands
         .spawn((
             BevyScreenRoot,
-            UiTransform::default(),
+            UiTransform {
+                scale: Vec2::splat(0.96),
+                ..default()
+            },
             PresentationTransition::entering(),
             Node {
                 width: percent(100),
