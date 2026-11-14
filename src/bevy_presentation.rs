@@ -582,7 +582,10 @@ pub fn install(app: &mut App) {
         .add_systems(Update, contextual_touch_input)
         .add_systems(PostUpdate, sync_ui_health_gauges)
         .add_systems(PostUpdate, sync_action_button_selection)
-        .add_systems(PostUpdate, sync_ui_button_visuals.after(sync_action_button_selection))
+        .add_systems(
+            PostUpdate,
+            sync_ui_button_visuals.after(sync_action_button_selection),
+        )
         .add_systems(Update, touch_scroll)
         .add_systems(PostUpdate, resolve_ui_icons)
         .add_systems(PostUpdate, organize_action_button_groups)
@@ -1859,16 +1862,19 @@ fn sync_action_button_selection(
 fn sync_ui_button_visuals(
     time: Res<Time>,
     mut commands: Commands,
-    mut buttons: Query<(
-        Entity,
-        &Hovered,
-        Has<Pressed>,
-        Option<&UiSelected>,
-        Has<UiWarmButton>,
-        &mut BorderColor,
-        &mut BackgroundColor,
-        Option<&mut UiButtonVisualState>,
-    ), With<UiStyledButton>>,
+    mut buttons: Query<
+        (
+            Entity,
+            &Hovered,
+            Has<Pressed>,
+            Option<&UiSelected>,
+            Has<UiWarmButton>,
+            &mut BorderColor,
+            &mut BackgroundColor,
+            Option<&mut UiButtonVisualState>,
+        ),
+        With<UiStyledButton>,
+    >,
 ) {
     let smoothing = 1.0 - (-20.0 * time.delta_secs()).exp();
     for (entity, hovered, pressed, selected, warm, mut border, mut background, mut state) in
@@ -1878,8 +1884,7 @@ fn sync_ui_button_visuals(
             button_visual_colors(pressed, hovered.get(), selected.is_some(), warm);
         let (border_color, background_color) = if let Some(state) = state.as_deref_mut() {
             state.border = interpolate_ui_color(state.border, target_border, smoothing);
-            state.background =
-                interpolate_ui_color(state.background, target_background, smoothing);
+            state.background = interpolate_ui_color(state.background, target_background, smoothing);
             (state.border, state.background)
         } else {
             commands.entity(entity).insert(UiButtonVisualState {

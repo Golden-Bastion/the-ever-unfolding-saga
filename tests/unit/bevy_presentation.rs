@@ -565,7 +565,10 @@ fn button_colour_interpolation_reaches_target_without_overshooting() {
     assert!((halfway.red - 0.5).abs() < 0.001);
     assert!((halfway.green - 0.25).abs() < 0.001);
     assert!((halfway.blue - 0.125).abs() < 0.001);
-    assert_eq!(interpolate_ui_color(start, end, 2.0).to_srgba(), end.to_srgba());
+    assert_eq!(
+        interpolate_ui_color(start, end, 2.0).to_srgba(),
+        end.to_srgba()
+    );
 }
 
 #[test]
