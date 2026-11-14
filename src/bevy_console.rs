@@ -370,7 +370,7 @@ fn console_completion_region_changed(
     previous: Option<&ConsoleView>,
     current: &ConsoleView,
 ) -> bool {
-    previous.map_or(true, |previous| {
+    previous.is_none_or(|previous| {
         previous.autocomplete != current.autocomplete
             || previous.candidates != current.candidates
             || previous.selected != current.selected
