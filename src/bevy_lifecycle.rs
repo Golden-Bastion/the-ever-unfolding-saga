@@ -198,6 +198,74 @@ fn initialize(mut lifecycle: ResMut<LifecycleState>) {
     lifecycle.refresh_saves();
 }
 
+#[cfg(target_os = "android")]
+fn refresh_storage(
+    time: Res<Time>,
+    navigation: Res<NavigationState>,
+    mut lifecycle: ResMut<LifecycleState>,
+) {
+    if navigation.current_screen != Some(ScreenId::Lifecycle)
+        || lifecycle.phase != LifecyclePhase::Load
+    {
+        return;
+    }
+
+    let elapsed = time.elapsed_secs();
+    if elapsed - lifecycle.last_storage_poll < 0.5 {
+        return;
+    }
+    lifecycle.last_storage_poll = elapsed;
+
+    let paths = GamePaths::get();
+    let entries = match std::fs::read_dir(&paths.save_imports_dir) {
+        Ok(entries) => entries,
+        Err(error) => {
+            lifecycle.message = Some(format!("Could not inspect imported saves: {error}"));
+            lifecycle.dirty = true;
+            return;
+        }
+    };
+
+    let mut changed = false;
+    for entry in entries.flatten() {
+        let source = entry.path();
+        if !source.is_file()
+            || source.extension().and_then(|value| value.to_str()) != Some("save")
+            || lifecycle.processed_imports.contains(&source)
+        {
+            continue;
+        }
+
+        lifecycle.processed_imports.insert(source.clone());
+        match crate::persistence::install_imported_save(&source) {
+            Ok(target) => {
+                let _ = std::fs::remove_file(&source);
+                lifecycle.message = Some(format!(
+                    "Imported save as {}.",
+                    target.file_name().unwrap_or_default().to_string_lossy()
+                ));
+                changed = true;
+            }
+            Err(error) => {
+                lifecycle.message = Some(format!("Could not import save: {error}"));
+                lifecycle.dirty = true;
+            }
+        }
+    }
+
+    if changed {
+        lifecycle.refresh_save_catalog();
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn refresh_storage(
+    _time: Res<Time>,
+    _navigation: Res<NavigationState>,
+    _lifecycle: ResMut<LifecycleState>,
+) {
+}
+
 fn lifecycle_input(
     mut lifecycle: ResMut<LifecycleState>,
     mut navigation: ResMut<NavigationState>,
@@ -791,6 +859,176 @@ fn available_save_files() -> Vec<SaveEntry> {
 
 pub(crate) fn has_available_saves() -> bool {
     !available_save_files().is_empty()
+}
+
+fn save_title(save: &SaveEntry) -> String {
+    save.metadata
+        .as_ref()
+        .map(|metadata| metadata.character_display_name.clone())
+        .unwrap_or_else(|| {
+            save.path
+                .file_name()
+                .map(|value| value.to_string_lossy().to_string())
+                .unwrap_or_else(|| save.path.display().to_string())
+        })
+}
+
+fn save_detail(save: &SaveEntry) -> String {
+    save.metadata
+        .as_ref()
+        .map(|metadata| metadata.details_line())
+        .unwrap_or_else(|| "Save metadata unavailable.".to_string())
+}
+
+fn import_save(lifecycle: &mut LifecycleState) {
+    #[cfg(not(target_os = "android"))]
+    {
+        let Some(source) = rfd::FileDialog::new()
+            .set_title("Import a save")
+            .add_filter("The Ever-Unfolding Saga saves", &["gz", "json", "save"])
+            .pick_file()
+        else {
+            lifecycle.message = Some("Save import cancelled.".to_string());
+            lifecycle.dirty = true;
+            return;
+        };
+
+        match crate::persistence::install_imported_save(&source) {
+            Ok(target) => {
+                lifecycle.message = Some(format!(
+                    "Imported save as {}.",
+                    target.file_name().unwrap_or_default().to_string_lossy()
+                ));
+                lifecycle.refresh_save_catalog();
+            }
+            Err(error) => {
+                lifecycle.message = Some(format!("Could not import save: {error}"));
+                lifecycle.dirty = true;
+            }
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        if android_request_storage_import("saves") {
+            lifecycle.message =
+                Some("Choose a save file in the Android document picker.".to_string());
+        } else {
+            lifecycle.message = Some("The Android document picker is unavailable.".to_string());
+        }
+        lifecycle.dirty = true;
+    }
+}
+
+fn export_save(lifecycle: &mut LifecycleState, source: &Path) {
+    if let Err(error) = crate::persistence::validate_save(source) {
+        lifecycle.message = Some(format!("Could not export invalid save: {error}"));
+        lifecycle.dirty = true;
+        return;
+    }
+
+    let file_name = source
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| "ever_unfolding_saga_save.json.gz".to_string());
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let Some(destination) = rfd::FileDialog::new()
+            .set_title("Export save")
+            .set_file_name(&file_name)
+            .save_file()
+        else {
+            lifecycle.message = Some("Save export cancelled.".to_string());
+            lifecycle.dirty = true;
+            return;
+        };
+
+        match crate::persistence::export_save(source, &destination) {
+            Ok(()) => {
+                lifecycle.message = Some(format!("Exported save to {}.", destination.display()));
+            }
+            Err(error) => {
+                lifecycle.message = Some(format!("Could not export save: {error}"));
+            }
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        if android_request_storage_export(source, &file_name, "application/gzip") {
+            lifecycle.message = Some("Choose a destination for the save export.".to_string());
+        } else {
+            lifecycle.message = Some("The Android document picker is unavailable.".to_string());
+        }
+    }
+    lifecycle.dirty = true;
+}
+
+#[cfg(target_os = "android")]
+fn android_request_storage_import(kind: &str) -> bool {
+    let Some(app) = bevy::android::ANDROID_APP.get().cloned() else {
+        return false;
+    };
+    let kind = kind.to_owned();
+    let java_app = app.clone();
+    app.run_on_java_main_thread(Box::new(move || {
+        let vm = unsafe { jni::JavaVM::from_raw(java_app.vm_as_ptr().cast()) };
+        if let Err(error) = vm.attach_current_thread(|env| -> jni::errors::Result<()> {
+            let raw_activity = java_app.activity_as_ptr() as jni::sys::jobject;
+            let activity = unsafe {
+                env.as_cast_raw::<jni::refs::Global<jni::objects::JObject>>(&raw_activity)?
+            };
+            let value = env.new_string(&kind)?;
+            env.call_method(
+                activity.as_ref(),
+                jni::jni_str!("requestStorageImport"),
+                jni::jni_sig!("(Ljava/lang/String;)V"),
+                &[jni::JValue::from(&value)],
+            )?;
+            Ok(())
+        }) {
+            bevy::log::warn!("Could not open Android document picker: {error}");
+        }
+    }));
+    true
+}
+
+#[cfg(target_os = "android")]
+fn android_request_storage_export(source: &Path, file_name: &str, mime_type: &str) -> bool {
+    let Some(app) = bevy::android::ANDROID_APP.get().cloned() else {
+        return false;
+    };
+    let source = source.to_string_lossy().to_string();
+    let file_name = file_name.to_owned();
+    let mime_type = mime_type.to_owned();
+    let java_app = app.clone();
+    app.run_on_java_main_thread(Box::new(move || {
+        let vm = unsafe { jni::JavaVM::from_raw(java_app.vm_as_ptr().cast()) };
+        if let Err(error) = vm.attach_current_thread(|env| -> jni::errors::Result<()> {
+            let raw_activity = java_app.activity_as_ptr() as jni::sys::jobject;
+            let activity = unsafe {
+                env.as_cast_raw::<jni::refs::Global<jni::objects::JObject>>(&raw_activity)?
+            };
+            let source = env.new_string(&source)?;
+            let file_name = env.new_string(&file_name)?;
+            let mime_type = env.new_string(&mime_type)?;
+            env.call_method(
+                activity.as_ref(),
+                jni::jni_str!("requestStorageExport"),
+                jni::jni_sig!("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V"),
+                &[
+                    jni::JValue::from(&source),
+                    jni::JValue::from(&file_name),
+                    jni::JValue::from(&mime_type),
+                ],
+            )?;
+            Ok(())
+        }) {
+            bevy::log::warn!("Could not open Android export picker: {error}");
+        }
+    }));
+    true
 }
 
 fn start_option_count(lifecycle: &LifecycleState) -> usize {
