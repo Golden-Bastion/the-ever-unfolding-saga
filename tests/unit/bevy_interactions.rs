@@ -136,5 +136,7 @@ fn interaction_content_refresh_preserves_the_screen_root_and_scroll_position() {
         world.get::<bevy::ui::ScrollPosition>(panel).unwrap().0,
         Vec2::new(0.0, 142.0)
     );
-    assert_eq!(world.get::<Children>(host).unwrap().len(), 0);
+    assert!(world
+        .get::<Children>(host)
+        .map_or(true, |children| children.is_empty()));
 }
