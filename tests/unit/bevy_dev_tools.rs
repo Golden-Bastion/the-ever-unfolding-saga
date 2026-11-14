@@ -81,6 +81,69 @@ fn slot_and_part_cycling_wraps_and_handles_empty_catalogues() {
 }
 
 #[test]
+fn optional_character_lab_slots_cycle_through_none_and_back() {
+    let mut state = DeveloperToolsState {
+        slots: build_slots(vec![
+            part("body.one", "body", 10),
+            part("headgear.hood", "headgear", 20),
+        ]),
+        ..Default::default()
+    };
+    let headgear = state
+        .slots
+        .iter()
+        .position(|slot| slot.name == "headgear")
+        .unwrap();
+    let headgear_count = state.slots[headgear].parts.len();
+
+    cycle_slot_part(&mut state, headgear, -1);
+    assert_eq!(state.slots[headgear].selected_part, headgear_count);
+    assert!(build_preview_portrait(&state.slots)
+        .layers
+        .iter()
+        .all(|layer| layer.slot != "headgear"));
+
+    cycle_slot_part(&mut state, headgear, 1);
+    assert_eq!(state.slots[headgear].selected_part, 0);
+    assert!(build_preview_portrait(&state.slots)
+        .layers
+        .iter()
+        .any(|layer| layer.slot == "headgear"));
+}
+
+#[test]
+fn character_lab_randomizer_can_omit_optional_slots() {
+    let mut state = DeveloperToolsState {
+        slots: build_slots(vec![
+            part("body.one", "body", 10),
+            part("headgear.hood", "headgear", 20),
+        ]),
+        ..Default::default()
+    };
+    let headgear = state
+        .slots
+        .iter()
+        .position(|slot| slot.name == "headgear")
+        .unwrap();
+    let body = state
+        .slots
+        .iter()
+        .position(|slot| slot.name == "body")
+        .unwrap();
+    let mut omitted = 0;
+
+    for _ in 0..256 {
+        randomize_combination(&mut state);
+        assert_eq!(state.slots[body].selected_part, 0);
+        if state.slots[headgear].selected_part == state.slots[headgear].parts.len() {
+            omitted += 1;
+        }
+    }
+
+    assert!(omitted > 0 && omitted < 256);
+}
+
+#[test]
 fn world_lab_generation_is_reproducible_and_respects_selected_layout() {
     let options = WorldLabOptions {
         seed: 7_654_321,

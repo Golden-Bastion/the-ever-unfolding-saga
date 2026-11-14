@@ -13,6 +13,26 @@ fn touch_coordinates_convert_from_logical_to_physical_space() {
     assert_eq!(position, Vec2::new(250.0, 125.0));
 }
 
+#[test]
+fn rebuilt_scroll_panels_restore_cached_offsets_in_creation_order() {
+    let cached = [Vec2::new(0.0, 180.0), Vec2::new(0.0, 42.0)];
+    let mut current = [Vec2::ZERO, Vec2::ZERO];
+
+    restore_cached_scroll_positions(&cached, &mut current);
+
+    assert_eq!(current, cached);
+}
+
+#[test]
+fn new_scroll_panels_keep_their_default_offset_when_no_cached_panel_exists() {
+    let cached: [Vec2; 0] = [];
+    let mut current = [Vec2::ZERO, Vec2::new(0.0, 12.0)];
+
+    restore_cached_scroll_positions(&cached, &mut current);
+
+    assert_eq!(current, [Vec2::ZERO, Vec2::new(0.0, 12.0)]);
+}
+
 fn spawn_console_input_regression_fixture(mut commands: Commands) {
     let panel = commands.spawn_empty().id();
     spawn_label(&mut commands, panel, "> help");

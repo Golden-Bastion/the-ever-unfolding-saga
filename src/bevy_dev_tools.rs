@@ -275,7 +275,9 @@ fn cycle_slot_part(state: &mut DeveloperToolsState, slot_index: usize, direction
         return;
     };
     state.selected_slot = slot_index;
-    slot.selected_part = cycle_index(slot.selected_part, slot.parts.len(), direction);
+    let choice_count =
+        crate::character_appearance::appearance_slot_choice_count(&slot.name, slot.parts.len());
+    slot.selected_part = cycle_index(slot.selected_part, choice_count, direction);
     state.dirty = true;
 }
 
@@ -292,11 +294,14 @@ fn randomize_combination(state: &mut DeveloperToolsState) {
     state.seed = state.seed.wrapping_add(1);
     let generated = generate_character_portrait(&parts, state.seed, &[]);
     for slot in &mut state.slots {
-        let Some(layer) = generated.iter().find(|layer| layer.slot == slot.name) else {
-            continue;
-        };
-        if let Some(index) = slot.parts.iter().position(|part| part.id == layer.id) {
-            slot.selected_part = index;
+        if let Some(layer) = generated.iter().find(|layer| layer.slot == slot.name) {
+            if let Some(index) = slot.parts.iter().position(|part| part.id == layer.id) {
+                slot.selected_part = index;
+            }
+        } else if crate::character_appearance::appearance_slot_has_none_choice(&slot.name)
+            && !slot.parts.is_empty()
+        {
+            slot.selected_part = slot.parts.len();
         }
     }
     state.dirty = true;
@@ -1982,12 +1987,10 @@ fn render_character_lab(
         .map(|(index, slot)| PortraitSlotControl {
             name: slot.name.clone(),
             selected_part: slot.selected_part,
-            part_count: slot.parts.len(),
-            selected_part_label: slot
-                .parts
-                .get(slot.selected_part)
-                .map(|part| part.id.rsplit('.').next().unwrap_or(&part.id).to_owned())
-                .unwrap_or_else(|| "none".into()),
+            part_count: crate::character_appearance::appearance_slot_choice_count(
+                &slot.name,
+                slot.parts.len(),
+            ),
             previous_index: index * 2,
             next_index: index * 2 + 1,
         })
@@ -2082,8 +2085,15 @@ fn render_character_lab(
                     format!("Excludes tags: {}", part.excludes_tags.join(", ")),
                 );
             }
-        } else {
+        } else if slot.parts.is_empty() {
             bevy_presentation::spawn_muted_label(commands, controls, "This slot has no parts.");
+        } else {
+            bevy_presentation::spawn_label(commands, controls, "PART: none");
+            bevy_presentation::spawn_muted_label(
+                commands,
+                controls,
+                "No portrait layer is selected for this slot.",
+            );
         }
         bevy_presentation::spawn_muted_label(
             commands,
@@ -2106,6 +2116,16 @@ fn render_character_lab(
                 controls,
                 format!("{marker} {} - {}", part.id, part.asset),
             );
+        }
+        if crate::character_appearance::appearance_slot_has_none_choice(&slot.name)
+            && !slot.parts.is_empty()
+        {
+            let marker = if slot.selected_part == slot.parts.len() {
+                ">"
+            } else {
+                " "
+            };
+            bevy_presentation::spawn_muted_label(commands, controls, format!("{marker} None"));
         }
     } else {
         bevy_presentation::spawn_muted_label(

@@ -114,6 +114,62 @@ fn player_portrait_uses_explicit_part_ids_in_draw_order() {
 
 #[test]
 fn player_portrait_defaults_and_missing_parts_are_stable() {
+#[test]
+fn explicit_none_choices_remove_optional_player_slots_and_legacy_saves_still_default() {
+    let parts = vec![
+        part("body.one", "body", 1, 10, &[], &[]),
+        part("headgear.hood", "headgear", 1, 20, &[], &[]),
+    ];
+    let selected = vec![
+        "body.one".to_string(),
+        appearance_slot_none_id("headgear"),
+    ];
+
+    let chosen = resolve_character_portrait(&parts, &selected);
+    assert_eq!(
+        chosen.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
+        vec!["body.one"]
+    );
+
+    let legacy = resolve_character_portrait(&parts, &["body.one".to_string()]);
+    assert_eq!(
+        legacy.iter().map(|layer| layer.id.as_str()).collect::<Vec<_>>(),
+        vec!["body.one", "headgear.hood"]
+    );
+}
+
+#[test]
+fn optional_npc_slots_are_sometimes_omitted_but_required_slots_remain() {
+    let parts = vec![
+        part("body.one", "body", 1, 10, &[], &[]),
+        part("headgear.hood", "headgear", 1, 20, &[], &[]),
+        part("accessory.scarf", "accessory", 1, 15, &[], &[]),
+    ];
+    let mut headgear_present = 0;
+    let mut headgear_omitted = 0;
+    let mut accessory_present = 0;
+    let mut accessory_omitted = 0;
+
+    for seed in 0..256 {
+        let chosen = generate_character_portrait(&parts, seed, &[]);
+        assert!(chosen.iter().any(|layer| layer.slot == "body"));
+        if chosen.iter().any(|layer| layer.slot == "headgear") {
+            headgear_present += 1;
+        } else {
+            headgear_omitted += 1;
+        }
+        if chosen.iter().any(|layer| layer.slot == "accessory") {
+            accessory_present += 1;
+        } else {
+            accessory_omitted += 1;
+        }
+        assert_eq!(chosen, generate_character_portrait(&parts, seed, &[]));
+    }
+
+    assert!(headgear_present > 0 && headgear_omitted > 0);
+    assert!(accessory_present > 0 && accessory_omitted > 0);
+}
+
     let parts = vec![
         part("hair.z", "hair", 1, 20, &[], &[]),
         part("face.z", "face", 1, 10, &[], &[]),
