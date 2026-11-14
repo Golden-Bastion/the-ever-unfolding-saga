@@ -801,8 +801,9 @@ pub(crate) fn spawn_tab_content(commands: &mut Commands, parent: Entity) -> Enti
     content
 }
 
-/// Removes only the current children of a stable tab-content host.
-pub(crate) fn clear_tab_content(
+/// Removes the current children of a stable content host without replacing
+/// the host entity or any state attached to it (for example, ScrollPosition).
+pub(crate) fn clear_content_host(
     commands: &mut Commands,
     content: Entity,
     children: &Query<&Children>,
@@ -812,6 +813,15 @@ pub(crate) fn clear_tab_content(
             commands.entity(child).despawn();
         }
     }
+}
+
+/// Backwards-compatible tab-specific name for the shared content-host operation.
+pub(crate) fn clear_tab_content(
+    commands: &mut Commands,
+    content: Entity,
+    children: &Query<&Children>,
+) {
+    clear_content_host(commands, content, children);
 }
 
 /// Creates the only scrolling region inside a fixed Options-style panel.
