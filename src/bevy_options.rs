@@ -610,7 +610,6 @@ fn render_if_active(
                 commands.entity(content).insert(hosts);
                 render_options_list_content(
                     &mut commands,
-                    hosts.list,
                     hosts.rows,
                     &options,
                     &ui_settings,
@@ -685,7 +684,6 @@ fn render_if_active(
     let hosts = spawn_options_content_hosts(&mut commands, content, options.tab);
     render_options_list_content(
         &mut commands,
-        hosts.list,
         hosts.rows,
         &options,
         &ui_settings,
@@ -764,7 +762,6 @@ fn clear_options_content_hosts(
 #[allow(clippy::too_many_arguments)]
 fn render_options_list_content(
     commands: &mut Commands,
-    list: Entity,
     rows: Entity,
     options: &OptionsState,
     ui_settings: &crate::ui_settings::UiSettings,
@@ -774,8 +771,8 @@ fn render_options_list_content(
     empty_states: &Query<(), With<OptionsEmptyState>>,
 ) {
     match options.tab {
-        0 => render_saves_tab(commands, list, rows, options, children, save_rows, empty_states),
-        1 => render_mods_tab(commands, list, rows, options, children, mod_rows, empty_states),
+        0 => render_saves_tab(commands, rows, options, children, save_rows, empty_states),
+        1 => render_mods_tab(commands, rows, options, children, mod_rows, empty_states),
         2 => render_interface_tab(commands, rows, options, ui_settings),
         _ => {}
     }
@@ -807,15 +804,14 @@ fn render_options_aux_content(
 
 fn render_saves_tab(
     commands: &mut Commands,
-    list: Entity,
     rows: Entity,
     options: &OptionsState,
     children: &Query<&Children>,
     save_rows: &Query<(Entity, &SaveListRow)>,
     empty_states: &Query<(), With<OptionsEmptyState>>,
 ) {
-    bevy_presentation::spawn_label(commands, list, "SAVES");
-    bevy_presentation::spawn_muted_label(commands, list, "Imports never overwrite existing saves.");
+    bevy_presentation::spawn_label(commands, rows, "SAVES");
+    bevy_presentation::spawn_muted_label(commands, rows, "Imports never overwrite existing saves.");
     reconcile_save_rows(commands, rows, options, children, save_rows, empty_states);
 }
 
@@ -916,14 +912,13 @@ fn reconcile_save_rows(
 
 fn render_mods_tab(
     commands: &mut Commands,
-    list: Entity,
     rows: Entity,
     options: &OptionsState,
     children: &Query<&Children>,
     mod_rows: &Query<(Entity, &ModListRow)>,
     empty_states: &Query<(), With<OptionsEmptyState>>,
 ) {
-    bevy_presentation::spawn_label(commands, list, "MOD MANAGEMENT");
+    bevy_presentation::spawn_label(commands, rows, "MOD MANAGEMENT");
     reconcile_mod_rows(commands, rows, options, children, mod_rows, empty_states);
 }
 
