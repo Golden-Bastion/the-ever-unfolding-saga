@@ -617,3 +617,32 @@ fn shared_panels_expose_the_common_surface_contract() {
     assert!(world.get::<BorderColor>(panel).is_some());
     assert!(world.get::<Node>(panel).is_some());
 }
+
+#[test]
+fn generic_gauge_helper_builds_a_clamped_fill_region() {
+    #[derive(Resource)]
+    struct Fixture(Entity);
+
+    fn setup(mut commands: Commands) {
+        let parent = commands.spawn_empty().id();
+        let gauge = spawn_gauge(&mut commands, parent, 5, 10);
+        commands.insert_resource(Fixture(gauge));
+    }
+
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(setup);
+    schedule.run(&mut world);
+    world.flush();
+
+    let gauge = world.resource::<Fixture>().0;
+    let children = world
+        .get::<Children>(gauge)
+        .expect("generic gauge should contain a fill region");
+    let fill = children
+        .iter()
+        .find(|entity| world.get::<GaugeFill>(*entity).is_some())
+        .expect("generic gauge fill region should be marked");
+
+    assert_eq!(world.get::<Node>(*fill).unwrap().width, percent(50.0));
+}
