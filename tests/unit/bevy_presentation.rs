@@ -618,7 +618,7 @@ fn shared_panels_expose_the_common_surface_contract() {
     assert!(world.get::<Node>(panel).is_some());
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone, Copy)]
 struct KeyedActionGroupFixture {
     parent: Entity,
     group: Entity,
@@ -645,7 +645,7 @@ fn explicit_action_groups_keep_keyed_buttons_under_their_stable_host() {
     setup.run(&mut world);
     world.flush();
 
-    let fixture = world.resource::<KeyedActionGroupFixture>();
+    let fixture = *world.resource::<KeyedActionGroupFixture>();
     let mut organize = Schedule::default();
     organize.add_systems(organize_action_button_groups);
     organize.run(&mut world);
