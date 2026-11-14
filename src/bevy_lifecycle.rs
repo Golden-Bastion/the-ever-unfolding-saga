@@ -1311,6 +1311,10 @@ fn render_if_dirty(
     roots: Query<Entity, With<BevyScreenRoot>>,
     creation_screens: Query<(), With<LifecycleCreationScreen>>,
     creation_content: Query<Entity, With<LifecycleCreationContent>>,
+    load_content: Query<(Entity, &LoadScreenContent)>,
+    save_rows: Query<(Entity, &LoadSaveRow)>,
+    empty_states: Query<(), With<LoadEmptyState>>,
+    confirmation_dialogs: Query<Entity, With<bevy_presentation::UiConfirmationDialog>>,
     children: Query<&Children>,
     tab_buttons: Query<(Entity, &bevy_presentation::UiTabButton)>,
 ) {
@@ -1323,6 +1327,25 @@ fn render_if_dirty(
     // None state is still accepted so Startup can render the start screen.
     if !should_render_lifecycle(navigation.current_screen) {
         return;
+    }
+
+    if lifecycle.phase == LifecyclePhase::Load {
+        if let Some((root, hosts)) = load_content.iter().next() {
+            render_load_content(
+                &mut commands,
+                root,
+                *hosts,
+                &lifecycle,
+                &children,
+                &save_rows,
+                &empty_states,
+                &confirmation_dialogs,
+            );
+            navigation.current_screen = Some(ScreenId::Lifecycle);
+            navigation.selected = lifecycle.selected;
+            lifecycle.dirty = false;
+            return;
+        }
     }
 
     if lifecycle.phase == LifecyclePhase::CreateCharacter && !creation_screens.is_empty() {
@@ -1406,7 +1429,7 @@ fn render(
 
     match lifecycle.phase {
         LifecyclePhase::Start => render_start(commands, panel, lifecycle),
-        LifecyclePhase::Load => render_load(commands, panel, lifecycle),
+        LifecyclePhase::Load => render_load(commands, root, panel, lifecycle),
         LifecyclePhase::CreateCharacter => {
             render_creation(commands, panel, lifecycle, images, portrait_images)
         }
@@ -1463,44 +1486,302 @@ fn render_start(commands: &mut Commands, panel: Entity, lifecycle: &LifecycleSta
     }
 }
 
-fn render_load(commands: &mut Commands, panel: Entity, lifecycle: &LifecycleState) {
-    bevy_presentation::spawn_muted_label(commands, panel, "Choose a life to continue.");
-    if let Some(message) = &lifecycle.message {
-        bevy_presentation::spawn_muted_label(commands, panel, message);
+fn load_rows_host_node() -> Node {
+    Node {
+        width: percent(100),
+        min_width: px(0),
+        flex_direction: FlexDirection::Column,
+        row_gap: bevy_presentation::responsive_vmin(1.389),
+        ..default()
     }
-    for (index, path) in lifecycle.save_files.iter().enumerate() {
-        let (label, details) = match lifecycle.save_metadata.get(index).and_then(Option::as_ref) {
-            Some(metadata) => (
-                metadata.character_display_name.clone(),
-                metadata.details_line(),
-            ),
-            None => (
-                path.file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or("Unknown save")
-                    .to_string(),
-                "Save metadata unavailable.".to_string(),
-            ),
-        };
-        let button = bevy_presentation::spawn_action_button_with_detail(
+}
+
+fn load_auxiliary_host_node() -> Node {
+    Node {
+        width: percent(100),
+        min_width: px(0),
+        flex_direction: FlexDirection::Column,
+        row_gap: px(4),
+        flex_shrink: 0.0,
+        ..default()
+    }
+}
+
+fn update_load_row_button(
+    commands: &mut Commands,
+    button: Entity,
+    index: usize,
+    selected: bool,
+) {
+    commands
+        .entity(button)
+        .insert(bevy_presentation::ChoiceButton { index });
+    if selected {
+        commands.entity(button).insert(bevy_presentation::UiSelected);
+    } else {
+        commands.entity(button).remove::<bevy_presentation::UiSelected>();
+    }
+}
+
+fn spawn_load_save_row(
+    commands: &mut Commands,
+    rows_host: Entity,
+    index: usize,
+    save: &SaveEntry,
+) -> Entity {
+    let row = bevy_presentation::spawn_option_row(commands, rows_host);
+    let title = bevy_presentation::spawn_label(commands, row.label, save_title(save));
+    let detail = bevy_presentation::spawn_muted_label(commands, row.label, save_detail(save));
+    let (load_button, load_label) =
+        bevy_presentation::spawn_compact_action_button_with_text(
             commands,
-            panel,
-            index,
-            SAVE_SLOT_ICON,
-            label,
-            details,
+            row.controls,
+            save_load_action_index(index),
+            "Load",
         );
-        if lifecycle.selected == index {
-            commands
-                .entity(button)
-                .insert(bevy_presentation::UiSelected);
+    let (export_button, export_label) =
+        bevy_presentation::spawn_compact_action_button_with_text(
+            commands,
+            row.controls,
+            save_export_action_index(index),
+            "Export",
+        );
+    let (delete_button, delete_label) =
+        bevy_presentation::spawn_danger_action_button_with_text(
+            commands,
+            row.controls,
+            save_delete_action_index(index),
+            "Delete",
+        );
+    update_load_row_button(
+        commands,
+        load_button,
+        save_load_action_index(index),
+        false,
+    );
+    update_load_row_button(
+        commands,
+        export_button,
+        save_export_action_index(index),
+        false,
+    );
+    update_load_row_button(
+        commands,
+        delete_button,
+        save_delete_action_index(index),
+        false,
+    );
+    commands.entity(row.row).insert(LoadSaveRow {
+        key: save.path.clone(),
+        title,
+        detail,
+        load_button,
+        load_label,
+        export_button,
+        export_label,
+        delete_button,
+        delete_label,
+    });
+    row.row
+}
+
+fn reconcile_load_save_rows(
+    commands: &mut Commands,
+    rows_host: Entity,
+    lifecycle: &LifecycleState,
+    children: &Query<&Children>,
+    existing_rows: &Query<(Entity, &LoadSaveRow)>,
+    empty_states: &Query<(), With<LoadEmptyState>>,
+) {
+    let mut existing = HashMap::new();
+    let mut empty_state = None;
+    if let Ok(current_children) = children.get(rows_host) {
+        for child in current_children.iter() {
+            if let Ok((entity, row)) = existing_rows.get(child) {
+                existing.insert(row.key.clone(), (entity, row));
+            } else if empty_states.get(child).is_ok() {
+                empty_state = Some(child);
+            }
         }
     }
-    let back_index = lifecycle.save_files.len();
-    let back = bevy_presentation::spawn_action_button(commands, panel, back_index, "back", "Back");
-    if lifecycle.selected == back_index {
-        commands.entity(back).insert(bevy_presentation::UiSelected);
+
+    let mut ordered = Vec::with_capacity(lifecycle.save_files.len().saturating_add(1));
+    for (index, save) in lifecycle.save_files.iter().enumerate() {
+        let key = save.path.clone();
+        let title = save_title(save);
+        let detail = save_detail(save);
+        let entity = if let Some((entity, row)) = existing.remove(&key) {
+            commands.entity(row.title).insert(Text::new(title));
+            commands.entity(row.detail).insert(Text::new(detail));
+            commands.entity(row.load_label).insert(Text::new("Load"));
+            commands.entity(row.export_label).insert(Text::new("Export"));
+            commands.entity(row.delete_label).insert(Text::new("Delete"));
+            update_load_row_button(
+                commands,
+                row.load_button,
+                save_load_action_index(index),
+                lifecycle.selected == save_load_action_index(index),
+            );
+            update_load_row_button(
+                commands,
+                row.export_button,
+                save_export_action_index(index),
+                lifecycle.selected == save_export_action_index(index),
+            );
+            update_load_row_button(
+                commands,
+                row.delete_button,
+                save_delete_action_index(index),
+                lifecycle.selected == save_delete_action_index(index),
+            );
+            entity
+        } else {
+            spawn_load_save_row(commands, rows_host, index, save)
+        };
+        ordered.push(entity);
     }
+
+    for (_, (entity, _)) in existing {
+        commands.entity(entity).despawn();
+    }
+
+    if lifecycle.save_files.is_empty() {
+        let entity = empty_state.unwrap_or_else(|| {
+            let label = bevy_presentation::spawn_muted_label(
+                commands,
+                rows_host,
+                "No saves found.",
+            );
+            commands.entity(label).insert(LoadEmptyState);
+            label
+        });
+        commands.entity(entity).insert(Text::new("No saves found."));
+        ordered.push(entity);
+    } else if let Some(entity) = empty_state {
+        commands.entity(entity).despawn();
+    }
+    commands.entity(rows_host).replace_children(&ordered);
+}
+
+fn render_load_footer(commands: &mut Commands, footer: Entity, lifecycle: &LifecycleState) {
+    let import_index = save_import_action_index(lifecycle);
+    let import = bevy_presentation::spawn_compact_action_button(
+        commands,
+        footer,
+        import_index,
+        "Import save",
+    );
+    update_load_row_button(commands, import, import_index, lifecycle.selected == import_index);
+
+    let back_index = save_back_action_index(lifecycle);
+    let back = bevy_presentation::spawn_compact_action_button(commands, footer, back_index, "Back");
+    update_load_row_button(commands, back, back_index, lifecycle.selected == back_index);
+}
+
+fn render_load_message(commands: &mut Commands, messages: Entity, lifecycle: &LifecycleState) {
+    if let Some(message) = &lifecycle.message {
+        bevy_presentation::spawn_context_message(commands, messages, message);
+    }
+}
+
+fn render_load_confirmation(
+    commands: &mut Commands,
+    root: Entity,
+    lifecycle: &LifecycleState,
+) {
+    let Some(path) = lifecycle.pending_delete_save.as_ref() else {
+        return;
+    };
+    let title = lifecycle
+        .save_files
+        .iter()
+        .find(|save| &save.path == path)
+        .map(save_title)
+        .unwrap_or_else(|| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.display().to_string())
+        });
+    let (confirm, cancel) = delete_dialog_action_indices(lifecycle);
+    bevy_presentation::spawn_confirmation_dialog(
+        commands,
+        root,
+        "DELETE SAVE?",
+        &format!("Permanently delete {title}? This cannot be undone."),
+        confirm,
+        cancel,
+        "Delete permanently",
+        "Cancel",
+    );
+}
+
+fn render_load_content(
+    commands: &mut Commands,
+    root: Entity,
+    hosts: LoadScreenContent,
+    lifecycle: &LifecycleState,
+    children: &Query<&Children>,
+    save_rows: &Query<(Entity, &LoadSaveRow)>,
+    empty_states: &Query<(), With<LoadEmptyState>>,
+    confirmation_dialogs: &Query<Entity, With<bevy_presentation::UiConfirmationDialog>>,
+) {
+    reconcile_load_save_rows(
+        commands,
+        hosts.rows,
+        lifecycle,
+        children,
+        save_rows,
+        empty_states,
+    );
+    bevy_presentation::clear_content_host(commands, hosts.messages, children);
+    bevy_presentation::clear_content_host(commands, hosts.footer, children);
+    render_load_message(commands, hosts.messages, lifecycle);
+    render_load_footer(commands, hosts.footer, lifecycle);
+
+    let existing_dialogs = confirmation_dialogs.iter().collect::<Vec<_>>();
+    if lifecycle.pending_delete_save.is_some() {
+        if existing_dialogs.is_empty() {
+            render_load_confirmation(commands, root, lifecycle);
+        }
+    } else {
+        for dialog in existing_dialogs {
+            commands.entity(dialog).despawn();
+        }
+    }
+}
+
+fn render_load(commands: &mut Commands, root: Entity, panel: Entity, lifecycle: &LifecycleState) {
+    let list = bevy_presentation::spawn_scrollable_list(commands, panel);
+    bevy_presentation::spawn_label(commands, list, "SAVES");
+    bevy_presentation::spawn_muted_label(
+        commands,
+        list,
+        "Choose a life to continue. Imports never overwrite existing saves.",
+    );
+
+    let rows = commands.spawn(load_rows_host_node()).id();
+    commands.entity(list).add_child(rows);
+    let messages = commands.spawn(load_auxiliary_host_node()).id();
+    commands.entity(panel).add_child(messages);
+    let footer = bevy_presentation::spawn_option_footer(commands, panel);
+    commands.entity(root).insert(LoadScreenContent {
+        list,
+        rows,
+        messages,
+        footer,
+    });
+
+    if lifecycle.save_files.is_empty() {
+        let empty = bevy_presentation::spawn_muted_label(commands, rows, "No saves found.");
+        commands.entity(empty).insert(LoadEmptyState);
+    } else {
+        for (index, save) in lifecycle.save_files.iter().enumerate() {
+            spawn_load_save_row(commands, rows, index, save);
+        }
+    }
+    render_load_message(commands, messages, lifecycle);
+    render_load_footer(commands, footer, lifecycle);
+    render_load_confirmation(commands, root, lifecycle);
 }
 
 fn render_creation(
