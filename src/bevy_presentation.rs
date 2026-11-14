@@ -80,6 +80,13 @@ pub struct UiContextMessage;
 #[derive(Component)]
 pub struct UiStyledButton;
 
+/// Current animated colours for a shared action button.
+#[derive(Component, Debug, Clone, Copy)]
+struct UiButtonVisualState {
+    border: Color,
+    background: Color,
+}
+
 /// Keeps map destinations visually distinct from ordinary menu actions while
 /// preserving standard pointer and selection feedback.
 #[derive(Component)]
@@ -574,7 +581,8 @@ pub fn install(app: &mut App) {
         .add_systems(Update, choice_button_input)
         .add_systems(Update, contextual_touch_input)
         .add_systems(PostUpdate, sync_ui_health_gauges)
-        .add_systems(PostUpdate, sync_ui_button_visuals)
+        .add_systems(PostUpdate, sync_action_button_selection)
+        .add_systems(PostUpdate, sync_ui_button_visuals.after(sync_action_button_selection))
         .add_systems(Update, touch_scroll)
         .add_systems(PostUpdate, resolve_ui_icons)
         .add_systems(PostUpdate, organize_action_button_groups)
@@ -593,6 +601,8 @@ pub fn spawn_screen(commands: &mut Commands, title: impl Into<String>) -> Entity
     commands
         .spawn((
             BevyScreenRoot,
+            UiTransform::default(),
+            PresentationTransition::entering(),
             Node {
                 width: percent(100),
                 height: percent(100),
@@ -637,6 +647,8 @@ pub fn spawn_screen_with_right_detail(
     commands
         .spawn((
             BevyScreenRoot,
+            UiTransform::default(),
+            PresentationTransition::entering(),
             Node {
                 width: percent(100),
                 height: percent(100),
@@ -698,9 +710,13 @@ pub fn spawn_panel(commands: &mut Commands, parent: Entity) -> Entity {
                 padding: UiRect::all(panel_padding()),
                 flex_direction: FlexDirection::Column,
                 row_gap: panel_gap(),
+                border: UiRect::all(px(1)),
+                border_radius: BorderRadius::all(px(4)),
                 overflow: Overflow::scroll(),
                 ..default()
             },
+            UiSurface,
+            BorderColor::all(THEME_BORDER),
             BackgroundColor(THEME_PANEL),
         ))
         .id();
@@ -718,6 +734,8 @@ fn fixed_panel_node() -> Node {
         padding: UiRect::all(panel_padding()),
         flex_direction: FlexDirection::Column,
         row_gap: panel_gap(),
+        border: UiRect::all(px(1)),
+        border_radius: BorderRadius::all(px(4)),
         overflow: Overflow::clip(),
         ..default()
     }
@@ -729,6 +747,8 @@ pub fn spawn_fixed_panel(commands: &mut Commands, parent: Entity) -> Entity {
         .spawn((
             TabGroup::modal(),
             fixed_panel_node(),
+            UiSurface,
+            BorderColor::all(THEME_BORDER),
             BackgroundColor(THEME_PANEL),
         ))
         .id();
@@ -1149,6 +1169,7 @@ fn action_button_node() -> Node {
             responsive_vmin(UI_ACTION_PADDING_VERTICAL_VMIN),
         ),
         border: UiRect::all(px(1)),
+        border_radius: BorderRadius::all(px(3)),
         justify_content: JustifyContent::Start,
         align_items: AlignItems::Center,
         ..default()
@@ -1801,22 +1822,72 @@ fn button_visual_colors(
 }
 
 #[allow(clippy::type_complexity)] // ECS query combines widget state and visual components.
-fn sync_ui_button_visuals(
-    mut buttons: Query<
-        (
-            &Hovered,
-            Has<Pressed>,
-            Option<&UiSelected>,
-            Has<UiWarmButton>,
-            &mut BorderColor,
-            &mut BackgroundColor,
-        ),
-        With<UiStyledButton>,
-    >,
+fn interpolate_ui_color(from: Color, to: Color, amount: f32) -> Color {
+    let from = from.to_srgba();
+    let to = to.to_srgba();
+    let amount = amount.clamp(0.0, 1.0);
+    Color::srgba(
+        from.red + (to.red - from.red) * amount,
+        from.green + (to.green - from.green) * amount,
+        from.blue + (to.blue - from.blue) * amount,
+        from.alpha + (to.alpha - from.alpha) * amount,
+    )
+}
+
+/// Updates action-button selection without rebuilding the owning screen.
+fn sync_action_button_selection(
+    navigation: Res<NavigationState>,
+    mut commands: Commands,
+    buttons: Query<(Entity, &ChoiceButton, Has<UiSelected>), With<UiActionButton>>,
 ) {
-    for (hovered, pressed, selected, warm, mut border, mut background) in &mut buttons {
-        let (border_color, background_color) =
+    if !navigation.is_changed() {
+        return;
+    }
+    for (entity, choice, selected) in &buttons {
+        let should_be_selected = choice.index == navigation.selected;
+        if should_be_selected == selected {
+            continue;
+        }
+        if should_be_selected {
+            commands.entity(entity).insert(UiSelected);
+        } else {
+            commands.entity(entity).remove::<UiSelected>();
+        }
+    }
+}
+
+fn sync_ui_button_visuals(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut buttons: Query<(
+        Entity,
+        &Hovered,
+        Has<Pressed>,
+        Option<&UiSelected>,
+        Has<UiWarmButton>,
+        &mut BorderColor,
+        &mut BackgroundColor,
+        Option<&mut UiButtonVisualState>,
+    ), With<UiStyledButton>>,
+) {
+    let smoothing = 1.0 - (-20.0 * time.delta_secs()).exp();
+    for (entity, hovered, pressed, selected, warm, mut border, mut background, mut state) in
+        &mut buttons
+    {
+        let (target_border, target_background) =
             button_visual_colors(pressed, hovered.get(), selected.is_some(), warm);
+        let (border_color, background_color) = if let Some(state) = state.as_deref_mut() {
+            state.border = interpolate_ui_color(state.border, target_border, smoothing);
+            state.background =
+                interpolate_ui_color(state.background, target_background, smoothing);
+            (state.border, state.background)
+        } else {
+            commands.entity(entity).insert(UiButtonVisualState {
+                border: target_border,
+                background: target_background,
+            });
+            (target_border, target_background)
+        };
         border.set_all(border_color);
         *background = BackgroundColor(background_color);
     }
