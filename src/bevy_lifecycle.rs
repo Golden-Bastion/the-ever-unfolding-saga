@@ -51,6 +51,7 @@ struct SaveEntry {
 
 #[derive(Component, Clone, Copy)]
 struct LoadScreenContent {
+    root: Entity,
     rows: Entity,
     messages: Entity,
     footer: Entity,
@@ -1298,7 +1299,7 @@ fn render_if_dirty(
     roots: Query<Entity, With<BevyScreenRoot>>,
     creation_screens: Query<(), With<LifecycleCreationScreen>>,
     creation_content: Query<Entity, With<LifecycleCreationContent>>,
-    load_content: Query<(Entity, &LoadScreenContent)>,
+    load_content: Query<&LoadScreenContent>,
     save_rows: Query<(Entity, &LoadSaveRow)>,
     empty_states: Query<(), With<LoadEmptyState>>,
     confirmation_dialogs: Query<Entity, With<bevy_presentation::UiConfirmationDialog>>,
@@ -1317,10 +1318,9 @@ fn render_if_dirty(
     }
 
     if lifecycle.phase == LifecyclePhase::Load {
-        if let Some((root, hosts)) = load_content.iter().next() {
+        if let Some(hosts) = load_content.iter().next() {
             render_load_content(
                 &mut commands,
-                root,
                 *hosts,
                 &lifecycle,
                 &children,
@@ -1691,18 +1691,19 @@ fn render_load_confirmation(commands: &mut Commands, root: Entity, lifecycle: &L
     bevy_presentation::spawn_confirmation_dialog(
         commands,
         root,
-        "DELETE SAVE?",
-        &format!("Permanently delete {title}? This cannot be undone."),
-        confirm,
-        cancel,
-        "Delete permanently",
-        "Cancel",
+        bevy_presentation::ConfirmationDialogSpec {
+            title: "DELETE SAVE?",
+            message: &format!("Permanently delete {title}? This cannot be undone."),
+            confirm_index: confirm,
+            cancel_index: cancel,
+            confirm_label: "Delete permanently",
+            cancel_label: "Cancel",
+        },
     );
 }
 
 fn render_load_content(
     commands: &mut Commands,
-    root: Entity,
     hosts: LoadScreenContent,
     lifecycle: &LifecycleState,
     children: &Query<&Children>,
@@ -1724,7 +1725,7 @@ fn render_load_content(
     render_load_footer(commands, hosts.footer, lifecycle);
 
     let existing_dialogs = children
-        .get(root)
+        .get(hosts.root)
         .map(|root_children| {
             root_children
                 .iter()
@@ -1734,7 +1735,7 @@ fn render_load_content(
         .unwrap_or_default();
     if lifecycle.pending_delete_save.is_some() {
         if existing_dialogs.is_empty() {
-            render_load_confirmation(commands, root, lifecycle);
+            render_load_confirmation(commands, hosts.root, lifecycle);
         }
     } else {
         for dialog in existing_dialogs {
@@ -1758,6 +1759,7 @@ fn render_load(commands: &mut Commands, root: Entity, panel: Entity, lifecycle: 
     commands.entity(panel).add_child(messages);
     let footer = bevy_presentation::spawn_option_footer(commands, panel);
     commands.entity(root).insert(LoadScreenContent {
+        root,
         rows,
         messages,
         footer,
