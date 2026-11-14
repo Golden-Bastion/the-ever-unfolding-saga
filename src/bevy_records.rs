@@ -978,7 +978,7 @@ fn reconcile_character_rows(
         for child in current_children.iter() {
             if let Ok((entity, row)) = existing_rows.get(child) {
                 existing.insert(row.key.clone(), (entity, row));
-            } else if empty_states.contains(child) {
+            } else if empty_states.get(child).is_ok() {
                 empty_state = Some(child);
             }
         }
