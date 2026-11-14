@@ -92,6 +92,15 @@ struct UiButtonVisualState {
 #[derive(Component)]
 pub(crate) struct UiWarmButton;
 
+/// Marks a destructive action whose idle, hover, selected, and pressed states
+/// use the shared danger palette.
+#[derive(Component)]
+pub(crate) struct UiDangerButton;
+
+/// Marks the root of a reusable modal confirmation overlay.
+#[derive(Component)]
+pub(crate) struct UiConfirmationDialog;
+
 /// Marks a button whose activation is resolved by a custom gesture controller.
 /// The normal Bevy UI activation observer ignores these buttons; the owner must
 /// emit UiButtonActivation after it has distinguished a tap from a drag gesture.
@@ -1155,6 +1164,70 @@ pub fn spawn_overlay(commands: &mut Commands, parent: Entity) -> Entity {
     overlay
 }
 
+/// Buttons returned by a reusable confirmation dialog. The owning screen
+/// supplies the selection indices and interprets Confirm/Cancel input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ConfirmationDialogButtons {
+    pub(crate) confirm: Entity,
+    pub(crate) cancel: Entity,
+}
+
+/// Creates a modal confirmation surface with a danger-styled confirm action
+/// and a neutral cancel action. The caller owns the decision and its effects.
+pub(crate) fn spawn_confirmation_dialog(
+    commands: &mut Commands,
+    parent: Entity,
+    title: &str,
+    message: &str,
+    confirm_index: usize,
+    cancel_index: usize,
+    confirm_label: &str,
+    cancel_label: &str,
+) -> ConfirmationDialogButtons {
+    let overlay = spawn_overlay(commands, parent);
+    commands.entity(overlay).insert(UiConfirmationDialog);
+
+    let panel = commands
+        .spawn((
+            UiSurface,
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                max_width: px(UI_ACTION_MAX_WIDTH_PX),
+                padding: UiRect::all(responsive_surface_padding()),
+                flex_direction: FlexDirection::Column,
+                row_gap: responsive_compact_gap(),
+                border: UiRect::all(px(1)),
+                ..default()
+            },
+            BorderColor::all(THEME_BLOOD),
+            BackgroundColor(THEME_PANEL),
+        ))
+        .id();
+    commands.entity(overlay).add_child(panel);
+    spawn_label(commands, panel, title);
+    spawn_muted_label(commands, panel, message);
+
+    let actions = commands
+        .spawn(Node {
+            width: percent(100),
+            flex_direction: FlexDirection::Row,
+            column_gap: responsive_compact_gap(),
+            justify_content: JustifyContent::End,
+            align_items: AlignItems::Center,
+            ..default()
+        })
+        .id();
+    commands.entity(panel).add_child(actions);
+
+    let (confirm, _) =
+        spawn_danger_action_button_with_text(commands, actions, confirm_index, confirm_label);
+    let (cancel, _) =
+        spawn_compact_action_button_with_text(commands, actions, cancel_index, cancel_label);
+
+    ConfirmationDialogButtons { confirm, cancel }
+}
+
 fn action_button_group_node() -> Node {
     Node {
         width: percent(100),
@@ -1384,6 +1457,32 @@ pub(crate) fn spawn_compact_action_button_with_text(
         .id();
     commands.entity(button).add_child(label);
     commands.entity(parent).add_child(button);
+    (button, label)
+}
+
+/// Creates a compact destructive action using the shared danger palette.
+pub(crate) fn spawn_danger_action_button(
+    commands: &mut Commands,
+    parent: Entity,
+    index: usize,
+    label: impl Into<String>,
+) -> Entity {
+    spawn_danger_action_button_with_text(commands, parent, index, label).0
+}
+
+/// Creates a danger action and returns its label entity for retained-row updates.
+pub(crate) fn spawn_danger_action_button_with_text(
+    commands: &mut Commands,
+    parent: Entity,
+    index: usize,
+    label: impl Into<String>,
+) -> (Entity, Entity) {
+    let (button, label) = spawn_compact_action_button_with_text(commands, parent, index, label);
+    commands.entity(button).insert((
+        UiDangerButton,
+        BorderColor::all(THEME_BLOOD),
+        BackgroundColor(THEME_BLOOD_DARK),
+    ));
     (button, label)
 }
 
@@ -1859,8 +1958,17 @@ fn button_visual_colors(
     hovered: bool,
     selected: bool,
     warm: bool,
+    danger: bool,
 ) -> (Color, Color) {
-    if warm {
+    if danger {
+        if pressed {
+            (Color::srgb(0.82, 0.12, 0.09), Color::srgb(0.22, 0.025, 0.02))
+        } else if hovered || selected {
+            (THEME_BLOOD, Color::srgb(0.17, 0.025, 0.02))
+        } else {
+            (Color::srgba(0.48, 0.10, 0.08, 0.95), THEME_BLOOD_DARK)
+        }
+    } else if warm {
         if pressed {
             (THEME_ACCENT, THEME_PRESSED)
         } else if hovered || selected {
@@ -1925,6 +2033,7 @@ fn sync_ui_button_visuals(
             Has<Pressed>,
             Option<&UiSelected>,
             Has<UiWarmButton>,
+            Has<UiDangerButton>,
             &mut BorderColor,
             &mut BackgroundColor,
             Option<&mut UiButtonVisualState>,
@@ -1933,11 +2042,20 @@ fn sync_ui_button_visuals(
     >,
 ) {
     let smoothing = 1.0 - (-20.0 * time.delta_secs()).exp();
-    for (entity, hovered, pressed, selected, warm, mut border, mut background, mut state) in
-        &mut buttons
+    for (
+        entity,
+        hovered,
+        pressed,
+        selected,
+        warm,
+        danger,
+        mut border,
+        mut background,
+        mut state,
+    ) in &mut buttons
     {
         let (target_border, target_background) =
-            button_visual_colors(pressed, hovered.get(), selected.is_some(), warm);
+            button_visual_colors(pressed, hovered.get(), selected.is_some(), warm, danger);
         let (border_color, background_color) = if let Some(state) = state.as_deref_mut() {
             state.border = interpolate_ui_color(state.border, target_border, smoothing);
             state.background = interpolate_ui_color(state.background, target_background, smoothing);
