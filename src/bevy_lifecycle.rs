@@ -25,7 +25,9 @@ use bevy::text::EditableText;
 #[cfg(any(target_os = "android", test))]
 use bevy::text::TextEdit;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+#[cfg(target_os = "android")]
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(target_os = "android")]
@@ -41,6 +43,63 @@ struct LifecycleCreationScreen;
 #[derive(Component)]
 struct LifecycleCreationContent;
 
+#[derive(Debug, Clone)]
+struct SaveEntry {
+    path: PathBuf,
+    metadata: Option<crate::persistence::SaveMetadata>,
+}
+
+#[derive(Component, Clone, Copy)]
+struct LoadScreenContent {
+    list: Entity,
+    rows: Entity,
+    messages: Entity,
+    footer: Entity,
+}
+
+#[derive(Component)]
+struct LoadSaveRow {
+    key: PathBuf,
+    title: Entity,
+    detail: Entity,
+    load_button: Entity,
+    load_label: Entity,
+    export_button: Entity,
+    export_label: Entity,
+    delete_button: Entity,
+    delete_label: Entity,
+}
+
+#[derive(Component)]
+struct LoadEmptyState;
+
+const SAVE_ACTIONS_PER_ENTRY: usize = 3;
+
+fn save_load_action_index(save_index: usize) -> usize {
+    save_index * SAVE_ACTIONS_PER_ENTRY
+}
+
+fn save_export_action_index(save_index: usize) -> usize {
+    save_load_action_index(save_index) + 1
+}
+
+fn save_delete_action_index(save_index: usize) -> usize {
+    save_load_action_index(save_index) + 2
+}
+
+fn save_import_action_index(lifecycle: &LifecycleState) -> usize {
+    lifecycle.save_files.len() * SAVE_ACTIONS_PER_ENTRY
+}
+
+fn save_back_action_index(lifecycle: &LifecycleState) -> usize {
+    save_import_action_index(lifecycle) + 1
+}
+
+fn delete_dialog_action_indices(lifecycle: &LifecycleState) -> (usize, usize) {
+    let confirm = save_back_action_index(lifecycle) + 1;
+    (confirm, confirm + 1)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecyclePhase {
     Start,
@@ -54,8 +113,9 @@ pub(crate) enum LifecyclePhase {
 #[derive(Resource)]
 pub(crate) struct LifecycleState {
     pub(crate) phase: LifecyclePhase,
-    pub(crate) save_files: Vec<PathBuf>,
-    save_metadata: Vec<Option<crate::persistence::SaveMetadata>>,
+    save_files: Vec<SaveEntry>,
+    pending_delete_save: Option<PathBuf>,
+    delete_return_selection: usize,
     pub(crate) selected: usize,
     pub(crate) creation_tab: usize,
     pub(crate) world_name: String,
@@ -68,6 +128,10 @@ pub(crate) struct LifecycleState {
     pub(crate) message: Option<String>,
     quit_variant: usize,
     dirty: bool,
+    #[cfg(target_os = "android")]
+    last_storage_poll: f32,
+    #[cfg(target_os = "android")]
+    processed_imports: HashSet<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -82,7 +146,8 @@ impl Default for LifecycleState {
         Self {
             phase: LifecyclePhase::Start,
             save_files: Vec::new(),
-            save_metadata: Vec::new(),
+            pending_delete_save: None,
+            delete_return_selection: 0,
             selected: 0,
             creation_tab: 0,
             world_name: "The Ashen Crown".to_string(),
@@ -95,6 +160,10 @@ impl Default for LifecycleState {
             message: None,
             quit_variant: 0,
             dirty: true,
+            #[cfg(target_os = "android")]
+            last_storage_poll: 0.0,
+            #[cfg(target_os = "android")]
+            processed_imports: HashSet::new(),
         }
     }
 }
@@ -112,6 +181,7 @@ pub(crate) fn install(app: &mut App) {
             Update,
             (
                 lifecycle_input,
+                refresh_storage,
                 sync_character_field_values,
                 render_if_dirty,
             )
@@ -341,7 +411,13 @@ fn on_lifecycle_field_focus_gained(
 fn max_selection(lifecycle: &LifecycleState) -> usize {
     match lifecycle.phase {
         LifecyclePhase::Start => start_option_count(lifecycle).saturating_sub(1),
-        LifecyclePhase::Load => lifecycle.save_files.len(),
+        LifecyclePhase::Load => {
+            if lifecycle.pending_delete_save.is_some() {
+                delete_dialog_action_indices(lifecycle).1
+            } else {
+                save_back_action_index(lifecycle)
+            }
+        }
         LifecyclePhase::CreateCharacter => {
             creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).1
         }
@@ -353,6 +429,9 @@ fn max_selection(lifecycle: &LifecycleState) -> usize {
 
 fn min_selection(lifecycle: &LifecycleState) -> usize {
     match lifecycle.phase {
+        LifecyclePhase::Load if lifecycle.pending_delete_save.is_some() => {
+            delete_dialog_action_indices(lifecycle).0
+        }
         LifecyclePhase::CreateCharacter => {
             creation_selection_bounds(lifecycle.creation_tab, lifecycle.appearance_slots.len()).0
         }
@@ -694,7 +773,7 @@ fn handle_cancel(lifecycle: &mut LifecycleState, navigation: &mut NavigationStat
     }
 }
 
-fn available_save_files() -> Vec<PathBuf> {
+fn available_save_files() -> Vec<SaveEntry> {
     let paths = GamePaths::get();
     let mut save_files = find_save_files(&paths.saves_dir).unwrap_or_default();
     let legacy = legacy_save_path(&paths.root);
@@ -702,7 +781,14 @@ fn available_save_files() -> Vec<PathBuf> {
         save_files.push(legacy);
     }
     save_files
+        .into_iter()
+        .map(|path| SaveEntry {
+            metadata: crate::persistence::read_save_metadata(&path).ok(),
+            path,
+        })
+        .collect()
 }
+
 pub(crate) fn has_available_saves() -> bool {
     !available_save_files().is_empty()
 }
@@ -760,19 +846,19 @@ impl LifecycleState {
         self.dirty = true;
     }
 
-    fn refresh_saves(&mut self) {
+    fn refresh_save_catalog(&mut self) {
         self.save_files = available_save_files();
-        self.save_metadata = self
-            .save_files
-            .iter()
-            .map(|path| crate::persistence::read_save_metadata(path).ok())
-            .collect();
-        self.selected = 0;
+        self.selected = self.selected.min(save_back_action_index(self));
         self.dirty = true;
     }
 
+    fn refresh_saves(&mut self) {
+        self.refresh_save_catalog();
+        self.selected = 0;
+    }
+
     pub(crate) fn refresh_saved_games(&mut self) {
-        self.refresh_saves();
+        self.refresh_save_catalog();
     }
 
     pub(crate) fn start_new_game(&mut self, navigation: &mut NavigationState) {
@@ -800,6 +886,7 @@ impl LifecycleState {
 
         self.phase = LifecyclePhase::Load;
         self.selected = 0;
+        self.pending_delete_save = None;
         self.message = None;
         navigation.return_screen = None;
         navigation.current_screen = Some(ScreenId::Lifecycle);
