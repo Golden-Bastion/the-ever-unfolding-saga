@@ -34,14 +34,8 @@ The spatial scene continues to update player position, directional animation, ca
 
 The shared palette remains onyx-black with restrained warm accents. Panels use a consistent bordered surface, action buttons use compact corners and a common touch-target size, and typography continues to scale through the existing responsive font tokens. Feedback should clarify hierarchy and interaction without adding decorative effects that compete with the world.
 
-## Remaining migration
+## Open work
 
-This pass removes avoidable screen-tree rebuilds from the console's typing path, combat turns, interaction-content refreshes, Character Records detail updates, Options content refreshes, and feedback-entry transitions. Spatial movement, camera follow, animation, discovery tint, and world-clock presentation now update through focused in-place paths. It does not claim that all presentation is retained: Options rows and feedback entry children are still reconciled by replacing the relevant host children, while spatial topology changes still use the explicit scene rebuild path. World Map is deliberately outside this pass and remains unchanged.
+The retained-shell architecture described above is established across the listed high-churn screens, but dynamic child rows are not all keyed and every screen transition is not yet coordinated. Remaining migration goals—keyed row reconciliation, further separation of spatial topology from HUD/content updates, and coordinated exit transitions—are tracked centrally in the [roadmap](../../ROADMAP.md). This document describes current presentation contracts rather than maintaining a separate task list.
 
-The next steps should focus on:
-
-1. Keyed row reconciliation for dynamic inventories, quests, save slots, and mod lists, preserving entity identity where items remain.
-2. Further separation of spatial topology changes from HUD/content changes that do not require rebuilding the world.
-3. Explicit exit transitions for screen changes, coordinating removal only after animation completes without delaying input or gameplay state changes.
-
-Keep desktop and Android behavior equivalent. Stable hosts must preserve scroll position, focus, selection, and touch gesture ownership across content updates.
+Desktop and Android behavior must remain equivalent. Stable hosts should preserve scroll position, focus, selection, and touch-gesture ownership across content updates.

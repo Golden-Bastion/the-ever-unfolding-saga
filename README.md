@@ -39,78 +39,29 @@ The goal is to create a world worth exploring, a life worth shaping, and a histo
 ```text
 ever_unfolding_saga
 ├── data
+│   ├── assets
 │   ├── mods
-│   │   ├── ashen_expansion
-│   │   │   ├── content.json
-│   │   │   └── manifest.json
-│   │   ├── echoes_depth
-│   │   │   ├── content.json
-│   │   │   └── manifest.json
-│   │   └── README.md
 │   └── base_content.json
 ├── docs
+│   ├── archive
+│   │   └── development-plan-v0.md
+│   ├── design
 │   ├── systems
-│   │   ├── content.md
-│   │   ├── events.md
-│   │   ├── persistence.md
-│   │   └── ui.md
 │   ├── README.md
-│   ├── design-principles.md
 │   ├── architecture.md
-│   ├── development-plan-history.md
-│   └── roadmap-history.md
+│   ├── design-principles.md
+│   ├── development-process.md
+│   └── itchio-publishing.md
 ├── src
 │   ├── content
-│   │   ├── definitions.rs
-│   │   ├── diagnostics.rs
-│   │   ├── loader.rs
-│   │   └── seeding.rs
 │   ├── game
-│   │   ├── actions.rs
-│   │   ├── character.rs
-│   │   ├── combat.rs
-│   │   ├── console.rs
-│   │   ├── console_commands.rs
-│   │   ├── console_ui.rs
-│   │   ├── history_screen.rs
-│   │   ├── interactions.rs
-│   │   ├── legacy.rs
-│   │   ├── menu.rs
-│   │   ├── navigation.rs
-│   │   ├── quests.rs
-│   │   ├── records.rs
-│   │   ├── state_effects.rs
-│   │   ├── time.rs
-│   │   └── world.rs
-│   ├── bevy_app.rs
-│   ├── bevy_combat.rs
-│   ├── bevy_console.rs
-│   ├── bevy_gameplay.rs
-│   ├── bevy_interactions.rs
-│   ├── bevy_lifecycle.rs
-│   ├── bevy_navigation_bridge.rs
-│   ├── bevy_presentation.rs
-│   ├── bevy_records.rs
-│   ├── content.rs
-│   ├── events.rs
-│   ├── game.rs
-│   ├── input.rs
-│   ├── main.rs
-│   ├── model.rs
-│   ├── persistence.rs
-│   ├── presentation.rs
-│   ├── procedural.rs
-│   ├── procedural_authored.rs
-│   ├── procedural_characteristics.rs
-│   ├── procedural_entities.rs
-│   ├── procedural_opportunities.rs
-│   ├── procedural_relationships.rs
-│   ├── rng.rs
-│   └── ui.rs
+│   ├── bevy_*.rs
+│   └── ...
 ├── AGENTS.md
+├── CHANGELOG.md
+├── CHANGELOG-HISTORY.md
 ├── Cargo.lock
 ├── Cargo.toml
-├── DEVELOPMENT_PLAN.md
 ├── LICENSE
 ├── README.md
 └── ROADMAP.md

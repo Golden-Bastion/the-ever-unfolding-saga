@@ -1,0 +1,29 @@
+# Design specifications
+
+This directory contains maintained detailed specifications for future and evolving game systems. These documents describe intended behavior, system boundaries, constraints, and acceptance criteria; they do not claim that described systems are implemented.
+
+The root [ROADMAP.md](../../ROADMAP.md) is the only project-wide index of remaining work and milestone sequencing. [CHANGELOG.md](../../CHANGELOG.md) records completed work in the current development line; [CHANGELOG-HISTORY.md](../../CHANGELOG-HISTORY.md) preserves earlier milestone history.
+
+## Product direction
+
+- [Game vision](game-vision.md) — character-focused experience, self-directed lives, exploration, and inherited world history.
+- [Spatial gameplay](spatial-gameplay.md) — safe-location actions, spatial exploration, investigation, dynamic encounters, and eventual action combat.
+- [Pixel-art visual direction](pixel-art-direction.md) — graphics-first visual identity, asset consistency, and incremental migration.
+- [Audio system](audio-system.md) — music, ambient sound, state-driven transitions, volume settings, and asset provenance.
+
+## World and character systems
+
+- [World topology and hybrid travel](world-topology-and-travel.md) — regional geography, location graphs, local maps, physical exits, fast travel, persistence, and expansion.
+- [Procedural content generation](procedural-content-generation.md) — coherent region/location identity, inhabitants, opportunities, authored-content precedence, and determinism.
+- [World simulation](world-simulation.md) — authoritative time, continuous/event-driven/deferred simulation, persistent consequences, and update guarantees.
+- [Character lives and inheritance](character-lives-and-inheritance.md) — progression, ambitions, permanent life records, retirement, death, and successor continuity.
+- [Social influence and organizations](social-influence-and-organizations.md) — loyalty/trust, cooperation, recruitment, assignments, group structure, and persistence.
+- [Livelihoods, preparation, and command](livelihoods-preparation-and-command.md) — connected resources, production, trade, expedition preparation, and tactical command.
+
+## Combat
+
+- [Real-time spatial combat](real-time-spatial-combat.md) — attack styles, timing, combos, defense, positioning, injuries, enemy behavior, and combat presentation.
+
+## Maintenance rules
+
+Keep detailed design decisions here rather than in the active roadmap or scattered implementation documents. When a design changes, update the relevant specification and preserve important rationale. Keep the roadmap focused on what remains, when it is intended to happen, and its dependencies. Issues may be closed when they served only as design records and their full substance has been migrated here; implementation work must remain visible in the roadmap or active task issues.

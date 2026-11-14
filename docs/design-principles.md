@@ -127,3 +127,6 @@ This document is the canonical record of the current product direction. It super
 - Keep bounded implementation milestones small and testable. A milestone may intentionally defer a long-term principle without contradicting it.
 - Preserve useful existing systems when they fit the direction; change or replace them deliberately when they conflict. Avoid maintaining parallel implementations solely to preserve an outdated product description.
 - Use the roadmap for current state and delivery order, the development plan for implementation priorities, the architecture document for technical boundaries, and system documents for implementation detail.
+
+
+The detailed system designs that apply these principles are indexed in the [design specification library](design/README.md). The authoritative list and sequencing of unfinished work remain in the root [roadmap](../ROADMAP.md).
