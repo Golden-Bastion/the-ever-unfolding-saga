@@ -247,7 +247,6 @@ fn move_selection(
     }
     state.selected = (state.selected as isize + direction).rem_euclid(count as isize) as usize;
     navigation.selected = state.selected;
-    state.dirty = true;
 }
 
 fn set_selection(
@@ -262,7 +261,6 @@ fn set_selection(
     }
     state.selected = selected.min(count - 1);
     navigation.selected = state.selected;
-    state.dirty = true;
 }
 
 fn move_to_end(
@@ -274,7 +272,6 @@ fn move_to_end(
     if count > 0 {
         state.selected = count - 1;
         navigation.selected = state.selected;
-        state.dirty = true;
     }
 }
 
