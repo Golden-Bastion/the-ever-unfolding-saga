@@ -2904,7 +2904,6 @@ fn spawn_celestial_visual(
     let size = px(18);
     let visual = commands
         .spawn((
-            SpatialWorldEntity,
             Node {
                 width: size,
                 height: size,
