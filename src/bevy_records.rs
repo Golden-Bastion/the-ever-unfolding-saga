@@ -96,6 +96,15 @@ struct CharacterHubScreen;
 #[derive(Component)]
 struct CharacterHubContent;
 
+#[derive(Component)]
+struct RecordDetailContentHost;
+
+#[derive(Component)]
+struct RecordDetailScreen {
+    screen: RecordScreen,
+    content: Entity,
+}
+
 #[derive(Resource)]
 pub(crate) struct RecordScreenState {
     screen: RecordScreen,
@@ -505,6 +514,8 @@ fn render_if_active(
     roots: Query<Entity, With<BevyScreenRoot>>,
     character_screens: Query<(), With<CharacterHubScreen>>,
     character_content: Query<Entity, With<CharacterHubContent>>,
+    detail_screens: Query<(Entity, &RecordDetailScreen)>,
+    detail_content_hosts: Query<Entity, With<RecordDetailContentHost>>,
     children: Query<&Children>,
     tab_buttons: Query<(Entity, &bevy_presentation::UiTabButton)>,
 ) {
@@ -546,6 +557,27 @@ fn render_if_active(
         }
     }
 
+    if records_state.screen != RecordScreen::Character {
+        let retained_content = detail_screens.iter().find_map(|(_, detail)| {
+            (detail.screen == records_state.screen
+                && detail_content_hosts.get(detail.content).is_ok())
+            .then_some(detail.content)
+        });
+        if let Some(content) = retained_content {
+            bevy_presentation::clear_content_host(&mut commands, content, &children);
+            render_record_detail_content(
+                &mut commands,
+                content,
+                records_state.screen,
+                &session.state,
+                &character_view,
+                &records_state,
+            );
+            records_state.dirty = false;
+            return;
+        }
+    }
+
     for root in &roots {
         commands.entity(root).despawn();
     }
@@ -560,49 +592,97 @@ fn render_if_active(
             records_state.character_tab,
             records_state.selected,
         ),
+        screen => {
+            let (_, content) = spawn_record_detail_shell(&mut commands, screen);
+            render_record_detail_content(
+                &mut commands,
+                content,
+                screen,
+                &session.state,
+                &character_view,
+                &records_state,
+            );
+        }
+    }
+    records_state.dirty = false;
+}
+
+fn record_detail_title(screen: RecordScreen) -> &'static str {
+    match screen {
+        RecordScreen::Character => "CHARACTER",
+        RecordScreen::InventoryDetail => "INVENTORY | ITEM",
+        RecordScreen::QuestDetail => "QUEST | DETAILS",
+        RecordScreen::Meditation => "MEDITATION",
+        RecordScreen::MeditationResult => "MEDITATION | COMPLETE",
+        RecordScreen::ChronicleDetail => "JOURNAL | CHRONICLE",
+        RecordScreen::JournalEntry => "WRITE IN JOURNAL",
+    }
+}
+
+fn spawn_record_detail_shell(commands: &mut Commands, screen: RecordScreen) -> (Entity, Entity) {
+    let root = bevy_presentation::spawn_screen(commands, record_detail_title(screen));
+    let content = bevy_presentation::spawn_panel(commands, root);
+    commands.entity(content).insert(RecordDetailContentHost);
+    commands
+        .entity(root)
+        .insert(RecordDetailScreen { screen, content });
+    (root, content)
+}
+
+fn render_record_detail_content(
+    commands: &mut Commands,
+    content: Entity,
+    screen: RecordScreen,
+    state: &crate::model::GameState,
+    character_view: &CharacterSheetView,
+    records_state: &RecordScreenState,
+) {
+    match screen {
+        RecordScreen::Character => {}
         RecordScreen::InventoryDetail => render_inventory_detail(
-            &mut commands,
-            &records::build_inventory_detail_view(&session.state, records_state.detail_index),
+            commands,
+            content,
+            &records::build_inventory_detail_view(state, records_state.detail_index),
         ),
         RecordScreen::QuestDetail => render_quest_detail(
-            &mut commands,
-            records::build_quest_view_for(&session.state, records_state.detail_index).as_ref(),
+            commands,
+            content,
+            records::build_quest_view_for(state, records_state.detail_index).as_ref(),
         ),
         RecordScreen::Meditation => render_meditation(
-            &mut commands,
-            &actions::build_meditation_view(&session.state),
+            commands,
+            content,
+            &actions::build_meditation_view(state),
             records_state.selected,
             records_state.message.as_deref(),
         ),
         RecordScreen::MeditationResult => {
-            render_meditation_result(&mut commands, records_state.meditation_result.as_ref())
+            render_meditation_result(commands, content, records_state.meditation_result.as_ref())
         }
         RecordScreen::ChronicleDetail => {
-            let history_view = history_screen::build_view(&session.state);
-            let entries = journal_chronicle_entries(&history_view, &character_view);
+            let history_view = history_screen::build_view(state);
+            let entries = journal_chronicle_entries(&history_view, character_view);
             render_chronicle_detail(
-                &mut commands,
+                commands,
+                content,
                 entries
                     .get(records_state.detail_index)
                     .map(|(_, entry)| *entry),
             );
         }
         RecordScreen::JournalEntry => render_journal_entry(
-            &mut commands,
-            &session.state,
+            commands,
+            content,
+            state,
             &records_state.journal_draft,
             records_state.selected,
             records_state.message.as_deref(),
         ),
     }
-    records_state.dirty = false;
 }
 
-fn render_header(commands: &mut Commands, title: &str, subtitle: impl Into<String>) -> Entity {
-    let root = bevy_presentation::spawn_screen(commands, title);
-    let panel = bevy_presentation::spawn_panel(commands, root);
-    bevy_presentation::spawn_muted_label(commands, panel, subtitle);
-    panel
+fn render_header(commands: &mut Commands, parent: Entity, subtitle: impl Into<String>) {
+    bevy_presentation::spawn_muted_label(commands, parent, subtitle);
 }
 
 fn render_character_hub(
@@ -771,8 +851,12 @@ fn render_inventory_tab(
     }
 }
 
-fn render_inventory_detail(commands: &mut Commands, view: &Option<InventoryDetailView>) {
-    let panel = render_header(commands, "INVENTORY | ITEM", "Inspect the selected item.");
+fn render_inventory_detail(
+    commands: &mut Commands,
+    panel: Entity,
+    view: &Option<InventoryDetailView>,
+) {
+    render_header(commands, panel, "Inspect the selected item.");
     let Some(view) = view else {
         bevy_presentation::spawn_muted_label(commands, panel, "That item is no longer available.");
         let button = bevy_presentation::spawn_action_button(commands, panel, 0, "back", "Back");
@@ -897,12 +981,8 @@ fn render_journal_tab(
     }
 }
 
-fn render_quest_detail(commands: &mut Commands, view: Option<&QuestView>) {
-    let panel = render_header(
-        commands,
-        "QUEST | DETAILS",
-        "Objective progress and reward.",
-    );
+fn render_quest_detail(commands: &mut Commands, panel: Entity, view: Option<&QuestView>) {
+    render_header(commands, panel, "Objective progress and reward.");
     let Some(view) = view else {
         bevy_presentation::spawn_muted_label(commands, panel, "That quest is no longer available.");
         let button = bevy_presentation::spawn_action_button(commands, panel, 0, "back", "Back");
@@ -949,11 +1029,12 @@ fn render_quest_detail(commands: &mut Commands, view: Option<&QuestView>) {
 
 fn render_meditation(
     commands: &mut Commands,
+    panel: Entity,
     view: &crate::presentation::MeditationView,
     selected: usize,
     message: Option<&str>,
 ) {
-    let panel = render_header(commands, "MEDITATION", &view.current_time);
+    render_header(commands, panel, &view.current_time);
     if let Some(message) = message.or(view.unavailable_message.as_deref()) {
         bevy_presentation::spawn_muted_label(commands, panel, message);
     }
@@ -990,13 +1071,10 @@ fn render_meditation(
 
 fn render_meditation_result(
     commands: &mut Commands,
+    panel: Entity,
     result: Option<&crate::presentation::MeditationResultView>,
 ) {
-    let panel = render_header(
-        commands,
-        "MEDITATION | COMPLETE",
-        "The result of your rest.",
-    );
+    render_header(commands, panel, "The result of your rest.");
     let Some(result) = result else {
         bevy_presentation::spawn_muted_label(commands, panel, "No meditation result is available.");
         let button = bevy_presentation::spawn_action_button(commands, panel, 0, "back", "Back");
@@ -1029,8 +1107,12 @@ fn render_meditation_result(
         .insert(bevy_presentation::UiSelected);
 }
 
-fn render_chronicle_detail(commands: &mut Commands, entry: Option<&HistoryEntryView>) {
-    let panel = render_header(commands, "JOURNAL | CHRONICLE", "Recorded world events.");
+fn render_chronicle_detail(
+    commands: &mut Commands,
+    panel: Entity,
+    entry: Option<&HistoryEntryView>,
+) {
+    render_header(commands, panel, "Recorded world events.");
     let Some(entry) = entry else {
         bevy_presentation::spawn_muted_label(
             commands,
@@ -1063,12 +1145,13 @@ fn render_chronicle_detail(commands: &mut Commands, entry: Option<&HistoryEntryV
 
 fn render_journal_entry(
     commands: &mut Commands,
+    panel: Entity,
     state: &crate::model::GameState,
     draft: &str,
     selected: usize,
     message: Option<&str>,
 ) {
-    let panel = render_header(commands, "WRITE IN JOURNAL", state.character.display_name());
+    render_header(commands, panel, state.character.display_name());
     if let Some(message) = message {
         bevy_presentation::spawn_label(commands, panel, message);
         let button =
