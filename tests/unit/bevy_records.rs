@@ -132,7 +132,6 @@ fn character_detail_and_journal_editor_back_paths_keep_spatial_parent() {
     }
 }
 
-
 #[derive(Resource, Clone, Copy)]
 struct RecordDetailShellFixture {
     root: Entity,
