@@ -2011,9 +2011,12 @@ fn render_character_lab(
                     padding: UiRect::all(px(8)),
                     flex_direction: FlexDirection::Column,
                     row_gap: px(5),
+                    border: UiRect::all(px(1)),
+                    border_radius: BorderRadius::all(px(4)),
                     overflow: Overflow::scroll(),
                     ..default()
                 },
+                bevy_presentation::UiSurface,
                 BackgroundColor(bevy_presentation::THEME_SURFACE),
                 BorderColor::all(bevy_presentation::THEME_BORDER),
             ))
