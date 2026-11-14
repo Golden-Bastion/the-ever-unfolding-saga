@@ -681,7 +681,7 @@ fn render_if_active(
     }
 
     let host = existing_host.expect("the interaction screen host was checked above");
-    bevy_presentation::clear_tab_content(&mut commands, host, &children);
+    bevy_presentation::clear_content_host(&mut commands, host, &children);
     render_interaction_content(
         &mut commands,
         host,
