@@ -424,7 +424,6 @@ fn close_options(
     options: &mut OptionsState,
 ) {
     let return_screen = navigation.return_to_previous_screen(ScreenId::SpatialExploration);
-    lifecycle.refresh_saved_games();
     options.active = false;
     options.selected = 0;
     options.tab = 0;
