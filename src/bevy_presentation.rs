@@ -1172,6 +1172,17 @@ fn action_button_group_node() -> Node {
     }
 }
 
+/// Creates a stable vertical action-button group. Its marker prevents the
+/// automatic organizer from moving keyed children into a different entity.
+pub(crate) fn spawn_action_button_group(commands: &mut Commands, parent: Entity) -> Entity {
+    let group = commands
+        .spawn((UiActionButtonGroup, action_button_group_node()))
+        .id();
+    commands.entity(parent).add_child(group);
+    group
+}
+
+
 fn action_button_node() -> Node {
     Node {
         width: percent(100),
