@@ -589,11 +589,7 @@ fn render_if_active(
                 &options,
                 &ui_settings,
             );
-            bevy_presentation::update_tab_strip_selection(
-                &mut commands,
-                &tab_buttons,
-                options.tab,
-            );
+            bevy_presentation::update_tab_strip_selection(&mut commands, &tab_buttons, options.tab);
             options.dirty = false;
             return;
         }
@@ -649,7 +645,12 @@ fn spawn_options_content_hosts(
         .id();
     commands.entity(parent).add_child(messages);
     let footer = bevy_presentation::spawn_option_footer(commands, parent);
-    let hosts = OptionsContent { list, messages, footer, tab };
+    let hosts = OptionsContent {
+        list,
+        messages,
+        footer,
+        tab,
+    };
     commands.entity(parent).insert(hosts);
     hosts
 }

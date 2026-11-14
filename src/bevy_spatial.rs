@@ -2839,7 +2839,9 @@ fn spawn_spatial_time_indicator(
 
     let sky_panel = commands
         .spawn((
-            SpatialSkyPanel { celestial_visual: None },
+            SpatialSkyPanel {
+                celestial_visual: None,
+            },
             Node {
                 width: px(88),
                 height: px(40),
@@ -2866,7 +2868,11 @@ fn spawn_spatial_time_indicator(
                 position_type: PositionType::Absolute,
                 left: px(0),
                 bottom: px(0),
-                display: if sky.warm_horizon { Display::Flex } else { Display::None },
+                display: if sky.warm_horizon {
+                    Display::Flex
+                } else {
+                    Display::None
+                },
                 ..default()
             },
             BackgroundColor(bevy_presentation::THEME_SKY_HORIZON_WARM),
@@ -2961,7 +2967,11 @@ fn sync_spatial_time_presentation(
         background.0 = atmosphere_tint;
     }
     for mut node in &mut horizons {
-        node.display = if sky.warm_horizon { Display::Flex } else { Display::None };
+        node.display = if sky.warm_horizon {
+            Display::Flex
+        } else {
+            Display::None
+        };
     }
     for mut readout in &mut readouts {
         *readout = Text::new(crate::game::time::clock_display(time_points));
@@ -2971,12 +2981,7 @@ fn sync_spatial_time_presentation(
         if let Some(previous) = visual.celestial_visual.take() {
             commands.entity(previous).despawn();
         }
-        visual.celestial_visual = spawn_celestial_visual(
-            &mut commands,
-            panel,
-            &celestial_art,
-            sky,
-        );
+        visual.celestial_visual = spawn_celestial_visual(&mut commands, panel, &celestial_art, sky);
     }
 }
 

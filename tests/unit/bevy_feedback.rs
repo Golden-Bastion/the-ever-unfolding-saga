@@ -81,8 +81,11 @@ fn feedback_content_refresh_preserves_overlay_and_scroll_position() {
 
     let overlay = world.resource::<FeedbackOverlayFixture>().overlay;
     assert!(world.get::<FeedbackOverlay>(overlay).is_some());
-    assert!(world.get::<bevy_presentation::TouchScrollablePanel>(overlay).is_some());
-    world.entity_mut(overlay)
+    assert!(world
+        .get::<bevy_presentation::TouchScrollablePanel>(overlay)
+        .is_some());
+    world
+        .entity_mut(overlay)
         .insert(bevy::ui::ScrollPosition(Vec2::new(0.0, 88.0)));
 
     let mut refresh = Schedule::default();
@@ -95,5 +98,7 @@ fn feedback_content_refresh_preserves_overlay_and_scroll_position() {
         world.get::<bevy::ui::ScrollPosition>(overlay).unwrap().0,
         Vec2::new(0.0, 88.0)
     );
-    assert!(world.get::<Children>(overlay).is_none_or(|children| children.is_empty()));
+    assert!(world
+        .get::<Children>(overlay)
+        .is_none_or(|children| children.is_empty()));
 }

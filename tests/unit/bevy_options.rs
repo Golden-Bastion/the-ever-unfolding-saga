@@ -55,7 +55,8 @@ fn options_refresh_preserves_scroll_host_and_all_content_regions() {
     world.flush();
 
     let fixture = *world.resource::<OptionsContentHostsFixture>();
-    world.entity_mut(fixture.hosts.list)
+    world
+        .entity_mut(fixture.hosts.list)
         .insert(bevy::ui::ScrollPosition(Vec2::new(0.0, 144.0)));
 
     let mut refresh = Schedule::default();
@@ -64,12 +65,19 @@ fn options_refresh_preserves_scroll_host_and_all_content_regions() {
     world.flush();
 
     assert!(world.get::<OptionsContent>(fixture.content).is_some());
-    assert!(world.get::<bevy_presentation::TouchScrollablePanel>(fixture.hosts.list).is_some());
+    assert!(world
+        .get::<bevy_presentation::TouchScrollablePanel>(fixture.hosts.list)
+        .is_some());
     assert!(world.get::<Node>(fixture.hosts.messages).is_some());
     assert!(world.get::<Node>(fixture.hosts.footer).is_some());
     assert_eq!(
-        world.get::<bevy::ui::ScrollPosition>(fixture.hosts.list).unwrap().0,
+        world
+            .get::<bevy::ui::ScrollPosition>(fixture.hosts.list)
+            .unwrap()
+            .0,
         Vec2::new(0.0, 144.0)
     );
-    assert!(world.get::<Children>(fixture.hosts.list).is_none_or(|children| children.is_empty()));
+    assert!(world
+        .get::<Children>(fixture.hosts.list)
+        .is_none_or(|children| children.is_empty()));
 }
