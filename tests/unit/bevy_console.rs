@@ -107,7 +107,7 @@ fn clearing_console_output_keeps_the_shell_input_and_scroll_state_alive() {
     );
     assert!(world
         .get::<Children>(fixture.output)
-        .map_or(true, |children| children.is_empty()));
+        .is_none_or(|children| children.is_empty()));
 }
 
 #[test]
