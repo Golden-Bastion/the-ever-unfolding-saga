@@ -1628,23 +1628,18 @@ fn developer_tools_input(
         match event {
             InputEvent::Up => {
                 navigation.selected = navigation.selected.saturating_sub(1);
-                state.dirty = true;
             }
             InputEvent::Down => {
                 navigation.selected = (navigation.selected + 1).min(count.saturating_sub(1));
-                state.dirty = true;
             }
             InputEvent::Home => {
                 navigation.selected = 0;
-                state.dirty = true;
             }
             InputEvent::SetSelection(index) => {
                 navigation.selected = index.min(count.saturating_sub(1));
-                state.dirty = true;
             }
             InputEvent::End => {
                 navigation.selected = count.saturating_sub(1);
-                state.dirty = true;
             }
             InputEvent::Confirm => {
                 match screen {
