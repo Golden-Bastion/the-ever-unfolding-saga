@@ -234,7 +234,8 @@ struct InventoryRowsFixture {
 }
 
 fn spawn_inventory_rows_fixture(mut commands: Commands) {
-    let host = commands.spawn(Node::default()).id();
+    let parent = commands.spawn_empty().id();
+    let host = bevy_presentation::spawn_action_button_group(&mut commands, parent);
     commands.insert_resource(InventoryRowsFixture {
         host,
         view: InventoryView {
@@ -282,7 +283,8 @@ struct QuestRowsFixture {
 }
 
 fn spawn_quest_rows_fixture(mut commands: Commands) {
-    let host = commands.spawn(Node::default()).id();
+    let parent = commands.spawn_empty().id();
+    let host = bevy_presentation::spawn_action_button_group(&mut commands, parent);
     commands.insert_resource(QuestRowsFixture {
         host,
         view: QuestLogView {
