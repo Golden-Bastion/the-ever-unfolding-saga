@@ -1,6 +1,5 @@
-# The Ever-Unfolding Saga
 
-## Development Plan
+> Historical reference only. This preserves the project's original development plan. Its early text-first assumptions and implementation sequence are superseded by the current [design principles](../design-principles.md), [design specifications](../design/README.md), and [roadmap](../../ROADMAP.md). Do not use this document as current project guidance.
 
 ## 1) Core vision
 

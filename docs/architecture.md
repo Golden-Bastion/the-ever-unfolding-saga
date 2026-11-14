@@ -212,12 +212,8 @@ Architecture changes should include focused tests around affected behavior and s
 
 ## Documentation boundaries
 
-`ROADMAP.md` describes current and upcoming milestones.
+`ROADMAP.md` is the authoritative overview of unfinished work and upcoming milestones.
 
-`DEVELOPMENT_PLAN.md` describes development strategy, priorities, and implementation rules.
+`CHANGELOG.md` and `CHANGELOG-HISTORY.md` record completed work in the current and previous development lines. Detailed future design decisions live in `docs/design/`, while `docs/development-process.md` records engineering and documentation practices.
 
-This file describes structural architecture and responsibility boundaries.
-
-The files under `docs/systems/` describe individual systems in greater detail.
-
-Historical milestone records remain in the dedicated history documents rather than being repeated throughout the active documentation.
+This file describes structural architecture and responsibility boundaries. The files under `docs/systems/` describe current system behavior and contracts; they are not alternate roadmaps.

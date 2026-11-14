@@ -1,26 +1,26 @@
 # Documentation
 
-This directory contains the project's detailed technical and historical documentation.
+This directory contains the project's current product direction, detailed design specifications, architecture references, system documentation, and development practices.
 
 ## Structure
 
-- [`design-principles.md`](design-principles.md) — canonical product direction across gameplay, simulation, interface, modding, technical foundations, accessibility, and platforms.
-- [`architecture.md`](architecture.md) — overall codebase architecture, module boundaries, responsibilities, and technical design rules.
-- [`systems/`](systems/) — documentation for individual game systems.
-- [`roadmap-history.md`](roadmap-history.md) — historical record of completed roadmap milestones.
-- [`itchio-publishing.md`](itchio-publishing.md) — GitHub Actions and Butler release-publishing reference.
-- [`development-plan-history.md`](development-plan-history.md) — historical record of the original development plan.
+- [design-principles.md](design-principles.md) — high-level product principles and constraints.
+- [design/](design/README.md) — detailed specifications for future and evolving systems.
+- [architecture.md](architecture.md) — codebase architecture, module boundaries, and responsibility rules.
+- [systems/](systems/) — documentation of current system behavior and implementation contracts.
+- [development-process.md](development-process.md) — engineering workflow and documentation ownership.
+- [archive/](archive/) — superseded planning material retained for historical context.
+- [android-build.md](android-build.md) — Android CI builds, storage, and local project setup.
+- [itchio-publishing.md](itchio-publishing.md) — GitHub Actions and Butler publishing reference.
 
-## Top-level documents
+## Project-level records
 
-[`../ROADMAP.md`](../ROADMAP.md) contains the current and upcoming roadmap.
-
-[`../DEVELOPMENT_PLAN.md`](../DEVELOPMENT_PLAN.md) contains the current development strategy and implementation priorities.
+- [../ROADMAP.md](../ROADMAP.md) — the single authoritative overview of unfinished work, current priorities, and planned milestones.
+- [../CHANGELOG.md](../CHANGELOG.md) — accomplishments in the current development line.
+- [../CHANGELOG-HISTORY.md](../CHANGELOG-HISTORY.md) — accomplishments from previous development lines and milestones.
 
 ## Documentation rules
 
-Keep current product direction in [`design-principles.md`](design-principles.md); implementation strategy in the top-level documents; and technical guidance in `docs/architecture.md` / `docs/systems/`. When old wording conflicts with the design principles, update it rather than treating historical assumptions as binding.
+Keep the roadmap focused on what remains and the changelog focused on what has been completed. Detailed design documents explain intended behavior and constraints; they are not progress trackers. System documents explain current implementation and must not become alternate roadmaps. When a feature's status changes, update the roadmap and changelog rather than leaving stale completion claims scattered through the documentation.
 
-Historical documents are preserved for reference and should generally not be edited retroactively.
-
-System documentation should describe how a system works and its boundaries, rather than becoming a chronological development log.
+Historical and archived material should be clearly marked as superseded and should not be treated as current authority.

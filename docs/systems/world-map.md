@@ -32,22 +32,9 @@ This boundary allows the interim graph layout to be discarded or replaced withou
 
 The graph is presented inside a clipped two-dimensional viewport. Its pan and zoom are transient presentation state held by the Bevy viewport controller; they are not written to campaign data or saves. Map destination buttons are canvas-positioned controls, not members of the shared vertically stacked menu-action group; the group organizer must leave absolute-positioned controls under their owning canvas. Previously visited fast-travel destinations use the map's warm accent treatment at rest and retain hover, pressed, and selected feedback. Opening the map starts at the base zoom centered on the current location. **Fit** frames the complete currently displayed graph, and **Reset** restores the opening view. Android supports one-finger drag-to-pan and two-finger pinch-to-zoom. Desktop supports pointer drag-to-pan and mouse-wheel zoom centered on the cursor. Destination nodes use release-based manual activation: a press must begin on a destination and finish as a tap over that same node. Dragging or pinching cancels destination activation, even when the gesture ends over the original node. The toolbar and surrounding map information stay outside the transformed canvas so they remain at normal UI scale. When the viewport changes size, pan bounds and the reset position are recalculated without changing graph layout or world data.
 
-## Intended final direction
+## Final geography boundary
 
-The final map should be a continuous illustrated landscape derived from coherent world geography, with the actual location network and routes represented on top of it. Geography must be generated and persisted as world data rather than invented by the map renderer.
-
-The future system must support:
-
-- One shared macro-geography across region boundaries, with coherent terrain and large-scale features rather than separately generated region backdrops.
-- Stable geography from world seed, global coordinates, and a versioned generation ruleset, independent of exploration order.
-- Location placement and footprints that respect terrain, climate/biome, elevation, and authored environmental constraints.
-- Routes that correspond to physically plausible connections through the landscape and agree with local-map exits.
-- Authored and procedurally generated locations participating in the same geography.
-- Deterministic frontier expansion, persistent established geography/routes, and conservative migration for older worlds that have no geographical metadata.
-- A map renderer that derives its illustration from actual geography, locations, and authoritative connections.
-
-These requirements are recorded as future work in [issue #365](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/365). The interim map is not a substitute for that work.
-
+The current screen remains an interim topological route graph. The eventual geography-backed world/region map depends on a coherent, persistent macro-geography and location-placement model; it is not a visual reskin of the current graph. Its requirements and world-generation boundaries are specified in [World Topology, Local Exploration, and Hybrid Travel](../design/world-topology-and-travel.md), and the root [roadmap](../../ROADMAP.md) sequences that work with the broader world foundation.
 ## Replacement strategy
 
 Keep the current division between:
