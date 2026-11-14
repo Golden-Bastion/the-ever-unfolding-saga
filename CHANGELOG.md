@@ -6,7 +6,6 @@ This file records work completed in the current development line. It is not a li
 
 The entries below cover the v0.52.x development line through v0.52.49. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
-## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
 - Replaced selectable desktop game roots, Android SAF folder selection and mirroring, and multi-root content discovery with one application-managed internal data root per platform. Migration from the removed roots and shared folders was intentionally excluded.
