@@ -210,3 +210,8 @@ The entries below cover the v0.52.x development line through v0.52.49. This line
 ### Documentation structure
 
 - Established a dedicated design-specification library and separated the active roadmap, current changelog, and prior changelog history so future plans, completed work, and technical documentation have distinct homes.
+
+### v0.52.50: South-facing player sprite palette correction
+
+- Recolored the 1,427 olive pixels in the south-facing idle and walk rows (atlas rows 4–5, zero-indexed) to a restrained warm-charcoal palette while preserving per-pixel luminance to rounding, alpha, frame positions, all unselected pixels, and the animation manifest.
+- Bumped Rust and Android fallback version metadata to 0.52.50.
