@@ -324,7 +324,7 @@ fn render_if_active(
         state.rendered_view = Some(view);
         state.dirty = false;
         return;
-    };
+    }
 
     if !state.dirty {
         return;
@@ -340,7 +340,7 @@ fn render_if_active(
         }
     }
 
-    if previous.as_ref().is_none_or(|previous| {
+    if previous.as_ref().map_or(true, |previous| {
         previous.autocomplete != view.autocomplete
             || previous.candidates != view.candidates
             || previous.selected != view.selected
