@@ -18,7 +18,7 @@ use super::*;
 
 #[test]
 fn load_save_action_indices_reserve_footer_and_confirmation_actions() {
-    let mut lifecycle = LifecycleState {
+    let lifecycle = LifecycleState {
         phase: LifecyclePhase::Load,
         ..LifecycleState::default()
     };
@@ -805,6 +805,7 @@ fn spawn_retained_load_screen_fixture(mut commands: Commands) {
     commands.entity(root).add_child(footer);
 
     let hosts = super::LoadScreenContent {
+        root,
         rows,
         messages,
         footer,
@@ -824,7 +825,6 @@ fn refresh_retained_load_screen_fixture(
 ) {
     super::render_load_content(
         &mut commands,
-        fixture.root,
         fixture.hosts,
         &lifecycle,
         &children,
