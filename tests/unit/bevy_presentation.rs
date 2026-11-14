@@ -628,8 +628,7 @@ struct KeyedActionGroupFixture {
 fn spawn_keyed_action_group_fixture(mut commands: Commands) {
     let parent = commands.spawn_empty().id();
     let group = spawn_action_button_group(&mut commands, parent);
-    let (button, _) =
-        spawn_action_button_with_text(&mut commands, group, 0, "item", "Test item");
+    let (button, _) = spawn_action_button_with_text(&mut commands, group, 0, "item", "Test item");
     commands.insert_resource(KeyedActionGroupFixture {
         parent,
         group,

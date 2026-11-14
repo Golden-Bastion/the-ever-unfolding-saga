@@ -410,5 +410,7 @@ fn quest_rows_use_persistent_quest_ids_for_retention() {
     assert_eq!(find_character_row(&mut world, "quest:701"), original);
     let row = world.get::<CharacterListRow>(original).unwrap();
     assert!(world.get::<Text>(row.label).is_some());
-    assert!(world.get::<bevy_presentation::UiSelected>(original).is_some());
+    assert!(world
+        .get::<bevy_presentation::UiSelected>(original)
+        .is_some());
 }

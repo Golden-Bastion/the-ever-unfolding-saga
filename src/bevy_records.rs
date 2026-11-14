@@ -556,10 +556,8 @@ fn render_if_active(
             let history = history_screen::build_view(&session.state);
             let mut hosts = *retained;
             let tab_changed = hosts.tab != records_state.character_tab;
-            let previous_uses_keyed_rows = matches!(
-                hosts.tab,
-                CharacterTab::Inventory | CharacterTab::Quests
-            );
+            let previous_uses_keyed_rows =
+                matches!(hosts.tab, CharacterTab::Inventory | CharacterTab::Quests);
             let next_uses_keyed_rows = matches!(
                 records_state.character_tab,
                 CharacterTab::Inventory | CharacterTab::Quests
@@ -839,13 +837,8 @@ fn render_character_hub_content(
         quests.quests.len(),
         journal_chronicle_entries(history, character).len(),
     );
-    let back = bevy_presentation::spawn_action_button(
-        commands,
-        hosts.footer,
-        back_index,
-        "back",
-        "Back",
-    );
+    let back =
+        bevy_presentation::spawn_action_button(commands, hosts.footer, back_index, "back", "Back");
     if selected == back_index {
         commands.entity(back).insert(bevy_presentation::UiSelected);
     }
@@ -990,11 +983,7 @@ fn reconcile_character_rows(
             entity
         } else {
             let (button, label_entity) = bevy_presentation::spawn_action_button_with_text(
-                commands,
-                rows_host,
-                index,
-                icon,
-                label,
+                commands, rows_host, index, icon, label,
             );
             commands.entity(button).insert(CharacterListRow {
                 key,
@@ -1034,9 +1023,13 @@ fn update_character_row_button(
         .entity(button)
         .insert(bevy_presentation::ChoiceButton { index });
     if selected {
-        commands.entity(button).insert(bevy_presentation::UiSelected);
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
     } else {
-        commands.entity(button).remove::<bevy_presentation::UiSelected>();
+        commands
+            .entity(button)
+            .remove::<bevy_presentation::UiSelected>();
     }
 }
 

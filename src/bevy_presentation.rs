@@ -1182,7 +1182,6 @@ pub(crate) fn spawn_action_button_group(commands: &mut Commands, parent: Entity)
     group
 }
 
-
 fn action_button_node() -> Node {
     Node {
         width: percent(100),
@@ -1499,7 +1498,9 @@ pub(crate) fn spawn_action_button_with_text(
             ..default()
         })
         .id();
-    commands.entity(content).add_children(&[icon_entity, label_entity]);
+    commands
+        .entity(content)
+        .add_children(&[icon_entity, label_entity]);
     let button = commands
         .spawn((
             Button,

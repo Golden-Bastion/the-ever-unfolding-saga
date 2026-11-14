@@ -638,11 +638,7 @@ fn render_if_active(
                         &empty_states,
                     ),
                     2 => {
-                        bevy_presentation::clear_content_host(
-                            &mut commands,
-                            hosts.rows,
-                            &children,
-                        );
+                        bevy_presentation::clear_content_host(&mut commands, hosts.rows, &children);
                         render_interface_tab(&mut commands, hosts.rows, &options, &ui_settings);
                     }
                     _ => {}
@@ -650,12 +646,7 @@ fn render_if_active(
             }
 
             clear_options_content_hosts(&mut commands, hosts, &children);
-            render_options_aux_content(
-                &mut commands,
-                hosts.messages,
-                hosts.footer,
-                &options,
-            );
+            render_options_aux_content(&mut commands, hosts.messages, hosts.footer, &options);
             bevy_presentation::update_tab_strip_selection(&mut commands, &tab_buttons, options.tab);
             options.dirty = false;
             return;
@@ -693,12 +684,7 @@ fn render_if_active(
         &mod_rows,
         &empty_states,
     );
-    render_options_aux_content(
-        &mut commands,
-        hosts.messages,
-        hosts.footer,
-        &options,
-    );
+    render_options_aux_content(&mut commands, hosts.messages, hosts.footer, &options);
     options.dirty = false;
 }
 
@@ -878,7 +864,9 @@ fn reconcile_save_rows(
         let entity = if let Some((entity, row)) = existing.remove(&key) {
             commands.entity(row.title).insert(Text::new(title));
             commands.entity(row.detail).insert(Text::new(detail));
-            commands.entity(row.button_label).insert(Text::new("Export"));
+            commands
+                .entity(row.button_label)
+                .insert(Text::new("Export"));
             update_option_row_button(commands, row.button, index, options.selected == index);
             entity
         } else {
@@ -910,11 +898,8 @@ fn reconcile_save_rows(
 
     if options.saves.is_empty() {
         let entity = empty_state.unwrap_or_else(|| {
-            let label = bevy_presentation::spawn_muted_label(
-                commands,
-                rows_host,
-                "No saves found.",
-            );
+            let label =
+                bevy_presentation::spawn_muted_label(commands, rows_host, "No saves found.");
             commands.entity(label).insert(OptionsEmptyState);
             label
         });
@@ -944,7 +929,10 @@ fn mod_row_detail(item: &InstalledMod) -> String {
     )
 }
 
-fn mod_row_action_labels(item: &InstalledMod, options: &OptionsState) -> [String; MOD_ACTIONS_PER_MOD] {
+fn mod_row_action_labels(
+    item: &InstalledMod,
+    options: &OptionsState,
+) -> [String; MOD_ACTIONS_PER_MOD] {
     [
         (if item.enabled { "Disable" } else { "Enable" }).to_string(),
         (if options.pending_remove_id.as_deref() == Some(item.manifest.id.as_str()) {
@@ -989,7 +977,9 @@ fn reconcile_mod_rows(
             commands.entity(row.title).insert(Text::new(title));
             commands.entity(row.detail).insert(Text::new(detail));
             for action in 0..MOD_ACTIONS_PER_MOD {
-                commands.entity(row.button_labels[action]).insert(Text::new(action_labels[action].clone()));
+                commands
+                    .entity(row.button_labels[action])
+                    .insert(Text::new(action_labels[action].clone()));
                 update_option_row_button(
                     commands,
                     row.buttons[action],
@@ -1041,11 +1031,14 @@ fn reconcile_mod_rows(
 
     if options.mods.is_empty() {
         let entity = empty_state.unwrap_or_else(|| {
-            let label = bevy_presentation::spawn_muted_label(commands, rows_host, "No mods installed.");
+            let label =
+                bevy_presentation::spawn_muted_label(commands, rows_host, "No mods installed.");
             commands.entity(label).insert(OptionsEmptyState);
             label
         });
-        commands.entity(entity).insert(Text::new("No mods installed."));
+        commands
+            .entity(entity)
+            .insert(Text::new("No mods installed."));
         ordered.push(entity);
     } else if let Some(entity) = empty_state {
         commands.entity(entity).despawn();
