@@ -1,12 +1,10 @@
 use super::*;
 
 #[test]
-fn options_tabs_have_three_categories() {
+fn options_tabs_have_two_categories() {
     let mut options = OptionsState::default();
-    assert_eq!(options_selection_end(&options), 1); // Import and Back.
-    options.tab = 1;
     assert_eq!(options_selection_end(&options), 1); // Install and Back.
-    options.tab = 2;
+    options.tab = 1;
     assert_eq!(options_selection_end(&options), 5);
 }
 
@@ -97,110 +95,11 @@ fn options_auxiliary_refresh_preserves_scroll_and_dynamic_rows_host() {
 }
 
 #[derive(Resource)]
-struct SaveRowsFixture(Entity);
+struct ListRowsFixture(Entity);
 
-fn spawn_save_rows_host(mut commands: Commands) {
+fn spawn_list_rows_host(mut commands: Commands) {
     let host = commands.spawn(Node::default()).id();
-    commands.insert_resource(SaveRowsFixture(host));
-}
-
-fn reconcile_test_save_rows(
-    mut commands: Commands,
-    options: Res<OptionsState>,
-    fixture: Res<SaveRowsFixture>,
-    children: Query<&Children>,
-    rows: Query<(Entity, &SaveListRow)>,
-    empty_states: Query<(), With<OptionsEmptyState>>,
-) {
-    reconcile_save_rows(
-        &mut commands,
-        fixture.0,
-        &options,
-        &children,
-        &rows,
-        &empty_states,
-    );
-}
-
-fn find_save_row(world: &mut World, key: &PathBuf) -> Entity {
-    let mut rows = world.query::<(Entity, &SaveListRow)>();
-    rows.iter(world)
-        .find_map(|(entity, row)| (&row.key == key).then_some(entity))
-        .expect("save row should exist")
-}
-
-#[test]
-fn save_rows_reconcile_by_path_and_preserve_entities_when_reordered() {
-    let first = PathBuf::from("saves/first.json.gz");
-    let second = PathBuf::from("saves/second.json.gz");
-    let third = PathBuf::from("saves/third.json.gz");
-    let options = OptionsState {
-        saves: vec![
-            SaveEntry {
-                path: first.clone(),
-                metadata: None,
-            },
-            SaveEntry {
-                path: second.clone(),
-                metadata: None,
-            },
-        ],
-        ..Default::default()
-    };
-
-    let mut world = World::new();
-    world.insert_resource(options);
-    let mut setup = Schedule::default();
-    setup.add_systems(spawn_save_rows_host);
-    setup.run(&mut world);
-    world.flush();
-    let host = world.resource::<SaveRowsFixture>().0;
-
-    let mut render = Schedule::default();
-    render.add_systems(reconcile_test_save_rows);
-    render.run(&mut world);
-    world.flush();
-
-    let first_entity = find_save_row(&mut world, &first);
-    let second_entity = find_save_row(&mut world, &second);
-
-    {
-        let mut options = world.resource_mut::<OptionsState>();
-        options.saves = vec![
-            SaveEntry {
-                path: second.clone(),
-                metadata: None,
-            },
-            SaveEntry {
-                path: third.clone(),
-                metadata: None,
-            },
-        ];
-    }
-
-    render.run(&mut world);
-    world.flush();
-
-    let second_after = find_save_row(&mut world, &second);
-    let third_entity = find_save_row(&mut world, &third);
-    assert_eq!(second_after, second_entity);
-    assert_ne!(third_entity, first_entity);
-    assert!(world.get::<SaveListRow>(first_entity).is_none());
-
-    let ordered = world
-        .get::<Children>(host)
-        .unwrap()
-        .iter()
-        .collect::<Vec<_>>();
-    assert_eq!(ordered, vec![second_entity, third_entity]);
-    let second_row = world.get::<SaveListRow>(second_entity).unwrap();
-    assert_eq!(
-        world
-            .get::<bevy_presentation::ChoiceButton>(second_row.button)
-            .unwrap()
-            .index,
-        0
-    );
+    commands.insert_resource(ListRowsFixture(host));
 }
 
 #[derive(Resource)]
@@ -261,10 +160,10 @@ fn mod_rows_reconcile_by_stable_id_and_update_action_indices() {
     let mut world = World::new();
     world.insert_resource(options);
     let mut setup = Schedule::default();
-    setup.add_systems(spawn_save_rows_host);
+    setup.add_systems(spawn_list_rows_host);
     setup.run(&mut world);
     world.flush();
-    let host = world.resource::<SaveRowsFixture>().0;
+    let host = world.resource::<ListRowsFixture>().0;
     world.insert_resource(ModRowsFixture(host));
 
     let mut render = Schedule::default();
