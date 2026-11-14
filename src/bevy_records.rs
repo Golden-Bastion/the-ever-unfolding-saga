@@ -984,7 +984,7 @@ fn reconcile_character_rows(
         }
     }
 
-    let mut ordered = Vec::with_capacity(desired.len() + usize::from(desired.is_empty()));
+    let mut ordered = Vec::with_capacity(desired.len().saturating_add(1));
     for (index, (key, icon, label)) in desired.into_iter().enumerate() {
         let button = if let Some((entity, row)) = existing.remove(&key) {
             commands.entity(row.label).insert(Text::new(label));
