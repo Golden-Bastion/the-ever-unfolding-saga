@@ -653,6 +653,97 @@ fn move_selection(
     set_selection(lifecycle, navigation, selected);
 }
 
+fn load_save(lifecycle: &mut LifecycleState, path: PathBuf) {
+    match load_game_with_metadata(&path) {
+        Ok(loaded) => {
+            let state = loaded.game;
+            let mut warnings = validate_loaded_state(&state);
+            let active_mods = crate::mod_manager::active_mods();
+            for dependency in &loaded.mod_dependencies {
+                match active_mods
+                    .iter()
+                    .find(|item| item.manifest.id == dependency.id)
+                {
+                    None => warnings.push(format!(
+                        "Missing mod: {} ({}) version {}.",
+                        dependency.name, dependency.id, dependency.version
+                    )),
+                    Some(item) if !item.enabled => warnings.push(format!(
+                        "Required mod is disabled: {} ({}) version {}.",
+                        dependency.name, dependency.id, dependency.version
+                    )),
+                    Some(item) if item.manifest.version != dependency.version => {
+                        warnings.push(format!(
+                            "Mod version mismatch: {} ({}) save={} installed={}.",
+                            dependency.name,
+                            dependency.id,
+                            dependency.version,
+                            item.manifest.version
+                        ))
+                    }
+                    Some(_) => {}
+                }
+            }
+
+            // Preserve the exact selected path, including imported saves that
+            // received a collision-safe alternate filename.
+            lifecycle.pending_state = Some((state, path));
+            lifecycle.message = if warnings.is_empty() {
+                None
+            } else {
+                Some(format!(
+                    "Save has warnings. Confirm to continue at your own responsibility:\n{}",
+                    warnings.join("\n")
+                ))
+            };
+            if warnings.is_empty() {
+                lifecycle.finish_loading();
+            } else {
+                lifecycle.phase = LifecyclePhase::Complete;
+                lifecycle.selected = 0;
+            }
+            lifecycle.dirty = true;
+        }
+        Err(error) => {
+            lifecycle.message = Some(format!("Could not load save: {error}"));
+            lifecycle.dirty = true;
+        }
+    }
+}
+
+fn confirm_delete_save(lifecycle: &mut LifecycleState) {
+    let Some(path) = lifecycle.pending_delete_save.take() else {
+        return;
+    };
+    let Some(index) = lifecycle
+        .save_files
+        .iter()
+        .position(|save| save.path == path)
+    else {
+        lifecycle.message = Some("The selected save is no longer available.".to_string());
+        lifecycle.dirty = true;
+        return;
+    };
+    let title = save_title(&lifecycle.save_files[index]);
+
+    match std::fs::remove_file(&path) {
+        Ok(()) => {
+            lifecycle.save_files.remove(index);
+            lifecycle.selected = if lifecycle.save_files.is_empty() {
+                save_import_action_index(lifecycle)
+            } else {
+                save_load_action_index(index.min(lifecycle.save_files.len() - 1))
+            };
+            lifecycle.message = Some(format!("Deleted save for {title}."));
+        }
+        Err(error) => {
+            lifecycle.selected = lifecycle.delete_return_selection;
+            lifecycle.message = Some(format!("Could not delete save: {error}"));
+        }
+    }
+    lifecycle.dirty = true;
+}
+
 fn activate_selection(
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
@@ -674,70 +765,47 @@ fn activate_selection(
             }
         }
         LifecyclePhase::Load => {
-            if lifecycle.selected == lifecycle.save_files.len() {
-                lifecycle.phase = LifecyclePhase::Start;
-                lifecycle.selected = 0;
-                lifecycle.message = None;
-                lifecycle.pending_state = None;
-                navigation.return_screen = None;
-                navigation.current_screen = Some(ScreenId::Lifecycle);
-                navigation.selected = 0;
-                lifecycle.dirty = true;
-                return None;
-            }
-            if let Some(path) = lifecycle.save_files.get(lifecycle.selected).cloned() {
-                match load_game_with_metadata(&path) {
-                    Ok(loaded) => {
-                        let state = loaded.game;
-                        let mut warnings = validate_loaded_state(&state);
-                        let active_mods = crate::mod_manager::active_mods();
-                        for dependency in &loaded.mod_dependencies {
-                            match active_mods
-                                .iter()
-                                .find(|item| item.manifest.id == dependency.id)
-                            {
-                                None => warnings.push(format!(
-                                    "Missing mod: {} ({}) version {}.",
-                                    dependency.name, dependency.id, dependency.version
-                                )),
-                                Some(item) if !item.enabled => warnings.push(format!(
-                                    "Required mod is disabled: {} ({}) version {}.",
-                                    dependency.name, dependency.id, dependency.version
-                                )),
-                                Some(item) if item.manifest.version != dependency.version => {
-                                    warnings.push(format!(
-                                        "Mod version mismatch: {} ({}) save={} installed={}.",
-                                        dependency.name,
-                                        dependency.id,
-                                        dependency.version,
-                                        item.manifest.version
-                                    ))
-                                }
-                                Some(_) => {}
+            if lifecycle.pending_delete_save.is_some() {
+                let (confirm, cancel) = delete_dialog_action_indices(lifecycle);
+                if lifecycle.selected == confirm {
+                    confirm_delete_save(lifecycle);
+                } else if lifecycle.selected == cancel {
+                    lifecycle.pending_delete_save = None;
+                    lifecycle.selected = lifecycle.delete_return_selection;
+                    lifecycle.message = None;
+                    lifecycle.dirty = true;
+                }
+            } else {
+                let import_index = save_import_action_index(lifecycle);
+                let back_index = save_back_action_index(lifecycle);
+                if lifecycle.selected == back_index {
+                    lifecycle.phase = LifecyclePhase::Start;
+                    lifecycle.selected = 0;
+                    lifecycle.message = None;
+                    lifecycle.pending_state = None;
+                    navigation.return_screen = None;
+                    navigation.current_screen = Some(ScreenId::Lifecycle);
+                    navigation.selected = 0;
+                    lifecycle.dirty = true;
+                    return None;
+                } else if lifecycle.selected == import_index {
+                    import_save(lifecycle);
+                } else {
+                    let save_index = lifecycle.selected / SAVE_ACTIONS_PER_ENTRY;
+                    let action = lifecycle.selected % SAVE_ACTIONS_PER_ENTRY;
+                    if let Some(save) = lifecycle.save_files.get(save_index).cloned() {
+                        match action {
+                            0 => load_save(lifecycle, save.path),
+                            1 => export_save(lifecycle, &save.path),
+                            2 => {
+                                lifecycle.delete_return_selection = lifecycle.selected;
+                                lifecycle.pending_delete_save = Some(save.path);
+                                lifecycle.message = None;
+                                lifecycle.selected = delete_dialog_action_indices(lifecycle).1;
+                                lifecycle.dirty = true;
                             }
+                            _ => {}
                         }
-                        // Keep the selected slot as the active save path, including
-                        // imported slots with collision-safe alternate filenames.
-                        lifecycle.pending_state = Some((state, path.clone()));
-                        lifecycle.message = if warnings.is_empty() {
-                            None
-                        } else {
-                            Some(format!(
-                                "Save has warnings. Confirm to continue at your own responsibility:\n{}",
-                                warnings.join("\n")
-                            ))
-                        };
-                        if warnings.is_empty() {
-                            lifecycle.finish_loading();
-                        } else {
-                            lifecycle.phase = LifecyclePhase::Complete;
-                            lifecycle.selected = 0;
-                        }
-                        lifecycle.dirty = true;
-                    }
-                    Err(err) => {
-                        lifecycle.message = Some(format!("Could not load save: {err}"));
-                        lifecycle.dirty = true;
                     }
                 }
             }
@@ -815,12 +883,22 @@ fn request_android_game_exit() {
 }
 
 fn handle_cancel(lifecycle: &mut LifecycleState, navigation: &mut NavigationState) {
+    if lifecycle.phase == LifecyclePhase::Load && lifecycle.pending_delete_save.is_some() {
+        lifecycle.pending_delete_save = None;
+        lifecycle.selected = lifecycle.delete_return_selection;
+        lifecycle.message = None;
+        lifecycle.dirty = true;
+        navigation.selected = lifecycle.selected;
+        return;
+    }
+
     match lifecycle.phase {
         LifecyclePhase::Start => lifecycle.start_quit_confirmation(navigation, None),
         LifecyclePhase::Load | LifecyclePhase::CreateCharacter => {
             lifecycle.phase = LifecyclePhase::Start;
             lifecycle.creation_tab = 0;
             lifecycle.selected = 0;
+            lifecycle.pending_delete_save = None;
             lifecycle.message = None;
             navigation.return_screen = None;
             navigation.current_screen = Some(ScreenId::Lifecycle);
