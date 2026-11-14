@@ -787,7 +787,9 @@ fn render_interaction_content(
             let view = state
                 .npc_id
                 .and_then(|npc_id| interactions::npc_index_by_id(game, npc_id))
-                .and_then(|npc_index| interactions::build_conversation_view_for_bevy(game, npc_index));
+                .and_then(|npc_index| {
+                    interactions::build_conversation_view_for_bevy(game, npc_index)
+                });
             render_dialogue_scene_content(
                 commands,
                 host,
@@ -1573,12 +1575,7 @@ fn render_remains_result_content(
         .insert(bevy_presentation::UiSelected);
 }
 
-fn render_talk(
-    commands: &mut Commands,
-    parent: Entity,
-    view: &TalkView,
-    selected: usize,
-) {
+fn render_talk(commands: &mut Commands, parent: Entity, view: &TalkView, selected: usize) {
     bevy_presentation::spawn_muted_label(commands, parent, "Choose someone to speak with.");
     if view.npcs.is_empty() {
         bevy_presentation::spawn_muted_label(commands, parent, "There is no one here to talk to.");
@@ -1607,7 +1604,6 @@ fn render_talk(
             .insert(bevy_presentation::UiSelected);
     }
 }
-
 
 fn render_remains(
     commands: &mut Commands,

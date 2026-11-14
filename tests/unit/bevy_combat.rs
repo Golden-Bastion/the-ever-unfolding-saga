@@ -83,7 +83,10 @@ fn combat_updates_can_replace_log_content_without_rebuilding_the_screen_or_gauge
     assert!(world.get::<CombatPlayerGauge>(player_gauge).is_some());
     assert!(world.get::<CombatEnemyGauge>(enemy_gauge).is_some());
     assert_eq!(
-        world.get::<bevy::ui::ScrollPosition>(event_panel).unwrap().0,
+        world
+            .get::<bevy::ui::ScrollPosition>(event_panel)
+            .unwrap()
+            .0,
         Vec2::new(0.0, 84.0)
     );
     assert_eq!(world.get::<Children>(event_lines).unwrap().len(), 0);

@@ -10,7 +10,6 @@ fn developer_console_shortcut_is_available_from_spatial_exploration() {
     assert!(!console_shortcut_screen_active(None));
 }
 
-
 #[derive(Resource, Clone, Copy)]
 struct ConsoleShellFixture {
     output: Entity,
@@ -52,7 +51,9 @@ fn console_shell_separates_scrollable_output_from_the_fixed_input_control() {
 
     let fixture = *world.resource::<ConsoleShellFixture>();
     assert!(world.get::<ConsoleOutputLines>(fixture.output).is_some());
-    assert!(world.get::<ConsoleCompletionLines>(fixture.completion).is_some());
+    assert!(world
+        .get::<ConsoleCompletionLines>(fixture.completion)
+        .is_some());
     assert!(world.get::<ConsoleInputText>(fixture.input).is_some());
     assert!(world
         .get::<ConsoleScrollableOutput>(fixture.scroll)
@@ -94,15 +95,17 @@ fn clearing_console_output_keeps_the_shell_input_and_scroll_state_alive() {
         .expect("the console root should remain mounted");
     assert!(world.get::<ConsoleScreenRoot>(root).is_some());
     assert!(world.get::<ConsoleInputText>(fixture.input).is_some());
-    assert!(world.get::<ConsoleScrollableOutput>(fixture.scroll).is_some());
+    assert!(world
+        .get::<ConsoleScrollableOutput>(fixture.scroll)
+        .is_some());
     assert_eq!(
-        world.get::<bevy::ui::ScrollPosition>(fixture.scroll).unwrap().0,
+        world
+            .get::<bevy::ui::ScrollPosition>(fixture.scroll)
+            .unwrap()
+            .0,
         Vec2::new(0.0, 126.0)
     );
-    assert_eq!(
-        world.get::<Children>(fixture.output).unwrap().len(),
-        0
-    );
+    assert_eq!(world.get::<Children>(fixture.output).unwrap().len(), 0);
 }
 
 #[test]
@@ -115,7 +118,10 @@ fn console_input_edits_do_not_dirty_output_or_completion_regions() {
     current.input = "help".into();
 
     assert!(!console_output_region_changed(Some(&previous), &current));
-    assert!(!console_completion_region_changed(Some(&previous), &current));
+    assert!(!console_completion_region_changed(
+        Some(&previous),
+        &current
+    ));
     assert!(console_input_region_changed(Some(&previous), &current));
 }
 

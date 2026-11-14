@@ -323,7 +323,13 @@ fn spawn_combat_screen(
         ),
         false,
     );
-    spawn_combat_text(commands, actors, CombatTextKind::Condition, condition_text(view), true);
+    spawn_combat_text(
+        commands,
+        actors,
+        CombatTextKind::Condition,
+        condition_text(view),
+        true,
+    );
     bevy_presentation::spawn_label(commands, actors, "Enemy");
     spawn_combat_text(
         commands,
@@ -505,10 +511,9 @@ fn update_combat_gauge<M: Component>(
 ) {
     if let Some((entity, gauge)) = gauges.iter().next() {
         if gauge.current != current || gauge.maximum != maximum {
-            commands.entity(entity).insert(bevy_presentation::UiHealthGauge {
-                current,
-                maximum,
-            });
+            commands
+                .entity(entity)
+                .insert(bevy_presentation::UiHealthGauge { current, maximum });
         }
     }
 }

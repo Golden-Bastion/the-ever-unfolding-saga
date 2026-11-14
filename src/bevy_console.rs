@@ -425,11 +425,8 @@ fn spawn_console_screen(
         .id();
     commands.entity(scroll).add_child(completion_host);
 
-    let input = bevy_presentation::spawn_console_input_row(
-        commands,
-        panel,
-        format!("> {}", view.input),
-    );
+    let input =
+        bevy_presentation::spawn_console_input_row(commands, panel, format!("> {}", view.input));
     (output_host, completion_host, input, scroll)
 }
 
