@@ -728,7 +728,6 @@ fn render_header(commands: &mut Commands, parent: Entity, subtitle: impl Into<St
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 fn render_character_hub(
     commands: &mut Commands,
     character: &CharacterSheetView,
