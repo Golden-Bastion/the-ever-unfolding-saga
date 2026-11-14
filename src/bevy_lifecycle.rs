@@ -24,9 +24,9 @@ use bevy::prelude::*;
 use bevy::text::EditableText;
 #[cfg(any(target_os = "android", test))]
 use bevy::text::TextEdit;
-use std::collections::{BTreeMap, HashMap};
 #[cfg(target_os = "android")]
 use std::collections::HashSet;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1493,19 +1493,18 @@ fn load_auxiliary_host_node() -> Node {
     }
 }
 
-fn update_load_row_button(
-    commands: &mut Commands,
-    button: Entity,
-    index: usize,
-    selected: bool,
-) {
+fn update_load_row_button(commands: &mut Commands, button: Entity, index: usize, selected: bool) {
     commands
         .entity(button)
         .insert(bevy_presentation::ChoiceButton { index });
     if selected {
-        commands.entity(button).insert(bevy_presentation::UiSelected);
+        commands
+            .entity(button)
+            .insert(bevy_presentation::UiSelected);
     } else {
-        commands.entity(button).remove::<bevy_presentation::UiSelected>();
+        commands
+            .entity(button)
+            .remove::<bevy_presentation::UiSelected>();
     }
 }
 
@@ -1519,27 +1518,24 @@ fn spawn_load_save_row(
     let row = bevy_presentation::spawn_option_row(commands, rows_host);
     let title = bevy_presentation::spawn_label(commands, row.label, save_title(save));
     let detail = bevy_presentation::spawn_muted_label(commands, row.label, save_detail(save));
-    let (load_button, load_label) =
-        bevy_presentation::spawn_compact_action_button_with_text(
-            commands,
-            row.controls,
-            save_load_action_index(index),
-            "Load",
-        );
-    let (export_button, export_label) =
-        bevy_presentation::spawn_compact_action_button_with_text(
-            commands,
-            row.controls,
-            save_export_action_index(index),
-            "Export",
-        );
-    let (delete_button, delete_label) =
-        bevy_presentation::spawn_danger_action_button_with_text(
-            commands,
-            row.controls,
-            save_delete_action_index(index),
-            "Delete",
-        );
+    let (load_button, load_label) = bevy_presentation::spawn_compact_action_button_with_text(
+        commands,
+        row.controls,
+        save_load_action_index(index),
+        "Load",
+    );
+    let (export_button, export_label) = bevy_presentation::spawn_compact_action_button_with_text(
+        commands,
+        row.controls,
+        save_export_action_index(index),
+        "Export",
+    );
+    let (delete_button, delete_label) = bevy_presentation::spawn_danger_action_button_with_text(
+        commands,
+        row.controls,
+        save_delete_action_index(index),
+        "Delete",
+    );
     update_load_row_button(
         commands,
         load_button,
@@ -1601,8 +1597,12 @@ fn reconcile_load_save_rows(
             commands.entity(row.title).insert(Text::new(title));
             commands.entity(row.detail).insert(Text::new(detail));
             commands.entity(row.load_label).insert(Text::new("Load"));
-            commands.entity(row.export_label).insert(Text::new("Export"));
-            commands.entity(row.delete_label).insert(Text::new("Delete"));
+            commands
+                .entity(row.export_label)
+                .insert(Text::new("Export"));
+            commands
+                .entity(row.delete_label)
+                .insert(Text::new("Delete"));
             update_load_row_button(
                 commands,
                 row.load_button,
@@ -1634,11 +1634,8 @@ fn reconcile_load_save_rows(
 
     if lifecycle.save_files.is_empty() {
         let entity = empty_state.unwrap_or_else(|| {
-            let label = bevy_presentation::spawn_muted_label(
-                commands,
-                rows_host,
-                "No saves found.",
-            );
+            let label =
+                bevy_presentation::spawn_muted_label(commands, rows_host, "No saves found.");
             commands.entity(label).insert(LoadEmptyState);
             label
         });
@@ -1658,7 +1655,12 @@ fn render_load_footer(commands: &mut Commands, footer: Entity, lifecycle: &Lifec
         import_index,
         "Import save",
     );
-    update_load_row_button(commands, import, import_index, lifecycle.selected == import_index);
+    update_load_row_button(
+        commands,
+        import,
+        import_index,
+        lifecycle.selected == import_index,
+    );
 
     let back_index = save_back_action_index(lifecycle);
     let back = bevy_presentation::spawn_compact_action_button(commands, footer, back_index, "Back");
@@ -1671,11 +1673,7 @@ fn render_load_message(commands: &mut Commands, messages: Entity, lifecycle: &Li
     }
 }
 
-fn render_load_confirmation(
-    commands: &mut Commands,
-    root: Entity,
-    lifecycle: &LifecycleState,
-) {
+fn render_load_confirmation(commands: &mut Commands, root: Entity, lifecycle: &LifecycleState) {
     let Some(path) = lifecycle.pending_delete_save.as_ref() else {
         return;
     };

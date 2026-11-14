@@ -1962,7 +1962,10 @@ fn button_visual_colors(
 ) -> (Color, Color) {
     if danger {
         if pressed {
-            (Color::srgb(0.82, 0.12, 0.09), Color::srgb(0.22, 0.025, 0.02))
+            (
+                Color::srgb(0.82, 0.12, 0.09),
+                Color::srgb(0.22, 0.025, 0.02),
+            )
         } else if hovered || selected {
             (THEME_BLOOD, Color::srgb(0.17, 0.025, 0.02))
         } else {
@@ -2042,17 +2045,8 @@ fn sync_ui_button_visuals(
     >,
 ) {
     let smoothing = 1.0 - (-20.0 * time.delta_secs()).exp();
-    for (
-        entity,
-        hovered,
-        pressed,
-        selected,
-        warm,
-        danger,
-        mut border,
-        mut background,
-        mut state,
-    ) in &mut buttons
+    for (entity, hovered, pressed, selected, warm, danger, mut border, mut background, mut state) in
+        &mut buttons
     {
         let (target_border, target_background) =
             button_visual_colors(pressed, hovered.get(), selected.is_some(), warm, danger);

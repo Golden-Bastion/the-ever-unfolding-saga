@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[derive(Resource, Clone, Copy)]
 struct ConfirmationDialogFixture(ConfirmationDialogButtons);
 
@@ -28,14 +27,8 @@ fn shared_confirmation_dialog_marks_only_its_confirm_action_as_dangerous() {
     world.flush();
 
     let buttons = world.resource::<ConfirmationDialogFixture>().0;
-    assert_eq!(
-        world.get::<ChoiceButton>(buttons.confirm).unwrap().index,
-        8
-    );
-    assert_eq!(
-        world.get::<ChoiceButton>(buttons.cancel).unwrap().index,
-        9
-    );
+    assert_eq!(world.get::<ChoiceButton>(buttons.confirm).unwrap().index, 8);
+    assert_eq!(world.get::<ChoiceButton>(buttons.cancel).unwrap().index, 9);
     assert!(world.get::<UiDangerButton>(buttons.confirm).is_some());
     assert!(world.get::<UiDangerButton>(buttons.cancel).is_none());
 

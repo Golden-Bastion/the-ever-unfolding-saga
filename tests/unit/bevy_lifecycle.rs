@@ -77,7 +77,10 @@ fn deleting_a_save_requires_confirmation_before_removing_the_file() {
     };
 
     super::activate_selection(&mut lifecycle, &mut navigation);
-    assert_eq!(lifecycle.pending_delete_save.as_deref(), Some(path.as_path()));
+    assert_eq!(
+        lifecycle.pending_delete_save.as_deref(),
+        Some(path.as_path())
+    );
     assert!(path.is_file());
     assert_eq!(
         lifecycle.selected,
@@ -89,7 +92,10 @@ fn deleting_a_save_requires_confirmation_before_removing_the_file() {
     assert!(lifecycle.pending_delete_save.is_none());
     assert!(!path.exists());
     assert!(lifecycle.save_files.is_empty());
-    assert_eq!(lifecycle.selected, super::save_import_action_index(&lifecycle));
+    assert_eq!(
+        lifecycle.selected,
+        super::save_import_action_index(&lifecycle)
+    );
     assert_eq!(
         lifecycle.message.as_deref(),
         Some("Deleted save for character.save.")
@@ -244,7 +250,10 @@ fn load_rows_reconcile_by_path_and_keep_entities_across_reordering() {
         (second_row.delete_button, super::save_delete_action_index(0)),
     ] {
         assert_eq!(
-            world.get::<bevy_presentation::ChoiceButton>(button).unwrap().index,
+            world
+                .get::<bevy_presentation::ChoiceButton>(button)
+                .unwrap()
+                .index,
             expected_index
         );
     }
@@ -771,7 +780,6 @@ fn creation_appearance_slots_follow_the_portrait_view_order() {
     assert!(!crate::character_appearance::appearance_slot_has_none_choice("body"));
 }
 
-
 #[derive(Resource, Clone, Copy)]
 struct RetainedLoadScreenFixture {
     root: Entity,
@@ -884,7 +892,9 @@ fn load_refresh_keeps_the_scroll_shell_and_host_entities_mounted() {
     refresh.run(&mut world);
     world.flush();
 
-    assert!(world.get::<super::LoadScreenContent>(fixture.root).is_some());
+    assert!(world
+        .get::<super::LoadScreenContent>(fixture.root)
+        .is_some());
     assert!(world
         .get::<bevy_presentation::TouchScrollablePanel>(fixture.list)
         .is_some());
@@ -899,4 +909,3 @@ fn load_refresh_keeps_the_scroll_shell_and_host_entities_mounted() {
     assert_ne!(find_load_row(&mut world, &third), first_entity);
     assert!(world.get::<super::LoadSaveRow>(first_entity).is_none());
 }
-

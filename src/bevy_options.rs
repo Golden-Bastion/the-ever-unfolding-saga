@@ -521,12 +521,7 @@ fn render_if_active(
         BorderColor::all(bevy_presentation::THEME_BORDER),
         BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
     ));
-    bevy_presentation::spawn_tab_strip(
-        &mut commands,
-        panel,
-        &["Mods", "Interface"],
-        options.tab,
-    );
+    bevy_presentation::spawn_tab_strip(&mut commands, panel, &["Mods", "Interface"], options.tab);
 
     let content = bevy_presentation::spawn_tab_content(&mut commands, panel);
     let hosts = spawn_options_content_hosts(&mut commands, content, options.tab);
