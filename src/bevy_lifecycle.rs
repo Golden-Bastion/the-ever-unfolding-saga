@@ -1205,7 +1205,7 @@ fn render_creation_content(
                 .map(|(index, slot)| PortraitSlotControl {
                     name: slot.name.clone(),
                     selected_part: slot.selected_part,
-                    part_count: crate::character_appearance::appearance_slot_choice_count(
+                    choice_count: crate::character_appearance::appearance_slot_choice_count(
                         &slot.name,
                         slot.parts.len(),
                     ),

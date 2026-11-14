@@ -8,7 +8,6 @@ use std::collections::{BTreeMap, HashSet};
 use crate::content::CharacterPartContent;
 use crate::rng::DeterministicRng;
 
-///
 /// Slots that may deliberately contain no portrait layer. Keep this convention
 /// renderer-neutral so NPC generation, character creation, and Character Lab
 /// agree on which layers are optional.

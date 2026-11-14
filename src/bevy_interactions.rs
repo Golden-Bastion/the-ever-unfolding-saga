@@ -87,7 +87,7 @@ pub(crate) struct PortraitImageCache {
 pub(crate) struct PortraitSlotControl {
     pub(crate) name: String,
     pub(crate) selected_part: usize,
-    pub(crate) part_count: usize,
+    pub(crate) choice_count: usize,
     pub(crate) previous_index: usize,
     pub(crate) next_index: usize,
 }
@@ -1062,7 +1062,7 @@ pub(crate) fn render_character_appearance_viewer(
     commands.entity(stage).add_child(controls);
 
     for (index, control) in slot_controls.iter().enumerate() {
-        if control.part_count == 0 {
+        if control.choice_count == 0 {
             continue;
         }
         let row = commands
@@ -1104,7 +1104,7 @@ pub(crate) fn render_character_appearance_viewer(
                     "{} {}/{}",
                     control.name,
                     control.selected_part + 1,
-                    control.part_count
+                    control.choice_count
                 )),
                 Node {
                     min_width: px(0),
