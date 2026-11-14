@@ -145,9 +145,6 @@ pub struct ChoiceButton {
 pub struct TextContent;
 
 #[derive(Component)]
-pub struct GaugeFill;
-
-#[derive(Component)]
 pub(crate) struct TouchScrollablePanel;
 
 #[derive(Component)]
@@ -1913,32 +1910,6 @@ fn sync_ui_button_visuals(
         border.set_all(border_color);
         *background = BackgroundColor(background_color);
     }
-}
-
-pub fn spawn_gauge(commands: &mut Commands, parent: Entity, current: i32, maximum: i32) -> Entity {
-    let ratio = gauge_ratio(current, maximum);
-    let gauge = commands
-        .spawn((
-            Node {
-                width: percent(100),
-                min_width: px(0),
-                height: px(18),
-                ..default()
-            },
-            BackgroundColor(THEME_PANEL_ALT),
-            children![(
-                GaugeFill,
-                Node {
-                    width: percent(ratio * 100.0),
-                    height: percent(100),
-                    ..default()
-                },
-                BackgroundColor(THEME_ACCENT),
-            )],
-        ))
-        .id();
-    commands.entity(parent).add_child(gauge);
-    gauge
 }
 
 pub(crate) fn gauge_ratio(current: i32, maximum: i32) -> f32 {
