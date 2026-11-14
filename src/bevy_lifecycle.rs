@@ -1438,7 +1438,6 @@ fn render(
     }
 }
 
-const SAVE_SLOT_ICON: &str = "folder";
 const BEGIN_LIFE_ICON: &str = "new-game";
 
 const START_ACTIONS_WITH_LOAD: &[(&str, &str)] = &[
