@@ -36,7 +36,7 @@ The shared palette remains onyx-black with restrained warm accents. Panels use a
 
 ## Keyed dynamic rows
 
-Options save rows are keyed by normalized save path; mod rows are keyed by stable mod ID. Character Inventory rows use persistent item IDs, while Quest rows use persistent quest IDs carried through the renderer-neutral quest view. A refresh updates the existing row's text, action labels, selection index, and selected feedback in place. Insertions create only new rows, removals despawn only obsolete rows, and reordering changes the parent-child order without replacing unaffected row entities.
+Options save rows are keyed by save path; mod rows are keyed by stable mod ID. Character Inventory rows use persistent item IDs, while Quest rows use persistent quest IDs carried through the renderer-neutral quest view. A refresh updates the existing row's text, action labels, selection index, and selected feedback in place. Insertions create only new rows, removals despawn only obsolete rows, and reordering changes the parent-child order without replacing unaffected row entities.
 
 The Options scroll viewport and row host remain mounted during same-tab refreshes. Message and footer regions are refreshed independently. Switching tabs clears the prior tab's contents, resets its scroll position, and creates the new tab's row host. The Character hub retains its scroll viewport, row host, and footer; Inventory/Quest refreshes reconcile keyed rows while changes between unrelated tabs replace only the row contents and reset the scroll position.
 
