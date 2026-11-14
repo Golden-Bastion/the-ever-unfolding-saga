@@ -29,6 +29,14 @@ enum InteractionScreen {
     RemainsResult,
 }
 
+#[derive(Component)]
+struct InteractionRoot {
+    screen: InteractionScreen,
+}
+
+#[derive(Component)]
+struct InteractionContentHost;
+
 #[derive(Resource)]
 pub(crate) struct BevyInteractionState {
     screen: InteractionScreen,
@@ -587,8 +595,11 @@ fn render_if_active(
     mut images: ResMut<Assets<Image>>,
     mut portrait_images: ResMut<PortraitImageCache>,
     roots: Query<Entity, With<BevyScreenRoot>>,
+    interaction_roots: Query<(Entity, &InteractionRoot)>,
+    interaction_hosts: Query<Entity, With<InteractionContentHost>>,
     spatial_roots: Query<Entity, With<SpatialSceneRoot>>,
     overlay_roots: Query<Entity, With<SpatialInteractionOverlayRoot>>,
+    children: Query<&Children>,
 ) {
     if lifecycle.phase != LifecyclePhase::Complete {
         return;
@@ -626,51 +637,175 @@ fn render_if_active(
         state.dirty = false;
         return;
     }
-    if !is_interaction_screen(navigation.current_screen) || !state.dirty {
+
+    if !is_interaction_screen(navigation.current_screen) {
+        for (root, _) in &interaction_roots {
+            commands.entity(root).despawn();
+        }
         return;
     }
-    for root in &roots {
-        commands.entity(root).despawn();
-    }
+
     let Some(session) = lifecycle.session.as_ref() else {
         return;
     };
+    let rendered_root = interaction_roots.iter().next();
+    let existing_host = rendered_root
+        .filter(|(_, root)| root.screen == state.screen)
+        .and_then(|_| interaction_hosts.iter().next());
 
+    if existing_host.is_none() {
+        for root in &roots {
+            commands.entity(root).despawn();
+        }
+        let host = spawn_interaction_screen(&mut commands, state.screen);
+        render_interaction_content(
+            &mut commands,
+            host,
+            &state,
+            &session.state,
+            &mut images,
+            &mut portrait_images,
+        );
+        state.dirty = false;
+        return;
+    }
+
+    if !state.dirty {
+        return;
+    }
+
+    let host = existing_host.expect("the interaction screen host was checked above");
+    bevy_presentation::clear_tab_content(&mut commands, host, &children);
+    render_interaction_content(
+        &mut commands,
+        host,
+        &state,
+        &session.state,
+        &mut images,
+        &mut portrait_images,
+    );
+    state.dirty = false;
+}
+
+fn spawn_interaction_screen(commands: &mut Commands, screen: InteractionScreen) -> Entity {
+    let (root, host) = match screen {
+        InteractionScreen::Conversation => {
+            let root = commands
+                .spawn((
+                    BevyScreenRoot,
+                    InteractionRoot { screen },
+                    PresentationTransition::entering(),
+                    UiTransform {
+                        scale: Vec2::splat(0.96),
+                        ..default()
+                    },
+                    Node {
+                        width: percent(100),
+                        height: percent(100),
+                        min_width: px(0),
+                        min_height: px(0),
+                        padding: UiRect::all(px(12)),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(8),
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    BackgroundColor(bevy_presentation::THEME_BACKGROUND),
+                ))
+                .id();
+            let host = commands
+                .spawn((
+                    InteractionContentHost,
+                    Node {
+                        width: percent(100),
+                        height: percent(100),
+                        min_width: px(0),
+                        min_height: px(0),
+                        flex_grow: 1.0,
+                        flex_shrink: 1.0,
+                        flex_direction: FlexDirection::Column,
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                ))
+                .id();
+            commands.entity(root).add_child(host);
+            (root, host)
+        }
+        InteractionScreen::Talk | InteractionScreen::Remains | InteractionScreen::RemainsResult => {
+            let title = match screen {
+                InteractionScreen::Talk => "TALK",
+                InteractionScreen::Remains => "REMAINS",
+                InteractionScreen::RemainsResult => "REMAINS RECOVERED",
+                InteractionScreen::Conversation => unreachable!(),
+            };
+            let root = bevy_presentation::spawn_screen(commands, title);
+            commands.entity(root).insert(InteractionRoot { screen });
+            let panel = bevy_presentation::spawn_panel(commands, root);
+            let host = commands
+                .spawn((
+                    InteractionContentHost,
+                    Node {
+                        width: percent(100),
+                        min_width: px(0),
+                        min_height: px(0),
+                        flex_grow: 1.0,
+                        flex_shrink: 1.0,
+                        flex_direction: FlexDirection::Column,
+                        ..default()
+                    },
+                ))
+                .id();
+            commands.entity(panel).add_child(host);
+            (root, host)
+        }
+    };
+    let _ = root;
+    host
+}
+
+fn render_interaction_content(
+    commands: &mut Commands,
+    host: Entity,
+    state: &BevyInteractionState,
+    game: &crate::model::GameState,
+    images: &mut Assets<Image>,
+    portrait_images: &mut PortraitImageCache,
+) {
     match state.screen {
         InteractionScreen::Talk => {
-            let view = interactions::build_talk_view_for_bevy(&session.state);
-            render_talk(&mut commands, &view, state.selected);
+            let view = interactions::build_talk_view_for_bevy(game);
+            render_talk(commands, host, &view, state.selected);
         }
         InteractionScreen::Conversation => {
             let view = state
                 .npc_id
-                .and_then(|npc_id| interactions::npc_index_by_id(&session.state, npc_id))
-                .and_then(|npc_index| {
-                    interactions::build_conversation_view_for_bevy(&session.state, npc_index)
-                });
-            render_conversation(
-                &mut commands,
+                .and_then(|npc_id| interactions::npc_index_by_id(game, npc_id))
+                .and_then(|npc_index| interactions::build_conversation_view_for_bevy(game, npc_index));
+            render_dialogue_scene_content(
+                commands,
+                host,
                 view.as_ref(),
                 state.selected,
                 state.message.as_deref(),
-                &mut images,
-                &mut portrait_images,
+                images,
+                portrait_images,
             );
         }
         InteractionScreen::Remains => {
-            let view = legacy::build_remains_view_for_bevy(&session.state);
+            let view = legacy::build_remains_view_for_bevy(game);
             render_remains(
-                &mut commands,
+                commands,
+                host,
                 &view,
                 state.selected,
                 state.message.as_deref(),
             );
         }
         InteractionScreen::RemainsResult => {
-            render_remains_result(&mut commands, state.result.as_ref())
+            render_remains_result(commands, host, state.result.as_ref())
         }
     }
-    state.dirty = false;
 }
 
 #[allow(clippy::too_many_arguments)]
