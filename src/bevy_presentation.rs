@@ -1865,6 +1865,7 @@ fn sync_action_button_selection(
     }
 }
 
+#[allow(clippy::type_complexity)] // for buttons
 fn sync_ui_button_visuals(
     time: Res<Time>,
     mut commands: Commands,
