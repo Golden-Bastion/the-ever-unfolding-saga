@@ -588,7 +588,10 @@ fn shared_screen_roots_receive_the_standard_entry_transition() {
 
     let root = world.resource::<Fixture>().0;
     assert!(world.get::<BevyScreenRoot>(root).is_some());
-    assert!(world.get::<UiTransform>(root).is_some());
+    assert_eq!(
+        world.get::<UiTransform>(root).unwrap().scale,
+        Vec2::splat(0.96)
+    );
     assert!(world.get::<PresentationTransition>(root).is_some());
 }
 
