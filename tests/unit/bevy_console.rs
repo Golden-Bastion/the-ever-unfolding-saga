@@ -87,13 +87,12 @@ fn clearing_console_output_keeps_the_shell_input_and_scroll_state_alive() {
     clear.run(&mut world);
     world.flush();
 
-    assert!(world.get::<ConsoleScreenRoot>(
-        world
-            .query_filtered::<Entity, With<ConsoleScreenRoot>>()
-            .iter(&world)
-            .next()
-            .expect("the console root should remain mounted")
-    ).is_some());
+    let root = world
+        .query_filtered::<Entity, With<ConsoleScreenRoot>>()
+        .iter(&world)
+        .next()
+        .expect("the console root should remain mounted");
+    assert!(world.get::<ConsoleScreenRoot>(root).is_some());
     assert!(world.get::<ConsoleInputText>(fixture.input).is_some());
     assert!(world.get::<ConsoleScrollableOutput>(fixture.scroll).is_some());
     assert_eq!(
