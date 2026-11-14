@@ -10,6 +10,7 @@ This directory contains the project's current product direction, detailed design
 - [systems/](systems/) — documentation of current system behavior and implementation contracts.
 - [development-process.md](development-process.md) — engineering workflow and documentation ownership.
 - [archive/](archive/) — superseded planning material retained for historical context.
+- [android-build.md](android-build.md) — Android CI builds, storage, and local project setup.
 - [itchio-publishing.md](itchio-publishing.md) — GitHub Actions and Butler publishing reference.
 
 ## Project-level records
