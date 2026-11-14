@@ -105,7 +105,9 @@ fn clearing_console_output_keeps_the_shell_input_and_scroll_state_alive() {
             .0,
         Vec2::new(0.0, 126.0)
     );
-    assert_eq!(world.get::<Children>(fixture.output).unwrap().len(), 0);
+    assert!(world
+        .get::<Children>(fixture.output)
+        .map_or(true, |children| children.is_empty()));
 }
 
 #[test]
