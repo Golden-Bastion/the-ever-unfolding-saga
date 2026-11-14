@@ -296,6 +296,7 @@ fn leave_console(state: &mut BevyConsoleState, navigation: &mut NavigationState)
     state.dirty = true;
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_if_active(
     mut commands: Commands,
     mut state: ResMut<BevyConsoleState>,
@@ -360,7 +361,7 @@ fn render_if_active(
 }
 
 fn console_output_region_changed(previous: Option<&ConsoleView>, current: &ConsoleView) -> bool {
-    previous.map_or(true, |previous| {
+    previous.is_none_or(|previous| {
         previous.output != current.output || previous.scroll != current.scroll
     })
 }
@@ -378,7 +379,7 @@ fn console_completion_region_changed(
 }
 
 fn console_input_region_changed(previous: Option<&ConsoleView>, current: &ConsoleView) -> bool {
-    previous.map_or(true, |previous| previous.input != current.input)
+    previous.is_none_or(|previous| previous.input != current.input)
 }
 
 fn spawn_console_screen(
