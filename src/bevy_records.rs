@@ -729,6 +729,7 @@ fn render_header(commands: &mut Commands, parent: Entity, subtitle: impl Into<St
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn render_character_hub(
     commands: &mut Commands,
     character: &CharacterSheetView,
@@ -962,6 +963,7 @@ fn render_inventory_tab(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn reconcile_character_rows(
     commands: &mut Commands,
     rows_host: Entity,
