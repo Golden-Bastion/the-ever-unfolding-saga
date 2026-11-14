@@ -283,6 +283,23 @@ struct TouchScrollState {
     active: Option<ActiveTouchScroll>,
 }
 
+#[derive(Default)]
+struct ScrollPositionSnapshot {
+    panel_entities: Vec<Entity>,
+    positions: Vec<Vec2>,
+}
+
+#[derive(Resource, Default)]
+struct ScrollPositionMemory {
+    screens: HashMap<ScreenId, ScrollPositionSnapshot>,
+}
+
+fn restore_cached_scroll_positions(cached: &[Vec2], current: &mut [Vec2]) {
+    for (current, cached) in current.iter_mut().zip(cached) {
+        *current = *cached;
+    }
+}
+
 impl TouchScrollState {
     fn should_suppress_activation(&self, button: Entity, touches: &Touches) -> bool {
         let Some(active) = self.active else {
@@ -383,7 +400,7 @@ impl NavigationState {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ScreenId {
     Lifecycle,
     DeveloperTools,
@@ -542,7 +559,9 @@ pub fn install(app: &mut App) {
         .init_resource::<NavigationState>()
         .init_resource::<ConsoleTextInputFocus>()
         .init_resource::<TouchScrollState>()
+        .init_resource::<ScrollPositionMemory>()
         .init_resource::<UiIconAssets>()
+        .add_systems(PreUpdate, capture_scroll_positions)
         .add_systems(
             PreUpdate,
             process_ime_events
@@ -559,6 +578,10 @@ pub fn install(app: &mut App) {
         .add_systems(Update, touch_scroll)
         .add_systems(PostUpdate, resolve_ui_icons)
         .add_systems(PostUpdate, organize_action_button_groups)
+        .add_systems(
+            PostUpdate,
+            restore_rebuilt_scroll_positions.after(organize_action_button_groups),
+        )
         .add_systems(PostUpdate, sync_ime_window)
         .add_systems(PostUpdate, sync_lifecycle_field_visuals);
 
@@ -2116,6 +2139,62 @@ fn organize_action_button_groups(
             commands.entity(group).add_child(button);
         }
     }
+}
+
+fn capture_scroll_positions(
+    navigation: Res<NavigationState>,
+    panels: Query<(Entity, &ScrollPosition), With<TouchScrollablePanel>>,
+    mut memory: ResMut<ScrollPositionMemory>,
+) {
+    let Some(screen) = navigation.current_screen else {
+        return;
+    };
+    let mut current = panels
+        .iter()
+        .map(|(entity, position)| (entity, position.0))
+        .collect::<Vec<_>>();
+    current.sort_by_key(|(entity, _)| entity.to_bits());
+
+    let snapshot = memory.screens.entry(screen).or_default();
+    snapshot.panel_entities = current.iter().map(|(entity, _)| *entity).collect();
+    snapshot.positions = current.iter().map(|(_, position)| *position).collect();
+}
+
+fn restore_rebuilt_scroll_positions(
+    navigation: Res<NavigationState>,
+    mut memory: ResMut<ScrollPositionMemory>,
+    mut panels: Query<(Entity, &mut ScrollPosition), With<TouchScrollablePanel>>,
+) {
+    let Some(screen) = navigation.current_screen else {
+        return;
+    };
+    let mut current = panels.iter_mut().collect::<Vec<_>>();
+    current.sort_by_key(|(entity, _)| entity.to_bits());
+    let current_entities = current
+        .iter()
+        .map(|(entity, _)| *entity)
+        .collect::<Vec<_>>();
+
+    let snapshot = memory.screens.entry(screen).or_default();
+    if snapshot.panel_entities == current_entities {
+        return;
+    }
+
+    let mut current_positions = current
+        .iter()
+        .map(|(_, position)| position.0)
+        .collect::<Vec<_>>();
+    if snapshot.positions.is_empty() {
+        snapshot.positions = current_positions.clone();
+    } else {
+        restore_cached_scroll_positions(&snapshot.positions, &mut current_positions);
+    }
+
+    for ((_, mut position), restored) in current.into_iter().zip(current_positions.iter().copied())
+    {
+        position.0 = restored;
+    }
+    snapshot.panel_entities = current_entities;
 }
 
 fn touch_scroll(

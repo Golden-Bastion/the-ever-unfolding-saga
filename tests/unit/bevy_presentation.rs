@@ -13,6 +13,46 @@ fn touch_coordinates_convert_from_logical_to_physical_space() {
     assert_eq!(position, Vec2::new(250.0, 125.0));
 }
 
+#[test]
+fn rebuilt_scroll_panel_restores_its_previous_offset_for_the_same_screen() {
+    let mut world = World::new();
+    world.insert_resource(NavigationState {
+        current_screen: Some(ScreenId::CharacterLab),
+        ..NavigationState::default()
+    });
+    world.insert_resource(ScrollPositionMemory::default());
+
+    let original = world
+        .spawn((TouchScrollablePanel, ScrollPosition(Vec2::new(0.0, 180.0))))
+        .id();
+    let mut capture = Schedule::default();
+    capture.add_systems(capture_scroll_positions);
+    capture.run(&mut world);
+
+    world.despawn(original);
+    let rebuilt = world
+        .spawn((TouchScrollablePanel, ScrollPosition(Vec2::ZERO)))
+        .id();
+    let mut restore = Schedule::default();
+    restore.add_systems(restore_rebuilt_scroll_positions);
+    restore.run(&mut world);
+
+    assert_eq!(
+        world.get::<ScrollPosition>(rebuilt).unwrap().0,
+        Vec2::new(0.0, 180.0)
+    );
+}
+
+#[test]
+fn new_scroll_panels_keep_their_default_offset_when_no_cached_panel_exists() {
+    let cached: [Vec2; 0] = [];
+    let mut current = [Vec2::ZERO, Vec2::new(0.0, 12.0)];
+
+    restore_cached_scroll_positions(&cached, &mut current);
+
+    assert_eq!(current, [Vec2::ZERO, Vec2::new(0.0, 12.0)]);
+}
+
 fn spawn_console_input_regression_fixture(mut commands: Commands) {
     let panel = commands.spawn_empty().id();
     spawn_label(&mut commands, panel, "> help");
