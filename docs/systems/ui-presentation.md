@@ -24,7 +24,11 @@ Talk, conversation, remains, and remains-result screens retain their outer root 
 
 Character Records now gives Inventory Detail, Quest Detail, Meditation, Meditation Result, Chronicle Detail, and Journal Entry screen-specific roots with named scrollable content hosts. Refreshes within the same record screen replace only the host children, keeping the root heading and scroll panel mounted. Moving between record screen types creates the matching shell rather than reusing a heading or content surface from another screen. Journal drafts remain in screen state while their visible content refreshes.
 
-The lifecycle creation and Options/Character tab views already use stable content hosts for their tab frames. Scroll-position snapshots remain a compatibility fallback for screens that still recreate scrollable panels.
+The lifecycle creation and Options/Character tab views already use stable content hosts for their tab frames. Options now also retains the active tab's scrolling list, a separate feedback-message region, and its footer. A content refresh replaces only the children of those hosts, keeping the scrolling panel and its live position intact; switching tabs resets the list to the new tab's start rather than carrying one tab's offset into another.
+
+Feedback overlays retain their outer scrollable surface while queued level-up and quest-reward entries advance. Only the current entry's content children are replaced, preserving the overlay entity and scroll state. The shared touch-scroll handling also owns the overlay on Android, so long feedback remains reachable without changing its presentation shell.
+
+The spatial scene continues to update player position, directional animation, camera follow, and discovery tint in place. World-clock changes no longer rebuild the entire spatial scene: they update only the marked atmosphere tint, sky panel, sun/moon position, horizon accent, and time readout. The world topology and ordinary spatial UI are rebuilt only through their existing explicit dirty/re-entry path. The interim World Map presentation and behavior are unchanged by this work.
 
 ## Visual language
 
@@ -32,13 +36,12 @@ The shared palette remains onyx-black with restrained warm accents. Panels use a
 
 ## Remaining migration
 
-This pass removes full-tree rebuilds from the console's typing path, combat turns, interaction-content refreshes, and Character Records detail updates. It still does not make every screen retained. Options retains its tab shell but replaces active tab content; feedback overlays are still replaced as entries advance; and the spatial scene and World Map still have their own rebuild paths.
+This pass removes avoidable screen-tree rebuilds from the console's typing path, combat turns, interaction-content refreshes, Character Records detail updates, Options content refreshes, and feedback-entry transitions. Spatial movement, camera follow, animation, discovery tint, and world-clock presentation now update through focused in-place paths. It does not claim that all presentation is retained: Options rows and feedback entry children are still reconciled by replacing the relevant host children, while spatial topology changes still use the explicit scene rebuild path. World Map is deliberately outside this pass and remains unchanged.
 
 The next steps should focus on:
 
-1. Stable, independently refreshed content regions for Options and feedback screens.
-2. Keyed row reconciliation for dynamic inventories, quests, save slots, and mod lists, preserving entity identity where items remain.
-3. A deliberate spatial presentation update path that distinguishes world topology changes from player movement, animation, time-of-day, and HUD updates.
-4. Explicit exit transitions for screen changes, coordinating removal only after animation completes without delaying input or gameplay state changes.
+1. Keyed row reconciliation for dynamic inventories, quests, save slots, and mod lists, preserving entity identity where items remain.
+2. Further separation of spatial topology changes from HUD/content changes that do not require rebuilding the world.
+3. Explicit exit transitions for screen changes, coordinating removal only after animation completes without delaying input or gameplay state changes.
 
 Keep desktop and Android behavior equivalent. Stable hosts must preserve scroll position, focus, selection, and touch gesture ownership across content updates.

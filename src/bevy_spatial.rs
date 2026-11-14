@@ -98,6 +98,20 @@ pub(crate) struct CelestialArtAssets {
 struct SpatialWorldEntity;
 
 #[derive(Component)]
+struct SpatialAtmosphere;
+
+#[derive(Component)]
+struct SpatialSkyPanel {
+    celestial_visual: Option<Entity>,
+}
+
+#[derive(Component)]
+struct SpatialSkyHorizon;
+
+#[derive(Component)]
+struct SpatialTimeReadout;
+
+#[derive(Component)]
 pub(crate) struct SpatialSceneRoot;
 
 #[derive(Component)]
@@ -250,21 +264,21 @@ fn sky_visual(time_points: u32) -> SkyVisual {
         0 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
             celestial: CelestialBody::Moon,
-            celestial_x: 78.0,
+            celestial_x: 22.0,
             celestial_y: 9.0,
             warm_horizon: false,
         },
         1 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAWN,
             celestial: CelestialBody::Moon,
-            celestial_x: 67.0,
+            celestial_x: 33.0,
             celestial_y: 11.0,
             warm_horizon: true,
         },
         2 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAWN,
             celestial: CelestialBody::Sun,
-            celestial_x: 58.0,
+            celestial_x: 42.0,
             celestial_y: 11.0,
             warm_horizon: true,
         },
@@ -278,56 +292,56 @@ fn sky_visual(time_points: u32) -> SkyVisual {
         4 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAY,
             celestial: CelestialBody::Sun,
-            celestial_x: 42.0,
+            celestial_x: 58.0,
             celestial_y: 9.0,
             warm_horizon: false,
         },
         5 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAY,
             celestial: CelestialBody::Sun,
-            celestial_x: 34.0,
+            celestial_x: 66.0,
             celestial_y: 11.0,
             warm_horizon: false,
         },
         6 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAY,
             celestial: CelestialBody::Sun,
-            celestial_x: 25.0,
+            celestial_x: 75.0,
             celestial_y: 14.0,
             warm_horizon: false,
         },
         7 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DUSK,
             celestial: CelestialBody::Sun,
-            celestial_x: 17.0,
+            celestial_x: 83.0,
             celestial_y: 18.0,
             warm_horizon: true,
         },
         8 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DUSK,
             celestial: CelestialBody::Moon,
-            celestial_x: 10.0,
+            celestial_x: 90.0,
             celestial_y: 13.0,
             warm_horizon: true,
         },
         9 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
             celestial: CelestialBody::Moon,
-            celestial_x: 21.0,
+            celestial_x: 79.0,
             celestial_y: 10.0,
             warm_horizon: false,
         },
         10 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
             celestial: CelestialBody::Moon,
-            celestial_x: 37.0,
+            celestial_x: 63.0,
             celestial_y: 8.0,
             warm_horizon: false,
         },
         11 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
             celestial: CelestialBody::Moon,
-            celestial_x: 55.0,
+            celestial_x: 45.0,
             celestial_y: 8.0,
             warm_horizon: false,
         },
@@ -528,6 +542,7 @@ pub(crate) fn install(app: &mut App) {
                 update_spatial_control_feedback,
                 refresh_spatial_investigation_control,
                 render_spatial_screen,
+                sync_spatial_time_presentation,
                 sync_spatial_interaction_wheel,
                 update_spatial_wheel_anchor,
             )
@@ -1628,13 +1643,12 @@ fn render_spatial_screen(
             .as_ref()
             .map(|session| (session.state.world.day, session.state.world.time_points))
     };
-    if state.last_world_time != world_time {
-        state.last_world_time = world_time;
-        state.dirty = true;
-    }
     if !state.dirty {
         return;
     }
+    // Full scene builds use the current time; subsequent clock changes update
+    // only the marked sky and atmosphere presentation entities.
+    state.last_world_time = world_time;
 
     for root in &roots {
         commands.entity(root).despawn();
@@ -1912,24 +1926,27 @@ fn render_spatial_screen(
         ))
         .id();
 
-    if let Some(tint) = time_points.and_then(spatial_environment_tint) {
-        let atmosphere = commands
-            .spawn((
-                Node {
-                    width: percent(100),
-                    height: percent(100),
-                    position_type: PositionType::Absolute,
-                    left: px(0),
-                    top: px(0),
-                    ..default()
-                },
-                BackgroundColor(tint),
-            ))
-            .id();
-        // This is deliberately the first UI child: it tints the world sprites
-        // while leaving the header, status, and control surfaces above it.
-        commands.entity(root).add_child(atmosphere);
-    }
+    let atmosphere = commands
+        .spawn((
+            SpatialAtmosphere,
+            Node {
+                width: percent(100),
+                height: percent(100),
+                position_type: PositionType::Absolute,
+                left: px(0),
+                top: px(0),
+                ..default()
+            },
+            BackgroundColor(
+                time_points
+                    .and_then(spatial_environment_tint)
+                    .unwrap_or(Color::NONE),
+            ),
+        ))
+        .id();
+    // This is deliberately the first UI child: it tints the world sprites
+    // while leaving the header, status, and control surfaces above it.
+    commands.entity(root).add_child(atmosphere);
 
     let header_backdrop = commands
         .spawn((
@@ -2822,6 +2839,9 @@ fn spawn_spatial_time_indicator(
 
     let sky_panel = commands
         .spawn((
+            SpatialSkyPanel {
+                celestial_visual: None,
+            },
             Node {
                 width: px(88),
                 height: px(40),
@@ -2839,56 +2859,131 @@ fn spawn_spatial_time_indicator(
         .id();
     commands.entity(row).add_child(sky_panel);
 
-    if sky.warm_horizon {
-        commands.entity(sky_panel).with_children(|panel| {
-            panel.spawn((
-                Node {
-                    width: percent(100),
-                    height: px(7),
-                    position_type: PositionType::Absolute,
-                    left: px(0),
-                    bottom: px(0),
-                    ..default()
+    let horizon = commands
+        .spawn((
+            SpatialSkyHorizon,
+            Node {
+                width: percent(100),
+                height: px(7),
+                position_type: PositionType::Absolute,
+                left: px(0),
+                bottom: px(0),
+                display: if sky.warm_horizon {
+                    Display::Flex
+                } else {
+                    Display::None
                 },
-                BackgroundColor(bevy_presentation::THEME_SKY_HORIZON_WARM),
-            ));
-        });
-    }
+                ..default()
+            },
+            BackgroundColor(bevy_presentation::THEME_SKY_HORIZON_WARM),
+        ))
+        .id();
+    commands.entity(sky_panel).add_child(horizon);
 
-    if let Some(image) = celestial_art.image.as_ref() {
-        let rect = match sky.celestial {
-            CelestialBody::Sun => celestial_art.sun_rect,
-            CelestialBody::Moon => celestial_art.moon_rect,
-        };
-        if let Some(rect) = rect {
-            let size = px(18);
-            commands.entity(sky_panel).with_children(|panel| {
-                panel.spawn((
-                    Node {
-                        width: size,
-                        height: size,
-                        min_width: size,
-                        min_height: size,
-                        position_type: PositionType::Absolute,
-                        left: percent(sky.celestial_x),
-                        top: percent(sky.celestial_y),
-                        flex_shrink: 0.0,
-                        ..default()
-                    },
-                    ImageNode::new(image.clone()).with_rect(rect),
-                ));
-            });
-        }
-    }
+    let celestial_visual = spawn_celestial_visual(commands, sky_panel, celestial_art, sky);
+    commands
+        .entity(sky_panel)
+        .insert(SpatialSkyPanel { celestial_visual });
 
     let readout = commands
         .spawn((
+            SpatialTimeReadout,
             Text::new(crate::game::time::clock_display(time_points)),
             TextFont::from_font_size(FontSize::Rem(0.82)),
             TextColor(bevy_presentation::THEME_TEXT),
         ))
         .id();
     commands.entity(row).add_child(readout);
+}
+
+fn spawn_celestial_visual(
+    commands: &mut Commands,
+    parent: Entity,
+    celestial_art: &CelestialArtAssets,
+    sky: SkyVisual,
+) -> Option<Entity> {
+    let image = celestial_art.image.as_ref()?;
+    let rect = match sky.celestial {
+        CelestialBody::Sun => celestial_art.sun_rect,
+        CelestialBody::Moon => celestial_art.moon_rect,
+    }?;
+    let size = px(18);
+    let visual = commands
+        .spawn((
+            Node {
+                width: size,
+                height: size,
+                min_width: size,
+                min_height: size,
+                position_type: PositionType::Absolute,
+                left: percent(sky.celestial_x),
+                top: percent(sky.celestial_y),
+                flex_shrink: 0.0,
+                ..default()
+            },
+            ImageNode::new(image.clone()).with_rect(rect),
+        ))
+        .id();
+    commands.entity(parent).add_child(visual);
+    Some(visual)
+}
+
+#[allow(clippy::too_many_arguments)] // Keep the presentation regions independently queried.
+fn sync_spatial_time_presentation(
+    mut commands: Commands,
+    lifecycle: Res<LifecycleState>,
+    navigation: Res<NavigationState>,
+    celestial_art: Res<CelestialArtAssets>,
+    mut state: ResMut<SpatialExplorationState>,
+    mut atmosphere: Query<
+        &mut BackgroundColor,
+        (With<SpatialAtmosphere>, Without<SpatialSkyPanel>),
+    >,
+    mut sky_panels: Query<
+        (Entity, &mut SpatialSkyPanel, &mut BackgroundColor),
+        Without<SpatialAtmosphere>,
+    >,
+    mut horizons: Query<&mut Node, With<SpatialSkyHorizon>>,
+    mut readouts: Query<&mut Text, With<SpatialTimeReadout>>,
+) {
+    if state.sandbox_mode
+        || lifecycle.phase != LifecyclePhase::Complete
+        || navigation.current_screen != Some(ScreenId::SpatialExploration)
+    {
+        return;
+    }
+    let Some(session) = lifecycle.session.as_ref() else {
+        return;
+    };
+    let world_time = Some((session.state.world.day, session.state.world.time_points));
+    if state.last_world_time == world_time {
+        return;
+    }
+    state.last_world_time = world_time;
+    let time_points = session.state.world.time_points;
+    let sky = sky_visual(time_points);
+
+    let atmosphere_tint = spatial_environment_tint(time_points).unwrap_or(Color::NONE);
+    for mut background in &mut atmosphere {
+        background.0 = atmosphere_tint;
+    }
+    for mut node in &mut horizons {
+        node.display = if sky.warm_horizon {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+    for mut readout in &mut readouts {
+        *readout = Text::new(crate::game::time::clock_display(time_points));
+    }
+    for (panel, mut visual, mut background) in &mut sky_panels {
+        background.0 = sky.background;
+        if let Some(previous) = visual.celestial_visual.take() {
+            commands.entity(previous).despawn();
+        }
+        visual.celestial_visual = spawn_celestial_visual(&mut commands, panel, &celestial_art, sky);
+    }
 }
 
 fn format_condition_summary(conditions: &[Condition]) -> String {

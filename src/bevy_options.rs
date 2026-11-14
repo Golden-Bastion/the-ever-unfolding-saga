@@ -37,8 +37,13 @@ fn mod_back_action_index(mod_count: usize) -> usize {
 #[derive(Component)]
 struct OptionsScreen;
 
-#[derive(Component)]
-struct OptionsContent;
+#[derive(Component, Clone, Copy)]
+struct OptionsContent {
+    list: Entity,
+    messages: Entity,
+    footer: Entity,
+    tab: usize,
+}
 
 #[derive(Resource)]
 pub(crate) struct OptionsState {
@@ -551,7 +556,7 @@ fn render_if_active(
     ui_settings: Res<crate::ui_settings::UiSettings>,
     roots: Query<Entity, With<BevyScreenRoot>>,
     options_screens: Query<(), With<OptionsScreen>>,
-    options_content: Query<Entity, With<OptionsContent>>,
+    options_content: Query<(Entity, &OptionsContent)>,
     children: Query<&Children>,
     tab_buttons: Query<(Entity, &bevy_presentation::UiTabButton)>,
 ) {
@@ -566,9 +571,24 @@ fn render_if_active(
     }
 
     if !options_screens.is_empty() {
-        if let Some(content) = options_content.iter().next() {
-            bevy_presentation::clear_tab_content(&mut commands, content, &children);
-            render_options_content(&mut commands, content, &options, &ui_settings);
+        if let Some((content, retained)) = options_content.iter().next() {
+            let mut hosts = *retained;
+            if hosts.tab != options.tab {
+                commands
+                    .entity(hosts.list)
+                    .insert(bevy::ui::ScrollPosition::default());
+                hosts.tab = options.tab;
+            }
+            commands.entity(content).insert(hosts);
+            clear_options_content_hosts(&mut commands, hosts, &children);
+            render_options_content(
+                &mut commands,
+                hosts.list,
+                hosts.messages,
+                hosts.footer,
+                &options,
+                &ui_settings,
+            );
             bevy_presentation::update_tab_strip_selection(&mut commands, &tab_buttons, options.tab);
             options.dirty = false;
             return;
@@ -595,37 +615,80 @@ fn render_if_active(
     );
 
     let content = bevy_presentation::spawn_tab_content(&mut commands, panel);
-    commands.entity(content).insert(OptionsContent);
-    render_options_content(&mut commands, content, &options, &ui_settings);
+    let hosts = spawn_options_content_hosts(&mut commands, content, options.tab);
+    render_options_content(
+        &mut commands,
+        hosts.list,
+        hosts.messages,
+        hosts.footer,
+        &options,
+        &ui_settings,
+    );
     options.dirty = false;
+}
+
+fn spawn_options_content_hosts(
+    commands: &mut Commands,
+    parent: Entity,
+    tab: usize,
+) -> OptionsContent {
+    let list = bevy_presentation::spawn_scrollable_list(commands, parent);
+    let messages = commands
+        .spawn(Node {
+            width: percent(100),
+            min_width: px(0),
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+            flex_shrink: 0.0,
+            ..default()
+        })
+        .id();
+    commands.entity(parent).add_child(messages);
+    let footer = bevy_presentation::spawn_option_footer(commands, parent);
+    let hosts = OptionsContent {
+        list,
+        messages,
+        footer,
+        tab,
+    };
+    commands.entity(parent).insert(hosts);
+    hosts
+}
+
+fn clear_options_content_hosts(
+    commands: &mut Commands,
+    hosts: OptionsContent,
+    children: &Query<&Children>,
+) {
+    for host in [hosts.list, hosts.messages, hosts.footer] {
+        bevy_presentation::clear_content_host(commands, host, children);
+    }
 }
 
 fn render_options_content(
     commands: &mut Commands,
-    content: Entity,
+    list: Entity,
+    messages: Entity,
+    footer: Entity,
     options: &OptionsState,
     ui_settings: &crate::ui_settings::UiSettings,
 ) {
-    let list = bevy_presentation::spawn_scrollable_list(commands, content);
     match options.tab {
         0 => render_saves_tab(commands, list, options),
         1 => render_mods_tab(commands, list, options),
         2 => render_interface_tab(commands, list, options, ui_settings),
         _ => {}
     }
-
     if options.pending_restart {
         bevy_presentation::spawn_context_message(
             commands,
-            content,
+            messages,
             "Mod changes are pending. Restart the game to apply them.",
         );
     }
     if let Some(message) = &options.message {
-        bevy_presentation::spawn_context_message(commands, content, message);
+        bevy_presentation::spawn_context_message(commands, messages, message);
     }
-
-    let footer = bevy_presentation::spawn_option_footer(commands, content);
     match options.tab {
         0 => render_saves_footer(commands, footer, options),
         1 => render_mods_footer(commands, footer, options),

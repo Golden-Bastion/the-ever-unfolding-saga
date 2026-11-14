@@ -51,3 +51,54 @@ fn dismissing_feedback_preserves_the_parent_screen_return_target() {
     assert_eq!(navigation.return_screen, Some(ScreenId::SpatialExploration));
     assert_eq!(navigation.selected, 0);
 }
+
+#[derive(Resource, Clone, Copy)]
+struct FeedbackOverlayFixture {
+    overlay: Entity,
+}
+
+fn spawn_feedback_overlay_fixture(mut commands: Commands) {
+    let parent = commands.spawn_empty().id();
+    let overlay = spawn_feedback_overlay(&mut commands, parent);
+    commands.insert_resource(FeedbackOverlayFixture { overlay });
+}
+
+fn clear_feedback_overlay_fixture(
+    mut commands: Commands,
+    fixture: Res<FeedbackOverlayFixture>,
+    children: Query<&Children>,
+) {
+    bevy_presentation::clear_content_host(&mut commands, fixture.overlay, &children);
+}
+
+#[test]
+fn feedback_content_refresh_preserves_overlay_and_scroll_position() {
+    let mut world = World::new();
+    let mut setup = Schedule::default();
+    setup.add_systems(spawn_feedback_overlay_fixture);
+    setup.run(&mut world);
+    world.flush();
+
+    let overlay = world.resource::<FeedbackOverlayFixture>().overlay;
+    assert!(world.get::<FeedbackOverlay>(overlay).is_some());
+    assert!(world
+        .get::<bevy_presentation::TouchScrollablePanel>(overlay)
+        .is_some());
+    world
+        .entity_mut(overlay)
+        .insert(bevy::ui::ScrollPosition(Vec2::new(0.0, 88.0)));
+
+    let mut refresh = Schedule::default();
+    refresh.add_systems(clear_feedback_overlay_fixture);
+    refresh.run(&mut world);
+    world.flush();
+
+    assert!(world.get::<FeedbackOverlay>(overlay).is_some());
+    assert_eq!(
+        world.get::<bevy::ui::ScrollPosition>(overlay).unwrap().0,
+        Vec2::new(0.0, 88.0)
+    );
+    assert!(world
+        .get::<Children>(overlay)
+        .is_none_or(|children| children.is_empty()));
+}
