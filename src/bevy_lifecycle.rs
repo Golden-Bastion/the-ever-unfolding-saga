@@ -934,8 +934,10 @@ fn available_save_files() -> Vec<SaveEntry> {
         .collect()
 }
 
-pub(crate) fn has_available_saves() -> bool {
-    !available_save_files().is_empty()
+/// The Load screen remains available without existing saves because it also
+/// owns save import.
+pub(crate) fn load_screen_available() -> bool {
+    true
 }
 
 fn save_title(save: &SaveEntry) -> String {
@@ -1109,15 +1111,11 @@ fn android_request_storage_export(source: &Path, file_name: &str, mime_type: &st
 }
 
 fn start_option_count(lifecycle: &LifecycleState) -> usize {
-    if start_has_load(lifecycle) {
-        5
-    } else {
-        4
-    }
+    start_action_visuals(start_has_load(lifecycle)).len()
 }
 
-fn start_has_load(lifecycle: &LifecycleState) -> bool {
-    !lifecycle.save_files.is_empty()
+fn start_has_load(_lifecycle: &LifecycleState) -> bool {
+    load_screen_available()
 }
 
 fn start_developer_tools_index(lifecycle: &LifecycleState) -> usize {
