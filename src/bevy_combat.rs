@@ -19,6 +19,32 @@ enum CombatScreenPhase {
     Result,
 }
 
+#[derive(Component)]
+struct CombatScreenRoot;
+
+#[derive(Component)]
+struct CombatEventLines;
+
+#[derive(Component)]
+struct CombatPlayerGauge;
+
+#[derive(Component)]
+struct CombatEnemyGauge;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+enum CombatTextKind {
+    Summary,
+    Condition,
+    EnemyName,
+    EnemyPower,
+    ResultTitle,
+    ResultNote,
+    Instruction,
+}
+
+#[derive(Component)]
+struct CombatText(CombatTextKind);
+
 #[derive(Resource, Default)]
 pub(crate) struct CombatState {
     encounter: Option<CombatEncounter>,
@@ -215,17 +241,24 @@ fn render_if_active(
     mut combat_state: ResMut<CombatState>,
     navigation: Res<NavigationState>,
     roots: Query<Entity, With<BevyScreenRoot>>,
+    combat_roots: Query<Entity, With<CombatScreenRoot>>,
+    event_hosts: Query<Entity, With<CombatEventLines>>,
+    player_gauges: Query<(Entity, &bevy_presentation::UiHealthGauge), With<CombatPlayerGauge>>,
+    enemy_gauges: Query<(Entity, &bevy_presentation::UiHealthGauge), With<CombatEnemyGauge>>,
+    mut labels: Query<(&CombatText, &mut Text)>,
+    children: Query<&Children>,
 ) {
     if lifecycle.phase != LifecyclePhase::Complete
         || lifecycle.session.is_none()
         || navigation.current_screen != Some(ScreenId::Combat)
-        || !combat_state.dirty
     {
+        for root in &combat_roots {
+            commands.entity(root).despawn();
+        }
         return;
     }
-
-    for root in &roots {
-        commands.entity(root).despawn();
+    if !combat_state.dirty {
+        return;
     }
 
     let Some(encounter) = combat_state.encounter.as_ref() else {
@@ -235,59 +268,108 @@ fn render_if_active(
         return;
     };
     let view = combat::build_combat_view(&session.state, encounter);
-    let root = bevy_presentation::spawn_screen(&mut commands, "COMBAT");
 
-    let actors = bevy_presentation::spawn_panel(&mut commands, root);
-    bevy_presentation::spawn_label(
-        &mut commands,
+    if combat_roots.iter().next().is_none() {
+        for root in &roots {
+            commands.entity(root).despawn();
+        }
+        spawn_combat_screen(&mut commands, &view, combat_state.selected);
+    } else {
+        update_combat_labels(&mut labels, &view, combat_state.phase);
+        update_combat_gauge(
+            &mut commands,
+            &player_gauges,
+            CombatPlayerGauge::default(),
+            view.character.hp,
+            view.character.max_hp,
+        );
+        update_combat_gauge(
+            &mut commands,
+            &enemy_gauges,
+            CombatEnemyGauge::default(),
+            view.enemy.current_hp,
+            view.enemy.max_hp,
+        );
+
+        if let Some(host) = event_hosts.iter().next() {
+            bevy_presentation::clear_tab_content(&mut commands, host, &children);
+            render_combat_events(&mut commands, host, &view.events);
+        }
+    }
+
+    combat_state.dirty = false;
+}
+
+fn spawn_combat_screen(
+    commands: &mut Commands,
+    view: &crate::presentation::CombatView,
+    selected: usize,
+) {
+    let root = bevy_presentation::spawn_screen(commands, "COMBAT");
+    commands.entity(root).insert(CombatScreenRoot);
+
+    let actors = bevy_presentation::spawn_fixed_panel(commands, root);
+    spawn_combat_text(
+        commands,
         actors,
+        CombatTextKind::Summary,
         format!(
             "{} | Turn {} | {}",
             view.character.display_name(),
             view.turn,
             view.location_name
         ),
+        false,
     );
-    bevy_presentation::spawn_muted_label(
-        &mut commands,
+    spawn_combat_text(commands, actors, CombatTextKind::Condition, condition_text(view), true);
+    bevy_presentation::spawn_label(commands, actors, "Enemy");
+    spawn_combat_text(
+        commands,
         actors,
-        view.player_condition
-            .as_deref()
-            .map(|condition| format!("Condition: {condition}"))
-            .unwrap_or_else(|| "Condition: none".to_string()),
+        CombatTextKind::EnemyName,
+        view.enemy.name.clone(),
+        false,
     );
-    bevy_presentation::spawn_label(&mut commands, actors, "Enemy");
-    bevy_presentation::spawn_label(&mut commands, actors, view.enemy.name.clone());
-    bevy_presentation::spawn_gauge(
-        &mut commands,
+    let enemy_gauge = bevy_presentation::spawn_health_gauge(
+        commands,
         actors,
         view.enemy.current_hp,
         view.enemy.max_hp,
     );
-    bevy_presentation::spawn_muted_label(
-        &mut commands,
+    commands.entity(enemy_gauge).insert(CombatEnemyGauge);
+    spawn_combat_text(
+        commands,
         actors,
+        CombatTextKind::EnemyPower,
         format!("Power: {}", view.enemy_power),
+        true,
     );
-    bevy_presentation::spawn_label(&mut commands, actors, "You");
-    bevy_presentation::spawn_gauge(
-        &mut commands,
+    bevy_presentation::spawn_label(commands, actors, "You");
+    let player_gauge = bevy_presentation::spawn_health_gauge(
+        commands,
         actors,
         view.character.hp,
         view.character.max_hp,
     );
+    commands.entity(player_gauge).insert(CombatPlayerGauge);
 
-    let events = bevy_presentation::spawn_panel(&mut commands, root);
-    bevy_presentation::spawn_label(&mut commands, events, "Combat log");
-    if view.events.is_empty() {
-        bevy_presentation::spawn_muted_label(&mut commands, events, "The encounter begins.");
-    } else {
-        for event in view.events.iter().rev().take(12).rev() {
-            bevy_presentation::spawn_muted_label(&mut commands, events, event.clone());
-        }
-    }
+    let events = bevy_presentation::spawn_panel(commands, root);
+    bevy_presentation::spawn_label(commands, events, "Combat log");
+    let event_lines = commands
+        .spawn((
+            CombatEventLines,
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+        ))
+        .id();
+    commands.entity(events).add_child(event_lines);
+    render_combat_events(commands, event_lines, &view.events);
 
-    let actions = bevy_presentation::spawn_panel(&mut commands, root);
+    let actions = bevy_presentation::spawn_fixed_panel(commands, root);
     for (index, action) in view.actions.iter().enumerate() {
         let icon = match index {
             0 => "attack",
@@ -295,41 +377,146 @@ fn render_if_active(
             _ => "evade",
         };
         let button = bevy_presentation::spawn_action_button(
-            &mut commands,
+            commands,
             actions,
             index,
             icon,
             format!("{}: {}", index + 1, action),
         );
-        if combat_state.phase == Some(CombatScreenPhase::Active) && index == combat_state.selected {
+        if index == selected && index == 0 {
             commands
                 .entity(button)
                 .insert(bevy_presentation::UiSelected);
         }
     }
-    if combat_state.phase == Some(CombatScreenPhase::Result) {
-        if let Some(result) = combat_state.result.as_ref() {
-            bevy_presentation::spawn_label(&mut commands, actions, result.result_title.clone());
-            bevy_presentation::spawn_muted_label(
-                &mut commands,
-                actions,
-                result.result_note.clone(),
-            );
-            bevy_presentation::spawn_muted_label(
-                &mut commands,
-                actions,
-                "Press Enter to continue.",
-            );
-        }
-    } else {
-        bevy_presentation::spawn_muted_label(
-            &mut commands,
-            actions,
-            "Select an action with arrows or 1-3, then press Enter.",
-        );
-    }
+    spawn_combat_text(
+        commands,
+        actions,
+        CombatTextKind::ResultTitle,
+        result_title_text(view, false),
+        false,
+    );
+    spawn_combat_text(
+        commands,
+        actions,
+        CombatTextKind::ResultNote,
+        result_note_text(view, false),
+        true,
+    );
+    spawn_combat_text(
+        commands,
+        actions,
+        CombatTextKind::Instruction,
+        instruction_text(false),
+        true,
+    );
+}
 
-    combat_state.dirty = false;
+fn spawn_combat_text(
+    commands: &mut Commands,
+    parent: Entity,
+    kind: CombatTextKind,
+    text: impl Into<String>,
+    muted: bool,
+) -> Entity {
+    let entity = if muted {
+        bevy_presentation::spawn_muted_label(commands, parent, text)
+    } else {
+        bevy_presentation::spawn_label(commands, parent, text)
+    };
+    commands.entity(entity).insert(CombatText(kind));
+    entity
+}
+
+fn condition_text(view: &crate::presentation::CombatView) -> String {
+    view.player_condition
+        .as_deref()
+        .map(|condition| format!("Condition: {condition}"))
+        .unwrap_or_else(|| "Condition: none".to_string())
+}
+
+fn result_title_text(view: &crate::presentation::CombatView, result: bool) -> String {
+    if result {
+        view.result
+            .as_ref()
+            .map(|result| result.result_title.clone())
+            .unwrap_or_default()
+    } else {
+        String::new()
+    }
+}
+
+fn result_note_text(view: &crate::presentation::CombatView, result: bool) -> String {
+    if result {
+        view.result
+            .as_ref()
+            .map(|result| result.result_note.clone())
+            .unwrap_or_default()
+    } else {
+        String::new()
+    }
+}
+
+fn instruction_text(result: bool) -> String {
+    if result {
+        "Press Enter to continue.".into()
+    } else {
+        "Select an action with arrows or 1-3, then press Enter.".into()
+    }
+}
+
+fn update_combat_labels(
+    labels: &mut Query<(&CombatText, &mut Text)>,
+    view: &crate::presentation::CombatView,
+    phase: Option<CombatScreenPhase>,
+) {
+    let result = phase == Some(CombatScreenPhase::Result);
+    for (label, mut text) in labels.iter_mut() {
+        let next = match label.0 {
+            CombatTextKind::Summary => format!(
+                "{} | Turn {} | {}",
+                view.character.display_name(),
+                view.turn,
+                view.location_name
+            ),
+            CombatTextKind::Condition => condition_text(view),
+            CombatTextKind::EnemyName => view.enemy.name.clone(),
+            CombatTextKind::EnemyPower => format!("Power: {}", view.enemy_power),
+            CombatTextKind::ResultTitle => result_title_text(view, result),
+            CombatTextKind::ResultNote => result_note_text(view, result),
+            CombatTextKind::Instruction => instruction_text(result),
+        };
+        if text.as_str() != next {
+            *text = Text::new(next);
+        }
+    }
+}
+
+fn update_combat_gauge(
+    commands: &mut Commands,
+    gauges: &Query<(Entity, &bevy_presentation::UiHealthGauge), With<CombatPlayerGauge>>,
+    _marker: CombatPlayerGauge,
+    current: i32,
+    maximum: i32,
+) {
+    if let Some((entity, gauge)) = gauges.iter().next() {
+        if gauge.current != current || gauge.maximum != maximum {
+            commands.entity(entity).insert(bevy_presentation::UiHealthGauge {
+                current,
+                maximum,
+            });
+        }
+    }
+}
+
+fn render_combat_events(commands: &mut Commands, host: Entity, events: &[String]) {
+    if events.is_empty() {
+        bevy_presentation::spawn_muted_label(commands, host, "The encounter begins.");
+    } else {
+        for event in events.iter().rev().take(12).rev() {
+            bevy_presentation::spawn_muted_label(commands, host, event.clone());
+        }
+    }
 }
 
 #[cfg(test)]
