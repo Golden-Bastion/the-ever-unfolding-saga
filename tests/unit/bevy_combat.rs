@@ -30,7 +30,7 @@ fn clear_combat_event_lines(
     children: Query<&Children>,
 ) {
     for host in &hosts {
-        bevy_presentation::clear_tab_content(&mut commands, host, &children);
+        bevy_presentation::clear_content_host(&mut commands, host, &children);
     }
 }
 
