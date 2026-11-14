@@ -261,7 +261,6 @@ fn set_selection(
     }
     state.selected = selected.min(count - 1);
     navigation.selected = state.selected;
-    state.dirty = true;
 }
 
 fn move_to_end(
