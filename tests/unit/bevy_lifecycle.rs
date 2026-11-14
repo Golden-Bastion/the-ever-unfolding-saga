@@ -254,6 +254,22 @@ fn load_rows_reconcile_by_path_and_keep_entities_across_reordering() {
 }
 
 #[test]
+fn load_screen_opens_without_saves_so_import_remains_available() {
+    let mut lifecycle = LifecycleState::default();
+    let mut navigation = NavigationState {
+        current_screen: Some(ScreenId::Lifecycle),
+        ..NavigationState::default()
+    };
+
+    assert!(lifecycle.start_load_game(&mut navigation));
+    assert_eq!(lifecycle.phase, LifecyclePhase::Load);
+    assert!(lifecycle.save_files.is_empty());
+    assert_eq!(super::save_import_action_index(&lifecycle), 0);
+    assert_eq!(super::save_back_action_index(&lifecycle), 1);
+    assert_eq!(navigation.current_screen, Some(ScreenId::Lifecycle));
+}
+
+#[test]
 fn display_version_uses_package_version_when_no_suffix_is_supplied() {
     assert_eq!(format_display_version("0.52.3", None), "v0.52.3");
     assert_eq!(format_display_version("0.52.3", Some("  ")), "v0.52.3");
