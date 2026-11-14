@@ -338,14 +338,14 @@ fn render_if_active(
     let previous = state.rendered_view.clone();
     if console_output_region_changed(previous.as_ref(), &view) {
         if let Some(host) = output_hosts.iter().next() {
-            bevy_presentation::clear_tab_content(&mut commands, host, &children);
+            bevy_presentation::clear_content_host(&mut commands, host, &children);
             render_console_output(&mut commands, host, &view);
         }
     }
 
     if console_completion_region_changed(previous.as_ref(), &view) {
         if let Some(host) = completion_hosts.iter().next() {
-            bevy_presentation::clear_tab_content(&mut commands, host, &children);
+            bevy_presentation::clear_content_host(&mut commands, host, &children);
             render_console_completions(&mut commands, host, &view);
         }
     }
