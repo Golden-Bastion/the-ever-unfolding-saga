@@ -26,6 +26,9 @@ struct ConsoleCloseButton;
 struct ConsoleScreenRoot;
 
 #[derive(Component)]
+struct ConsoleScrollableOutput;
+
+#[derive(Component)]
 struct ConsoleOutputLines;
 
 #[derive(Component)]
@@ -331,28 +334,21 @@ fn render_if_active(
     }
 
     let previous = state.rendered_view.clone();
-    if previous.as_ref().map_or(true, |previous| {
-        previous.output != view.output || previous.scroll != view.scroll
-    }) {
+    if console_output_region_changed(previous.as_ref(), &view) {
         if let Some(host) = output_hosts.iter().next() {
             bevy_presentation::clear_tab_content(&mut commands, host, &children);
             render_console_output(&mut commands, host, &view);
         }
     }
 
-    if previous.as_ref().map_or(true, |previous| {
-        previous.autocomplete != view.autocomplete
-            || previous.candidates != view.candidates
-            || previous.selected != view.selected
-            || previous.completion_scroll != view.completion_scroll
-    }) {
+    if console_completion_region_changed(previous.as_ref(), &view) {
         if let Some(host) = completion_hosts.iter().next() {
             bevy_presentation::clear_tab_content(&mut commands, host, &children);
             render_console_completions(&mut commands, host, &view);
         }
     }
 
-    if previous.as_ref().map_or(true, |previous| previous.input != view.input) {
+    if console_input_region_changed(previous.as_ref(), &view) {
         if let Some(mut text) = input_texts.iter_mut().next() {
             *text = Text::new(format!("> {}", view.input));
         }
@@ -360,6 +356,28 @@ fn render_if_active(
 
     state.rendered_view = Some(view);
     state.dirty = false;
+}
+
+fn console_output_region_changed(previous: Option<&ConsoleView>, current: &ConsoleView) -> bool {
+    previous.map_or(true, |previous| {
+        previous.output != current.output || previous.scroll != current.scroll
+    })
+}
+
+fn console_completion_region_changed(
+    previous: Option<&ConsoleView>,
+    current: &ConsoleView,
+) -> bool {
+    previous.map_or(true, |previous| {
+        previous.autocomplete != current.autocomplete
+            || previous.candidates != current.candidates
+            || previous.selected != current.selected
+            || previous.completion_scroll != current.completion_scroll
+    })
+}
+
+fn console_input_region_changed(previous: Option<&ConsoleView>, current: &ConsoleView) -> bool {
+    previous.map_or(true, |previous| previous.input != current.input)
 }
 
 fn spawn_console_screen(
@@ -378,6 +396,7 @@ fn spawn_console_screen(
     );
 
     let scroll = bevy_presentation::spawn_scrollable_list(commands, panel);
+    commands.entity(scroll).insert(ConsoleScrollableOutput);
     let output_host = commands
         .spawn((
             ConsoleOutputLines,
