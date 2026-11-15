@@ -59,7 +59,7 @@ const WORLD_LAB_EDITOR_ACTIONS: &[(&str, &str)] = &[
     ("back", "Move cursor north"),
     ("continue", "Move cursor south"),
     ("display", "Cycle selected terrain"),
-    ("choice", "Cycle selected prop / target / actor"),
+    ("choice", "Cycle selected value or door state"),
     ("display", "Cycle editor tool"),
     ("investigate", "Place selected object"),
     ("explore", "Pick up / drop selected object"),
@@ -2556,6 +2556,14 @@ fn render_world_lab_editor(
                 }
             }
             WorldLabEditorTool::PointOfInterest => {}
+            WorldLabEditorTool::Room => {
+                bevy_presentation::spawn_muted_label(commands, controls, format!("Selected room group: {}", state.world_lab_room_index + 1));
+                bevy_presentation::spawn_muted_label(commands, controls, "Place assigns the selected walkable cell. Remove clears its membership.");
+            }
+            WorldLabEditorTool::Door => {
+                bevy_presentation::spawn_muted_label(commands, controls, format!("New door state: {:?}", state.world_lab_door_state));
+                bevy_presentation::spawn_muted_label(commands, controls, "Place creates a door between this cell and its eastern neighbour, if they belong to different rooms.");
+            }
         }
         if let Some(held_id) = state.world_lab_held_prop.as_deref() {
             if let Some(prop) = map.props.iter().find(|prop| prop.id == held_id) {
