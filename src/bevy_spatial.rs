@@ -3335,6 +3335,7 @@ fn interaction_prompt_label(
             .world
             .location_by_id(*destination_id)
             .map(|location| location.name.clone()),
+        InteractionTarget::Door { .. } => Some("Door".to_string()),
     }
     .unwrap_or_else(|| "Interact".to_string());
     let target_count = interactions
