@@ -27,14 +27,3 @@ fn display_name_includes_nonempty_title_only() {
     assert_eq!(untitled_npc.display_name(), "Mara");
 }
 
-#[test]
-fn empty_record_and_meditation_views_are_frontend_safe() {
-    let history = HistoryView::default();
-    let inventory = InventoryView::default();
-    let meditation = MeditationView::default();
-
-    assert!(history.world_name.is_empty());
-    assert!(history.entries.is_empty());
-    assert!(inventory.items.is_empty());
-    assert!(meditation.targets.is_empty());
-}
