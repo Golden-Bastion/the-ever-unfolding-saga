@@ -51,6 +51,8 @@ fn explored_map(location_id: u64) -> LocalMap {
         terrain: vec![Terrain::Floor; 64],
         entry: GridPosition { x: 1, y: 1 },
         points_of_interest: Vec::new(),
+        rooms: Vec::new(),
+        doors: Vec::new(),
         exits: Vec::new(),
         discovered_tiles: Vec::new(),
         terrain_changes: Vec::new(),
