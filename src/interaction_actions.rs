@@ -20,6 +20,7 @@ pub(crate) enum InteractionActionKind {
     Enter,
     OpenDoor,
     CloseDoor,
+    TryLockedDoor,
 }
 
 impl InteractionActionKind {
@@ -31,6 +32,7 @@ impl InteractionActionKind {
             Self::Enter => "enter",
             Self::OpenDoor => "open_door",
             Self::CloseDoor => "close_door",
+            Self::TryLockedDoor => "try_locked_door",
         }
     }
 }
@@ -159,7 +161,7 @@ pub(crate) fn discover_available_interactions(
         let (action, label) = match door.state {
             DoorState::Open => (InteractionActionKind::CloseDoor, "Close door"),
             DoorState::Closed => (InteractionActionKind::OpenDoor, "Open door"),
-            DoorState::Locked => continue,
+            DoorState::Locked => (InteractionActionKind::TryLockedDoor, "Locked door"),
         };
         let item = AvailableInteraction {
             action,
