@@ -1243,7 +1243,8 @@ pub(crate) fn spawn_confirmation_dialog(
 
 fn action_button_group_node() -> Node {
     Node {
-        width: Val::Auto,
+        // A definite group width gives intrinsic child text a real layout bound.
+        width: percent(100),
         min_width: px(0),
         max_width: px(UI_ACTION_MAX_WIDTH_PX),
         flex_direction: FlexDirection::Column,
@@ -1273,7 +1274,7 @@ fn action_button_node() -> Node {
     Node {
         width: Val::Auto,
         min_width: px(0),
-        max_width: px(UI_ACTION_MAX_WIDTH_PX),
+        max_width: percent(100),
         min_height: touch_target_size(),
         flex_grow: 0.0,
         flex_shrink: 0.0,
@@ -1445,13 +1446,11 @@ pub(crate) fn spawn_compact_action_button_with_text(
             Text::new(label.into()),
             Node {
                 width: Val::Auto,
-                min_width: px(0),
-                max_width: percent(100),
                 flex_grow: 0.0,
                 flex_shrink: 1.0,
                 ..default()
             },
-            TextLayout::new(Justify::Center, LineBreak::WordOrCharacter),
+            TextLayout::new(Justify::Center, LineBreak::WordBoundary),
             TextContent,
             TextFont::from_font_size(muted_font_size()),
             TextColor(THEME_TEXT),
@@ -1583,13 +1582,11 @@ pub(crate) fn spawn_action_button_with_text(
             Text::new(label),
             Node {
                 width: Val::Auto,
-                min_width: px(0),
-                max_width: percent(100),
                 flex_grow: 0.0,
                 flex_shrink: 1.0,
                 ..default()
             },
-            TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
+            TextLayout::new(Justify::Left, LineBreak::WordBoundary),
             TextContent,
             TextFont::from_font_size(label_font_size()),
             TextColor(THEME_TEXT),
@@ -1598,8 +1595,6 @@ pub(crate) fn spawn_action_button_with_text(
     let content = commands
         .spawn(Node {
             width: Val::Auto,
-            min_width: px(0),
-            max_width: percent(100),
             flex_direction: FlexDirection::Row,
             column_gap: responsive_compact_gap(),
             align_items: AlignItems::Center,
@@ -1723,8 +1718,6 @@ fn spawn_action_button_with_detail_layout(
         children![(
             Node {
                 width: Val::Auto,
-                min_width: px(0),
-                max_width: percent(100),
                 flex_direction: FlexDirection::Row,
                 column_gap: responsive_compact_gap(),
                 align_items: AlignItems::Center,
@@ -1745,8 +1738,6 @@ fn spawn_action_button_with_detail_layout(
                 (
                     Node {
                         width: Val::Auto,
-                        min_width: px(0),
-                        max_width: percent(100),
                         flex_grow: 0.0,
                         flex_shrink: 1.0,
                         flex_direction: FlexDirection::Column,
@@ -1758,11 +1749,9 @@ fn spawn_action_button_with_detail_layout(
                             Text::new(label),
                             Node {
                                 width: Val::Auto,
-                                min_width: px(0),
-                                max_width: percent(100),
                                 ..default()
                             },
-                            TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
+                            TextLayout::new(Justify::Left, LineBreak::WordBoundary),
                             TextContent,
                             TextFont::from_font_size(label_font_size()),
                             TextColor(THEME_TEXT),
@@ -1771,11 +1760,9 @@ fn spawn_action_button_with_detail_layout(
                             Text::new(detail),
                             Node {
                                 width: Val::Auto,
-                                min_width: px(0),
-                                max_width: percent(100),
                                 ..default()
                             },
-                            TextLayout::new(Justify::Left, LineBreak::WordOrCharacter),
+                            TextLayout::new(Justify::Left, LineBreak::WordBoundary),
                             TextContent,
                             TextFont::from_font_size(muted_font_size()),
                             TextColor(THEME_MUTED),
