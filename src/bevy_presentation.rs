@@ -1280,10 +1280,7 @@ fn action_button_stack_node() -> Node {
     }
 }
 
-fn spawn_action_button_group_nodes(
-    commands: &mut Commands,
-    parent: Entity,
-) -> (Entity, Entity) {
+fn spawn_action_button_group_nodes(commands: &mut Commands, parent: Entity) -> (Entity, Entity) {
     let frame = commands
         .spawn((UiActionButtonGroup, action_button_group_node()))
         .id();
