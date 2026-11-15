@@ -752,7 +752,7 @@ fn cycle_world_lab_terrain(state: &mut DeveloperToolsState, spatial: &mut Spatia
         ));
     } else {
         state.world_lab_status =
-            Some("That cell is reserved for an entry, actor, passage, discovery, or prop.".into());
+            Some("That cell is reserved for an entry, actor, passage, discovery, room, or prop.".into());
     }
 }
 
