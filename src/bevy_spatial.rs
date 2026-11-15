@@ -3377,17 +3377,29 @@ fn advance_position(
 
     for _ in 0..steps {
         let candidate_x = result.x + step.x;
-        if is_position_walkable(map, Vec2::new(candidate_x, result.y)) {
+        let candidate_x_position = Vec2::new(candidate_x, result.y);
+        if is_position_walkable(map, candidate_x_position)
+            && can_cross_position_edge(map, result, candidate_x_position)
+        {
             result.x = candidate_x;
         }
 
         let candidate_y = result.y + step.y;
-        if is_position_walkable(map, Vec2::new(result.x, candidate_y)) {
+        let candidate_y_position = Vec2::new(result.x, candidate_y);
+        if is_position_walkable(map, candidate_y_position)
+            && can_cross_position_edge(map, result, candidate_y_position)
+        {
             result.y = candidate_y;
         }
     }
 
     result
+}
+
+fn can_cross_position_edge(map: &LocalMap, from: Vec2, to: Vec2) -> bool {
+    let from_cell = GridPosition { x: from.x.floor().max(0.0) as u16, y: from.y.floor().max(0.0) as u16 };
+    let to_cell = GridPosition { x: to.x.floor().max(0.0) as u16, y: to.y.floor().max(0.0) as u16 };
+    from_cell == to_cell || map.can_cross_edge(from_cell, to_cell)
 }
 
 fn is_position_walkable(map: &LocalMap, position: Vec2) -> bool {
