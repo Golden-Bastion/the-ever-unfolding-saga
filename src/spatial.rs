@@ -371,7 +371,7 @@ impl LocalMap {
         true
     }
 
-    /// Safely edit terrain without overwriting an entry, discovery, passage, actor, or prop.
+    /// Safely edit terrain without overwriting an entry, discovery, passage, actor, room cell, or prop.
     pub fn set_terrain_for_editor(&mut self, position: GridPosition, terrain: Terrain) -> bool {
         if !self.contains(position)
             || self.is_editor_reserved_position(position)
@@ -950,18 +950,42 @@ fn apply_shrine_chamber(map: &mut LocalMap) {
     let approach_id = format!("{}.room.approach", map.location_id);
     let chamber_cells = (top + 1..bottom)
         .flat_map(|y| (left + 1..right).map(move |x| GridPosition { x, y }))
-        .chain([GridPosition { x: doorway_x, y: bottom }])
+        .chain([GridPosition {
+            x: doorway_x,
+            y: bottom,
+        }])
         .filter(|position| map.is_walkable(*position))
         .collect::<Vec<_>>();
     let approach_cells = (bottom + 1..map.height - 1)
         .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
         .filter(|position| map.is_walkable(*position))
         .collect::<Vec<_>>();
-    map.rooms = vec![SpatialRoom { id: chamber_id.clone(), cells: chamber_cells }, SpatialRoom { id: approach_id.clone(), cells: approach_cells }];
+    map.rooms = vec![
+        SpatialRoom {
+            id: chamber_id.clone(),
+            cells: chamber_cells,
+        },
+        SpatialRoom {
+            id: approach_id.clone(),
+            cells: approach_cells,
+        },
+    ];
     map.doors = vec![SpatialDoor {
         id: format!("{}.door.chamber_threshold", map.location_id),
-        edge: GridEdge::new(GridPosition { x: doorway_x, y: bottom }, GridPosition { x: doorway_x, y: bottom + 1 }).expect("shrine threshold cells are adjacent"),
-        room_a: chamber_id, room_b: approach_id, state: DoorState::Open,
+        edge: GridEdge::new(
+            GridPosition {
+                x: doorway_x,
+                y: bottom,
+            },
+            GridPosition {
+                x: doorway_x,
+                y: bottom + 1,
+            },
+        )
+        .expect("shrine threshold cells are adjacent"),
+        room_a: chamber_id,
+        room_b: approach_id,
+        state: DoorState::Open,
     }];
     map.props.push(SpatialProp {
         id: format!("{}.room.pillar", map.location_id),
