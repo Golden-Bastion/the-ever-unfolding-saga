@@ -892,31 +892,56 @@ fn place_world_lab_point_of_interest(
 }
 
 fn place_world_lab_room(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
-    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
     let room_id = bevy_spatial::sandbox_map(spatial).map(|map| {
-        format!("{}.editor_room.{}", map.location_id, state.world_lab_room_index + 1)
+        format!(
+            "{}.editor_room.{}",
+            map.location_id,
+            state.world_lab_room_index + 1
+        )
     });
-    let Some(room_id) = room_id else { state.world_lab_status = Some("No editable map is available.".into()); return; };
+    let Some(room_id) = room_id else {
+        state.world_lab_status = Some("No editable map is available.".into());
+        return;
+    };
+
     let success = bevy_spatial::sandbox_map_mut(spatial).is_some_and(|map| {
-        if !map.is_walkable(position) || map.room_at(position).is_some() { return false; }
-        if let Some(room) = map.rooms.iter_mut().find(|room| room.id == room_id) {
-            if room.cells.contains(&position) { false } else { room.cells.push(position); true }
-        } else {
-            map.rooms.push(SpatialRoom { id: room_id.clone(), cells: vec![position] });
-            true
+        if !map.is_walkable(position) || map.room_at(position).is_some() {
+            return false;
         }
+        if let Some(room) = map.rooms.iter_mut().find(|room| room.id == room_id) {
+            room.cells.push(position);
+        } else {
+            map.rooms.push(SpatialRoom {
+                id: room_id.clone(),
+                cells: vec![position],
+            });
+        }
+        true
     });
     state.world_lab_status = Some(if success {
         format!("Assigned ({}, {}) to {}.", position.x, position.y, room_id)
-    } else { "Room cells must be walkable and cannot already belong to another room.".into() });
+    } else {
+        "Room cells must be walkable and cannot already belong to another room.".into()
+    });
 }
 
 fn place_world_lab_door(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
-    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
     let result = bevy_spatial::sandbox_map_mut(spatial).and_then(|map| {
         let neighbours = [
-            GridPosition { x: position.x.saturating_add(1), y: position.y },
-            GridPosition { x: position.x, y: position.y.saturating_add(1) },
+            GridPosition {
+                x: position.x.saturating_add(1),
+                y: position.y,
+            },
+            GridPosition {
+                x: position.x,
+                y: position.y.saturating_add(1),
+            },
         ];
         let (edge, room_a, room_b) = neighbours.into_iter().find_map(|neighbour| {
             let edge = GridEdge::new(position, neighbour)?;
@@ -925,44 +950,86 @@ fn place_world_lab_door(state: &mut DeveloperToolsState, spatial: &mut SpatialEx
             (room_a != room_b && !map.doors.iter().any(|door| door.edge == edge))
                 .then_some((edge, room_a, room_b))
         })?;
-        let id = (1_u64..).map(|index| format!("{}.editor_door.{index}", map.location_id))
+        let id = (1_u64..)
+            .map(|index| format!("{}.editor_door.{index}", map.location_id))
             .find(|id| !map.doors.iter().any(|door| door.id == *id))?;
-        map.doors.push(SpatialDoor { id: id.clone(), edge, room_a, room_b, state: state.world_lab_door_state });
+        map.doors.push(SpatialDoor {
+            id: id.clone(),
+            edge,
+            room_a,
+            room_b,
+            state: state.world_lab_door_state,
+        });
         Some(id)
     });
-    state.world_lab_status = Some(result.map(|id| format!("Placed {id} on an available east/south room boundary."))
-        .unwrap_or_else(|| "A door needs an unused east or south edge between cells assigned to different rooms.".into()));
+    state.world_lab_status = Some(
+        result
+            .map(|id| format!("Placed {id} on an available east/south room boundary."))
+            .unwrap_or_else(|| {
+                "A door needs an unused east or south edge between cells assigned to different rooms."
+                    .into()
+            }),
+    );
 }
 
-fn remove_world_lab_room_cell(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
-    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+fn remove_world_lab_room_cell(
+    state: &mut DeveloperToolsState,
+    spatial: &mut SpatialExplorationState,
+) {
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
     let removed = bevy_spatial::sandbox_map_mut(spatial).and_then(|map| {
-        let room_index = map.rooms.iter().position(|room| room.cells.contains(&position))?;
+        let room_index = map
+            .rooms
+            .iter()
+            .position(|room| room.cells.contains(&position))?;
         map.rooms[room_index].cells.retain(|cell| *cell != position);
-        map.doors.retain(|door| door.edge.a != position && door.edge.b != position);
+        map.doors
+            .retain(|door| door.edge.a != position && door.edge.b != position);
         let id = map.rooms[room_index].id.clone();
         if map.rooms[room_index].cells.is_empty() {
             map.rooms.remove(room_index);
-            map.doors.retain(|door| door.room_a != id && door.room_b != id);
+            map.doors
+                .retain(|door| door.room_a != id && door.room_b != id);
         }
         Some(id)
     });
-    state.world_lab_status = Some(removed.map(|id| format!("Removed ({}, {}) from {id}.", position.x, position.y))
-        .unwrap_or_else(|| "The selected cell does not belong to a room.".into()));
+    state.world_lab_status = Some(
+        removed
+            .map(|id| format!("Removed ({}, {}) from {id}.", position.x, position.y))
+            .unwrap_or_else(|| "The selected cell does not belong to a room.".into()),
+    );
 }
 
 fn remove_world_lab_door(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
-    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+    let position = state
+        .world_lab_cursor
+        .unwrap_or(GridPosition { x: 0, y: 0 });
     let removed = bevy_spatial::sandbox_map_mut(spatial).and_then(|map| {
         let edges = [
-            GridPosition { x: position.x.saturating_add(1), y: position.y },
-            GridPosition { x: position.x, y: position.y.saturating_add(1) },
-        ].into_iter().filter_map(|neighbour| GridEdge::new(position, neighbour)).collect::<Vec<_>>();
+            GridPosition {
+                x: position.x.saturating_add(1),
+                y: position.y,
+            },
+            GridPosition {
+                x: position.x,
+                y: position.y.saturating_add(1),
+            },
+        ]
+        .into_iter()
+        .filter_map(|neighbour| GridEdge::new(position, neighbour))
+        .collect::<Vec<_>>();
         let index = map.doors.iter().position(|door| edges.contains(&door.edge))?;
         Some(map.doors.remove(index).id)
     });
-    state.world_lab_status = Some(removed.map(|id| format!("Removed {id}."))
-        .unwrap_or_else(|| "There is no door on an east/south edge of the selected cell.".into()));
+    state.world_lab_status = Some(
+        removed
+            .map(|id| format!("Removed {id}."))
+            .unwrap_or_else(|| {
+                "There is no door on an east/south edge of the selected cell.".into()
+            }),
+    );
 }
 
 fn place_world_lab_object(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
