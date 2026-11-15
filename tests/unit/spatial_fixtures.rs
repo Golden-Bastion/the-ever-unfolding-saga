@@ -233,6 +233,7 @@ fn duplicate_actor_cell_is_free(map: &LocalMap, position: GridPosition) -> bool 
 #[test]
 fn fixture_export_rejects_invalid_room_and_door_topology() {
     let directory = temporary_directory("invalid-topology");
+    fs::create_dir_all(&directory).unwrap();
     let mut map = generate_local_map_with_layout(
         12,
         "location.fixture_topology",
