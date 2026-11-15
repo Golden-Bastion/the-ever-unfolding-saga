@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.54. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.55. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -249,3 +249,10 @@ The entries below cover the v0.52.x development line through v0.52.54. This line
 - Kept map-grid preview rows unwrapped so their character dimensions remain intact.
 - Added regression coverage for the shared lab layout and intrinsic action-button sizing.
 - Bumped Rust and Android version metadata to 0.52.54.
+
+### v0.52.55: Correct shared action-button text sizing
+
+- Fixed shared standard, detail, and compact action buttons so text is measured intrinsically inside a definite available-width constraint instead of percentage constraints nested inside auto-sized nodes.
+- Kept each button content-sized, capped its width to the available action group, and changed overflow wrapping to word boundaries so labels no longer break after one or two characters.
+- Added structural regression coverage for all three shared text-button variants and their wrapping policy.
+- Bumped Rust and Android version metadata to 0.52.55.

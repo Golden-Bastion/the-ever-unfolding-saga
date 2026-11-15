@@ -167,37 +167,60 @@ fn standalone_labels_retain_intrinsic_height() {
 struct IntrinsicActionButtonFixture {
     button: Entity,
     label: Entity,
+    compact_button: Entity,
+    compact_label: Entity,
+    detail_button: Entity,
 }
 
 fn spawn_intrinsic_action_button_fixture(mut commands: Commands) {
     let parent = commands.spawn_empty().id();
     let (button, label) = spawn_action_button_with_text(&mut commands, parent, 0, "back", "Back");
-    commands.insert_resource(IntrinsicActionButtonFixture { button, label });
+    let (compact_button, compact_label) =
+        spawn_compact_action_button_with_text(&mut commands, parent, 1, "Export");
+    let detail_button = spawn_action_button_with_detail(
+        &mut commands, parent, 2, "folder", "Sample fixture", "A reusable local map",
+    );
+    commands.insert_resource(IntrinsicActionButtonFixture {
+        button, label, compact_button, compact_label, detail_button,
+    });
 }
 
 #[test]
-fn action_button_content_does_not_stretch_its_label_to_the_parent_width() {
+fn shared_action_buttons_preserve_intrinsic_text_measurement() {
     let mut world = World::new();
     let mut schedule = Schedule::default();
     schedule.add_systems(spawn_intrinsic_action_button_fixture);
     schedule.run(&mut world);
+    world.flush();
 
     let fixture = world.resource::<IntrinsicActionButtonFixture>();
     let button = world.get::<Node>(fixture.button).unwrap();
     let label = world.get::<Node>(fixture.label).unwrap();
-    let content = world
-        .get::<Children>(fixture.button)
-        .unwrap()
-        .iter()
-        .next()
-        .and_then(|entity| world.get::<Node>(entity))
-        .unwrap();
+    let content = world.get::<Children>(fixture.button).unwrap().iter().next()
+        .and_then(|entity| world.get::<Node>(entity)).unwrap();
+    let compact_button = world.get::<Node>(fixture.compact_button).unwrap();
+    let compact_label = world.get::<Node>(fixture.compact_label).unwrap();
+    let detail_button = world.get::<Node>(fixture.detail_button).unwrap();
 
     assert_eq!(button.width, Val::Auto);
+    assert_eq!(button.max_width, percent(100));
     assert_eq!(button.align_self, AlignSelf::FlexStart);
     assert_eq!(content.width, Val::Auto);
+    assert_eq!(content.max_width, Val::Auto);
     assert_eq!(label.width, Val::Auto);
+    assert_eq!(label.min_width, Val::Auto);
+    assert_eq!(label.max_width, Val::Auto);
     assert_eq!(label.flex_grow, 0.0);
+    assert_eq!(compact_button.width, Val::Auto);
+    assert_eq!(compact_label.width, Val::Auto);
+    assert_eq!(compact_label.min_width, Val::Auto);
+    assert_eq!(compact_label.max_width, Val::Auto);
+    assert_eq!(detail_button.width, Val::Auto);
+
+    let mut labels = world.query_filtered::<&TextLayout, With<Text>>();
+    let layouts = labels.iter(&world).collect::<Vec<_>>();
+    assert_eq!(layouts.len(), 4);
+    assert!(layouts.iter().all(|layout| layout.linebreak == LineBreak::WordBoundary));
 }
 
 #[derive(Resource)]
@@ -350,10 +373,10 @@ fn warm_map_buttons_have_a_visible_resting_state_and_distinct_interaction_feedba
 }
 
 #[test]
-fn action_groups_fit_their_widest_child_and_remain_width_capped() {
+fn action_groups_provide_a_definite_width_for_intrinsic_children() {
     let node = action_button_group_node();
 
-    assert_eq!(node.width, Val::Auto);
+    assert_eq!(node.width, percent(100));
     assert_eq!(node.max_width, px(UI_ACTION_MAX_WIDTH_PX));
     assert_eq!(node.align_self, AlignSelf::FlexStart);
     assert_eq!(node.align_items, AlignItems::FlexStart);
