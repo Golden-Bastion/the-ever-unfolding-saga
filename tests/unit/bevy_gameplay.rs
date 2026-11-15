@@ -279,4 +279,3 @@ fn spatial_pause_menu_places_travel_and_safe_meditation_before_character_actions
 fn meditation_is_hidden_when_unsafe() {
     assert!(!pause_actions_from(true, false).contains(&PauseAction::Meditate));
 }
-

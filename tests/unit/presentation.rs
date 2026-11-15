@@ -26,4 +26,3 @@ fn display_name_includes_nonempty_title_only() {
     assert_eq!(untitled_character.display_name(), "Ash");
     assert_eq!(untitled_npc.display_name(), "Mara");
 }
-

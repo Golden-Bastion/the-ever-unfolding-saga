@@ -153,4 +153,3 @@ fn console_completion_selection_refreshes_only_the_completion_region() {
     assert!(console_completion_region_changed(Some(&previous), &current));
     assert!(!console_input_region_changed(Some(&previous), &current));
 }
-
