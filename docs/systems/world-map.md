@@ -45,3 +45,6 @@ Keep the current division between:
 4. **Travel:** ordinary movement and physical-passage transitions remain authoritative in spatial gameplay; fast travel finds a path through previously visited locations and invokes the normal travel action for each hop.
 
 When macro-geography arrives, add geography to the world-generation/topology layer and derive a geography-aware map presentation from it. The current map screen entry point, stable route/location identities, fast-travel eligibility, and travel action should remain reusable. Remove temporary graph layout only when the geography-backed representation can supply a coherent map; do not migrate interim pixel positions into world saves.
+
+
+An empty fast-travel destination list does not add a separate explanatory notice to the map. The graph and its Back action remain visible, avoiding a redundant empty-state message while preserving navigation.

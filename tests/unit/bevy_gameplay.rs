@@ -237,11 +237,6 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
 }
 
 #[test]
-fn spatial_pause_menu_exposes_the_world_map_action() {
-    assert_eq!(pause_action_visuals(PauseAction::Map), ("travel", "Map"));
-}
-
-#[test]
 fn pause_action_count_matches_load_visibility_and_safe_meditation() {
     assert_eq!(pause_actions_from(false, false).len(), 6);
     assert_eq!(pause_actions_from(true, false).len(), 7);

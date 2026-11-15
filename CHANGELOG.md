@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.56. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.57. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -264,3 +264,11 @@ The entries below cover the v0.52.x development line through v0.52.56. This line
 - Kept compact option/footer controls and absolute-positioned map actions outside this shared vertical sizing behavior.
 - Added regression coverage for both explicit keyed action groups and automatically organized button groups.
 - Bumped Rust and Android version metadata to 0.52.56.
+
+### v0.52.57: Restore full-width pause-menu actions
+
+- Added an explicit full-width action stack for the pause menu, filling its bounded action column while preserving the existing button and text layout.
+- Kept intrinsic-width sizing as the default for all other shared vertical action groups.
+- Inset the developer-console close control from the upper-right edge to keep it clear of mobile display cutouts.
+- Removed the redundant empty fast-travel notice from the World Map while retaining its Back action.
+- Bumped Rust and Android version metadata to 0.52.57.

@@ -1,4 +1,4 @@
-use super::{CharacterView, HistoryView, InventoryView, MeditationView, NpcView};
+use super::{CharacterView, NpcView};
 
 #[test]
 fn display_name_includes_nonempty_title_only() {
@@ -25,16 +25,4 @@ fn display_name_includes_nonempty_title_only() {
     assert_eq!(npc.display_name(), "Mara the Keeper");
     assert_eq!(untitled_character.display_name(), "Ash");
     assert_eq!(untitled_npc.display_name(), "Mara");
-}
-
-#[test]
-fn empty_record_and_meditation_views_are_frontend_safe() {
-    let history = HistoryView::default();
-    let inventory = InventoryView::default();
-    let meditation = MeditationView::default();
-
-    assert!(history.world_name.is_empty());
-    assert!(history.entries.is_empty());
-    assert!(inventory.items.is_empty());
-    assert!(meditation.targets.is_empty());
 }

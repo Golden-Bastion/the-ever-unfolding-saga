@@ -6,11 +6,11 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.52.56.**
+**Repository version at this roadmap revision: 0.52.57.**
 
 **Theme:** spatial gameplay and presentation foundations.
 
-The line has established the spatial exploration prototype, character/world authoring tools, spatial-first in-session navigation, contextual interactions, player animation, and the retained-presentation architecture. World Lab and its map editor now share the Character Lab two-pane workspace. Shared action groups give every button the width of the widest intrinsic button, within the available group width, and preserve word-boundary wrapping. The delivered scope is recorded in the current changelog.
+The line has established the spatial exploration prototype, character/world authoring tools, spatial-first in-session navigation, contextual interactions, player animation, and the retained-presentation architecture. World Lab and its map editor now share the Character Lab two-pane workspace. Shared action groups give every button the width of the widest intrinsic button, within the available group width, and preserve word-boundary wrapping; the pause menu explicitly retains full-width actions. The delivered scope is recorded in the current changelog.
 
 ### Remaining work
 

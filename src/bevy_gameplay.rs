@@ -481,9 +481,12 @@ fn render_pause(commands: &mut Commands, parent: Entity, actions: &[PauseAction]
         "The chronicle waits. Resume your journey or choose another action.",
     );
 
+    let action_stack = bevy_presentation::spawn_full_width_action_button_group(commands, surface);
+
     for (index, action) in actions.iter().enumerate() {
         let (icon, label) = pause_action_visuals(*action);
-        let button = bevy_presentation::spawn_action_button(commands, surface, index, icon, label);
+        let button =
+            bevy_presentation::spawn_action_button(commands, action_stack, index, icon, label);
         commands.entity(button).insert(GameplayMenuChoice {
             screen: GameplayMenuScreen::Pause,
             index,
@@ -730,13 +733,6 @@ fn render_world_map_content(
 
     render_world_map_graph(commands, panel, view, selected);
 
-    if view.fast_travel_destinations.is_empty() {
-        bevy_presentation::spawn_muted_label(
-            commands,
-            panel,
-            "No previously visited locations are reachable through known routes.",
-        );
-    }
     let back_index = view.fast_travel_destinations.len();
     let button =
         bevy_presentation::spawn_action_button(commands, panel, back_index, "back", "Back");

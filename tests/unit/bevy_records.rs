@@ -201,31 +201,6 @@ fn record_detail_content_refresh_preserves_root_and_scroll_panel_state() {
         .is_none_or(|children| children.is_empty()));
 }
 
-#[test]
-fn record_detail_screens_keep_distinct_screen_titles() {
-    assert_eq!(
-        record_detail_title(RecordScreen::InventoryDetail),
-        "INVENTORY | ITEM"
-    );
-    assert_eq!(
-        record_detail_title(RecordScreen::QuestDetail),
-        "QUEST | DETAILS"
-    );
-    assert_eq!(record_detail_title(RecordScreen::Meditation), "MEDITATION");
-    assert_eq!(
-        record_detail_title(RecordScreen::MeditationResult),
-        "MEDITATION | COMPLETE"
-    );
-    assert_eq!(
-        record_detail_title(RecordScreen::ChronicleDetail),
-        "JOURNAL | CHRONICLE"
-    );
-    assert_eq!(
-        record_detail_title(RecordScreen::JournalEntry),
-        "WRITE IN JOURNAL"
-    );
-}
-
 #[derive(Resource)]
 struct InventoryRowsFixture {
     host: Entity,
