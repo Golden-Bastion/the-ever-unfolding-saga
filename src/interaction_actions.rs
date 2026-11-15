@@ -4,7 +4,7 @@
 //! radial wheel or another view; execution remains in authoritative gameplay.
 
 use crate::model::{EntityId, GameState};
-use crate::spatial::{DoorState, GridEdge, GridPosition, LocalMap, MapExit, SpatialEntityKind};
+use crate::spatial::{DoorState, GridPosition, LocalMap, MapExit, SpatialEntityKind};
 
 const TILE_HALF_WIDTH: f32 = 24.0;
 const TILE_HALF_HEIGHT: f32 = 12.0;
