@@ -606,6 +606,7 @@ impl LocalMap {
                 .interactables
                 .iter()
                 .any(|actor| actor.position == position)
+            || self.rooms.iter().any(|room| room.cells.contains(&position))
     }
 
     fn prop_placement_is_valid(
