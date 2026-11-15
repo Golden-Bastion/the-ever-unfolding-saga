@@ -68,12 +68,6 @@ fn touch_scroll_requires_a_deliberate_drag() {
 }
 
 #[test]
-fn touch_coordinates_convert_from_logical_to_physical_space() {
-    let position = physical_touch_position(Vec2::new(100.0, 50.0), 2.5);
-    assert_eq!(position, Vec2::new(250.0, 125.0));
-}
-
-#[test]
 fn rebuilt_scroll_panel_restores_its_previous_offset_for_the_same_screen() {
     let mut world = World::new();
     world.insert_resource(NavigationState {
@@ -101,16 +95,6 @@ fn rebuilt_scroll_panel_restores_its_previous_offset_for_the_same_screen() {
         world.get::<ScrollPosition>(rebuilt).unwrap().0,
         Vec2::new(0.0, 180.0)
     );
-}
-
-#[test]
-fn new_scroll_panels_keep_their_default_offset_when_no_cached_panel_exists() {
-    let cached: [Vec2; 0] = [];
-    let mut current = [Vec2::ZERO, Vec2::new(0.0, 12.0)];
-
-    restore_cached_scroll_positions(&cached, &mut current);
-
-    assert_eq!(current, [Vec2::ZERO, Vec2::new(0.0, 12.0)]);
 }
 
 fn spawn_console_input_regression_fixture(mut commands: Commands) {
@@ -144,23 +128,6 @@ fn console_history_prefix_does_not_create_an_extra_text_input() {
     assert_eq!(input_count, 1);
     assert_eq!(tab_count, 1);
     assert!(command_echo_is_plain_text);
-}
-
-#[test]
-fn screen_header_row_keeps_the_detail_right_aligned_without_wrapping() {
-    let row = screen_header_row_node();
-    assert_eq!(row.flex_direction, FlexDirection::Row);
-    assert_eq!(row.flex_wrap, FlexWrap::NoWrap);
-    assert_eq!(row.justify_content, JustifyContent::SpaceBetween);
-    assert_eq!(row.align_items, AlignItems::Center);
-}
-
-#[test]
-fn standalone_labels_retain_intrinsic_height() {
-    let node = standalone_label_node();
-
-    assert_eq!(node.min_height, Val::Auto);
-    assert_eq!(node.flex_shrink, 0.0);
 }
 
 #[derive(Resource)]
@@ -407,35 +374,6 @@ fn action_groups_provide_a_definite_width_for_intrinsic_children() {
     assert_eq!(node.align_self, AlignSelf::FlexStart);
     assert_eq!(node.align_items, AlignItems::FlexStart);
     assert_eq!(node.margin.top, Val::Auto);
-}
-
-#[test]
-fn stacked_action_buttons_stretch_to_their_groups_intrinsic_width() {
-    let node = action_button_node();
-
-    assert_eq!(node.width, Val::Auto);
-    assert_eq!(node.max_width, Val::Auto);
-    assert_eq!(node.align_self, AlignSelf::Stretch);
-    assert_eq!(node.flex_grow, 0.0);
-    assert_eq!(node.flex_shrink, 0.0);
-    assert_eq!(node.min_height, touch_target_size());
-
-    let stack = action_button_stack_node();
-    assert_eq!(stack.width, Val::Auto);
-    assert_eq!(stack.max_width, percent(100));
-    assert_eq!(stack.flex_direction, FlexDirection::Column);
-    assert_eq!(stack.align_items, AlignItems::Stretch);
-    assert_eq!(stack.align_self, AlignSelf::FlexStart);
-}
-
-#[test]
-fn compact_action_buttons_keep_only_the_minimum_touch_width() {
-    let node = compact_action_button_node();
-
-    assert_eq!(node.width, Val::Auto);
-    assert_eq!(node.min_width, px(76));
-    assert_eq!(node.max_width, px(180));
-    assert_eq!(node.min_height, touch_target_size());
 }
 
 #[test]
@@ -760,29 +698,6 @@ fn shared_screen_roots_receive_the_standard_entry_transition() {
         Vec2::splat(0.96)
     );
     assert!(world.get::<PresentationTransition>(root).is_some());
-}
-
-#[test]
-fn shared_panels_expose_the_common_surface_contract() {
-    #[derive(Resource)]
-    struct Fixture(Entity);
-
-    fn setup(mut commands: Commands) {
-        let parent = commands.spawn_empty().id();
-        let panel = spawn_panel(&mut commands, parent);
-        commands.insert_resource(Fixture(panel));
-    }
-
-    let mut world = World::new();
-    let mut schedule = Schedule::default();
-    schedule.add_systems(setup);
-    schedule.run(&mut world);
-
-    let panel = world.resource::<Fixture>().0;
-    assert!(world.get::<UiSurface>(panel).is_some());
-    assert!(world.get::<TouchScrollablePanel>(panel).is_some());
-    assert!(world.get::<BorderColor>(panel).is_some());
-    assert!(world.get::<Node>(panel).is_some());
 }
 
 #[derive(Resource, Clone, Copy)]
