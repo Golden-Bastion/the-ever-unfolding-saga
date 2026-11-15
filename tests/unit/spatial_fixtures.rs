@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::spatial::{
-    generate_local_map, LocalMapConfig, MapExit, SpatialEntityKind, SpatialEntityPlacement,
+    generate_local_map, generate_local_map_with_layout, LocalMapConfig, MapExit, SpatialEntityKind, SpatialEntityPlacement,
     SpatialPropKind,
 };
 
