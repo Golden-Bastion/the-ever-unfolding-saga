@@ -786,16 +786,25 @@ struct KeyedActionGroupFixture {
     parent: Entity,
     group: Entity,
     button: Entity,
+    wider_button: Entity,
 }
 
 fn spawn_keyed_action_group_fixture(mut commands: Commands) {
     let parent = commands.spawn_empty().id();
     let group = spawn_action_button_group(&mut commands, parent);
     let (button, _) = spawn_action_button_with_text(&mut commands, group, 0, "item", "Test item");
+    let (wider_button, _) = spawn_action_button_with_text(
+        &mut commands,
+        group,
+        1,
+        "compass",
+        "A considerably wider action label",
+    );
     commands.insert_resource(KeyedActionGroupFixture {
         parent,
         group,
         button,
+        wider_button,
     });
 }
 
@@ -832,7 +841,16 @@ fn explicit_action_groups_keep_keyed_buttons_under_their_stable_host() {
         .unwrap()
         .iter()
         .collect::<Vec<_>>();
-    assert_eq!(stack_children, vec![fixture.button]);
+    assert_eq!(stack_children, vec![fixture.button, fixture.wider_button]);
     assert!(world.get::<UiActionButtonGroup>(frame).is_some());
     assert!(world.get::<UiActionButtonStack>(fixture.group).is_some());
+
+    // Both differently-sized labels use stretch alignment, so the stack's
+    // intrinsic width (set by the wider action) is shared by every button.
+    for button in [fixture.button, fixture.wider_button] {
+        assert_eq!(
+            world.get::<Node>(button).unwrap().align_self,
+            AlignSelf::Stretch
+        );
+    }
 }
