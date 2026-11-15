@@ -34,14 +34,16 @@ The spatial scene continues to update player position, directional animation, ca
 
 The shared palette remains onyx-black with restrained warm accents. Panels use a consistent bordered surface, action buttons use compact corners and a common touch-target size, and typography continues to scale through the existing responsive font tokens. Feedback should clarify hierarchy and interaction without adding decorative effects that compete with the world.
 
+The broader approved visual direction is defined in [Pixel-Art Visual Direction](../design/pixel-art-direction.md), while screen composition and information hierarchy are defined in [Presentation Direction](../design/presentation-direction.md). The dark interface frame must remain legible over both bright natural environments and dark interiors; do not solve contrast problems by making every world scene uniformly dark.
+
 ## Keyed dynamic rows
 
 Load-screen save rows are keyed by save path; installed-mod rows in Options are keyed by stable mod ID. Character Inventory rows use persistent item IDs, while Quest rows use persistent quest IDs carried through the renderer-neutral quest view. A refresh updates the existing row's text, action labels, selection index, and selected feedback in place. Insertions create only new rows, removals despawn only obsolete rows, and reordering changes the parent-child order without replacing unaffected row entities.
 
 The Load screen retains its viewport, keyed save-row host, message region, and footer across same-screen refreshes. Save rows expose Load, Export, and Delete actions; Import and Back stay in the fixed footer. The shared confirmation dialog is hosted as a modal overlay, and its confirm action uses the danger palette. Options now contains only Mods and Interface; its scroll viewport and row host remain mounted during same-tab refreshes. Message and footer regions are refreshed independently. Switching Options tabs resets the scroll position. The Character hub retains its scroll viewport, row host, and footer; Inventory/Quest refreshes reconcile keyed rows while changes between unrelated tabs replace only the row contents and reset the scroll position.
 
-## Open work
+## Ongoing contract
 
-The retained-shell and keyed-row foundations now cover the high-churn screens and collections listed above. Remaining migration goals—further separation of spatial topology changes from HUD/content refreshes and coordinated screen-exit transitions—are tracked centrally in the [roadmap](../../ROADMAP.md). Other dynamic collections should adopt the same keyed identity and stable-host contract as they are migrated; this document records current behavior rather than maintaining a separate task list.
+The retained-shell and keyed-row migration across the current high-churn screens has been completed and owner-validated through playtesting. New dynamic collections and screen regions should adopt the same stable-host and keyed-identity contract as they are introduced or migrated.
 
 Desktop and Android behavior must remain equivalent. Stable hosts should preserve scroll position, focus, selection, and touch-gesture ownership across content updates.
