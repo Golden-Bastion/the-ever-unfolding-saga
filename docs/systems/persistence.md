@@ -18,9 +18,11 @@ Bundled base content and base-game art remain protected package resources. Bundl
 
 Saves use the existing JSON payload format compressed with gzip and are stored under the internal root's `saves/` directory. Character-specific filenames follow the form `ever_unfolding_saga_save_<character>.json.gz` after filename sanitization.
 
+The current save envelope is version 4. Version 3 saves remain readable; their local maps default missing `rooms` and `doors` fields to empty collections, while preserving all saved terrain, positions, discoveries, and existing map geometry.
+
 The save envelope records the active mod dependencies at save time. Each dependency includes its stable mod ID, display name, and version. When loading, the game checks those dependencies against the active mod snapshot captured at process startup. Missing, disabled, or version-mismatched dependencies are reported before the player continues; the player may proceed at their own responsibility.
 
-There is no automatic mod upgrade, save migration, or compatibility layer. Mod authors are responsible for maintaining compatibility between their releases and saves that depend on them.
+There is no general automatic mod upgrade or mod-content migration. The version 4 save reader includes a targeted version 3 compatibility path for the new local-map topology fields. Mod authors remain responsible for compatibility between their releases and saves that depend on them.
 
 Legacy uncompressed `ever_unfolding_saga_save.json` payloads remain readable when encountered inside the current internal root. The new application identity uses a new private data directory, so saves from previous installations are not discovered automatically; export and import them explicitly before removing an older installation.
 
@@ -52,7 +54,7 @@ Loading validates runtime references and reports broken or inconsistent save dat
 
 ## Compatibility
 
-New save-envelope fields use defaults so saves created before mod dependency metadata remain loadable. Malformed compressed data produces a stable invalid-data error rather than crashing through an unrelated failure.
+New save-envelope fields use defaults so saves created before mod dependency metadata remain loadable. Version 3 maps without room/door topology load with empty `rooms` and `doors` collections; the saved map is not regenerated and no room boundaries or doors are inferred. New saves are written as version 4. Malformed compressed data produces a stable invalid-data error rather than crashing through an unrelated failure.
 
 ## Design direction
 
