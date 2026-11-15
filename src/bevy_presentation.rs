@@ -1280,23 +1280,39 @@ fn action_button_stack_node() -> Node {
     }
 }
 
-fn spawn_action_button_group_nodes(commands: &mut Commands, parent: Entity) -> (Entity, Entity) {
+fn spawn_action_button_group_nodes(
+    commands: &mut Commands,
+    parent: Entity,
+    stack_node: Node,
+) -> (Entity, Entity) {
     let frame = commands
         .spawn((UiActionButtonGroup, action_button_group_node()))
         .id();
-    let stack = commands
-        .spawn((UiActionButtonStack, action_button_stack_node()))
-        .id();
+    let stack = commands.spawn((UiActionButtonStack, stack_node)).id();
     commands.entity(frame).add_child(stack);
     commands.entity(parent).add_child(frame);
     (frame, stack)
 }
 
-/// Creates a stable vertical action-button stack inside a width-bounded frame.
+/// Creates a stable intrinsic-width action-button stack inside a width-bounded frame.
 /// The returned stack is the stable host for keyed children; the automatic
 /// organizer recognizes both layers and will not move those children elsewhere.
 pub(crate) fn spawn_action_button_group(commands: &mut Commands, parent: Entity) -> Entity {
-    spawn_action_button_group_nodes(commands, parent).1
+    spawn_action_button_group_nodes(commands, parent, action_button_stack_node()).1
+}
+
+/// Creates an action-button stack that fills its width-bounded outer frame.
+/// This is intended for screens, such as the pause menu, whose actions should
+/// retain a panel-wide visual treatment rather than sizing to their labels.
+pub(crate) fn spawn_full_width_action_button_group(
+    commands: &mut Commands,
+    parent: Entity,
+) -> Entity {
+    let stack_node = Node {
+        width: percent(100),
+        ..action_button_stack_node()
+    };
+    spawn_action_button_group_nodes(commands, parent, stack_node).1
 }
 
 fn action_button_node() -> Node {
@@ -2381,8 +2397,9 @@ fn organize_action_button_groups(
                     .iter()
                     .find(|entity| action_stacks.contains(*entity))
             });
-        let stack = existing_stack
-            .unwrap_or_else(|| spawn_action_button_group_nodes(&mut commands, parent).1);
+        let stack = existing_stack.unwrap_or_else(|| {
+            spawn_action_button_group_nodes(&mut commands, parent, action_button_stack_node()).1
+        });
 
         for button in buttons {
             commands.entity(stack).add_child(button);
