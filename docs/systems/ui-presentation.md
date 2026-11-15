@@ -38,7 +38,7 @@ The broader approved visual direction is defined in [Pixel-Art Visual Direction]
 
 ## Shared action-button sizing
 
-Shared action groups provide a definite available width up to the shared 520-logical-pixel cap; each action button remains content-sized within that bound. Text descendants use intrinsic sizing rather than percentage maximum widths inside auto-sized nodes, avoiding cyclic width constraints. Standard, detail, and compact button labels wrap at word boundaries only when their text exceeds the available width. Compact controls retain a 76-logical-pixel minimum visual width and a 48-logical-pixel minimum touch height, with a smaller width cap for short option/footer actions. Android hit-area sizing remains independent of the visual UI scale.
+Shared vertical action groups use a width-bounded outer frame (maximum 520 logical pixels) and an intrinsic-width inner stack. The stack takes the width required by its widest button, subject to the frame's available width, and stretches every button to that shared width. This is expressed through intrinsic sizing and cross-axis stretch alignment rather than measuring computed child widths or applying percentage constraints inside auto-sized descendants. Standard and detail labels wrap at word boundaries when the group is narrower than their content. Compact option/footer controls remain independently content-sized, retaining a 76-logical-pixel minimum visual width and a 48-logical-pixel minimum touch height. Android hit-area sizing remains independent of the visual UI scale.
 
 ## Keyed dynamic rows
 
