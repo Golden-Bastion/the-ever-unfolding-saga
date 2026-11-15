@@ -282,4 +282,4 @@ The entries below cover the v0.52.x development line through v0.52.58. This line
 - Converted the authored Old Shrine chamber to explicit chamber/approach rooms with an open threshold door.
 - Extended World Lab with room-cell assignment and interior-door authoring, including open/closed/locked initial states; fixture export validates topology.
 - Added regression coverage for topology validation, canonical edges, door state transitions, contextual door actions, and closed-door pathfinding.
-- Made room and door topology backward-compatible with earlier saves by defaulting missing fields to empty collections; existing saved map geometry is preserved and no inferred topology is added. Advanced the local-map generator and spatial fixture format versions, and bumped Rust/Android version metadata to 0.52.58.
+- Made room and door topology backward-compatible with earlier saves by defaulting missing fields to empty collections; existing saved map geometry is preserved and no inferred topology is added. Advanced the local-map generator and spatial fixture format versions, and bumped the save envelope to version 4 and Rust/Android version metadata to 0.52.58.
