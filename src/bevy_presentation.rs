@@ -1317,7 +1317,7 @@ fn action_button_node() -> Node {
         border_radius: BorderRadius::all(px(3)),
         justify_content: JustifyContent::Start,
         align_items: AlignItems::Center,
-        // The intrinsic stack stretches every child to its own widest-content width.
+        // The intrinsic stack stretches every button to the same widest-content width.
         align_self: AlignSelf::Stretch,
         ..default()
     }
