@@ -178,10 +178,19 @@ fn spawn_intrinsic_action_button_fixture(mut commands: Commands) {
     let (compact_button, compact_label) =
         spawn_compact_action_button_with_text(&mut commands, parent, 1, "Export");
     let detail_button = spawn_action_button_with_detail(
-        &mut commands, parent, 2, "folder", "Sample fixture", "A reusable local map",
+        &mut commands,
+        parent,
+        2,
+        "folder",
+        "Sample fixture",
+        "A reusable local map",
     );
     commands.insert_resource(IntrinsicActionButtonFixture {
-        button, label, compact_button, compact_label, detail_button,
+        button,
+        label,
+        compact_button,
+        compact_label,
+        detail_button,
     });
 }
 
@@ -196,8 +205,13 @@ fn shared_action_buttons_preserve_intrinsic_text_measurement() {
     let fixture = world.resource::<IntrinsicActionButtonFixture>();
     let button = world.get::<Node>(fixture.button).unwrap();
     let label = world.get::<Node>(fixture.label).unwrap();
-    let content = world.get::<Children>(fixture.button).unwrap().iter().next()
-        .and_then(|entity| world.get::<Node>(entity)).unwrap();
+    let content = world
+        .get::<Children>(fixture.button)
+        .unwrap()
+        .iter()
+        .next()
+        .and_then(|entity| world.get::<Node>(entity))
+        .unwrap();
     let compact_button = world.get::<Node>(fixture.compact_button).unwrap();
     let compact_label = world.get::<Node>(fixture.compact_label).unwrap();
     let detail_button = world.get::<Node>(fixture.detail_button).unwrap();
@@ -220,7 +234,9 @@ fn shared_action_buttons_preserve_intrinsic_text_measurement() {
     let mut labels = world.query_filtered::<&TextLayout, With<Text>>();
     let layouts = labels.iter(&world).collect::<Vec<_>>();
     assert_eq!(layouts.len(), 4);
-    assert!(layouts.iter().all(|layout| layout.linebreak == LineBreak::WordBoundary));
+    assert!(layouts
+        .iter()
+        .all(|layout| layout.linebreak == LineBreak::WordBoundary));
 }
 
 #[derive(Resource)]
