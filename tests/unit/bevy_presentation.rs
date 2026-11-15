@@ -404,7 +404,7 @@ fn stacked_action_buttons_use_intrinsic_width_and_preserve_touch_height() {
     let node = action_button_node();
 
     assert_eq!(node.width, Val::Auto);
-    assert_eq!(node.max_width, px(UI_ACTION_MAX_WIDTH_PX));
+    assert_eq!(node.max_width, percent(100));
     assert_eq!(node.align_self, AlignSelf::FlexStart);
     assert_eq!(node.flex_grow, 0.0);
     assert_eq!(node.flex_shrink, 0.0);
