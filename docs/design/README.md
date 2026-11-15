@@ -14,6 +14,7 @@ The root [ROADMAP.md](../../ROADMAP.md) is the only project-wide index of remain
 ## Presentation and interface
 
 - [Presentation direction](presentation-direction.md) — intended visual language, exploration/combat HUD hierarchy, character hub, map presentation, shared feedback, and desktop/Android adaptation.
+- [Hybrid 2D gameplay and 3D rendering](hybrid-2d-gameplay-3d-rendering.md) — 2D authoritative gameplay with a 3D sprite-rendering scene, depth/occlusion, lighting, shadows, and an incremental Bevy migration investigation.
 
 ## World and character systems
 
