@@ -132,9 +132,9 @@ impl GridEdge {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpatialRoom { pub id: String, pub cells: Vec<GridPosition> }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum DoorState { Open, Closed, Locked }
+pub enum DoorState { Open, #[default] Closed, Locked }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpatialDoor {
     pub id: String, pub edge: GridEdge, pub room_a: String, pub room_b: String, pub state: DoorState,
