@@ -138,7 +138,7 @@ fn save_list_metadata_exposes_character_world_and_format_details() {
     assert_eq!(metadata.mod_dependency_count, 1);
     assert_eq!(
         metadata.details_line(),
-        "Level 4 | The Cinder March | Day 12 | Format v3 | 1 mod"
+        "Level 4 | The Cinder March | Day 12 | Format v4 | 1 mod"
     );
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }
@@ -226,6 +226,53 @@ fn older_save_without_spatial_fields_loads_with_defaults() {
     assert!(loaded.world.local_maps.is_empty());
     assert!(loaded.character.exploration_session.is_none());
     assert!(loaded.character.exploration_position.is_none());
+    fs::remove_dir_all(&dir).expect("temporary directory should be removed");
+}
+
+#[test]
+fn version_three_save_loads_maps_without_room_and_door_fields() {
+    let dir = temp_dir();
+    let path = dir.join("version-three-save.json");
+    let mut state = create_new_state(
+        "Legacy Spatial World",
+        WorldMode::New,
+        "Legacy Warden".to_string(),
+        "Ash Walker".to_string(),
+    );
+    let map = crate::spatial::generate_local_map(
+        91,
+        "location.legacy_shrine",
+        crate::spatial::LocalMapConfig::default(),
+    );
+    state.world.local_maps.push(map.clone());
+
+    let payload = SaveFile {
+        save_file_version: 3,
+        game: &state,
+        runtime_generated_events: Vec::new(),
+        mod_dependencies: Vec::new(),
+    };
+    let mut json: serde_json::Value =
+        serde_json::to_value(payload).expect("version-three save should serialize");
+    let legacy_map = json["game"]["world"]["local_maps"][0]
+        .as_object_mut()
+        .expect("legacy local map should be an object");
+    legacy_map.remove("rooms");
+    legacy_map.remove("doors");
+    fs::write(
+        &path,
+        serde_json::to_vec(&json).expect("legacy save JSON should serialize"),
+    )
+    .expect("version-three save should be written");
+
+    let loaded = load_game(&path).expect("version-three save should remain loadable");
+    assert_eq!(loaded.world.local_maps.len(), 1);
+    let restored = &loaded.world.local_maps[0];
+    assert!(restored.rooms.is_empty());
+    assert!(restored.doors.is_empty());
+    assert_eq!(restored.terrain, map.terrain);
+    assert_eq!(restored.entry, map.entry);
+    assert_eq!(restored.location_id, map.location_id);
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }
 
