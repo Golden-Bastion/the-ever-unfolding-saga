@@ -22,6 +22,8 @@ struct AndroidConsoleTextSync {
 #[derive(Component)]
 struct ConsoleCloseButton;
 
+const CONSOLE_CLOSE_SAFE_INSET_PX: f32 = 24.0;
+
 #[derive(Component)]
 struct ConsoleScreenRoot;
 
@@ -465,7 +467,7 @@ fn spawn_console_close_button(commands: &mut Commands, root: Entity) {
             Node {
                 position_type: PositionType::Absolute,
                 top: px(0),
-                right: px(0),
+                right: px(CONSOLE_CLOSE_SAFE_INSET_PX),
                 width: px(80),
                 min_width: px(80),
                 min_height: px(48),
