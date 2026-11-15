@@ -1,5 +1,47 @@
 use super::*;
 
+fn spawn_pause_menu_visual_fixture(mut commands: Commands) {
+    let root = commands.spawn_empty().id();
+    render_spatial_pause_overlay(&mut commands, root, 0, false);
+}
+
+#[test]
+fn spatial_pause_menu_action_buttons_fill_the_available_panel_width() {
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(spawn_pause_menu_visual_fixture);
+    schedule.run(&mut world);
+    world.flush();
+
+    let buttons = {
+        let mut query = world.query_filtered::<Entity, With<GameplayMenuChoice>>();
+        query.iter(&world).collect::<Vec<_>>()
+    };
+    assert!(!buttons.is_empty(), "the pause menu should spawn its actions");
+
+    let mut parents = world.query::<(Entity, &Children)>();
+    let stack = parents
+        .iter(&world)
+        .find_map(|(parent, children)| {
+            let action_count = children
+                .iter()
+                .filter(|child| buttons.contains(child))
+                .count();
+            (action_count == buttons.len()).then_some(parent)
+        })
+        .expect("all pause actions should share one action stack");
+
+    let stack_node = world.get::<Node>(stack).unwrap();
+    assert_eq!(stack_node.width, percent(100));
+    assert_eq!(stack_node.align_items, AlignItems::Stretch);
+
+    for button in buttons {
+        let node = world.get::<Node>(button).unwrap();
+        assert_eq!(node.width, Val::Auto);
+        assert_eq!(node.align_self, AlignSelf::Stretch);
+    }
+}
+
 #[test]
 fn gameplay_runtime_pause_entry_and_exit_update_runtime_state() {
     let mut gameplay = GameplayMenuState::default();
