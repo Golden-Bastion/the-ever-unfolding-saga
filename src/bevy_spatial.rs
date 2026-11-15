@@ -1274,6 +1274,10 @@ fn execute_available_interaction(
         (InteractionActionKind::CloseDoor, InteractionTarget::Door { id }) => {
             set_spatial_door_state(state, &id, crate::spatial::DoorState::Closed);
         }
+        (InteractionActionKind::TryLockedDoor, InteractionTarget::Door { id }) => {
+            state.message = Some(format!("The door is locked: {id}."));
+            state.dirty = true;
+        }
         _ => {
             state.message = Some("That action is not available for this target.".to_string());
             state.dirty = true;
