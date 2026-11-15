@@ -2032,10 +2032,7 @@ fn render_character_lab(
         );
 
         let workspace = commands
-            .spawn((
-                CharacterLabWorkspace,
-                lab_workspace_node(),
-            ))
+            .spawn((CharacterLabWorkspace, lab_workspace_node()))
             .id();
         commands.entity(root).add_child(workspace);
 

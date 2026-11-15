@@ -166,7 +166,10 @@ struct WorldLabFixtureRenderFixture {
     state: DeveloperToolsState,
 }
 
-fn render_world_lab_fixture_test(mut commands: Commands, fixture: Res<WorldLabFixtureRenderFixture>) {
+fn render_world_lab_fixture_test(
+    mut commands: Commands,
+    fixture: Res<WorldLabFixtureRenderFixture>,
+) {
     render_world_lab_fixtures(&mut commands, &fixture.navigation, &fixture.state);
 }
 
@@ -198,7 +201,10 @@ fn world_lab_fixture_browser_places_selected_map_preview_left_of_controls() {
 
     let root = {
         let mut roots = world.query_filtered::<Entity, With<BevyScreenRoot>>();
-        roots.iter(&world).next().expect("fixture screen should render")
+        roots
+            .iter(&world)
+            .next()
+            .expect("fixture screen should render")
     };
     let workspace = world
         .get::<Children>(root)

@@ -171,8 +171,7 @@ struct IntrinsicActionButtonFixture {
 
 fn spawn_intrinsic_action_button_fixture(mut commands: Commands) {
     let parent = commands.spawn_empty().id();
-    let (button, label) =
-        spawn_action_button_with_text(&mut commands, parent, 0, "back", "Back");
+    let (button, label) = spawn_action_button_with_text(&mut commands, parent, 0, "back", "Back");
     commands.insert_resource(IntrinsicActionButtonFixture { button, label });
 }
 
