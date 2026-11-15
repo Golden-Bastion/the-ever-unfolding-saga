@@ -898,7 +898,7 @@ fn place_world_lab_room(state: &mut DeveloperToolsState, spatial: &mut SpatialEx
     });
     let Some(room_id) = room_id else { state.world_lab_status = Some("No editable map is available.".into()); return; };
     let success = bevy_spatial::sandbox_map_mut(spatial).is_some_and(|map| {
-        if !map.is_walkable(position) { return false; }
+        if !map.is_walkable(position) || map.room_at(position).is_some() { return false; }
         if let Some(room) = map.rooms.iter_mut().find(|room| room.id == room_id) {
             if room.cells.contains(&position) { false } else { room.cells.push(position); true }
         } else {
@@ -932,6 +932,7 @@ fn remove_world_lab_room_cell(state: &mut DeveloperToolsState, spatial: &mut Spa
     let removed = bevy_spatial::sandbox_map_mut(spatial).and_then(|map| {
         let room_index = map.rooms.iter().position(|room| room.cells.contains(&position))?;
         map.rooms[room_index].cells.retain(|cell| *cell != position);
+        map.doors.retain(|door| door.edge.a != position && door.edge.b != position);
         let id = map.rooms[room_index].id.clone();
         if map.rooms[room_index].cells.is_empty() {
             map.rooms.remove(room_index);
