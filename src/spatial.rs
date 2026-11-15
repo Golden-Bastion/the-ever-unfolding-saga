@@ -130,8 +130,8 @@ pub struct GridEdge {
 
 impl GridEdge {
     pub fn new(first: GridPosition, second: GridPosition) -> Option<Self> {
-        let distance = u32::from(first.x.abs_diff(second.x))
-            + u32::from(first.y.abs_diff(second.y));
+        let distance =
+            u32::from(first.x.abs_diff(second.x)) + u32::from(first.y.abs_diff(second.y));
         if distance != 1 {
             return None;
         }
@@ -248,8 +248,7 @@ impl LocalMap {
                 return Err(format!("room {} has no cells", room.id));
             }
             for cell in &room.cells {
-                if !self.contains(*cell) || !self.is_walkable(*cell)
-                {
+                if !self.contains(*cell) || !self.is_walkable(*cell) {
                     return Err(format!(
                         "room {} contains an invalid or non-walkable cell",
                         room.id
@@ -272,16 +271,10 @@ impl LocalMap {
             }
 
             let Some(room_a) = self.rooms.iter().find(|room| room.id == door.room_a) else {
-                return Err(format!(
-                    "door {} references a missing first room",
-                    door.id
-                ));
+                return Err(format!("door {} references a missing first room", door.id));
             };
             let Some(room_b) = self.rooms.iter().find(|room| room.id == door.room_b) else {
-                return Err(format!(
-                    "door {} references a missing second room",
-                    door.id
-                ));
+                return Err(format!("door {} references a missing second room", door.id));
             };
 
             if door.room_a == door.room_b
@@ -1618,7 +1611,10 @@ pub fn has_walkable_path(map: &LocalMap, start: GridPosition, goal: GridPosition
         ];
         for neighbor in neighbors.into_iter().flatten() {
             let index = index_of(neighbor);
-            if !visited[index] && map.is_walkable(neighbor) && map.can_cross_edge(position, neighbor) {
+            if !visited[index]
+                && map.is_walkable(neighbor)
+                && map.can_cross_edge(position, neighbor)
+            {
                 visited[index] = true;
                 queue.push_back(neighbor);
             }

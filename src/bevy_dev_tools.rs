@@ -23,9 +23,9 @@ use crate::model::{GameState, ThreatState, WorldGenerationMetadata};
 use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
 use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_entity_placements,
-    generate_local_map_with_layout, GridPosition, LocalMap, LocalMapConfig, MapExit,
-    PointOfInterest, SpatialDiscoveryDefinition, SpatialEntityKind, SpatialEntityPlacement,
-    SpatialPropKind, SpatialRoom, SpatialDoor, DoorState, GridEdge, Terrain,
+    generate_local_map_with_layout, DoorState, GridEdge, GridPosition, LocalMap, LocalMapConfig,
+    MapExit, PointOfInterest, SpatialDiscoveryDefinition, SpatialDoor, SpatialEntityKind,
+    SpatialEntityPlacement, SpatialPropKind, SpatialRoom, Terrain,
 };
 #[cfg(not(target_os = "android"))]
 use crate::spatial_fixtures::load_spatial_fixture;
@@ -751,8 +751,9 @@ fn cycle_world_lab_terrain(state: &mut DeveloperToolsState, spatial: &mut Spatia
             world_lab_terrain_name(next)
         ));
     } else {
-        state.world_lab_status =
-            Some("That cell is reserved for an entry, actor, passage, discovery, room, or prop.".into());
+        state.world_lab_status = Some(
+            "That cell is reserved for an entry, actor, passage, discovery, room, or prop.".into(),
+        );
     }
 }
 
@@ -1020,7 +1021,10 @@ fn remove_world_lab_door(state: &mut DeveloperToolsState, spatial: &mut SpatialE
         .into_iter()
         .filter_map(|neighbour| GridEdge::new(position, neighbour))
         .collect::<Vec<_>>();
-        let index = map.doors.iter().position(|door| edges.contains(&door.edge))?;
+        let index = map
+            .doors
+            .iter()
+            .position(|door| edges.contains(&door.edge))?;
         Some(map.doors.remove(index).id)
     });
     state.world_lab_status = Some(
@@ -1104,7 +1108,8 @@ fn pick_up_or_drop_world_lab_object(
         WorldLabEditorTool::Passage => pick_up_or_drop_world_lab_passage(state, spatial),
         WorldLabEditorTool::Actor => pick_up_or_drop_world_lab_actor(state, spatial),
         WorldLabEditorTool::Room | WorldLabEditorTool::Door => {
-            state.world_lab_status = Some("Room and door topology is edited directly at the selected cells.".into());
+            state.world_lab_status =
+                Some("Room and door topology is edited directly at the selected cells.".into());
         }
     }
 }
@@ -1195,7 +1200,10 @@ fn cycle_world_lab_selected_value(state: &mut DeveloperToolsState) {
         }
         WorldLabEditorTool::Room => {
             state.world_lab_room_index = (state.world_lab_room_index + 1) % 2;
-            state.world_lab_status = Some(format!("Room group set to {}.", state.world_lab_room_index + 1));
+            state.world_lab_status = Some(format!(
+                "Room group set to {}.",
+                state.world_lab_room_index + 1
+            ));
         }
         WorldLabEditorTool::Door => {
             state.world_lab_door_state = match state.world_lab_door_state {
@@ -1203,7 +1211,10 @@ fn cycle_world_lab_selected_value(state: &mut DeveloperToolsState) {
                 DoorState::Closed => DoorState::Locked,
                 DoorState::Locked => DoorState::Open,
             };
-            state.world_lab_status = Some(format!("New door state set to {:?}.", state.world_lab_door_state));
+            state.world_lab_status = Some(format!(
+                "New door state set to {:?}.",
+                state.world_lab_door_state
+            ));
         }
     }
 }
@@ -2633,11 +2644,23 @@ fn render_world_lab_editor(
             }
             WorldLabEditorTool::PointOfInterest => {}
             WorldLabEditorTool::Room => {
-                bevy_presentation::spawn_muted_label(commands, controls, format!("Selected room group: {}", state.world_lab_room_index + 1));
-                bevy_presentation::spawn_muted_label(commands, controls, "Place assigns the selected walkable cell. Remove clears its membership.");
+                bevy_presentation::spawn_muted_label(
+                    commands,
+                    controls,
+                    format!("Selected room group: {}", state.world_lab_room_index + 1),
+                );
+                bevy_presentation::spawn_muted_label(
+                    commands,
+                    controls,
+                    "Place assigns the selected walkable cell. Remove clears its membership.",
+                );
             }
             WorldLabEditorTool::Door => {
-                bevy_presentation::spawn_muted_label(commands, controls, format!("New door state: {:?}", state.world_lab_door_state));
+                bevy_presentation::spawn_muted_label(
+                    commands,
+                    controls,
+                    format!("New door state: {:?}", state.world_lab_door_state),
+                );
                 bevy_presentation::spawn_muted_label(commands, controls, "Place creates a door on an available east/south boundary between different rooms.");
             }
         }

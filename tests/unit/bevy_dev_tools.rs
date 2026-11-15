@@ -763,7 +763,6 @@ fn character_lab_slots_follow_the_portrait_view_order() {
     assert_eq!(order, vec!["headgear", "hair", "face", "accessory", "body"]);
 }
 
-
 #[test]
 fn world_lab_can_author_two_rooms_and_a_locked_interior_door() {
     let mut spatial = SpatialExplorationState::default();
@@ -800,5 +799,8 @@ fn world_lab_can_author_two_rooms_and_a_locked_interior_door() {
     assert!(authored.validate_room_topology().is_ok());
 
     remove_world_lab_object(&mut state, &mut spatial);
-    assert!(bevy_spatial::sandbox_map(&spatial).unwrap().doors.is_empty());
+    assert!(bevy_spatial::sandbox_map(&spatial)
+        .unwrap()
+        .doors
+        .is_empty());
 }

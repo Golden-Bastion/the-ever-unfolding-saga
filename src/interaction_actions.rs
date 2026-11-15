@@ -46,7 +46,9 @@ pub(crate) enum InteractionTarget {
         id: String,
         destination_id: EntityId,
     },
-    Door { id: String },
+    Door {
+        id: String,
+    },
 }
 
 impl InteractionTarget {
@@ -155,9 +157,7 @@ pub(crate) fn discover_available_interactions(
             (f32::from(door.edge.a.y) + f32::from(door.edge.b.y) + 1.0) * 0.5,
         );
         let distance = projected_distance(map, position, midpoint);
-        if distance > INTERACTION_RANGE_PX
-            || !has_clear_line_of_sight(map, position, midpoint)
-        {
+        if distance > INTERACTION_RANGE_PX || !has_clear_line_of_sight(map, position, midpoint) {
             continue;
         }
         let (action, label) = match door.state {
@@ -167,7 +167,9 @@ pub(crate) fn discover_available_interactions(
         };
         let item = AvailableInteraction {
             action,
-            target: InteractionTarget::Door { id: door.id.clone() },
+            target: InteractionTarget::Door {
+                id: door.id.clone(),
+            },
             label: label.to_string(),
         };
         candidates.push((distance, 2_u8, item.stable_key(), item));

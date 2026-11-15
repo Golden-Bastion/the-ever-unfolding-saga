@@ -1,8 +1,8 @@
 use super::*;
 
 use crate::spatial::{
-    generate_local_map, generate_local_map_with_layout, LocalMapConfig, MapExit, SpatialEntityKind, SpatialEntityPlacement,
-    SpatialPropKind,
+    generate_local_map, generate_local_map_with_layout, LocalMapConfig, MapExit, SpatialEntityKind,
+    SpatialEntityPlacement, SpatialPropKind,
 };
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -228,7 +228,6 @@ fn duplicate_actor_cell_is_free(map: &LocalMap, position: GridPosition) -> bool 
             .iter()
             .any(|actor| actor.position == position)
 }
-
 
 #[test]
 fn fixture_export_rejects_invalid_room_and_door_topology() {

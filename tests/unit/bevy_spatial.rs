@@ -1736,7 +1736,6 @@ fn spatial_time_visuals_cycle_across_the_full_world_clock() {
     assert_eq!(sky_visual(3).celestial_x, sky_visual(15).celestial_x);
 }
 
-
 #[test]
 fn interior_door_state_blocks_and_allows_continuous_grid_edge_crossing() {
     let mut map = crate::spatial::generate_local_map_with_layout(

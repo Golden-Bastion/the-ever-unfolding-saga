@@ -8,7 +8,13 @@ fn interaction_targets_have_stable_distinct_keys() {
         InteractionTarget::PointOfInterest("poi.shrine".into()).stable_key(),
         "poi:poi.shrine"
     );
-    assert_eq!(InteractionTarget::Door { id: "door.threshold".into() }.stable_key(), "door:door.threshold");
+    assert_eq!(
+        InteractionTarget::Door {
+            id: "door.threshold".into()
+        }
+        .stable_key(),
+        "door:door.threshold"
+    );
     assert_eq!(
         InteractionTarget::Passage {
             id: "exit.north".into(),
@@ -159,7 +165,6 @@ fn discovery_hides_stale_and_one_way_world_passages() {
     assert_eq!(available[0].action, InteractionActionKind::Enter);
 }
 
-
 #[test]
 fn nearby_interior_doors_offer_state_appropriate_contextual_actions() {
     let mut map = crate::spatial::generate_local_map_with_layout(
@@ -185,14 +190,21 @@ fn nearby_interior_doors_offer_state_appropriate_contextual_actions() {
     let available = discover_available_interactions(&map, &game, player);
     assert!(available.iter().any(|item| {
         item.action == InteractionActionKind::OpenDoor
-            && item.target == (InteractionTarget::Door { id: door_id.clone() })
+            && item.target
+                == (InteractionTarget::Door {
+                    id: door_id.clone(),
+                })
     }));
 
     map.doors[0].state = crate::spatial::DoorState::Open;
     let available = discover_available_interactions(&map, &game, player);
-    assert!(available.iter().any(|item| item.action == InteractionActionKind::CloseDoor));
+    assert!(available
+        .iter()
+        .any(|item| item.action == InteractionActionKind::CloseDoor));
 
     map.doors[0].state = crate::spatial::DoorState::Locked;
     let available = discover_available_interactions(&map, &game, player);
-    assert!(available.iter().any(|item| item.action == InteractionActionKind::TryLockedDoor));
+    assert!(available
+        .iter()
+        .any(|item| item.action == InteractionActionKind::TryLockedDoor));
 }
