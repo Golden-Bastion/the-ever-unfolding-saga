@@ -1216,6 +1216,22 @@ fn move_interaction_wheel_selection(state: &mut SpatialExplorationState, directi
     }
 }
 
+fn set_spatial_door_state(state: &mut SpatialExplorationState, id: &str, next: crate::spatial::DoorState) {
+    let changed = state.session.as_ref()
+        .and_then(|session| state.maps.get_mut(&session.location_id))
+        .is_some_and(|map| map.set_door_state(id, next));
+    state.message = Some(if changed {
+        match next {
+            crate::spatial::DoorState::Open => "You open the door.".to_string(),
+            crate::spatial::DoorState::Closed => "You close the door.".to_string(),
+            crate::spatial::DoorState::Locked => "The door is locked.".to_string(),
+        }
+    } else {
+        "The door cannot be moved.".to_string()
+    });
+    state.dirty = true;
+}
+
 fn execute_available_interaction(
     state: &mut SpatialExplorationState,
     lifecycle: &mut LifecycleState,
@@ -1251,6 +1267,12 @@ fn execute_available_interaction(
         }
         (InteractionActionKind::Enter, InteractionTarget::Passage { id, destination_id }) => {
             use_map_exit(state, lifecycle, navigation, &id, destination_id);
+        }
+        (InteractionActionKind::OpenDoor, InteractionTarget::Door { id }) => {
+            set_spatial_door_state(state, &id, crate::spatial::DoorState::Open);
+        }
+        (InteractionActionKind::CloseDoor, InteractionTarget::Door { id }) => {
+            set_spatial_door_state(state, &id, crate::spatial::DoorState::Closed);
         }
         _ => {
             state.message = Some("That action is not available for this target.".to_string());
