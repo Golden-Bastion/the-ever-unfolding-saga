@@ -2573,18 +2573,48 @@ fn render_world_lab_fixtures(
         root,
         "Reusable spatial maps are stored separately from campaign saves. Import validates a fixture before it replaces the temporary sandbox.",
     );
-    let panel = bevy_presentation::spawn_panel(commands, root);
+
+    let workspace = commands.spawn(lab_workspace_node()).id();
+    commands.entity(root).add_child(workspace);
+    let preview_panel = spawn_world_lab_panel(commands, workspace);
+    let controls = spawn_world_lab_panel(commands, workspace);
+
+    let selected_fixture = state.world_lab_fixtures.get(navigation.selected);
+    spawn_world_lab_map_preview(
+        commands,
+        preview_panel,
+        "FIXTURE PREVIEW",
+        "Legend: @ entry | ? discovery | E passage | N NPC | C remains | P prop | # wall | . floor | : ash | % rubble",
+        selected_fixture
+            .and_then(|fixture| fixture.map.as_ref())
+            .map(world_lab_map_preview),
+        "Select a valid fixture to preview its map.",
+    );
+    if let Some(fixture) = selected_fixture {
+        bevy_presentation::spawn_label(commands, preview_panel, &fixture.name);
+        bevy_presentation::spawn_muted_label(commands, preview_panel, &fixture.details);
+        if let Some(error) = fixture.error.as_deref() {
+            bevy_presentation::spawn_muted_label(commands, preview_panel, error);
+        }
+    } else if state.world_lab_fixtures.is_empty() {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            preview_panel,
+            "No fixtures are available yet. Save a generated map or import a .json fixture.",
+        );
+    }
+
     if state.world_lab_fixtures.is_empty() {
         bevy_presentation::spawn_muted_label(
             commands,
-            panel,
+            controls,
             "No fixtures found. Save the current map or import a .json fixture.",
         );
     }
     for (index, fixture) in state.world_lab_fixtures.iter().enumerate() {
         let button = bevy_presentation::spawn_action_button_with_detail(
             commands,
-            panel,
+            controls,
             index,
             if fixture.error.is_some() {
                 "cancel"
@@ -2604,7 +2634,7 @@ fn render_world_lab_fixtures(
     let import_index = state.world_lab_fixtures.len();
     let import = bevy_presentation::spawn_action_button(
         commands,
-        panel,
+        controls,
         import_index,
         "folder",
         "Import fixture",
@@ -2617,7 +2647,7 @@ fn render_world_lab_fixtures(
     let refresh_index = import_index + 1;
     let refresh = bevy_presentation::spawn_action_button(
         commands,
-        panel,
+        controls,
         refresh_index,
         "continue",
         "Refresh fixture list",
@@ -2630,7 +2660,7 @@ fn render_world_lab_fixtures(
     let back_index = refresh_index + 1;
     let back = bevy_presentation::spawn_action_button(
         commands,
-        panel,
+        controls,
         back_index,
         "back",
         "Back to World Lab",
@@ -2639,7 +2669,7 @@ fn render_world_lab_fixtures(
         commands.entity(back).insert(bevy_presentation::UiSelected);
     }
     if let Some(status) = state.world_lab_status.as_deref() {
-        bevy_presentation::spawn_muted_label(commands, panel, status);
+        bevy_presentation::spawn_muted_label(commands, controls, status);
     }
 }
 
