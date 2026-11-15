@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.52. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.53. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -215,6 +215,11 @@ The entries below cover the v0.52.x development line through v0.52.52. This line
 
 - Recolored the 1,427 olive pixels in the south-facing idle and walk rows (atlas rows 4–5, zero-indexed) to a restrained warm-charcoal palette while preserving per-pixel luminance to rounding, alpha, frame positions, all unselected pixels, and the animation manifest.
 - Bumped Rust and Android fallback version metadata to 0.52.50.
+
+### v0.52.53: Fix Android World Lab fixture export compilation
+
+- Routed World Lab fixture export through the lifecycle-owned Android storage bridge and exposed the export helper to the developer-tools module, fixing the Android native-library compile error.
+- Bumped Rust and Android fallback version metadata to 0.52.53.
 
 ### v0.52.52: Unified save management and destructive confirmation
 
