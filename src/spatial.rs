@@ -121,23 +121,54 @@ impl SpatialProp {
 /// A physical passage at the edge of a local map. Its destination uses the
 /// persistent world location ID and is validated against the authoritative
 /// location graph before the existing travel rules are applied.
+/// A canonical boundary between two cardinally adjacent map cells.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct GridEdge { pub a: GridPosition, pub b: GridPosition }
+pub struct GridEdge {
+    pub a: GridPosition,
+    pub b: GridPosition,
+}
+
 impl GridEdge {
     pub fn new(first: GridPosition, second: GridPosition) -> Option<Self> {
-        if u32::from(first.x.abs_diff(second.x)) + u32::from(first.y.abs_diff(second.y)) != 1 { return None; }
-        let (a, b) = if (first.y, first.x) <= (second.y, second.x) { (first, second) } else { (second, first) };
+        let distance = u32::from(first.x.abs_diff(second.x))
+            + u32::from(first.y.abs_diff(second.y));
+        if distance != 1 {
+            return None;
+        }
+
+        let (a, b) = if (first.y, first.x) <= (second.y, second.x) {
+            (first, second)
+        } else {
+            (second, first)
+        };
         Some(Self { a, b })
     }
 }
+
+/// A stable room identity with explicit cell membership for irregular layouts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SpatialRoom { pub id: String, pub cells: Vec<GridPosition> }
+pub struct SpatialRoom {
+    pub id: String,
+    pub cells: Vec<GridPosition>,
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum DoorState { Open, #[default] Closed, Locked }
+pub enum DoorState {
+    Open,
+    #[default]
+    Closed,
+    Locked,
+}
+
+/// An interior door occupies an edge and connects the room containing each endpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpatialDoor {
-    pub id: String, pub edge: GridEdge, pub room_a: String, pub room_b: String, pub state: DoorState,
+    pub id: String,
+    pub edge: GridEdge,
+    pub room_a: String,
+    pub room_b: String,
+    pub state: DoorState,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MapExit {
@@ -199,51 +230,115 @@ impl LocalMap {
     }
 
     pub fn room_at(&self, position: GridPosition) -> Option<&SpatialRoom> {
-        self.rooms.iter().find(|room| room.cells.contains(&position))
+        self.rooms
+            .iter()
+            .find(|room| room.cells.contains(&position))
     }
+
+    /// Validate stable identities, exclusive room membership, and door boundaries.
     pub fn validate_room_topology(&self) -> Result<(), String> {
         let mut room_ids = HashSet::new();
         let mut occupied = HashSet::new();
+
         for room in &self.rooms {
-            if room.id.trim().is_empty() || !room_ids.insert(room.id.as_str()) { return Err("room IDs must be non-empty and unique".into()); }
-            if room.cells.is_empty() { return Err(format!("room {} has no cells", room.id)); }
+            if room.id.trim().is_empty() || !room_ids.insert(room.id.as_str()) {
+                return Err("room IDs must be non-empty and unique".into());
+            }
+            if room.cells.is_empty() {
+                return Err(format!("room {} has no cells", room.id));
+            }
             for cell in &room.cells {
-                if !self.contains(*cell) || !self.terrain_at(*cell).is_some_and(Terrain::is_walkable) { return Err(format!("room {} contains an invalid or non-walkable cell", room.id)); }
-                if !occupied.insert(*cell) { return Err("a map cell belongs to more than one room".into()); }
+                if !self.contains(*cell)
+                    || !self.terrain_at(*cell).is_some_and(Terrain::is_walkable)
+                {
+                    return Err(format!(
+                        "room {} contains an invalid or non-walkable cell",
+                        room.id
+                    ));
+                }
+                if !occupied.insert(*cell) {
+                    return Err("a map cell belongs to more than one room".into());
+                }
             }
         }
+
         let mut door_ids = HashSet::new();
         let mut door_edges = HashSet::new();
         for door in &self.doors {
-            if door.id.trim().is_empty() || !door_ids.insert(door.id.as_str()) { return Err("door IDs must be non-empty and unique".into()); }
-            if !door_edges.insert(door.edge) { return Err("multiple doors occupy the same grid edge".into()); }
-            let Some(room_a) = self.rooms.iter().find(|room| room.id == door.room_a) else { return Err(format!("door {} references a missing first room", door.id)); };
-            let Some(room_b) = self.rooms.iter().find(|room| room.id == door.room_b) else { return Err(format!("door {} references a missing second room", door.id)); };
-            if door.room_a == door.room_b || GridEdge::new(door.edge.a, door.edge.b) != Some(door.edge)
-                || !self.contains(door.edge.a) || !self.contains(door.edge.b)
+            if door.id.trim().is_empty() || !door_ids.insert(door.id.as_str()) {
+                return Err("door IDs must be non-empty and unique".into());
+            }
+            if !door_edges.insert(door.edge) {
+                return Err("multiple doors occupy the same grid edge".into());
+            }
+
+            let Some(room_a) = self.rooms.iter().find(|room| room.id == door.room_a) else {
+                return Err(format!(
+                    "door {} references a missing first room",
+                    door.id
+                ));
+            };
+            let Some(room_b) = self.rooms.iter().find(|room| room.id == door.room_b) else {
+                return Err(format!(
+                    "door {} references a missing second room",
+                    door.id
+                ));
+            };
+
+            if door.room_a == door.room_b
+                || GridEdge::new(door.edge.a, door.edge.b) != Some(door.edge)
+                || !self.contains(door.edge.a)
+                || !self.contains(door.edge.b)
                 || !self.terrain_at(door.edge.a).is_some_and(Terrain::is_walkable)
                 || !self.terrain_at(door.edge.b).is_some_and(Terrain::is_walkable)
-                || !room_a.cells.contains(&door.edge.a) || !room_b.cells.contains(&door.edge.b) {
-                return Err(format!("door {} does not connect its declared adjacent rooms", door.id));
+                || !room_a.cells.contains(&door.edge.a)
+                || !room_b.cells.contains(&door.edge.b)
+            {
+                return Err(format!(
+                    "door {} does not connect its declared adjacent rooms",
+                    door.id
+                ));
             }
         }
+
         Ok(())
     }
-    pub fn door_at_edge(&self, edge: GridEdge) -> Option<&SpatialDoor> { self.doors.iter().find(|door| door.edge == edge) }
+
+    pub fn door_at_edge(&self, edge: GridEdge) -> Option<&SpatialDoor> {
+        self.doors.iter().find(|door| door.edge == edge)
+    }
+
     pub fn can_cross_edge(&self, from: GridPosition, to: GridPosition) -> bool {
-        let Some(edge) = GridEdge::new(from, to) else { return false; };
-        self.door_at_edge(edge).is_none_or(|door| door.state == DoorState::Open)
+        let Some(edge) = GridEdge::new(from, to) else {
+            return false;
+        };
+        self.door_at_edge(edge)
+            .is_none_or(|door| door.state == DoorState::Open)
     }
+
     pub fn set_door_state(&mut self, id: &str, state: DoorState) -> bool {
-        let Some(door) = self.doors.iter_mut().find(|door| door.id == id) else { return false; };
-        if door.state == DoorState::Locked && state != DoorState::Locked { return false; }
-        door.state = state; true
+        let Some(door) = self.doors.iter_mut().find(|door| door.id == id) else {
+            return false;
+        };
+        if door.state == DoorState::Locked && state != DoorState::Locked {
+            return false;
+        }
+        door.state = state;
+        true
     }
+
+    /// Unlock a door without opening it; a later interaction can open it.
     pub fn unlock_door(&mut self, id: &str) -> bool {
-        let Some(door) = self.doors.iter_mut().find(|door| door.id == id) else { return false; };
-        if door.state != DoorState::Locked { return false; }
-        door.state = DoorState::Closed; true
+        let Some(door) = self.doors.iter_mut().find(|door| door.id == id) else {
+            return false;
+        };
+        if door.state != DoorState::Locked {
+            return false;
+        }
+        door.state = DoorState::Closed;
+        true
     }
+
     pub fn is_walkable(&self, position: GridPosition) -> bool {
         self.terrain_at(position)
             .map(Terrain::is_walkable)
