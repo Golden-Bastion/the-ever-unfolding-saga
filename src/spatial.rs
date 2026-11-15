@@ -852,9 +852,15 @@ fn apply_shrine_chamber(map: &mut LocalMap) {
 
     let chamber_id = format!("{}.room.chamber", map.location_id);
     let approach_id = format!("{}.room.approach", map.location_id);
-    let chamber_cells = (top + 1..bottom).flat_map(|y| (left + 1..right).map(move |x| GridPosition { x, y }))
-        .chain([GridPosition { x: doorway_x, y: bottom }]).collect::<Vec<_>>();
-    let approach_cells = (bottom + 1..map.height - 1).flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y })).collect::<Vec<_>>();
+    let chamber_cells = (top + 1..bottom)
+        .flat_map(|y| (left + 1..right).map(move |x| GridPosition { x, y }))
+        .chain([GridPosition { x: doorway_x, y: bottom }])
+        .filter(|position| map.is_walkable(*position))
+        .collect::<Vec<_>>();
+    let approach_cells = (bottom + 1..map.height - 1)
+        .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
+        .filter(|position| map.is_walkable(*position))
+        .collect::<Vec<_>>();
     map.rooms = vec![SpatialRoom { id: chamber_id.clone(), cells: chamber_cells }, SpatialRoom { id: approach_id.clone(), cells: approach_cells }];
     map.doors = vec![SpatialDoor {
         id: format!("{}.door.chamber_threshold", map.location_id),
