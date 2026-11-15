@@ -8,6 +8,7 @@ fn interaction_targets_have_stable_distinct_keys() {
         InteractionTarget::PointOfInterest("poi.shrine".into()).stable_key(),
         "poi:poi.shrine"
     );
+    assert_eq!(InteractionTarget::Door { id: "door.threshold".into() }.stable_key(), "door:door.threshold");
     assert_eq!(
         InteractionTarget::Passage {
             id: "exit.north".into(),
