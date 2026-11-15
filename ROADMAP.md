@@ -10,13 +10,14 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 **Theme:** spatial gameplay and presentation foundations.
 
-The line has established the spatial exploration prototype, character/world authoring tools, spatial-first in-session navigation, contextual interactions, player animation, and the first retained-presentation architecture. The delivered scope is recorded in the current changelog.
+The line has established the spatial exploration prototype, character/world authoring tools, spatial-first in-session navigation, contextual interactions, player animation, and the retained-presentation architecture. The delivered scope is recorded in the current changelog.
 
 ### Remaining work
 
-1. **Continue the retained UI migration.** Keyed row reconciliation is now implemented for inventories, quests, the Load-screen save list, and mod lists. Remaining work is to further isolate spatial topology changes from HUD/content refreshes and define coordinated screen-exit transitions. Stable hosts must preserve scroll, focus, and selection. See [UI presentation architecture](docs/systems/ui-presentation.md).
-2. **Extend the spatial gameplay foundation.** Define explicit room/door topology before introducing room-aware camera transitions; add further authored local layouts and authoring support; and expand investigation beyond the initial points of interest into clue/evidence progression and dynamic encounters. Preserve renderer-neutral action/target identity and authoritative gameplay rules. See [spatial gameplay design](docs/design/spatial-gameplay.md) and [spatial exploration](docs/systems/spatial-exploration.md).
-3. **Formalize the visual and interface language.** Establish the shared pixel-art style, palette, scale, character proportions, perspective, layering, and asset workflow; continue evolving contextual HUD hierarchy, objective/orientation cues, character-hub presentation, and platform-adaptive controls without overloading the spatial view. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
+1. **Extend the spatial gameplay foundation.** Define explicit room/door topology before introducing room-aware camera transitions; add further authored local layouts and authoring support; and expand investigation beyond the initial points of interest into clue/evidence progression and dynamic encounters. Preserve renderer-neutral action/target identity and authoritative gameplay rules. See [spatial gameplay design](docs/design/spatial-gameplay.md) and [spatial exploration](docs/systems/spatial-exploration.md).
+2. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are now documented. Remaining work is incremental asset creation and integration, plus continued evolution of contextual HUD hierarchy, objective/orientation cues, character-hub presentation, and platform-adaptive controls without overloading the spatial view. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
+
+The retained-shell and keyed-row UI migration is complete and has been owner-validated through playtesting. New dynamic collections and screen regions should follow the established retained-host and keyed-identity contracts; this is ongoing architectural practice, not an unfinished migration.
 
 The interim World Map is complete for its current purpose: a topological view of known locations with pan/zoom and existing fast-travel behavior. Its screen and current presentation are not a pending redesign. A future geography-backed map depends on the world-generation and topology foundations below, not another interim-map UI pass.
 
@@ -31,7 +32,7 @@ The interim World Map is complete for its current purpose: a topological view of
 - Make exploration and local maps available consistently across supported location types while preserving direct location-level actions where spatial traversal is unnecessary.
 - Extend the spatial experience with dynamic threats, roaming entities, and investigation/clue progression where supported by the underlying world rules.
 - Establish the initial state-driven audio/music boundary, transition behavior, separate music/SFX settings, and provenance tracking.
-- Continue incremental pixel-art asset work against a documented visual standard.
+- Continue incremental pixel-art asset work against the approved visual standard.
 
 Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
 
