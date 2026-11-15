@@ -220,6 +220,9 @@ fn world_lab_fixture_browser_places_selected_map_preview_left_of_controls() {
             world
                 .get::<Node>(*entity)
                 .is_some_and(|node| node.flex_direction == FlexDirection::Row)
+                && world
+                    .get::<Children>(*entity)
+                    .is_some_and(|children| children.len() == 2)
         })
         .expect("workspace should arrange preview and controls horizontally");
     let panels = world

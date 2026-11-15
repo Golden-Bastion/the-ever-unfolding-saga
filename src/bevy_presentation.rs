@@ -1347,7 +1347,7 @@ fn option_row_controls_node() -> Node {
 fn compact_action_button_node() -> Node {
     Node {
         width: Val::Auto,
-        min_width: px(UI_TOUCH_TARGET_PX),
+        min_width: px(76),
         max_width: px(180),
         min_height: touch_target_size(),
         flex_grow: 0.0,

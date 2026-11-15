@@ -377,7 +377,7 @@ fn compact_action_buttons_keep_only_the_minimum_touch_width() {
     let node = compact_action_button_node();
 
     assert_eq!(node.width, Val::Auto);
-    assert_eq!(node.min_width, px(UI_TOUCH_TARGET_PX));
+    assert_eq!(node.min_width, px(76));
     assert_eq!(node.max_width, px(180));
     assert_eq!(node.min_height, touch_target_size());
 }
