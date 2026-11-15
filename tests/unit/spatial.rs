@@ -756,3 +756,19 @@ fn grid_edges_are_canonical_and_require_cardinal_adjacency() {
     assert!(GridEdge::new(a, GridPosition { x: 5, y: 6 }).is_none());
     assert!(GridEdge::new(a, GridPosition { x: 6, y: 5 }).is_none());
 }
+
+
+#[test]
+fn closed_shrine_threshold_blocks_room_to_room_pathfinding() {
+    let mut map = generate_local_map_with_layout(
+        42, "location.old_shrine", LocalMapConfig::default(), Some("shrine_chamber"),
+    );
+    let door = map.doors.first().expect("shrine should define its threshold").clone();
+    let chamber_position = GridPosition { x: 5, y: 6 };
+    let approach_position = GridPosition { x: 5, y: 8 };
+    assert!(has_walkable_path(&map, chamber_position, approach_position));
+    assert!(map.set_door_state(&door.id, DoorState::Closed));
+    assert!(!has_walkable_path(&map, chamber_position, approach_position));
+    assert!(map.set_door_state(&door.id, DoorState::Open));
+    assert!(has_walkable_path(&map, chamber_position, approach_position));
+}
