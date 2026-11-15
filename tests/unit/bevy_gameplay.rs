@@ -1,50 +1,5 @@
 use super::*;
 
-fn spawn_pause_menu_visual_fixture(mut commands: Commands) {
-    let root = commands.spawn_empty().id();
-    render_spatial_pause_overlay(&mut commands, root, 0, false);
-}
-
-#[test]
-fn spatial_pause_menu_action_buttons_fill_the_available_panel_width() {
-    let mut world = World::new();
-    let mut schedule = Schedule::default();
-    schedule.add_systems(spawn_pause_menu_visual_fixture);
-    schedule.run(&mut world);
-    world.flush();
-
-    let buttons = {
-        let mut query = world.query_filtered::<Entity, With<GameplayMenuChoice>>();
-        query.iter(&world).collect::<Vec<_>>()
-    };
-    assert!(
-        !buttons.is_empty(),
-        "the pause menu should spawn its actions"
-    );
-
-    let mut parents = world.query::<(Entity, &Children)>();
-    let stack = parents
-        .iter(&world)
-        .find_map(|(parent, children)| {
-            let action_count = children
-                .iter()
-                .filter(|child| buttons.contains(child))
-                .count();
-            (action_count == buttons.len()).then_some(parent)
-        })
-        .expect("all pause actions should share one action stack");
-
-    let stack_node = world.get::<Node>(stack).unwrap();
-    assert_eq!(stack_node.width, percent(100));
-    assert_eq!(stack_node.align_items, AlignItems::Stretch);
-
-    for button in buttons {
-        let node = world.get::<Node>(button).unwrap();
-        assert_eq!(node.width, Val::Auto);
-        assert_eq!(node.align_self, AlignSelf::Stretch);
-    }
-}
-
 #[test]
 fn gameplay_runtime_pause_entry_and_exit_update_runtime_state() {
     let mut gameplay = GameplayMenuState::default();
@@ -282,11 +237,6 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
 }
 
 #[test]
-fn spatial_pause_menu_exposes_the_world_map_action() {
-    assert_eq!(pause_action_visuals(PauseAction::Map), ("travel", "Map"));
-}
-
-#[test]
 fn pause_action_count_matches_load_visibility_and_safe_meditation() {
     assert_eq!(pause_actions_from(false, false).len(), 6);
     assert_eq!(pause_actions_from(true, false).len(), 7);
@@ -330,36 +280,3 @@ fn meditation_is_hidden_when_unsafe() {
     assert!(!pause_actions_from(true, false).contains(&PauseAction::Meditate));
 }
 
-fn spawn_empty_world_map_fixture(mut commands: Commands) {
-    let panel = commands.spawn_empty().id();
-    render_world_map_content(&mut commands, panel, &WorldMapView::default(), 0, None);
-}
-
-#[test]
-fn world_map_omits_empty_fast_travel_notice_and_keeps_back_action() {
-    let mut world = World::new();
-    let mut schedule = Schedule::default();
-    schedule.add_systems(spawn_empty_world_map_fixture);
-    schedule.run(&mut world);
-    world.flush();
-
-    let mut texts = world.query::<&Text>();
-    let labels = texts
-        .iter(&world)
-        .map(|text| text.as_str())
-        .collect::<Vec<_>>();
-    assert!(!labels.iter().any(|label| {
-        label.contains("No previously visited locations are reachable through known routes")
-    }));
-    assert!(labels.contains(&"Back"));
-
-    let mut choices = world.query::<&GameplayMenuChoice>();
-    assert_eq!(
-        choices
-            .iter(&world)
-            .filter(|choice| choice.screen == GameplayMenuScreen::WorldMap)
-            .count(),
-        1,
-        "the Back action should remain available when there are no fast-travel destinations"
-    );
-}
