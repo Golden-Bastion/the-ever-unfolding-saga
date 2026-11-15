@@ -1735,3 +1735,24 @@ fn spatial_time_visuals_cycle_across_the_full_world_clock() {
     assert_eq!(sky_visual(0).background, sky_visual(12).background);
     assert_eq!(sky_visual(3).celestial_x, sky_visual(15).celestial_x);
 }
+
+
+#[test]
+fn interior_door_state_blocks_and_allows_continuous_grid_edge_crossing() {
+    let mut map = crate::spatial::generate_local_map_with_layout(
+        42,
+        "location.door_collision",
+        crate::spatial::LocalMapConfig::default(),
+        Some("shrine_chamber"),
+    );
+    let door = map.doors[0].clone();
+    let from = Vec2::new(5.5, 7.5);
+    let to = Vec2::new(5.5, 8.5);
+
+    map.set_door_state(&door.id, crate::spatial::DoorState::Closed);
+    assert!(!can_cross_position_edge(&map, from, to));
+    map.set_door_state(&door.id, crate::spatial::DoorState::Open);
+    assert!(can_cross_position_edge(&map, from, to));
+    map.set_door_state(&door.id, crate::spatial::DoorState::Locked);
+    assert!(!can_cross_position_edge(&map, from, to));
+}
