@@ -153,3 +153,20 @@ fn console_completion_selection_refreshes_only_the_completion_region() {
     assert!(console_completion_region_changed(Some(&previous), &current));
     assert!(!console_input_region_changed(Some(&previous), &current));
 }
+
+#[test]
+fn developer_console_close_control_respects_the_mobile_corner_inset() {
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(spawn_console_shell_fixture);
+    schedule.run(&mut world);
+    world.flush();
+
+    let mut close_buttons = world.query_filtered::<&Node, With<ConsoleCloseButton>>();
+    let close_button = close_buttons
+        .iter(&world)
+        .next()
+        .expect("the console shell should contain its close control");
+
+    assert_eq!(close_button.right, px(CONSOLE_CLOSE_SAFE_INSET_PX));
+}
