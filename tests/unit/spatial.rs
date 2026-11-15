@@ -772,3 +772,14 @@ fn closed_shrine_threshold_blocks_room_to_room_pathfinding() {
     assert!(map.set_door_state(&door.id, DoorState::Open));
     assert!(has_walkable_path(&map, chamber_position, approach_position));
 }
+
+
+#[test]
+fn terrain_editor_cannot_turn_a_room_cell_into_a_wall() {
+    let mut map = generate_local_map_with_layout(
+        42, "location.old_shrine", LocalMapConfig::default(), Some("shrine_chamber"),
+    );
+    let room_cell = map.rooms[0].cells[0];
+    assert!(!map.set_terrain_for_editor(room_cell, Terrain::Wall));
+    assert!(map.is_walkable(room_cell));
+}
