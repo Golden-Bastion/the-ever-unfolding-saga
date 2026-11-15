@@ -248,8 +248,7 @@ impl LocalMap {
                 return Err(format!("room {} has no cells", room.id));
             }
             for cell in &room.cells {
-                if !self.contains(*cell)
-                    || !self.terrain_at(*cell).is_some_and(Terrain::is_walkable)
+                if !self.contains(*cell) || !self.is_walkable(*cell)
                 {
                     return Err(format!(
                         "room {} contains an invalid or non-walkable cell",
@@ -289,8 +288,8 @@ impl LocalMap {
                 || GridEdge::new(door.edge.a, door.edge.b) != Some(door.edge)
                 || !self.contains(door.edge.a)
                 || !self.contains(door.edge.b)
-                || !self.terrain_at(door.edge.a).is_some_and(Terrain::is_walkable)
-                || !self.terrain_at(door.edge.b).is_some_and(Terrain::is_walkable)
+                || !self.is_walkable(door.edge.a)
+                || !self.is_walkable(door.edge.b)
                 || !room_a.cells.contains(&door.edge.a)
                 || !room_b.cells.contains(&door.edge.b)
             {
