@@ -190,6 +190,7 @@ pub fn list_spatial_fixtures(directories: &[&Path]) -> io::Result<Vec<SpatialFix
 }
 
 fn validate_local_map(map: &LocalMap) -> Result<(), String> {
+    map.validate_room_topology()?;
     if map.location_id.trim().is_empty() {
         return Err("map location ID is empty".to_string());
     }
