@@ -196,7 +196,11 @@ pub struct LocalMap {
     pub terrain: Vec<Terrain>,
     pub entry: GridPosition,
     pub points_of_interest: Vec<PointOfInterest>,
+    /// Empty when loading a save created before room topology was introduced.
+    #[serde(default)]
     pub rooms: Vec<SpatialRoom>,
+    /// Empty when loading a save created before interior doors were introduced.
+    #[serde(default)]
     pub doors: Vec<SpatialDoor>,
     /// Connected world locations reachable through physical map-edge passages.
     /// Defaults empty when a map has no world-location passages.
