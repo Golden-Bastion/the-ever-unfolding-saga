@@ -4,7 +4,7 @@
 //! radial wheel or another view; execution remains in authoritative gameplay.
 
 use crate::model::{EntityId, GameState};
-use crate::spatial::{GridPosition, LocalMap, MapExit, SpatialEntityKind};
+use crate::spatial::{DoorState, GridEdge, GridPosition, LocalMap, MapExit, SpatialEntityKind};
 
 const TILE_HALF_WIDTH: f32 = 24.0;
 const TILE_HALF_HEIGHT: f32 = 12.0;
@@ -18,6 +18,8 @@ pub(crate) enum InteractionActionKind {
     SearchRemains,
     Examine,
     Enter,
+    OpenDoor,
+    CloseDoor,
 }
 
 impl InteractionActionKind {
@@ -27,6 +29,8 @@ impl InteractionActionKind {
             Self::SearchRemains => "search_remains",
             Self::Examine => "examine",
             Self::Enter => "enter",
+            Self::OpenDoor => "open_door",
+            Self::CloseDoor => "close_door",
         }
     }
 }
@@ -40,6 +44,7 @@ pub(crate) enum InteractionTarget {
         id: String,
         destination_id: EntityId,
     },
+    Door { id: String },
 }
 
 impl InteractionTarget {
@@ -49,6 +54,7 @@ impl InteractionTarget {
             Self::Corpse(id) => format!("corpse:{id}"),
             Self::PointOfInterest(id) => format!("poi:{id}"),
             Self::Passage { id, destination_id } => format!("passage:{id}:{destination_id}"),
+            Self::Door { id } => format!("door:{id}"),
         }
     }
 }
@@ -139,6 +145,28 @@ pub(crate) fn discover_available_interactions(
             }
         };
         candidates.push((distance, priority, item.stable_key(), item));
+    }
+
+    for door in &map.doors {
+        let midpoint = (
+            (f32::from(door.edge.a.x) + f32::from(door.edge.b.x) + 1.0) * 0.5,
+            (f32::from(door.edge.a.y) + f32::from(door.edge.b.y) + 1.0) * 0.5,
+        );
+        let distance = projected_distance(map, position, midpoint);
+        if distance > INTERACTION_RANGE_PX || !has_clear_line_of_sight(map, position, midpoint) {
+            continue;
+        }
+        let (action, label) = match door.state {
+            DoorState::Open => (InteractionActionKind::CloseDoor, "Close door"),
+            DoorState::Closed => (InteractionActionKind::OpenDoor, "Open door"),
+            DoorState::Locked => continue,
+        };
+        let item = AvailableInteraction {
+            action,
+            target: InteractionTarget::Door { id: door.id.clone() },
+            label: label.to_string(),
+        };
+        candidates.push((distance, 2_u8, item.stable_key(), item));
     }
 
     for exit in &map.exits {
