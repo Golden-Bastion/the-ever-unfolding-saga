@@ -1,4 +1,4 @@
-use super::{CharacterView, HistoryView, InventoryView, MeditationView, NpcView};
+use super::{CharacterView, NpcView};
 
 #[test]
 fn display_name_includes_nonempty_title_only() {
