@@ -945,6 +945,17 @@ fn apply_shrine_chamber(map: &mut LocalMap) {
         }
     }
 
+    map.props.push(SpatialProp {
+        id: format!("{}.room.pillar", map.location_id),
+        kind: SpatialPropKind::Pillar,
+        position: GridPosition { x: 3, y: 5 },
+    });
+    map.props.push(SpatialProp {
+        id: format!("{}.room.table", map.location_id),
+        kind: SpatialPropKind::Table,
+        position: GridPosition { x: 5, y: 5 },
+    });
+
     let chamber_id = format!("{}.room.chamber", map.location_id);
     let approach_id = format!("{}.room.approach", map.location_id);
     let chamber_cells = (top + 1..bottom)
@@ -986,16 +997,6 @@ fn apply_shrine_chamber(map: &mut LocalMap) {
         room_b: approach_id,
         state: DoorState::Open,
     }];
-    map.props.push(SpatialProp {
-        id: format!("{}.room.pillar", map.location_id),
-        kind: SpatialPropKind::Pillar,
-        position: GridPosition { x: 3, y: 5 },
-    });
-    map.props.push(SpatialProp {
-        id: format!("{}.room.table", map.location_id),
-        kind: SpatialPropKind::Table,
-        position: GridPosition { x: 5, y: 5 },
-    });
 }
 
 /// Add a sparse deterministic set of props outside the guaranteed
