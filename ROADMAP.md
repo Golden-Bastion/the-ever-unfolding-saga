@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.52.57.**
+**Repository version at this roadmap revision: 0.52.58.**
 
 **Theme:** spatial gameplay and presentation foundations.
 
@@ -14,7 +14,7 @@ The line has established the spatial exploration prototype, character/world auth
 
 ### Remaining work
 
-1. **Extend the spatial gameplay foundation.** Define explicit room/door topology before introducing room-aware camera transitions; add further authored local layouts and authoring support; and expand investigation beyond the initial points of interest into clue/evidence progression and dynamic encounters. Preserve renderer-neutral action/target identity and authoritative gameplay rules. See [spatial gameplay design](docs/design/spatial-gameplay.md) and [spatial exploration](docs/systems/spatial-exploration.md).
+1. **Extend the spatial gameplay foundation.** Add further authored local layouts and room-aware camera transitions; expand investigation beyond the initial points of interest into clue/evidence progression and dynamic encounters; and expand investigation beyond the initial points of interest into clue/evidence progression and dynamic encounters. Preserve renderer-neutral action/target identity and authoritative gameplay rules. See [spatial gameplay design](docs/design/spatial-gameplay.md) and [spatial exploration](docs/systems/spatial-exploration.md).
 2. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are now documented. Remaining work is incremental asset creation and integration, plus continued evolution of contextual HUD hierarchy, objective/orientation cues, character-hub presentation, and platform-adaptive controls without overloading the spatial view. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
 3. **Investigate a hybrid 2D-gameplay / 3D-rendering foundation.** Keep world simulation, grid navigation, collision, and persistent placements 2D while prototyping a 3D Bevy scene for 2D sprite placement, depth-buffer occlusion, lighting, and shadows. Audit the current renderer, test existing sprite-sheet assets and representative occlusion cases, assess Bevy 0.20 and Android feasibility, then record an explicit proceed/defer/reject decision and bounded next steps. Do not begin a wholesale renderer rewrite before the prototype validates the approach. See [hybrid 2D gameplay and 3D rendering](docs/design/hybrid-2d-gameplay-3d-rendering.md).
 
