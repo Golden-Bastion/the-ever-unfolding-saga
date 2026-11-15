@@ -184,7 +184,7 @@ fn nearby_interior_doors_offer_state_appropriate_contextual_actions() {
     let available = discover_available_interactions(&map, &game, player);
     assert!(available.iter().any(|item| {
         item.action == InteractionActionKind::OpenDoor
-            && item.target == InteractionTarget::Door { id: door_id.clone() }
+            && item.target == (InteractionTarget::Door { id: door_id.clone() })
     }));
 
     map.doors[0].state = crate::spatial::DoorState::Open;
