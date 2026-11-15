@@ -223,14 +223,14 @@ fn world_lab_fixture_browser_places_selected_map_preview_left_of_controls() {
         .iter()
         .any(|entity| {
             world
-                .get::<Text>(*entity)
+                .get::<Text>(entity)
                 .is_some_and(|text| text.as_str() == expected_preview)
         }));
     assert!(world
         .get::<Children>(panels[1])
         .unwrap()
         .iter()
-        .any(|entity| world.get::<ChoiceButton>(*entity).is_some()));
+        .any(|entity| world.get::<ChoiceButton>(entity).is_some()));
 }
 
 #[test]
