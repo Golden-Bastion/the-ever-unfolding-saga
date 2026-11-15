@@ -144,6 +144,23 @@ fn character_lab_randomizer_can_omit_optional_slots() {
 }
 
 #[test]
+fn world_lab_and_character_lab_share_the_same_two_pane_layout() {
+    let workspace = lab_workspace_node();
+    let panel = lab_panel_node();
+
+    assert_eq!(workspace.width, percent(100));
+    assert_eq!(workspace.flex_direction, FlexDirection::Row);
+    assert_eq!(workspace.column_gap, px(10));
+
+    assert_eq!(panel.width, percent(50));
+    assert_eq!(panel.height, percent(100));
+    assert_eq!(panel.flex_grow, 1.0);
+    assert_eq!(panel.flex_shrink, 1.0);
+    assert_eq!(panel.flex_direction, FlexDirection::Column);
+    assert_eq!(panel.overflow, Overflow::scroll());
+}
+
+#[test]
 fn world_lab_generation_is_reproducible_and_respects_selected_layout() {
     let options = WorldLabOptions {
         seed: 7_654_321,

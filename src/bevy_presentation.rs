@@ -1243,13 +1243,14 @@ pub(crate) fn spawn_confirmation_dialog(
 
 fn action_button_group_node() -> Node {
     Node {
-        width: percent(100),
+        width: Val::Auto,
         min_width: px(0),
         max_width: px(UI_ACTION_MAX_WIDTH_PX),
         flex_direction: FlexDirection::Column,
         row_gap: responsive_compact_gap(),
         flex_shrink: 0.0,
         align_self: AlignSelf::FlexStart,
+        align_items: AlignItems::FlexStart,
         margin: UiRect {
             top: Val::Auto,
             ..default()
@@ -1270,9 +1271,9 @@ pub(crate) fn spawn_action_button_group(commands: &mut Commands, parent: Entity)
 
 fn action_button_node() -> Node {
     Node {
-        width: percent(100),
+        width: Val::Auto,
         min_width: px(0),
-        max_width: percent(100),
+        max_width: px(UI_ACTION_MAX_WIDTH_PX),
         min_height: touch_target_size(),
         flex_grow: 0.0,
         flex_shrink: 0.0,
@@ -1284,6 +1285,7 @@ fn action_button_node() -> Node {
         border_radius: BorderRadius::all(px(3)),
         justify_content: JustifyContent::Start,
         align_items: AlignItems::Center,
+        align_self: AlignSelf::FlexStart,
         ..default()
     }
 }
@@ -1345,7 +1347,7 @@ fn option_row_controls_node() -> Node {
 fn compact_action_button_node() -> Node {
     Node {
         width: Val::Auto,
-        min_width: px(76),
+        min_width: px(UI_TOUCH_TARGET_PX),
         max_width: px(180),
         min_height: touch_target_size(),
         flex_grow: 0.0,
@@ -1442,8 +1444,11 @@ pub(crate) fn spawn_compact_action_button_with_text(
         .spawn((
             Text::new(label.into()),
             Node {
-                min_width: px(52),
+                width: Val::Auto,
+                min_width: px(0),
                 max_width: percent(100),
+                flex_grow: 0.0,
+                flex_shrink: 1.0,
                 ..default()
             },
             TextLayout::new(Justify::Center, LineBreak::WordOrCharacter),
@@ -1577,9 +1582,10 @@ pub(crate) fn spawn_action_button_with_text(
         .spawn((
             Text::new(label),
             Node {
+                width: Val::Auto,
                 min_width: px(0),
                 max_width: percent(100),
-                flex_grow: 1.0,
+                flex_grow: 0.0,
                 flex_shrink: 1.0,
                 ..default()
             },
@@ -1591,7 +1597,7 @@ pub(crate) fn spawn_action_button_with_text(
         .id();
     let content = commands
         .spawn(Node {
-            width: percent(100),
+            width: Val::Auto,
             min_width: px(0),
             max_width: percent(100),
             flex_direction: FlexDirection::Row,
@@ -1716,7 +1722,7 @@ fn spawn_action_button_with_detail_layout(
         BackgroundColor(THEME_SURFACE),
         children![(
             Node {
-                width: percent(100),
+                width: Val::Auto,
                 min_width: px(0),
                 max_width: percent(100),
                 flex_direction: FlexDirection::Row,
@@ -1738,10 +1744,10 @@ fn spawn_action_button_with_detail_layout(
                 ),
                 (
                     Node {
-                        width: percent(100),
+                        width: Val::Auto,
                         min_width: px(0),
                         max_width: percent(100),
-                        flex_grow: 1.0,
+                        flex_grow: 0.0,
                         flex_shrink: 1.0,
                         flex_direction: FlexDirection::Column,
                         row_gap: px(2),
@@ -1751,7 +1757,7 @@ fn spawn_action_button_with_detail_layout(
                         (
                             Text::new(label),
                             Node {
-                                width: percent(100),
+                                width: Val::Auto,
                                 min_width: px(0),
                                 max_width: percent(100),
                                 ..default()
@@ -1764,7 +1770,7 @@ fn spawn_action_button_with_detail_layout(
                         (
                             Text::new(detail),
                             Node {
-                                width: percent(100),
+                                width: Val::Auto,
                                 min_width: px(0),
                                 max_width: percent(100),
                                 ..default()

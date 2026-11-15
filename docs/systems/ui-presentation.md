@@ -36,6 +36,10 @@ The shared palette remains onyx-black with restrained warm accents. Panels use a
 
 The broader approved visual direction is defined in [Pixel-Art Visual Direction](../design/pixel-art-direction.md), while screen composition and information hierarchy are defined in [Presentation Direction](../design/presentation-direction.md). The dark interface frame must remain legible over both bright natural environments and dark interiors; do not solve contrast problems by making every world scene uniformly dark.
 
+## Shared action-button sizing
+
+Shared action groups are content-sized: each action button uses the width required by its label and the group grows to fit its widest action, rather than stretching every button across a wide panel. Standard action labels can use up to the shared 520-logical-pixel width cap and wrap only when the available space requires it. Compact controls retain a 48-logical-pixel minimum width and hit target, with a smaller width cap for short option/footer actions. Android hit-area sizing remains independent of the visual UI scale.
+
 ## Keyed dynamic rows
 
 Load-screen save rows are keyed by save path; installed-mod rows in Options are keyed by stable mod ID. Character Inventory rows use persistent item IDs, while Quest rows use persistent quest IDs carried through the renderer-neutral quest view. A refresh updates the existing row's text, action labels, selection index, and selected feedback in place. Insertions create only new rows, removals despawn only obsolete rows, and reordering changes the parent-child order without replacing unaffected row entities.
