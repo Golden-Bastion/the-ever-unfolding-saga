@@ -270,4 +270,7 @@ The entries below cover the v0.52.x development line through v0.52.57. This line
 - Added an explicit full-width action stack for the pause menu, filling its bounded action column while preserving the existing button and text layout.
 - Kept intrinsic-width sizing as the default for all other shared vertical action groups.
 - Added a regression test verifying that pause-menu actions share a full-width stack and retain stretch alignment.
+- Inset the developer-console close control from the upper-right edge to keep it clear of mobile display cutouts.
+- Removed the redundant empty fast-travel notice from the World Map while retaining its Back action.
+- Added regression coverage for the console close inset and empty-map presentation.
 - Bumped Rust and Android version metadata to 0.52.57.
