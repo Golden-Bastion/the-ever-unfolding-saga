@@ -121,6 +121,24 @@ impl SpatialProp {
 /// A physical passage at the edge of a local map. Its destination uses the
 /// persistent world location ID and is validated against the authoritative
 /// location graph before the existing travel rules are applied.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GridEdge { pub a: GridPosition, pub b: GridPosition }
+impl GridEdge {
+    pub fn new(first: GridPosition, second: GridPosition) -> Option<Self> {
+        if first.x.abs_diff(second.x) + first.y.abs_diff(second.y) != 1 { return None; }
+        let (a, b) = if (first.y, first.x) <= (second.y, second.x) { (first, second) } else { (second, first) };
+        Some(Self { a, b })
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpatialRoom { pub id: String, pub cells: Vec<GridPosition> }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DoorState { Open, Closed, Locked }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpatialDoor {
+    pub id: String, pub edge: GridEdge, pub room_a: String, pub room_b: String, pub state: DoorState,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MapExit {
     /// Stable within this local map and independent of destination display text.
@@ -147,6 +165,8 @@ pub struct LocalMap {
     pub terrain: Vec<Terrain>,
     pub entry: GridPosition,
     pub points_of_interest: Vec<PointOfInterest>,
+    pub rooms: Vec<SpatialRoom>,
+    pub doors: Vec<SpatialDoor>,
     /// Connected world locations reachable through physical map-edge passages.
     /// Defaults empty so maps in older saves remain loadable.
     #[serde(default)]
@@ -178,6 +198,52 @@ impl LocalMap {
             .copied()
     }
 
+    pub fn room_at(&self, position: GridPosition) -> Option<&SpatialRoom> {
+        self.rooms.iter().find(|room| room.cells.contains(&position))
+    }
+    pub fn validate_room_topology(&self) -> Result<(), String> {
+        let mut room_ids = HashSet::new();
+        let mut occupied = HashSet::new();
+        for room in &self.rooms {
+            if room.id.trim().is_empty() || !room_ids.insert(room.id.as_str()) { return Err("room IDs must be non-empty and unique".into()); }
+            if room.cells.is_empty() { return Err(format!("room {} has no cells", room.id)); }
+            for cell in &room.cells {
+                if !self.contains(*cell) || !self.terrain_at(*cell).is_some_and(Terrain::is_walkable) { return Err(format!("room {} contains an invalid or non-walkable cell", room.id)); }
+                if !occupied.insert(*cell) { return Err("a map cell belongs to more than one room".into()); }
+            }
+        }
+        let mut door_ids = HashSet::new();
+        let mut door_edges = HashSet::new();
+        for door in &self.doors {
+            if door.id.trim().is_empty() || !door_ids.insert(door.id.as_str()) { return Err("door IDs must be non-empty and unique".into()); }
+            if !door_edges.insert(door.edge) { return Err("multiple doors occupy the same grid edge".into()); }
+            let Some(room_a) = self.rooms.iter().find(|room| room.id == door.room_a) else { return Err(format!("door {} references a missing first room", door.id)); };
+            let Some(room_b) = self.rooms.iter().find(|room| room.id == door.room_b) else { return Err(format!("door {} references a missing second room", door.id)); };
+            if door.room_a == door.room_b || GridEdge::new(door.edge.a, door.edge.b) != Some(door.edge)
+                || !self.contains(door.edge.a) || !self.contains(door.edge.b)
+                || !self.terrain_at(door.edge.a).is_some_and(Terrain::is_walkable)
+                || !self.terrain_at(door.edge.b).is_some_and(Terrain::is_walkable)
+                || !room_a.cells.contains(&door.edge.a) || !room_b.cells.contains(&door.edge.b) {
+                return Err(format!("door {} does not connect its declared adjacent rooms", door.id));
+            }
+        }
+        Ok(())
+    }
+    pub fn door_at_edge(&self, edge: GridEdge) -> Option<&SpatialDoor> { self.doors.iter().find(|door| door.edge == edge) }
+    pub fn can_cross_edge(&self, from: GridPosition, to: GridPosition) -> bool {
+        let Some(edge) = GridEdge::new(from, to) else { return false; };
+        self.door_at_edge(edge).is_none_or(|door| door.state == DoorState::Open)
+    }
+    pub fn set_door_state(&mut self, id: &str, state: DoorState) -> bool {
+        let Some(door) = self.doors.iter_mut().find(|door| door.id == id) else { return false; };
+        if door.state == DoorState::Locked && state != DoorState::Locked { return false; }
+        door.state = state; true
+    }
+    pub fn unlock_door(&mut self, id: &str) -> bool {
+        let Some(door) = self.doors.iter_mut().find(|door| door.id == id) else { return false; };
+        if door.state != DoorState::Locked { return false; }
+        door.state = DoorState::Closed; true
+    }
     pub fn is_walkable(&self, position: GridPosition) -> bool {
         self.terrain_at(position)
             .map(Terrain::is_walkable)
@@ -733,6 +799,8 @@ pub fn generate_local_map_with_layout(
         terrain_changes: Vec::new(),
         props: Vec::new(),
         interactables: Vec::new(),
+        rooms: Vec::new(),
+        doors: Vec::new(),
     };
     populate_generated_props(&mut map, &mut rng);
     if map.layout_id.as_deref() == Some("shrine_chamber") {
@@ -782,6 +850,17 @@ fn apply_shrine_chamber(map: &mut LocalMap) {
         }
     }
 
+    let chamber_id = format!("{}.room.chamber", map.location_id);
+    let approach_id = format!("{}.room.approach", map.location_id);
+    let chamber_cells = (top + 1..bottom).flat_map(|y| (left + 1..right).map(move |x| GridPosition { x, y }))
+        .chain([GridPosition { x: doorway_x, y: bottom }]).collect::<Vec<_>>();
+    let approach_cells = (bottom + 1..map.height - 1).flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y })).collect::<Vec<_>>();
+    map.rooms = vec![SpatialRoom { id: chamber_id.clone(), cells: chamber_cells }, SpatialRoom { id: approach_id.clone(), cells: approach_cells }];
+    map.doors = vec![SpatialDoor {
+        id: format!("{}.door.chamber_threshold", map.location_id),
+        edge: GridEdge::new(GridPosition { x: doorway_x, y: bottom }, GridPosition { x: doorway_x, y: bottom + 1 }).expect("shrine threshold cells are adjacent"),
+        room_a: chamber_id, room_b: approach_id, state: DoorState::Open,
+    }];
     map.props.push(SpatialProp {
         id: format!("{}.room.pillar", map.location_id),
         kind: SpatialPropKind::Pillar,
@@ -1413,7 +1492,7 @@ pub fn has_walkable_path(map: &LocalMap, start: GridPosition, goal: GridPosition
         ];
         for neighbor in neighbors.into_iter().flatten() {
             let index = index_of(neighbor);
-            if !visited[index] && map.is_walkable(neighbor) {
+            if !visited[index] && map.is_walkable(neighbor) && map.can_cross_edge(position, neighbor) {
                 visited[index] = true;
                 queue.push_back(neighbor);
             }
