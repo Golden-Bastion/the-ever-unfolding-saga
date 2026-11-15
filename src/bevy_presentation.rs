@@ -2375,7 +2375,7 @@ fn organize_action_button_groups(
 
         let existing_stack = children
             .iter()
-            .find_map(|entity| action_groups.get(*entity).ok())
+            .find_map(|entity| action_groups.get(entity).ok())
             .and_then(|group_children| {
                 group_children
                     .iter()
