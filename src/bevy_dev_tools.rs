@@ -2571,7 +2571,7 @@ fn render_world_lab_editor(
             }
             WorldLabEditorTool::Door => {
                 bevy_presentation::spawn_muted_label(commands, controls, format!("New door state: {:?}", state.world_lab_door_state));
-                bevy_presentation::spawn_muted_label(commands, controls, "Place creates a door between this cell and its eastern neighbour, if they belong to different rooms.");
+                bevy_presentation::spawn_muted_label(commands, controls, "Place creates a door on an available east/south boundary between different rooms.");
             }
         }
         if let Some(held_id) = state.world_lab_held_prop.as_deref() {
