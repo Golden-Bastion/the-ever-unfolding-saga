@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.57. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.58. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -272,3 +272,14 @@ The entries below cover the v0.52.x development line through v0.52.57. This line
 - Inset the developer-console close control from the upper-right edge to keep it clear of mobile display cutouts.
 - Removed the redundant empty fast-travel notice from the World Map while retaining its Back action.
 - Bumped Rust and Android version metadata to 0.52.57.
+
+
+### v0.52.58: Renderer-neutral room and interior-door topology
+
+- Added stable room identities with explicit walkable-cell membership and canonical grid-edge doors connecting adjacent rooms; interior doors do not consume floor cells, and map-edge travel passages remain separate.
+- Added open, closed, and locked door states. Open doors permit movement and pathfinding; closed and locked doors block edge traversal. Locked doors can be explicitly unlocked to the closed state, while key ownership and lock-picking remain future gameplay rules.
+- Integrated door-aware continuous spatial collision and contextual open, close, and locked-door interactions.
+- Converted the authored Old Shrine chamber to explicit chamber/approach rooms with an open threshold door.
+- Extended World Lab with room-cell assignment and interior-door authoring, including open/closed/locked initial states; fixture export validates topology.
+- Added regression coverage for topology validation, canonical edges, door state transitions, contextual door actions, and closed-door pathfinding.
+- Made room and door topology required map data; pre-topology save compatibility is intentionally not retained. Advanced the local-map generator version and bumped Rust/Android version metadata to 0.52.58.
