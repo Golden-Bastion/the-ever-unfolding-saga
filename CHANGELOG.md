@@ -211,6 +211,9 @@ The entries below cover the v0.52.x development line through v0.52.53. This line
 
 - Established a dedicated design-specification library and separated the active roadmap, current changelog, and prior changelog history so future plans, completed work, and technical documentation have distinct homes.
 
+- Formalized the approved visual direction: grounded gothic fantasy balanced with environmental beauty and regional variety, flexible three-quarter perspective, realistic character proportions, restrained material-led palettes, and selective influence from The Witcher 3, Kingdom Come: Deliverance, and Dark Souls Remastered. Expanded the interface presentation standard to use the same references without copying their designs.
+- Recorded the retained-shell and keyed-row UI migration as complete following owner playtesting, and reconciled the roadmap and UI architecture documentation accordingly.
+
 ### v0.52.50: South-facing player sprite palette correction
 
 - Recolored the 1,427 olive pixels in the south-facing idle and walk rows (atlas rows 4–5, zero-indexed) to a restrained warm-charcoal palette while preserving per-pixel luminance to rounding, alpha, frame positions, all unselected pixels, and the animation manifest.
