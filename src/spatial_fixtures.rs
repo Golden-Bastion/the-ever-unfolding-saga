@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::spatial::{GridPosition, LocalMap, Terrain};
 
 pub const SPATIAL_FIXTURE_EXTENSION: &str = "json";
-const SPATIAL_FIXTURE_FORMAT_VERSION: u32 = 1;
+const SPATIAL_FIXTURE_FORMAT_VERSION: u32 = 2;
 const MAX_SPATIAL_FIXTURE_BYTES: u64 = 8 * 1024 * 1024;
 const MIN_MAP_DIMENSION: u16 = 8;
 const MAX_MAP_DIMENSION: u16 = 128;
