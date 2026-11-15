@@ -8,7 +8,7 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 3;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 4;
 pub const DEFAULT_MAP_WIDTH: u16 = 24;
 pub const DEFAULT_MAP_HEIGHT: u16 = 16;
 const MIN_MAP_DIMENSION: u16 = 8;
