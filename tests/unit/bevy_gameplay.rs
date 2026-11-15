@@ -329,3 +329,37 @@ fn spatial_pause_menu_places_travel_and_safe_meditation_before_character_actions
 fn meditation_is_hidden_when_unsafe() {
     assert!(!pause_actions_from(true, false).contains(&PauseAction::Meditate));
 }
+
+fn spawn_empty_world_map_fixture(mut commands: Commands) {
+    let panel = commands.spawn_empty().id();
+    render_world_map_content(&mut commands, panel, &WorldMapView::default(), 0, None);
+}
+
+#[test]
+fn world_map_omits_empty_fast_travel_notice_and_keeps_back_action() {
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(spawn_empty_world_map_fixture);
+    schedule.run(&mut world);
+    world.flush();
+
+    let mut texts = world.query::<&Text>();
+    let labels = texts
+        .iter(&world)
+        .map(|text| text.as_str())
+        .collect::<Vec<_>>();
+    assert!(!labels.iter().any(|label| {
+        label.contains("No previously visited locations are reachable through known routes")
+    }));
+    assert!(labels.contains(&"Back"));
+
+    let mut choices = world.query::<&GameplayMenuChoice>();
+    assert_eq!(
+        choices
+            .iter(&world)
+            .filter(|choice| choice.screen == GameplayMenuScreen::WorldMap)
+            .count(),
+        1,
+        "the Back action should remain available when there are no fast-travel destinations"
+    );
+}
