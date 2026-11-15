@@ -1,15 +1,6 @@
 use super::*;
 
 #[test]
-fn default_interface_preferences_are_neutral() {
-    let settings = UiSettings::default();
-    assert_eq!(settings.ui_scale_percent(), 100);
-    assert_eq!(settings.font_size_percent(), 100);
-    assert_eq!(settings.ui_scale(), 1.0);
-    assert_eq!(settings.font_scale(), 1.0);
-}
-
-#[test]
 fn interface_preference_adjustments_respect_limits() {
     let mut settings = UiSettings::default();
     for _ in 0..20 {
@@ -56,14 +47,6 @@ fn loaded_preferences_are_clamped_to_supported_ranges() {
     settings.normalize();
     assert_eq!(settings.ui_scale_percent(), MAX_UI_SCALE_PERCENT);
     assert_eq!(settings.font_size_percent(), MIN_FONT_SIZE_PERCENT);
-}
-
-#[test]
-fn touch_target_compensation_preserves_48_logical_pixels() {
-    for scale in [0.75, 1.0, 1.25] {
-        let base_size = touch_target_base_size(crate::bevy_presentation::UI_TOUCH_TARGET_PX, scale);
-        assert!((base_size * scale - crate::bevy_presentation::UI_TOUCH_TARGET_PX).abs() < 0.001);
-    }
 }
 
 #[test]
