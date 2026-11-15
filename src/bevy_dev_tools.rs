@@ -25,7 +25,7 @@ use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_entity_placements,
     generate_local_map_with_layout, GridPosition, LocalMap, LocalMapConfig, MapExit,
     PointOfInterest, SpatialDiscoveryDefinition, SpatialEntityKind, SpatialEntityPlacement,
-    SpatialPropKind, Terrain,
+    SpatialPropKind, SpatialRoom, SpatialDoor, DoorState, GridEdge, Terrain,
 };
 #[cfg(not(target_os = "android"))]
 use crate::spatial_fixtures::load_spatial_fixture;
@@ -151,6 +151,8 @@ enum WorldLabEditorTool {
     PointOfInterest,
     Passage,
     Actor,
+    Room,
+    Door,
 }
 
 impl Default for WorldLabOptions {
@@ -237,6 +239,8 @@ struct DeveloperToolsState {
     world_lab_held_actor: Option<(u64, SpatialEntityKind)>,
     world_lab_destination_index: usize,
     world_lab_actor_index: usize,
+    world_lab_room_index: usize,
+    world_lab_door_state: DoorState,
     world_lab_scenario: Option<WorldLabScenario>,
     world_lab_fixtures: Vec<WorldLabFixtureEntry>,
     dirty: bool,
@@ -670,6 +674,8 @@ fn world_lab_editor_tool_name(tool: WorldLabEditorTool) -> &'static str {
         WorldLabEditorTool::PointOfInterest => "Point of Interest",
         WorldLabEditorTool::Passage => "Passage",
         WorldLabEditorTool::Actor => "Actor",
+        WorldLabEditorTool::Room => "Room",
+        WorldLabEditorTool::Door => "Door",
     }
 }
 
@@ -686,7 +692,9 @@ fn cycle_world_lab_editor_tool(state: &mut DeveloperToolsState) {
         WorldLabEditorTool::Prop => WorldLabEditorTool::PointOfInterest,
         WorldLabEditorTool::PointOfInterest => WorldLabEditorTool::Passage,
         WorldLabEditorTool::Passage => WorldLabEditorTool::Actor,
-        WorldLabEditorTool::Actor => WorldLabEditorTool::Prop,
+        WorldLabEditorTool::Actor => WorldLabEditorTool::Room,
+        WorldLabEditorTool::Room => WorldLabEditorTool::Door,
+        WorldLabEditorTool::Door => WorldLabEditorTool::Prop,
     };
     state.world_lab_status = Some(format!(
         "Editor tool set to {}.",
@@ -883,6 +891,70 @@ fn place_world_lab_point_of_interest(
     });
 }
 
+fn place_world_lab_room(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+    let room_id = bevy_spatial::sandbox_map(spatial).map(|map| {
+        format!("{}.editor_room.{}", map.location_id, state.world_lab_room_index + 1)
+    });
+    let Some(room_id) = room_id else { state.world_lab_status = Some("No editable map is available.".into()); return; };
+    let success = bevy_spatial::sandbox_map_mut(spatial).is_some_and(|map| {
+        if !map.is_walkable(position) { return false; }
+        if let Some(room) = map.rooms.iter_mut().find(|room| room.id == room_id) {
+            if room.cells.contains(&position) { false } else { room.cells.push(position); true }
+        } else {
+            map.rooms.push(SpatialRoom { id: room_id.clone(), cells: vec![position] });
+            true
+        }
+    });
+    state.world_lab_status = Some(if success {
+        format!("Assigned ({}, {}) to {}.", position.x, position.y, room_id)
+    } else { "Room cells must be walkable and cannot already belong to another room.".into() });
+}
+
+fn place_world_lab_door(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+    let east = GridPosition { x: position.x.saturating_add(1), y: position.y };
+    let result = bevy_spatial::sandbox_map_mut(spatial).and_then(|map| {
+        let edge = GridEdge::new(position, east)?;
+        let room_a = map.room_at(edge.a)?.id.clone();
+        let room_b = map.room_at(edge.b)?.id.clone();
+        if room_a == room_b || map.doors.iter().any(|door| door.edge == edge) { return None; }
+        let id = format!("{}.editor_door.{}", map.location_id, map.doors.len() + 1);
+        map.doors.push(SpatialDoor { id: id.clone(), edge, room_a, room_b, state: state.world_lab_door_state });
+        Some(id)
+    });
+    state.world_lab_status = Some(result.map(|id| format!("Placed {id} between the selected cell and its eastern neighbour."))
+        .unwrap_or_else(|| "A door needs two adjacent cells assigned to different rooms.".into()));
+}
+
+fn remove_world_lab_room_cell(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+    let removed = bevy_spatial::sandbox_map_mut(spatial).and_then(|map| {
+        let room_index = map.rooms.iter().position(|room| room.cells.contains(&position))?;
+        map.rooms[room_index].cells.retain(|cell| *cell != position);
+        let id = map.rooms[room_index].id.clone();
+        if map.rooms[room_index].cells.is_empty() {
+            map.rooms.remove(room_index);
+            map.doors.retain(|door| door.room_a != id && door.room_b != id);
+        }
+        Some(id)
+    });
+    state.world_lab_status = Some(removed.map(|id| format!("Removed ({}, {}) from {id}.", position.x, position.y))
+        .unwrap_or_else(|| "The selected cell does not belong to a room.".into()));
+}
+
+fn remove_world_lab_door(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
+    let position = state.world_lab_cursor.unwrap_or(GridPosition { x: 0, y: 0 });
+    let east = GridPosition { x: position.x.saturating_add(1), y: position.y };
+    let removed = bevy_spatial::sandbox_map_mut(spatial).and_then(|map| {
+        let edge = GridEdge::new(position, east)?;
+        let index = map.doors.iter().position(|door| door.edge == edge)?;
+        Some(map.doors.remove(index).id)
+    });
+    state.world_lab_status = Some(removed.map(|id| format!("Removed {id}."))
+        .unwrap_or_else(|| "There is no door on the eastern edge of the selected cell.".into()));
+}
+
 fn place_world_lab_object(state: &mut DeveloperToolsState, spatial: &mut SpatialExplorationState) {
     if state.world_lab_held_prop.is_some()
         || state.world_lab_held_point_of_interest.is_some()
@@ -897,6 +969,8 @@ fn place_world_lab_object(state: &mut DeveloperToolsState, spatial: &mut Spatial
         WorldLabEditorTool::PointOfInterest => place_world_lab_point_of_interest(state, spatial),
         WorldLabEditorTool::Passage => place_world_lab_passage(state, spatial),
         WorldLabEditorTool::Actor => place_world_lab_actor(state, spatial),
+        WorldLabEditorTool::Room => place_world_lab_room(state, spatial),
+        WorldLabEditorTool::Door => place_world_lab_door(state, spatial),
     }
 }
 
@@ -952,6 +1026,9 @@ fn pick_up_or_drop_world_lab_object(
         }
         WorldLabEditorTool::Passage => pick_up_or_drop_world_lab_passage(state, spatial),
         WorldLabEditorTool::Actor => pick_up_or_drop_world_lab_actor(state, spatial),
+        WorldLabEditorTool::Room | WorldLabEditorTool::Door => {
+            state.world_lab_status = Some("Room and door topology is edited directly at the selected cells.".into());
+        }
     }
 }
 
@@ -1038,6 +1115,18 @@ fn cycle_world_lab_selected_value(state: &mut DeveloperToolsState) {
                 let actor = selected_world_lab_actor(state).expect("actor count is non-zero");
                 state.world_lab_status = Some(format!("Actor set to {}.", actor.label));
             }
+        }
+        WorldLabEditorTool::Room => {
+            state.world_lab_room_index = (state.world_lab_room_index + 1) % 2;
+            state.world_lab_status = Some(format!("Room group set to {}.", state.world_lab_room_index + 1));
+        }
+        WorldLabEditorTool::Door => {
+            state.world_lab_door_state = match state.world_lab_door_state {
+                DoorState::Open => DoorState::Closed,
+                DoorState::Closed => DoorState::Locked,
+                DoorState::Locked => DoorState::Open,
+            };
+            state.world_lab_status = Some(format!("New door state set to {:?}.", state.world_lab_door_state));
         }
     }
 }
@@ -1325,6 +1414,8 @@ fn remove_world_lab_object(state: &mut DeveloperToolsState, spatial: &mut Spatia
         WorldLabEditorTool::PointOfInterest => remove_world_lab_point_of_interest(state, spatial),
         WorldLabEditorTool::Passage => remove_world_lab_passage(state, spatial),
         WorldLabEditorTool::Actor => remove_world_lab_actor(state, spatial),
+        WorldLabEditorTool::Room => remove_world_lab_room_cell(state, spatial),
+        WorldLabEditorTool::Door => remove_world_lab_door(state, spatial),
     }
 }
 
@@ -1340,6 +1431,14 @@ fn world_lab_cell_details(map: &LocalMap, position: GridPosition) -> String {
     for poi in &map.points_of_interest {
         if poi.position == position {
             markers.push(format!("point of interest: {}", poi.title));
+        }
+    }
+    if let Some(room) = map.room_at(position) {
+        markers.push(format!("room: {}", room.id));
+    }
+    for door in &map.doors {
+        if door.edge.a == position || door.edge.b == position {
+            markers.push(format!("door: {} ({:?})", door.id, door.state));
         }
     }
     for exit in map.exits.iter().filter(|exit| exit.position == position) {
