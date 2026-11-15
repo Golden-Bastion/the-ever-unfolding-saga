@@ -1216,8 +1216,14 @@ fn move_interaction_wheel_selection(state: &mut SpatialExplorationState, directi
     }
 }
 
-fn set_spatial_door_state(state: &mut SpatialExplorationState, id: &str, next: crate::spatial::DoorState) {
-    let changed = state.session.as_ref()
+fn set_spatial_door_state(
+    state: &mut SpatialExplorationState,
+    id: &str,
+    next: crate::spatial::DoorState,
+) {
+    let changed = state
+        .session
+        .as_ref()
         .and_then(|session| state.maps.get_mut(&session.location_id))
         .is_some_and(|map| map.set_door_state(id, next));
     state.message = Some(if changed {
@@ -3423,8 +3429,14 @@ fn advance_position(
 }
 
 fn can_cross_position_edge(map: &LocalMap, from: Vec2, to: Vec2) -> bool {
-    let from_cell = GridPosition { x: from.x.floor().max(0.0) as u16, y: from.y.floor().max(0.0) as u16 };
-    let to_cell = GridPosition { x: to.x.floor().max(0.0) as u16, y: to.y.floor().max(0.0) as u16 };
+    let from_cell = GridPosition {
+        x: from.x.floor().max(0.0) as u16,
+        y: from.y.floor().max(0.0) as u16,
+    };
+    let to_cell = GridPosition {
+        x: to.x.floor().max(0.0) as u16,
+        y: to.y.floor().max(0.0) as u16,
+    };
     from_cell == to_cell || map.can_cross_edge(from_cell, to_cell)
 }
 
