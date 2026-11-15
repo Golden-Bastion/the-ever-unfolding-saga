@@ -68,6 +68,10 @@ pub struct UiActionButton;
 #[derive(Component)]
 struct UiActionButtonGroup;
 
+/// Intrinsic-width stack inside a width-bounded shared action group.
+#[derive(Component)]
+struct UiActionButtonStack;
+
 #[derive(Component)]
 struct UiStackedActionButton;
 
@@ -1243,12 +1247,11 @@ pub(crate) fn spawn_confirmation_dialog(
 
 fn action_button_group_node() -> Node {
     Node {
-        // A definite group width gives intrinsic child text a real layout bound.
+        // This outer frame establishes the available width for the intrinsic stack.
         width: percent(100),
         min_width: px(0),
         max_width: px(UI_ACTION_MAX_WIDTH_PX),
         flex_direction: FlexDirection::Column,
-        row_gap: responsive_compact_gap(),
         flex_shrink: 0.0,
         align_self: AlignSelf::FlexStart,
         align_items: AlignItems::FlexStart,
@@ -1260,21 +1263,46 @@ fn action_button_group_node() -> Node {
     }
 }
 
-/// Creates a stable vertical action-button group. Its marker prevents the
-/// automatic organizer from moving keyed children into a different entity.
-pub(crate) fn spawn_action_button_group(commands: &mut Commands, parent: Entity) -> Entity {
-    let group = commands
+fn action_button_stack_node() -> Node {
+    Node {
+        // The stack takes the width of its widest intrinsic button, bounded by
+        // the definite outer frame. Stretch alignment then gives every button
+        // that same width without measuring and feeding widths back into layout.
+        width: Val::Auto,
+        min_width: px(0),
+        max_width: percent(100),
+        flex_direction: FlexDirection::Column,
+        row_gap: responsive_compact_gap(),
+        flex_shrink: 1.0,
+        align_self: AlignSelf::FlexStart,
+        align_items: AlignItems::Stretch,
+        ..default()
+    }
+}
+
+fn spawn_action_button_group_nodes(commands: &mut Commands, parent: Entity) -> (Entity, Entity) {
+    let frame = commands
         .spawn((UiActionButtonGroup, action_button_group_node()))
         .id();
-    commands.entity(parent).add_child(group);
-    group
+    let stack = commands
+        .spawn((UiActionButtonStack, action_button_stack_node()))
+        .id();
+    commands.entity(frame).add_child(stack);
+    commands.entity(parent).add_child(frame);
+    (frame, stack)
+}
+
+/// Creates a stable vertical action-button stack inside a width-bounded frame.
+/// The returned stack is the stable host for keyed children; the automatic
+/// organizer recognizes both layers and will not move those children elsewhere.
+pub(crate) fn spawn_action_button_group(commands: &mut Commands, parent: Entity) -> Entity {
+    spawn_action_button_group_nodes(commands, parent).1
 }
 
 fn action_button_node() -> Node {
     Node {
         width: Val::Auto,
         min_width: px(0),
-        max_width: percent(100),
         min_height: touch_target_size(),
         flex_grow: 0.0,
         flex_shrink: 0.0,
@@ -1286,7 +1314,8 @@ fn action_button_node() -> Node {
         border_radius: BorderRadius::all(px(3)),
         justify_content: JustifyContent::Start,
         align_items: AlignItems::Center,
-        align_self: AlignSelf::FlexStart,
+        // The intrinsic stack stretches every button to the same widest-content width.
+        align_self: AlignSelf::Stretch,
         ..default()
     }
 }
@@ -2317,12 +2346,18 @@ fn contextual_touch_input(
 
 fn organize_action_button_groups(
     mut commands: Commands,
-    parents: Query<(Entity, &Children, Option<&UiActionButtonGroup>)>,
+    parents: Query<(
+        Entity,
+        &Children,
+        Option<&UiActionButtonGroup>,
+        Option<&UiActionButtonStack>,
+    )>,
     action_buttons: Query<&Node, With<UiStackedActionButton>>,
-    action_groups: Query<(), With<UiActionButtonGroup>>,
+    action_groups: Query<&Children, With<UiActionButtonGroup>>,
+    action_stacks: Query<(), With<UiActionButtonStack>>,
 ) {
-    for (parent, children, is_action_group) in &parents {
-        if is_action_group.is_some() {
+    for (parent, children, is_action_group, is_action_stack) in &parents {
+        if is_action_group.is_some() || is_action_stack.is_some() {
             continue;
         }
 
@@ -2338,19 +2373,19 @@ fn organize_action_button_groups(
             continue;
         }
 
-        let group = children
+        let existing_stack = children
             .iter()
-            .find(|entity| action_groups.contains(*entity))
-            .unwrap_or_else(|| {
-                let group = commands
-                    .spawn((UiActionButtonGroup, action_button_group_node()))
-                    .id();
-                commands.entity(parent).add_child(group);
-                group
+            .find_map(|entity| action_groups.get(entity).ok())
+            .and_then(|group_children| {
+                group_children
+                    .iter()
+                    .find(|entity| action_stacks.contains(*entity))
             });
+        let stack = existing_stack
+            .unwrap_or_else(|| spawn_action_button_group_nodes(&mut commands, parent).1);
 
         for button in buttons {
-            commands.entity(group).add_child(button);
+            commands.entity(stack).add_child(button);
         }
     }
 }

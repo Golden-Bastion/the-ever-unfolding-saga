@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.55. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.56. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -256,3 +256,11 @@ The entries below cover the v0.52.x development line through v0.52.55. This line
 - Kept each button content-sized, capped its width to the available action group, and changed overflow wrapping to word boundaries so labels no longer break after one or two characters.
 - Added structural regression coverage for all three shared text-button variants and their wrapping policy.
 - Bumped Rust and Android version metadata to 0.52.55.
+
+### v0.52.56: Equal-width shared action-button groups
+
+- Added a width-bounded outer frame and intrinsic-width inner stack for shared vertical action groups.
+- The stack sizes itself to its widest button within the available 520-logical-pixel bound, then stretches every button to that common width without cyclic percentage sizing or runtime width feedback.
+- Kept compact option/footer controls and absolute-positioned map actions outside this shared vertical sizing behavior.
+- Added regression coverage for both explicit keyed action groups and automatically organized button groups.
+- Bumped Rust and Android version metadata to 0.52.56.

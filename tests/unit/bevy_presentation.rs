@@ -217,8 +217,9 @@ fn shared_action_buttons_preserve_intrinsic_text_measurement() {
     let detail_button = world.get::<Node>(fixture.detail_button).unwrap();
 
     assert_eq!(button.width, Val::Auto);
-    assert_eq!(button.max_width, percent(100));
-    assert_eq!(button.align_self, AlignSelf::FlexStart);
+    // The parent action stack owns the percentage cap; button descendants stay intrinsic.
+    assert_eq!(button.max_width, Val::Auto);
+    assert_eq!(button.align_self, AlignSelf::Stretch);
     assert_eq!(content.width, Val::Auto);
     assert_eq!(content.max_width, Val::Auto);
     assert_eq!(label.width, Val::Auto);
@@ -230,6 +231,9 @@ fn shared_action_buttons_preserve_intrinsic_text_measurement() {
     assert_eq!(compact_label.min_width, Val::Auto);
     assert_eq!(compact_label.max_width, Val::Auto);
     assert_eq!(detail_button.width, Val::Auto);
+    let detail_button = world.get::<Node>(fixture.detail_button).unwrap();
+    assert_eq!(detail_button.max_width, Val::Auto);
+    assert_eq!(detail_button.align_self, AlignSelf::Stretch);
 
     let mut labels = world.query_filtered::<&TextLayout, With<Text>>();
     let layouts = labels.iter(&world).collect::<Vec<_>>();
@@ -357,8 +361,14 @@ fn action_grouping_preserves_canvas_positioned_map_destinations() {
         .copied()
         .collect::<Vec<_>>();
     assert_eq!(groups.len(), 1);
-    assert!(world
+    let stack = world
         .get::<Children>(groups[0])
+        .unwrap()
+        .iter()
+        .find(|entity| world.get::<UiActionButtonStack>(*entity).is_some())
+        .expect("the action frame should contain its intrinsic stack");
+    assert!(world
+        .get::<Children>(stack)
         .unwrap()
         .iter()
         .any(|entity| entity == fixture.ordinary));
@@ -400,15 +410,22 @@ fn action_groups_provide_a_definite_width_for_intrinsic_children() {
 }
 
 #[test]
-fn stacked_action_buttons_use_intrinsic_width_and_preserve_touch_height() {
+fn stacked_action_buttons_stretch_to_their_groups_intrinsic_width() {
     let node = action_button_node();
 
     assert_eq!(node.width, Val::Auto);
-    assert_eq!(node.max_width, percent(100));
-    assert_eq!(node.align_self, AlignSelf::FlexStart);
+    assert_eq!(node.max_width, Val::Auto);
+    assert_eq!(node.align_self, AlignSelf::Stretch);
     assert_eq!(node.flex_grow, 0.0);
     assert_eq!(node.flex_shrink, 0.0);
     assert_eq!(node.min_height, touch_target_size());
+
+    let stack = action_button_stack_node();
+    assert_eq!(stack.width, Val::Auto);
+    assert_eq!(stack.max_width, percent(100));
+    assert_eq!(stack.flex_direction, FlexDirection::Column);
+    assert_eq!(stack.align_items, AlignItems::Stretch);
+    assert_eq!(stack.align_self, AlignSelf::FlexStart);
 }
 
 #[test]
@@ -773,16 +790,25 @@ struct KeyedActionGroupFixture {
     parent: Entity,
     group: Entity,
     button: Entity,
+    wider_button: Entity,
 }
 
 fn spawn_keyed_action_group_fixture(mut commands: Commands) {
     let parent = commands.spawn_empty().id();
     let group = spawn_action_button_group(&mut commands, parent);
     let (button, _) = spawn_action_button_with_text(&mut commands, group, 0, "item", "Test item");
+    let (wider_button, _) = spawn_action_button_with_text(
+        &mut commands,
+        group,
+        1,
+        "compass",
+        "A considerably wider action label",
+    );
     commands.insert_resource(KeyedActionGroupFixture {
         parent,
         group,
         button,
+        wider_button,
     });
 }
 
@@ -805,13 +831,30 @@ fn explicit_action_groups_keep_keyed_buttons_under_their_stable_host() {
         .unwrap()
         .iter()
         .collect::<Vec<_>>();
-    assert_eq!(parent_children, vec![fixture.group]);
+    assert_eq!(parent_children.len(), 1);
 
-    let group_children = world
+    let frame = parent_children[0];
+    let frame_children = world
+        .get::<Children>(frame)
+        .unwrap()
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(frame_children, vec![fixture.group]);
+    let stack_children = world
         .get::<Children>(fixture.group)
         .unwrap()
         .iter()
         .collect::<Vec<_>>();
-    assert_eq!(group_children, vec![fixture.button]);
-    assert!(world.get::<UiActionButtonGroup>(fixture.group).is_some());
+    assert_eq!(stack_children, vec![fixture.button, fixture.wider_button]);
+    assert!(world.get::<UiActionButtonGroup>(frame).is_some());
+    assert!(world.get::<UiActionButtonStack>(fixture.group).is_some());
+
+    // Both differently-sized labels use stretch alignment, so the stack's
+    // intrinsic width (set by the wider action) is shared by every button.
+    for button in [fixture.button, fixture.wider_button] {
+        assert_eq!(
+            world.get::<Node>(button).unwrap().align_self,
+            AlignSelf::Stretch
+        );
+    }
 }
