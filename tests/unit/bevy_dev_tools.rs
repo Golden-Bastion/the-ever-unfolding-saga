@@ -176,7 +176,12 @@ fn render_world_lab_fixture_test(
 
 #[test]
 fn world_lab_fixture_browser_places_selected_map_preview_left_of_controls() {
-    let map = generate_world_lab_map(WorldLabOptions::default());
+    let map = generate_world_lab_map(WorldLabOptions {
+        seed: 4_242_424,
+        size_index: 0,
+        location_index: 0,
+        shrine_layout: false,
+    });
     let expected_preview = world_lab_map_preview(&map);
     let state = DeveloperToolsState {
         world_lab_fixtures: vec![WorldLabFixtureEntry {
