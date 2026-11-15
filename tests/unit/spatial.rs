@@ -63,12 +63,34 @@ fn props_round_trip_and_optional_map_fields_default_when_absent() {
     object.remove("interactables");
     object.remove("exits");
     object.remove("layout_id");
+    object.remove("rooms");
+    object.remove("doors");
     let restored_old: LocalMap = serde_json::from_value(old_value)
         .expect("map with omitted optional fields should deserialize");
     assert!(restored_old.props.is_empty());
     assert!(restored_old.interactables.is_empty());
     assert!(restored_old.exits.is_empty());
     assert!(restored_old.layout_id.is_none());
+    assert!(restored_old.rooms.is_empty());
+    assert!(restored_old.doors.is_empty());
+}
+
+#[test]
+fn pre_topology_local_maps_default_to_empty_rooms_and_doors() {
+    let map = generate_local_map(52, "location.legacy_save", LocalMapConfig::default());
+    let mut value = serde_json::to_value(&map).expect("map should serialize");
+    let object = value.as_object_mut().expect("map should be an object");
+    object.remove("rooms");
+    object.remove("doors");
+
+    let restored: LocalMap = serde_json::from_value(value)
+        .expect("a pre-topology save should load without room and door fields");
+
+    assert!(restored.rooms.is_empty());
+    assert!(restored.doors.is_empty());
+    assert_eq!(restored.terrain, map.terrain);
+    assert_eq!(restored.entry, map.entry);
+    assert_eq!(restored.location_id, map.location_id);
 }
 
 #[test]
