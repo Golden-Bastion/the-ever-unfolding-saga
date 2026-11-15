@@ -50,7 +50,7 @@ fn generated_props_are_deterministic_and_block_their_footprints() {
 }
 
 #[test]
-fn props_round_trip_and_older_saves_default_to_no_props() {
+fn props_round_trip_and_optional_map_fields_default_when_absent() {
     let map = generate_local_map(12, "location.old_shrine", LocalMapConfig::default());
     let json = serde_json::to_string(&map).expect("map with props should serialize");
     let restored: LocalMap =
@@ -64,7 +64,7 @@ fn props_round_trip_and_older_saves_default_to_no_props() {
     object.remove("exits");
     object.remove("layout_id");
     let restored_old: LocalMap =
-        serde_json::from_value(old_value).expect("pre-prop map should remain loadable");
+        serde_json::from_value(old_value).expect("map with omitted optional fields should deserialize");
     assert!(restored_old.props.is_empty());
     assert!(restored_old.interactables.is_empty());
     assert!(restored_old.exits.is_empty());
