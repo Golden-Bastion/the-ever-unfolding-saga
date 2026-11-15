@@ -720,3 +720,39 @@ fn editor_operations_place_move_and_remove_real_world_actor_placements() {
     );
     assert!(map.interactables.is_empty());
 }
+
+
+#[test]
+fn interior_door_states_gate_pathfinding_without_blocking_floor_cells() {
+    let mut map = generate_local_map_with_layout(
+        42, "location.old_shrine", LocalMapConfig::default(), Some("shrine_chamber"),
+    );
+    let door = map.doors.first().expect("shrine should have its threshold door").clone();
+    assert!(map.validate_room_topology().is_ok());
+    assert!(map.can_cross_edge(door.edge.a, door.edge.b));
+    assert!(map.is_walkable(door.edge.a));
+    assert!(map.is_walkable(door.edge.b));
+
+    assert!(map.set_door_state(&door.id, DoorState::Closed));
+    assert!(!map.can_cross_edge(door.edge.a, door.edge.b));
+    assert!(!map.can_cross_edge(door.edge.b, door.edge.a));
+    assert!(map.set_door_state(&door.id, DoorState::Open));
+    assert!(map.can_cross_edge(door.edge.a, door.edge.b));
+
+    assert!(map.set_door_state(&door.id, DoorState::Locked));
+    assert!(!map.set_door_state(&door.id, DoorState::Open));
+    assert!(!map.can_cross_edge(door.edge.a, door.edge.b));
+    assert!(map.unlock_door(&door.id));
+    assert_eq!(map.doors[0].state, DoorState::Closed);
+    assert!(map.set_door_state(&door.id, DoorState::Open));
+    assert!(map.validate_room_topology().is_ok());
+}
+
+#[test]
+fn grid_edges_are_canonical_and_require_cardinal_adjacency() {
+    let a = GridPosition { x: 4, y: 5 };
+    let b = GridPosition { x: 5, y: 5 };
+    assert_eq!(GridEdge::new(a, b), GridEdge::new(b, a));
+    assert!(GridEdge::new(a, GridPosition { x: 5, y: 6 }).is_none());
+    assert!(GridEdge::new(a, GridPosition { x: 6, y: 5 }).is_none());
+}
