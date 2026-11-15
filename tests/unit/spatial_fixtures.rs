@@ -228,3 +228,18 @@ fn duplicate_actor_cell_is_free(map: &LocalMap, position: GridPosition) -> bool 
             .iter()
             .any(|actor| actor.position == position)
 }
+
+
+#[test]
+fn fixture_export_rejects_invalid_room_and_door_topology() {
+    let directory = temporary_directory("invalid-topology");
+    let mut map = generate_local_map_with_layout(
+        12,
+        "location.fixture_topology",
+        LocalMapConfig::default(),
+        Some("shrine_chamber"),
+    );
+    map.doors[0].room_b = "missing.room".into();
+    assert!(save_spatial_fixture(&directory, "Invalid topology", &map).is_err());
+    fs::remove_dir_all(directory).unwrap();
+}
