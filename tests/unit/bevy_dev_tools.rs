@@ -1,4 +1,5 @@
 use super::*;
+use crate::bevy_presentation::ChoiceButton;
 use crate::content::CharacterPartContent;
 
 fn part(id: &str, slot: &str, layer: i32) -> CharacterPartContent {
@@ -141,6 +142,110 @@ fn character_lab_randomizer_can_omit_optional_slots() {
     }
 
     assert!(omitted > 0 && omitted < 256);
+}
+
+#[test]
+fn world_lab_and_character_lab_share_the_same_two_pane_layout() {
+    let workspace = lab_workspace_node();
+    let panel = lab_panel_node();
+
+    assert_eq!(workspace.width, percent(100));
+    assert_eq!(workspace.flex_direction, FlexDirection::Row);
+    assert_eq!(workspace.column_gap, px(10));
+
+    assert_eq!(panel.width, percent(50));
+    assert_eq!(panel.height, percent(100));
+    assert_eq!(panel.flex_grow, 1.0);
+    assert_eq!(panel.flex_shrink, 1.0);
+    assert_eq!(panel.flex_direction, FlexDirection::Column);
+    assert_eq!(panel.overflow, Overflow::scroll());
+}
+
+#[derive(Resource)]
+struct WorldLabFixtureRenderFixture {
+    navigation: NavigationState,
+    state: DeveloperToolsState,
+}
+
+fn render_world_lab_fixture_test(
+    mut commands: Commands,
+    fixture: Res<WorldLabFixtureRenderFixture>,
+) {
+    render_world_lab_fixtures(&mut commands, &fixture.navigation, &fixture.state);
+}
+
+#[test]
+fn world_lab_fixture_browser_places_selected_map_preview_left_of_controls() {
+    let map = generate_world_lab_map(WorldLabOptions {
+        seed: 4_242_424,
+        size_index: 0,
+        location_index: 0,
+        shrine_layout: false,
+    });
+    let expected_preview = world_lab_map_preview(&map);
+    let state = DeveloperToolsState {
+        world_lab_fixtures: vec![WorldLabFixtureEntry {
+            path: PathBuf::from("test.json"),
+            name: "Test fixture".to_string(),
+            details: "A generated test map".to_string(),
+            map: Some(map),
+            error: None,
+        }],
+        ..Default::default()
+    };
+    let navigation = NavigationState {
+        selected: 0,
+        ..Default::default()
+    };
+
+    let mut world = World::new();
+    world.insert_resource(WorldLabFixtureRenderFixture { navigation, state });
+    let mut schedule = Schedule::default();
+    schedule.add_systems(render_world_lab_fixture_test);
+    schedule.run(&mut world);
+    world.flush();
+
+    let root = {
+        let mut roots = world.query_filtered::<Entity, With<BevyScreenRoot>>();
+        roots
+            .iter(&world)
+            .next()
+            .expect("fixture screen should render")
+    };
+    let workspace = world
+        .get::<Children>(root)
+        .expect("screen should own a workspace")
+        .iter()
+        .find(|entity| {
+            world
+                .get::<Node>(*entity)
+                .is_some_and(|node| node.flex_direction == FlexDirection::Row)
+                && world
+                    .get::<Children>(*entity)
+                    .is_some_and(|children| children.len() == 2)
+        })
+        .expect("workspace should arrange preview and controls horizontally");
+    let panels = world
+        .get::<Children>(workspace)
+        .expect("workspace should own both panes")
+        .iter()
+        .collect::<Vec<_>>();
+
+    assert_eq!(panels.len(), 2);
+    assert!(world
+        .get::<Children>(panels[0])
+        .unwrap()
+        .iter()
+        .any(|entity| {
+            world
+                .get::<Text>(entity)
+                .is_some_and(|text| text.as_str() == expected_preview)
+        }));
+    assert!(world
+        .get::<Children>(panels[1])
+        .unwrap()
+        .iter()
+        .any(|entity| world.get::<ChoiceButton>(entity).is_some()));
 }
 
 #[test]

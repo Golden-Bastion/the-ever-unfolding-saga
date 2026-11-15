@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.53. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.54. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -241,3 +241,11 @@ The entries below cover the v0.52.x development line through v0.52.53. This line
 - Kept Options messages and footer actions as independently refreshed regions; tab changes reset scroll and replace only the old tab's content.
 - Added regression coverage for save-path and item/quest identity, row reordering, retained entity identity, obsolete-row removal, and updated action indices.
 - Bumped Rust and Android version metadata to 0.52.51.
+
+### v0.52.54: World Lab layout and shared button sizing
+
+- Reworked World Lab and its map editor into a shared two-pane workspace: the map preview stays on the left, while generation settings, editor state, status, and actions stay on the right. Character Lab now uses the same workspace and panel layout helpers.
+- Changed shared action buttons to use content-first widths instead of stretching across their parent groups. Each action fits its label, and the action group fits its widest button; compact controls retain their minimum touch dimensions.
+- Kept map-grid preview rows unwrapped so their character dimensions remain intact.
+- Added regression coverage for the shared lab layout and intrinsic action-button sizing.
+- Bumped Rust and Android version metadata to 0.52.54.

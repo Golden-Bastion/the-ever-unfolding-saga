@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 
 use bevy::prelude::*;
+use bevy::text::TextLayout;
 
 use crate::bevy_interactions::{self, PortraitImageCache, PortraitSlotControl};
 use crate::bevy_lifecycle::LifecycleState;
@@ -67,6 +68,73 @@ const WORLD_LAB_EDITOR_ACTIONS: &[(&str, &str)] = &[
 ];
 
 const WORLD_LAB_SIZES: [(u16, u16); 3] = [(24, 16), (32, 20), (40, 24)];
+
+fn lab_workspace_node() -> Node {
+    Node {
+        width: percent(100),
+        min_width: px(0),
+        min_height: px(0),
+        flex_basis: px(0),
+        flex_grow: 1.0,
+        flex_shrink: 1.0,
+        flex_direction: FlexDirection::Row,
+        column_gap: px(10),
+        ..default()
+    }
+}
+
+fn lab_panel_node() -> Node {
+    Node {
+        width: percent(50),
+        height: percent(100),
+        min_width: px(0),
+        min_height: px(0),
+        flex_grow: 1.0,
+        flex_shrink: 1.0,
+        padding: UiRect::all(px(8)),
+        flex_direction: FlexDirection::Column,
+        row_gap: px(5),
+        border: UiRect::all(px(1)),
+        border_radius: BorderRadius::all(px(4)),
+        overflow: Overflow::scroll(),
+        ..default()
+    }
+}
+
+fn spawn_world_lab_panel(commands: &mut Commands, parent: Entity) -> Entity {
+    let panel = commands
+        .spawn((
+            bevy::input_focus::tab_navigation::TabGroup::modal(),
+            bevy_presentation::TouchScrollablePanel,
+            lab_panel_node(),
+            bevy_presentation::UiSurface,
+            BorderColor::all(bevy_presentation::THEME_BORDER),
+            BackgroundColor(bevy_presentation::THEME_SURFACE),
+        ))
+        .id();
+    commands.entity(parent).add_child(panel);
+    panel
+}
+
+fn spawn_world_lab_map_preview(
+    commands: &mut Commands,
+    panel: Entity,
+    heading: &str,
+    legend: &str,
+    preview: Option<String>,
+    empty_message: &str,
+) {
+    bevy_presentation::spawn_label(commands, panel, heading);
+    if let Some(preview) = preview {
+        bevy_presentation::spawn_muted_label(commands, panel, legend);
+        let map_label = bevy_presentation::spawn_muted_label(commands, panel, preview);
+        // Wrapping a character grid would change its dimensions and make the
+        // map harder to read as a spatial preview.
+        commands.entity(map_label).insert(TextLayout::no_wrap());
+    } else {
+        bevy_presentation::spawn_muted_label(commands, panel, empty_message);
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct WorldLabOptions {
@@ -1964,20 +2032,7 @@ fn render_character_lab(
         );
 
         let workspace = commands
-            .spawn((
-                CharacterLabWorkspace,
-                Node {
-                    width: percent(100),
-                    min_width: px(0),
-                    min_height: px(0),
-                    flex_basis: px(0),
-                    flex_grow: 1.0,
-                    flex_shrink: 1.0,
-                    flex_direction: FlexDirection::Row,
-                    column_gap: px(10),
-                    ..default()
-                },
-            ))
+            .spawn((CharacterLabWorkspace, lab_workspace_node()))
             .id();
         commands.entity(root).add_child(workspace);
 
@@ -2001,21 +2056,7 @@ fn render_character_lab(
             .spawn((
                 CharacterLabControlsHost,
                 bevy_presentation::TouchScrollablePanel,
-                Node {
-                    width: percent(50),
-                    height: percent(100),
-                    min_width: px(0),
-                    min_height: px(0),
-                    flex_grow: 1.0,
-                    flex_shrink: 1.0,
-                    padding: UiRect::all(px(8)),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: px(5),
-                    border: UiRect::all(px(1)),
-                    border_radius: BorderRadius::all(px(4)),
-                    overflow: Overflow::scroll(),
-                    ..default()
-                },
+                lab_panel_node(),
                 bevy_presentation::UiSurface,
                 BackgroundColor(bevy_presentation::THEME_SURFACE),
                 BorderColor::all(bevy_presentation::THEME_BORDER),
@@ -2234,7 +2275,11 @@ fn render_world_lab(
         "Disposable spatial sandbox. Nothing here is written to campaign worlds or saves.",
     );
 
-    let controls = bevy_presentation::spawn_panel(commands, root);
+    let workspace = commands.spawn(lab_workspace_node()).id();
+    commands.entity(root).add_child(workspace);
+    let preview_panel = spawn_world_lab_panel(commands, workspace);
+    let controls = spawn_world_lab_panel(commands, workspace);
+
     let (width, height) =
         WORLD_LAB_SIZES[state.world_lab.size_index.min(WORLD_LAB_SIZES.len() - 1)];
     bevy_presentation::spawn_label(commands, controls, "GENERATION SETTINGS");
@@ -2279,36 +2324,43 @@ fn render_world_lab(
     let map = bevy_spatial::sandbox_map(spatial);
     let map_is_current =
         state.world_lab_generated_options == Some(state.world_lab) && map.is_some();
+    spawn_world_lab_map_preview(
+        commands,
+        preview_panel,
+        "MAP PREVIEW",
+        "Legend: @ entry | ? discovery | E passage | N NPC | C remains | P prop | # wall | . floor | : ash | % rubble",
+        map.map(world_lab_map_preview),
+        "Choose Generate Map to create a reproducible spatial layout.",
+    );
     if let Some(map) = map {
-        let tile_count = usize::from(map.width) * usize::from(map.height);
-        let walls = map
-            .terrain
-            .iter()
-            .filter(|terrain| **terrain == Terrain::Wall)
-            .count();
         bevy_presentation::spawn_muted_label(
             commands,
-            controls,
+            preview_panel,
             format!(
-                "Generated map seed: {} | {} tiles | {} walls | {} props | {} discoveries | {} passages | {} actor placements",
+                "Seed {} | {} tiles | {} walls | {} props | {} discoveries | {} passages | {} actor placements",
                 map.seed,
-                tile_count,
-                walls,
+                usize::from(map.width) * usize::from(map.height),
+                map.terrain.iter().filter(|terrain| **terrain == Terrain::Wall).count(),
                 map.props.len(),
                 map.points_of_interest.len(),
                 map.exits.len(),
                 map.interactables.len()
             ),
         );
+        if !map_is_current {
+            bevy_presentation::spawn_muted_label(
+                commands,
+                preview_panel,
+                "Previous generated map. Update it with Generate Map after changing settings.",
+            );
+            bevy_presentation::spawn_muted_label(
+                commands,
+                controls,
+                "The preview does not match the current settings. Generate a map before play-testing.",
+            );
+        }
     } else {
         bevy_presentation::spawn_muted_label(commands, controls, "No map generated yet.");
-    }
-    if !map_is_current {
-        bevy_presentation::spawn_muted_label(
-            commands,
-            controls,
-            "The preview does not match the current settings. Generate a map before play-testing.",
-        );
     }
     if let Some(status) = state.world_lab_status.as_deref() {
         bevy_presentation::spawn_muted_label(commands, controls, status);
@@ -2322,40 +2374,6 @@ fn render_world_lab(
                 .entity(button)
                 .insert(bevy_presentation::UiSelected);
         }
-    }
-
-    let preview_panel = bevy_presentation::spawn_panel(commands, root);
-    bevy_presentation::spawn_label(commands, preview_panel, "MAP PREVIEW");
-    if let Some(map) = map {
-        bevy_presentation::spawn_muted_label(
-            commands,
-            preview_panel,
-            "Legend: @ entry | ? discovery | E passage | N NPC | C remains | P prop | # wall | . floor | : ash | % rubble",
-        );
-        if map_is_current {
-            bevy_presentation::spawn_muted_label(
-                commands,
-                preview_panel,
-                world_lab_map_preview(map),
-            );
-        } else {
-            bevy_presentation::spawn_muted_label(
-                commands,
-                preview_panel,
-                "Previous generated map. Update it with Generate Map after changing settings.",
-            );
-            bevy_presentation::spawn_muted_label(
-                commands,
-                preview_panel,
-                world_lab_map_preview(map),
-            );
-        }
-    } else {
-        bevy_presentation::spawn_muted_label(
-            commands,
-            preview_panel,
-            "Choose Generate Map to create a reproducible spatial layout.",
-        );
     }
 }
 
@@ -2372,7 +2390,11 @@ fn render_world_lab_editor(
         "Changes affect only this temporary map. Edit terrain, props, discoveries, passages to connected world locations, and placements for real sandbox NPCs/remains.",
     );
 
-    let controls = bevy_presentation::spawn_panel(commands, root);
+    let workspace = commands.spawn(lab_workspace_node()).id();
+    commands.entity(root).add_child(workspace);
+    let preview_panel = spawn_world_lab_panel(commands, workspace);
+    let controls = spawn_world_lab_panel(commands, workspace);
+
     if let Some(map) = bevy_spatial::sandbox_map(spatial) {
         let cursor = world_lab_cursor(state, map);
         bevy_presentation::spawn_label(commands, controls, "SELECTED CELL");
@@ -2496,7 +2518,31 @@ fn render_world_lab_editor(
                 format!("Moving {label} (entity {entity_id}). Choose a free cell and drop it."),
             );
         }
+        let preview = world_lab_map_preview_with_all_holds(
+            map,
+            Some(cursor),
+            state.world_lab_held_prop.as_deref(),
+            state.world_lab_held_point_of_interest.as_deref(),
+            state.world_lab_held_passage.as_deref(),
+            state.world_lab_held_actor.map(|(entity_id, _)| entity_id),
+        );
+        spawn_world_lab_map_preview(
+            commands,
+            preview_panel,
+            "EDIT PREVIEW",
+            "Legend: X cursor | H prop | Q discovery | D passage | A actor | @ entry | ? discovery | E passage | N NPC | C remains | P prop | # wall | . floor | : ash | % rubble",
+            Some(preview),
+            "Generate a map first.",
+        );
     } else {
+        spawn_world_lab_map_preview(
+            commands,
+            preview_panel,
+            "EDIT PREVIEW",
+            "",
+            None,
+            "Generate a map first.",
+        );
         bevy_presentation::spawn_muted_label(commands, controls, "No temporary map is available.");
     }
     if let Some(status) = state.world_lab_status.as_deref() {
@@ -2511,30 +2557,6 @@ fn render_world_lab_editor(
                 .insert(bevy_presentation::UiSelected);
         }
     }
-
-    let preview_panel = bevy_presentation::spawn_panel(commands, root);
-    bevy_presentation::spawn_label(commands, preview_panel, "EDIT PREVIEW");
-    if let Some(map) = bevy_spatial::sandbox_map(spatial) {
-        let cursor = world_lab_cursor(state, map);
-        bevy_presentation::spawn_muted_label(
-            commands, preview_panel,
-            "Legend: X cursor | H prop | Q discovery | D passage | A actor | @ entry | ? discovery | E passage | N NPC | C remains | P prop | # wall | . floor | : ash | % rubble",
-        );
-        bevy_presentation::spawn_muted_label(
-            commands,
-            preview_panel,
-            world_lab_map_preview_with_all_holds(
-                map,
-                Some(cursor),
-                state.world_lab_held_prop.as_deref(),
-                state.world_lab_held_point_of_interest.as_deref(),
-                state.world_lab_held_passage.as_deref(),
-                state.world_lab_held_actor.map(|(entity_id, _)| entity_id),
-            ),
-        );
-    } else {
-        bevy_presentation::spawn_muted_label(commands, preview_panel, "Generate a map first.");
-    }
 }
 
 fn render_world_lab_fixtures(
@@ -2548,18 +2570,48 @@ fn render_world_lab_fixtures(
         root,
         "Reusable spatial maps are stored separately from campaign saves. Import validates a fixture before it replaces the temporary sandbox.",
     );
-    let panel = bevy_presentation::spawn_panel(commands, root);
+
+    let workspace = commands.spawn(lab_workspace_node()).id();
+    commands.entity(root).add_child(workspace);
+    let preview_panel = spawn_world_lab_panel(commands, workspace);
+    let controls = spawn_world_lab_panel(commands, workspace);
+
+    let selected_fixture = state.world_lab_fixtures.get(navigation.selected);
+    spawn_world_lab_map_preview(
+        commands,
+        preview_panel,
+        "FIXTURE PREVIEW",
+        "Legend: @ entry | ? discovery | E passage | N NPC | C remains | P prop | # wall | . floor | : ash | % rubble",
+        selected_fixture
+            .and_then(|fixture| fixture.map.as_ref())
+            .map(world_lab_map_preview),
+        "Select a valid fixture to preview its map.",
+    );
+    if let Some(fixture) = selected_fixture {
+        bevy_presentation::spawn_label(commands, preview_panel, &fixture.name);
+        bevy_presentation::spawn_muted_label(commands, preview_panel, &fixture.details);
+        if let Some(error) = fixture.error.as_deref() {
+            bevy_presentation::spawn_muted_label(commands, preview_panel, error);
+        }
+    } else if state.world_lab_fixtures.is_empty() {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            preview_panel,
+            "No fixtures are available yet. Save a generated map or import a .json fixture.",
+        );
+    }
+
     if state.world_lab_fixtures.is_empty() {
         bevy_presentation::spawn_muted_label(
             commands,
-            panel,
+            controls,
             "No fixtures found. Save the current map or import a .json fixture.",
         );
     }
     for (index, fixture) in state.world_lab_fixtures.iter().enumerate() {
         let button = bevy_presentation::spawn_action_button_with_detail(
             commands,
-            panel,
+            controls,
             index,
             if fixture.error.is_some() {
                 "cancel"
@@ -2579,7 +2631,7 @@ fn render_world_lab_fixtures(
     let import_index = state.world_lab_fixtures.len();
     let import = bevy_presentation::spawn_action_button(
         commands,
-        panel,
+        controls,
         import_index,
         "folder",
         "Import fixture",
@@ -2592,7 +2644,7 @@ fn render_world_lab_fixtures(
     let refresh_index = import_index + 1;
     let refresh = bevy_presentation::spawn_action_button(
         commands,
-        panel,
+        controls,
         refresh_index,
         "continue",
         "Refresh fixture list",
@@ -2605,7 +2657,7 @@ fn render_world_lab_fixtures(
     let back_index = refresh_index + 1;
     let back = bevy_presentation::spawn_action_button(
         commands,
-        panel,
+        controls,
         back_index,
         "back",
         "Back to World Lab",
@@ -2614,7 +2666,7 @@ fn render_world_lab_fixtures(
         commands.entity(back).insert(bevy_presentation::UiSelected);
     }
     if let Some(status) = state.world_lab_status.as_deref() {
-        bevy_presentation::spawn_muted_label(commands, panel, status);
+        bevy_presentation::spawn_muted_label(commands, controls, status);
     }
 }
 

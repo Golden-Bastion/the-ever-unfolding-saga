@@ -164,6 +164,43 @@ fn standalone_labels_retain_intrinsic_height() {
 }
 
 #[derive(Resource)]
+struct IntrinsicActionButtonFixture {
+    button: Entity,
+    label: Entity,
+}
+
+fn spawn_intrinsic_action_button_fixture(mut commands: Commands) {
+    let parent = commands.spawn_empty().id();
+    let (button, label) = spawn_action_button_with_text(&mut commands, parent, 0, "back", "Back");
+    commands.insert_resource(IntrinsicActionButtonFixture { button, label });
+}
+
+#[test]
+fn action_button_content_does_not_stretch_its_label_to_the_parent_width() {
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(spawn_intrinsic_action_button_fixture);
+    schedule.run(&mut world);
+
+    let fixture = world.resource::<IntrinsicActionButtonFixture>();
+    let button = world.get::<Node>(fixture.button).unwrap();
+    let label = world.get::<Node>(fixture.label).unwrap();
+    let content = world
+        .get::<Children>(fixture.button)
+        .unwrap()
+        .iter()
+        .next()
+        .and_then(|entity| world.get::<Node>(entity))
+        .unwrap();
+
+    assert_eq!(button.width, Val::Auto);
+    assert_eq!(button.align_self, AlignSelf::FlexStart);
+    assert_eq!(content.width, Val::Auto);
+    assert_eq!(label.width, Val::Auto);
+    assert_eq!(label.flex_grow, 0.0);
+}
+
+#[derive(Resource)]
 struct ButtonGroupingFixture {
     canvas: Entity,
     positioned: Entity,
@@ -313,21 +350,35 @@ fn warm_map_buttons_have_a_visible_resting_state_and_distinct_interaction_feedba
 }
 
 #[test]
-fn action_groups_are_bottom_left_and_width_capped() {
+fn action_groups_fit_their_widest_child_and_remain_width_capped() {
     let node = action_button_group_node();
 
-    assert_eq!(node.width, percent(100));
+    assert_eq!(node.width, Val::Auto);
     assert_eq!(node.max_width, px(UI_ACTION_MAX_WIDTH_PX));
     assert_eq!(node.align_self, AlignSelf::FlexStart);
+    assert_eq!(node.align_items, AlignItems::FlexStart);
     assert_eq!(node.margin.top, Val::Auto);
 }
 
 #[test]
-fn stacked_action_buttons_do_not_expand_to_fill_parent() {
+fn stacked_action_buttons_use_intrinsic_width_and_preserve_touch_height() {
     let node = action_button_node();
 
+    assert_eq!(node.width, Val::Auto);
+    assert_eq!(node.max_width, px(UI_ACTION_MAX_WIDTH_PX));
+    assert_eq!(node.align_self, AlignSelf::FlexStart);
     assert_eq!(node.flex_grow, 0.0);
     assert_eq!(node.flex_shrink, 0.0);
+    assert_eq!(node.min_height, touch_target_size());
+}
+
+#[test]
+fn compact_action_buttons_keep_only_the_minimum_touch_width() {
+    let node = compact_action_button_node();
+
+    assert_eq!(node.width, Val::Auto);
+    assert_eq!(node.min_width, px(76));
+    assert_eq!(node.max_width, px(180));
     assert_eq!(node.min_height, touch_target_size());
 }
 
