@@ -1,4 +1,5 @@
 use super::*;
+use crate::bevy_presentation::ChoiceButton;
 use crate::content::CharacterPartContent;
 
 fn part(id: &str, slot: &str, layer: i32) -> CharacterPartContent {
