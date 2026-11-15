@@ -125,7 +125,7 @@ impl SpatialProp {
 pub struct GridEdge { pub a: GridPosition, pub b: GridPosition }
 impl GridEdge {
     pub fn new(first: GridPosition, second: GridPosition) -> Option<Self> {
-        if first.x.abs_diff(second.x) + first.y.abs_diff(second.y) != 1 { return None; }
+        if u32::from(first.x.abs_diff(second.x)) + u32::from(first.y.abs_diff(second.y)) != 1 { return None; }
         let (a, b) = if (first.y, first.x) <= (second.y, second.x) { (first, second) } else { (second, first) };
         Some(Self { a, b })
     }
