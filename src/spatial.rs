@@ -186,7 +186,7 @@ pub struct LocalMap {
     pub location_id: String,
     pub generator_version: u32,
     /// Built-in layout used when the persistent map was first generated.
-    /// Missing in older saves; the saved geometry itself remains authoritative.
+    /// Optional content metadata; the saved geometry itself remains authoritative.
     #[serde(default)]
     pub layout_id: Option<String>,
     pub seed: u64,
@@ -199,18 +199,18 @@ pub struct LocalMap {
     pub rooms: Vec<SpatialRoom>,
     pub doors: Vec<SpatialDoor>,
     /// Connected world locations reachable through physical map-edge passages.
-    /// Defaults empty so maps in older saves remain loadable.
+    /// Defaults empty when a map has no world-location passages.
     #[serde(default)]
     pub exits: Vec<MapExit>,
     #[serde(default)]
     pub discovered_tiles: Vec<bool>,
     #[serde(default)]
     pub terrain_changes: Vec<TerrainChange>,
-    /// Persistent static props and their collision footprints. Missing in older saves.
+    /// Persistent static props and their collision footprints.
     #[serde(default)]
     pub props: Vec<SpatialProp>,
     /// Persistent positions of world-owned NPCs and searchable remains.
-    /// Missing in older saves; placements are added deterministically on entry.
+    /// Placements are added deterministically on entry when absent.
     #[serde(default)]
     pub interactables: Vec<SpatialEntityPlacement>,
 }
