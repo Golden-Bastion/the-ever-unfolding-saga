@@ -155,7 +155,9 @@ pub(crate) fn discover_available_interactions(
             (f32::from(door.edge.a.y) + f32::from(door.edge.b.y) + 1.0) * 0.5,
         );
         let distance = projected_distance(map, position, midpoint);
-        if distance > INTERACTION_RANGE_PX || !has_clear_line_of_sight(map, position, midpoint) {
+        if distance > INTERACTION_RANGE_PX
+            || !has_clear_line_of_sight(map, position, midpoint)
+        {
             continue;
         }
         let (action, label) = match door.state {
