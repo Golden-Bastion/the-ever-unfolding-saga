@@ -217,8 +217,9 @@ fn shared_action_buttons_preserve_intrinsic_text_measurement() {
     let detail_button = world.get::<Node>(fixture.detail_button).unwrap();
 
     assert_eq!(button.width, Val::Auto);
-    assert_eq!(button.max_width, percent(100));
-    assert_eq!(button.align_self, AlignSelf::FlexStart);
+    // The parent action stack owns the percentage cap; button descendants stay intrinsic.
+    assert_eq!(button.max_width, Val::Auto);
+    assert_eq!(button.align_self, AlignSelf::Stretch);
     assert_eq!(content.width, Val::Auto);
     assert_eq!(content.max_width, Val::Auto);
     assert_eq!(label.width, Val::Auto);
@@ -230,6 +231,9 @@ fn shared_action_buttons_preserve_intrinsic_text_measurement() {
     assert_eq!(compact_label.min_width, Val::Auto);
     assert_eq!(compact_label.max_width, Val::Auto);
     assert_eq!(detail_button.width, Val::Auto);
+    let detail_button = world.get::<Node>(fixture.detail_button).unwrap();
+    assert_eq!(detail_button.max_width, Val::Auto);
+    assert_eq!(detail_button.align_self, AlignSelf::Stretch);
 
     let mut labels = world.query_filtered::<&TextLayout, With<Text>>();
     let layouts = labels.iter(&world).collect::<Vec<_>>();
