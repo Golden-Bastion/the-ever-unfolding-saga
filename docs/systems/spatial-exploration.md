@@ -35,7 +35,7 @@ Talking transitions from the spatial view into a dedicated close-up dialogue sce
 
 Campaign location content may specify the optional `spatial_layout` identifier. The first built-in template, `shrine_chamber`, is assigned to Old Shrine and creates a compact rectangular chamber with intersecting masonry walls, one open doorway, a pillar, and a table. The room is renderer-neutral: terrain cells and prop footprints feed the same movement, collision, and line-of-sight rules as procedural geometry.
 
-Layout selection affects newly generated maps only. Once saved, a local map's terrain and prop state remain authoritative; existing saved maps are not silently regenerated to apply a new layout. Older content without `spatial_layout` remains valid, and unrecognized layout identifiers fall back to the normal procedural map. This is a first authored template, not arbitrary mod-defined room geometry or a complete room/door graph.
+Layout selection affects newly generated maps only. Once saved, a local map's terrain and prop state remain authoritative; existing saved maps are not silently regenerated to apply a new layout. Older content without `spatial_layout` remains valid, and unrecognized layout identifiers fall back to the normal procedural map. The authored template now supplies explicit chamber/approach room membership and a threshold door; arbitrary mod-defined room geometry remains future work.
 
 ## Physical map exits
 
@@ -75,7 +75,7 @@ This is not yet full room-aware camera behavior. Local maps currently have no ex
 
 ## Validation status and next gates
 
-Automated unit tests cover deterministic map/prop/actor placement, reachable actor positions, authored chamber geometry and doorway access, room/exit reachability, map serialization and backward-compatible defaults, reachable physical exits with prop-free corridors, projection offsets, inverse input mapping, continuous movement and low-frame-rate movement recovery, terrain/prop-footprint collision, interaction range and prop-blocked line of sight, contextual door open/close actions, room topology validation, closed-door pathfinding, contextual target priority, spatial-overlay state separation, pause-menu action routing, dead-zone behavior, frame-rate-independent camera following and post-smoothing map bounds, viewport-aware radial wheel sizing and entry placement, eased wheel selection feedback, wall-top/prop depth ordering, selected-folder PNG dimensions, and UI icon fallbacks.
+Automated unit tests cover deterministic map/prop/actor placement, reachable actor positions, authored chamber geometry and doorway access, room/exit reachability, map serialization and current-schema validation, reachable physical exits with prop-free corridors, projection offsets, inverse input mapping, continuous movement and low-frame-rate movement recovery, terrain/prop-footprint collision, interaction range and prop-blocked line of sight, contextual door open/close actions, room topology validation, closed-door pathfinding, contextual target priority, spatial-overlay state separation, pause-menu action routing, dead-zone behavior, frame-rate-independent camera following and post-smoothing map bounds, viewport-aware radial wheel sizing and entry placement, eased wheel selection feedback, wall-top/prop depth ordering, selected-folder PNG dimensions, and UI icon fallbacks.
 
 These tests are source-level coverage. They do not establish successful end-to-end play on desktop or Android; interactive testing and on-device verification are intentionally left to the repository owner.
 
