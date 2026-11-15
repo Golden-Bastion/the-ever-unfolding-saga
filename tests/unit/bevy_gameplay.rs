@@ -17,7 +17,10 @@ fn spatial_pause_menu_action_buttons_fill_the_available_panel_width() {
         let mut query = world.query_filtered::<Entity, With<GameplayMenuChoice>>();
         query.iter(&world).collect::<Vec<_>>()
     };
-    assert!(!buttons.is_empty(), "the pause menu should spawn its actions");
+    assert!(
+        !buttons.is_empty(),
+        "the pause menu should spawn its actions"
+    );
 
     let mut parents = world.query::<(Entity, &Children)>();
     let stack = parents

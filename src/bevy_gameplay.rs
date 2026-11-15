@@ -481,8 +481,7 @@ fn render_pause(commands: &mut Commands, parent: Entity, actions: &[PauseAction]
         "The chronicle waits. Resume your journey or choose another action.",
     );
 
-    let action_stack =
-        bevy_presentation::spawn_full_width_action_button_group(commands, surface);
+    let action_stack = bevy_presentation::spawn_full_width_action_button_group(commands, surface);
 
     for (index, action) in actions.iter().enumerate() {
         let (icon, label) = pause_action_visuals(*action);
