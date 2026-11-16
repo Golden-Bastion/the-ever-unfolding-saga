@@ -602,6 +602,7 @@ pub(crate) fn enter(
                         id: discovery.id.clone(),
                         title: discovery.title.clone(),
                         description: discovery.description.clone(),
+                        prerequisites: discovery.requires_evidence.clone(),
                     })
                     .collect::<Vec<_>>()
             })
@@ -1087,52 +1088,72 @@ fn interact_with_poi(
     };
     let location_id = session.location_id.clone();
     let position = session_position(state);
-    let Some(map) = state.maps.get(&location_id) else {
-        return;
-    };
-    let Some(poi) = map.points_of_interest.iter().find(|poi| poi.id == poi_id) else {
+    let Some(poi) = state
+        .maps
+        .get(&location_id)
+        .and_then(|map| map.points_of_interest.iter().find(|poi| poi.id == poi_id))
+        .cloned()
+    else {
         state.message = Some("There is nothing here that answers your attention.".to_string());
         state.dirty = true;
         return;
     };
-    if !poi_interaction_available_for(map, position, poi) {
+    let Some(map) = state.maps.get(&location_id) else {
+        return;
+    };
+    if !poi_interaction_available_for(map, position, &poi) {
         state.message = Some("Move closer and find a clear approach.".to_string());
         state.dirty = true;
         return;
     }
-    let Some(map) = state.maps.get_mut(&location_id) else {
+
+    let Some(game_session) = lifecycle.session.as_mut() else {
         return;
     };
-    let Some(poi) = map.point_of_interest_mut(poi_id) else {
-        return;
-    };
-    if poi.interacted {
-        let title = poi.title.clone();
+    if game_session.state.character.knows_evidence(poi_id) {
         state.message = Some(format!(
-            "You have already examined {title}. You find nothing new."
+            "You have already examined {}. You find nothing new.",
+            poi.title
         ));
         state.dirty = true;
         return;
     }
-    poi.discovered = true;
-    poi.interacted = true;
-    let title = poi.title.clone();
-    let description = poi.description.clone();
-    if let Some(session) = lifecycle.session.as_mut() {
-        let turn = session.state.character.turn;
-        session.state.world.record_history(
-            turn,
-            format!(
-                "{}: {} {}",
-                title, description, "The discovery has been recorded."
-            ),
-        );
+    if !poi.is_available_to(&game_session.state.character.known_evidence_ids) {
+        state.message = Some(format!(
+            "You cannot yet make sense of {}. Another piece of evidence may help.",
+            poi.title
+        ));
+        state.dirty = true;
+        return;
     }
+
+    if let Some(map) = state.maps.get_mut(&location_id) {
+        if let Some(current_poi) = map.point_of_interest_mut(poi_id) {
+            // This flag records that the physical site has been examined by
+            // someone. It does not grant knowledge to later characters.
+            current_poi.discovered = true;
+            current_poi.interacted = true;
+        }
+    }
+
+    let character_name = game_session.state.character.display_name();
+    let turn = game_session.state.character.turn;
+    game_session.state.character.record_evidence(poi_id.to_string());
+    crate::game::quests::sync_active_quests(&mut game_session.state);
+    game_session.state.world.record_history(
+        turn,
+        format!(
+            "{} examined {}: {} The discovery has been recorded.",
+            character_name, poi.title, poi.description
+        ),
+    );
+
     state.message = Some(format!(
         "{}. {} You have the distinct impression that something noticed.",
-        title, description
+        poi.title, poi.description
     ));
     state.dirty = true;
+    sync_spatial_to_game(state, lifecycle);
 }
 
 fn open_interaction_wheel(state: &mut SpatialExplorationState, lifecycle: &LifecycleState) {
