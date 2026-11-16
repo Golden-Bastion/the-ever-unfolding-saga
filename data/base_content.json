@@ -17,12 +17,16 @@
           {
             "id": "poi.ashen_gate.cracked_gate",
             "title": "Cracked Gate",
-            "description": "The iron gate hangs between broken towers. Fresh scrape marks score the lower hinge."
+            "description": "The iron gate hangs between broken towers. Fresh scrape marks score the lower hinge, cutting through a thin layer of settled ash.",
+            "requires_evidence": []
           },
           {
             "id": "poi.ashen_gate.dead_road",
             "title": "Dead Road",
-            "description": "Old cart ruts vanish beneath grey ash, though one set of tracks is newer than the rest."
+            "description": "Old cart ruts vanish beneath grey ash. One set of tracks is newer than the rest; it begins beside the scraped hinge and runs toward Hollow Market.",
+            "requires_evidence": [
+              "poi.ashen_gate.cracked_gate"
+            ]
           }
         ],
         "exits": [
@@ -42,12 +46,18 @@
           {
             "id": "poi.hollow_market.abandoned_stall",
             "title": "Abandoned Stall",
-            "description": "Dust has settled across the counter, except for a small patch disturbed more recently."
+            "description": "The newer tracks end at this counter. Dust has settled everywhere else, but a narrow patch was disturbed recently, as though something small was set down and taken away.",
+            "requires_evidence": [
+              "poi.ashen_gate.dead_road"
+            ]
           },
           {
             "id": "poi.hollow_market.unlit_lantern",
             "title": "Unlit Lantern",
-            "description": "The wick is cold and dry. The lantern has been opened, and something has been removed."
+            "description": "The lantern has been opened from below. Its wick is missing, and a dark, oily residue stains the empty socket; a matching smear marks the disturbed patch beneath the stall counter.",
+            "requires_evidence": [
+              "poi.hollow_market.abandoned_stall"
+            ]
           }
         ],
         "exits": [
@@ -67,12 +77,18 @@
           {
             "id": "poi.old_shrine.black_altar",
             "title": "Black Altar",
-            "description": "A black stone altar stands in the chamber. Fresh soot clings to its upper surface."
+            "description": "Fresh soot clings to the altar's upper surface. Its oily edge matches the trace on the shrine floor; something was burned or set alight here recently.",
+            "requires_evidence": [
+              "poi.old_shrine.fresh_soot"
+            ]
           },
           {
             "id": "poi.old_shrine.fresh_soot",
             "title": "Fresh Soot",
-            "description": "Fresh soot lies across the shrine floor, distinct from the older ash around it."
+            "description": "Fresh soot lies across the shrine floor, distinct from the older ash. A thin, oily trace runs through it, like the residue left inside the market lantern.",
+            "requires_evidence": [
+              "poi.hollow_market.unlit_lantern"
+            ]
           }
         ],
         "exits": [
@@ -219,7 +235,10 @@
       "faction_name": "Cinder Wardens",
       "giver_npc_name": "Mira",
       "required_item_name": "Trophy from Old Shrine",
-      "reward_item_name": "Wardens' Seal"
+      "reward_item_name": "Wardens' Seal",
+      "required_evidence_ids": [
+        "poi.old_shrine.black_altar"
+      ]
     },
     {
       "id": "quest.roots_for_market",
