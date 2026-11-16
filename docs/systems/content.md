@@ -26,6 +26,10 @@ Broken mod files produce load warnings instead of crashing the game. Mod validat
 
 Content loading validates duplicate IDs, broken references, event definitions, faction references, reputation ranges, and other cross-content dependencies. Invalid definitions are rejected while valid content continues loading when possible.
 
+## Authored local-map layouts
+
+A location may optionally declare a `spatial_layout` identifier. The current built-in identifiers are `shrine_chamber` (Old Shrine), `ashen_gate_causeway` (Ashen Gate), and `hollow_market_square` (Hollow Market). These select deterministic renderer-neutral terrain, props, room membership, and door topology for newly generated local maps. The gate and market templates require at least a 24×16 map. Unknown identifiers and layouts that do not fit the configured dimensions fall back to procedural generation. Authored layout changes do not rewrite established maps saved by a player.
+
 ## Authored spatial discoveries
 
 A location may define an optional `spatial_discoveries` array. Each entry has a stable `id`, a player-facing `title`, and a `description`. These definitions are converted into points of interest when that location's local map is first generated. Placement is deterministic for the established map seed and avoids blocked or unreachable cells, exits, and actor placements. An empty list keeps the older generic fallback for locations that have not received authored discoveries yet.
