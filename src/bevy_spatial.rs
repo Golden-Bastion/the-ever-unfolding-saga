@@ -470,19 +470,18 @@ fn refresh_spatial_scene_on_reentry(
     mut state: ResMut<SpatialExplorationState>,
 ) {
     if should_refresh_spatial_scene(state.last_navigation_screen, navigation.current_screen) {
-        if let (Some(session), Some(game_session)) =
-            (state.session.as_ref(), lifecycle.session.as_ref())
+        let location_id = state.session.as_ref().map(|session| session.location_id.clone());
+        if let (Some(location_id), Some(game_session)) = (location_id, lifecycle.session.as_ref())
         {
-            if let Some(saved_map) = game_session
+            let saved_map = game_session
                 .state
                 .world
                 .local_maps
                 .iter()
-                .find(|map| map.location_id == session.location_id)
-            {
-                state
-                    .maps
-                    .insert(session.location_id.clone(), saved_map.clone());
+                .find(|map| map.location_id == location_id)
+                .cloned();
+            if let Some(saved_map) = saved_map {
+                state.maps.insert(location_id, saved_map);
             }
         }
         state.dirty = true;
@@ -3575,6 +3574,11 @@ fn interaction_prompt_label(
             .location_by_id(*destination_id)
             .map(|location| location.name.clone()),
         InteractionTarget::Door { .. } => Some("Door".to_string()),
+        InteractionTarget::Encounter(id) => map
+            .encounters
+            .iter()
+            .find(|encounter| encounter.id == *id)
+            .map(|encounter| encounter.enemy_name.clone()),
     }
     .unwrap_or_else(|| "Interact".to_string());
     let target_count = interactions
