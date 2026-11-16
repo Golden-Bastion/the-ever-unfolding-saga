@@ -253,6 +253,76 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
 }
 
 #[test]
+fn base_campaign_links_gate_market_and_shrine_clues_into_one_investigation() {
+    let content = default_campaign_content();
+    let chain: [(&str, &str, &[&str]); 6] = [
+        (
+            "location.ashen_gate",
+            "poi.ashen_gate.cracked_gate",
+            &[],
+        ),
+        (
+            "location.ashen_gate",
+            "poi.ashen_gate.dead_road",
+            &["poi.ashen_gate.cracked_gate"],
+        ),
+        (
+            "location.hollow_market",
+            "poi.hollow_market.abandoned_stall",
+            &["poi.ashen_gate.dead_road"],
+        ),
+        (
+            "location.hollow_market",
+            "poi.hollow_market.unlit_lantern",
+            &["poi.hollow_market.abandoned_stall"],
+        ),
+        (
+            "location.old_shrine",
+            "poi.old_shrine.fresh_soot",
+            &["poi.hollow_market.unlit_lantern"],
+        ),
+        (
+            "location.old_shrine",
+            "poi.old_shrine.black_altar",
+            &["poi.old_shrine.fresh_soot"],
+        ),
+    ];
+
+    for (location_id, evidence_id, prerequisites) in chain {
+        let discovery = content
+            .world
+            .locations
+            .iter()
+            .find(|location| location.id == location_id)
+            .and_then(|location| {
+                location
+                    .spatial_discoveries
+                    .iter()
+                    .find(|discovery| discovery.id == evidence_id)
+            })
+            .unwrap_or_else(|| panic!("missing authored discovery {evidence_id}"));
+        let expected = prerequisites
+            .iter()
+            .map(|id| (*id).to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            discovery.requires_evidence, expected,
+            "unexpected prerequisites for {evidence_id}"
+        );
+    }
+
+    let shrine_quest = content
+        .quests
+        .iter()
+        .find(|quest| quest.id == "quest.quiet_old_shrine")
+        .expect("Quiet the Old Shrine quest should exist");
+    assert_eq!(
+        shrine_quest.required_evidence_ids,
+        vec!["poi.old_shrine.black_altar"]
+    );
+}
+
+#[test]
 fn invalid_spatial_discoveries_are_reported_by_content_validation() {
     let mut content = default_campaign_content();
     let location = content
