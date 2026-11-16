@@ -32,7 +32,10 @@ fn character_sheet_view_resolves_only_the_current_characters_known_evidence() {
     assert_eq!(view.evidence[0].title, evidence.title);
     assert_eq!(view.evidence[0].description, evidence.description);
     assert_eq!(view.notes, state.character.notes);
-    assert!(view.notes.iter().any(|note| note == "A note in my own words."));
+    assert!(view
+        .notes
+        .iter()
+        .any(|note| note == "A note in my own words."));
 }
 
 #[test]
