@@ -1509,6 +1509,30 @@ pub fn ensure_spatial_encounter(
     power: i32,
     trophy_item_name: String,
 ) -> bool {
+    ensure_spatial_encounter_avoiding(
+        map,
+        id,
+        enemy_name,
+        description,
+        max_hp,
+        power,
+        trophy_item_name,
+        None,
+    )
+}
+
+/// As above, while reserving the character's current saved tile when first
+/// materializing an encounter on a previously explored map.
+pub fn ensure_spatial_encounter_avoiding(
+    map: &mut LocalMap,
+    id: String,
+    enemy_name: String,
+    description: String,
+    max_hp: i32,
+    power: i32,
+    trophy_item_name: String,
+    avoid_position: Option<GridPosition>,
+) -> bool {
     if id.trim().is_empty()
         || enemy_name.trim().is_empty()
         || description.trim().is_empty()
@@ -1534,6 +1558,7 @@ pub fn ensure_spatial_encounter(
         .filter(|position| {
             position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 2
         })
+        .filter(|position| Some(*position) != avoid_position)
         .filter(|position| map.encounter_placement_is_valid(*position, None))
         .collect::<Vec<_>>();
     if candidates.is_empty() {

@@ -23,6 +23,7 @@ pub(crate) enum CombatStartError {
     NoActiveThreat,
     MissingLocation,
     MissingSpatialEncounter,
+    SpatialEncounterOutOfReach,
 }
 
 impl fmt::Display for CombatStartError {
@@ -31,6 +32,7 @@ impl fmt::Display for CombatStartError {
             Self::NoActiveThreat => formatter.write_str("There is no active threat to face."),
             Self::MissingLocation => formatter.write_str("The threat cannot be reached here."),
             Self::MissingSpatialEncounter => formatter.write_str("That encounter is no longer available here."),
+            Self::SpatialEncounterOutOfReach => formatter.write_str("Move closer before confronting that encounter."),
         }
     }
 }
@@ -102,15 +104,45 @@ pub(crate) fn start_spatial_encounter(
         .cloned()
         .ok_or(CombatStartError::MissingLocation)?;
     let map_id = format!("location.{}", location.id);
-    let spatial_encounter = state
+    let map = state
         .world
         .local_maps
         .iter()
         .find(|map| map.location_id == map_id)
-        .and_then(|map| map.encounters.iter().find(|encounter| encounter.id == encounter_id))
+        .ok_or(CombatStartError::MissingSpatialEncounter)?;
+    let spatial_encounter = map
+        .encounters
+        .iter()
+        .find(|encounter| encounter.id == encounter_id)
         .filter(|encounter| encounter.status == SpatialEncounterStatus::Active)
         .cloned()
         .ok_or(CombatStartError::MissingSpatialEncounter)?;
+
+    let player_position = state
+        .character
+        .exploration_session
+        .as_ref()
+        .filter(|session| session.location_id == map_id)
+        .and_then(|_| state.character.exploration_position)
+        .map(|position| (position.x, position.y))
+        .unwrap_or((
+            f32::from(map.entry.x) + 0.5,
+            f32::from(map.entry.y) + 0.5,
+        ));
+    let can_confront = crate::interaction_actions::discover_available_interactions(
+        map,
+        state,
+        player_position,
+    )
+    .iter()
+    .any(|interaction| {
+        interaction.action == crate::interaction_actions::InteractionActionKind::EngageEncounter
+            && interaction.target
+                == crate::interaction_actions::InteractionTarget::Encounter(encounter_id.into())
+    });
+    if !can_confront {
+        return Err(CombatStartError::SpatialEncounterOutOfReach);
+    }
 
     let character_name = state.character.display_name();
     let enemy_name = spatial_encounter.enemy_name.clone();

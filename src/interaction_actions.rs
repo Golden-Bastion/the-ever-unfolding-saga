@@ -4,7 +4,9 @@
 //! radial wheel or another view; execution remains in authoritative gameplay.
 
 use crate::model::{EntityId, GameState};
-use crate::spatial::{DoorState, GridPosition, LocalMap, MapExit, SpatialEntityKind};
+use crate::spatial::{
+    DoorState, GridPosition, LocalMap, MapExit, SpatialEncounterStatus, SpatialEntityKind,
+};
 
 const TILE_HALF_WIDTH: f32 = 24.0;
 const TILE_HALF_HEIGHT: f32 = 12.0;
@@ -21,6 +23,7 @@ pub(crate) enum InteractionActionKind {
     OpenDoor,
     CloseDoor,
     TryLockedDoor,
+    EngageEncounter,
 }
 
 impl InteractionActionKind {
@@ -33,6 +36,7 @@ impl InteractionActionKind {
             Self::OpenDoor => "open_door",
             Self::CloseDoor => "close_door",
             Self::TryLockedDoor => "try_locked_door",
+            Self::EngageEncounter => "engage_encounter",
         }
     }
 }
@@ -49,6 +53,7 @@ pub(crate) enum InteractionTarget {
     Door {
         id: String,
     },
+    Encounter(String),
 }
 
 impl InteractionTarget {
@@ -59,6 +64,7 @@ impl InteractionTarget {
             Self::PointOfInterest(id) => format!("poi:{id}"),
             Self::Passage { id, destination_id } => format!("passage:{id}:{destination_id}"),
             Self::Door { id } => format!("door:{id}"),
+            Self::Encounter(id) => format!("encounter:{id}"),
         }
     }
 }
@@ -153,6 +159,36 @@ pub(crate) fn discover_available_interactions(
             }
         };
         candidates.push((distance, priority, item.stable_key(), item));
+    }
+
+    let threat_belongs_here = game.threat.active
+        && game
+            .threat
+            .source_location_id
+            .is_none_or(|source| source == game.character.location_id)
+        && map.location_id == format!("location.{}", game.character.location_id);
+    if threat_belongs_here {
+        for encounter in &map.encounters {
+            if encounter.status != SpatialEncounterStatus::Active {
+                continue;
+            }
+            let target_position = (
+                f32::from(encounter.position.x) + 0.5,
+                f32::from(encounter.position.y) + 0.5,
+            );
+            let distance = projected_distance(map, position, target_position);
+            if distance > INTERACTION_RANGE_PX
+                || !has_clear_line_of_sight(map, position, target_position)
+            {
+                continue;
+            }
+            let item = AvailableInteraction {
+                action: InteractionActionKind::EngageEncounter,
+                target: InteractionTarget::Encounter(encounter.id.clone()),
+                label: format!("Confront: {}", encounter.enemy_name),
+            };
+            candidates.push((distance, 0_u8, item.stable_key(), item));
+        }
     }
 
     for door in &map.doors {
