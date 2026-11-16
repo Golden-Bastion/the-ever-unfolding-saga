@@ -62,6 +62,10 @@ pub struct PointOfInterest {
     pub discovered: bool,
     #[serde(default)]
     pub interacted: bool,
+    /// Evidence IDs this character must already know before examining the clue.
+    /// This is authored content metadata; learned evidence remains character-owned.
+    #[serde(default)]
+    pub prerequisites: Vec<String>,
 }
 
 /// Campaign-authored discovery data used when a new local map is first created.
@@ -71,6 +75,7 @@ pub struct SpatialDiscoveryDefinition {
     pub id: String,
     pub title: String,
     pub description: String,
+    pub prerequisites: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -217,6 +222,15 @@ pub struct LocalMap {
     /// Placements are added deterministically on entry when absent.
     #[serde(default)]
     pub interactables: Vec<SpatialEntityPlacement>,
+}
+
+impl PointOfInterest {
+    /// Whether the current character has learned every prerequisite for this clue.
+    pub fn is_available_to(&self, known_evidence_ids: &[String]) -> bool {
+        self.prerequisites
+            .iter()
+            .all(|required| known_evidence_ids.iter().any(|known| known == required))
+    }
 }
 
 impl LocalMap {
@@ -1368,6 +1382,7 @@ pub fn apply_authored_spatial_discoveries(
             description: definition.description.clone(),
             discovered: false,
             interacted: false,
+            prerequisites: definition.prerequisites.clone(),
         });
     }
 
