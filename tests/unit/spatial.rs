@@ -177,6 +177,76 @@ fn authored_shrine_chamber_has_a_clear_doorway_and_deterministic_props() {
 }
 
 #[test]
+fn authored_gate_and_market_layouts_preserve_room_thresholds_and_exits() {
+    for (location_id, layout, barrier_x, targets) in [
+        (
+            "location.ashen_gate",
+            "ashen_gate_causeway",
+            12,
+            vec![101, 102],
+        ),
+        (
+            "location.hollow_market",
+            "hollow_market_square",
+            4,
+            vec![201, 202, 203],
+        ),
+    ] {
+        let mut map = generate_local_map_with_layout(
+            84,
+            location_id,
+            LocalMapConfig::default(),
+            Some(layout),
+        );
+        let repeated = generate_local_map_with_layout(
+            84,
+            location_id,
+            LocalMapConfig::default(),
+            Some(layout),
+        );
+
+        assert_eq!(map, repeated, "{layout} must be deterministic");
+        assert_eq!(map.layout_id.as_deref(), Some(layout));
+        assert_eq!(map.rooms.len(), 2);
+        assert_eq!(map.doors.len(), 1);
+        assert_eq!(map.doors[0].state, DoorState::Open);
+        assert!(map.validate_room_topology().is_ok());
+
+        let door_id = map.doors[0].id.clone();
+        let west_threshold = GridPosition {
+            x: barrier_x - 1,
+            y: map.entry.y,
+        };
+        let east_threshold = GridPosition {
+            x: barrier_x,
+            y: map.entry.y,
+        };
+        assert!(map.can_cross_edge(west_threshold, east_threshold));
+
+        configure_map_exits(&mut map, &targets);
+        assert!(map.validate_room_topology().is_ok());
+        for exit in &map.exits {
+            assert!(
+                has_walkable_path(&map, map.entry, exit.position),
+                "{layout} exit {} must remain reachable through its authored threshold",
+                exit.id
+            );
+        }
+
+        let far_side = GridPosition {
+            x: barrier_x + 3,
+            y: map.entry.y,
+        };
+        assert!(has_walkable_path(&map, map.entry, far_side));
+        assert!(map.set_door_state(&door_id, DoorState::Closed));
+        assert!(
+            !has_walkable_path(&map, map.entry, far_side),
+            "{layout} threshold must be the only route between its two rooms"
+        );
+    }
+}
+
+#[test]
 fn authored_room_does_not_block_generated_edge_passages() {
     for target_count in [2, 3, 4, 6, 8] {
         let mut map = generate_local_map_with_layout(
