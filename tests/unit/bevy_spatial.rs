@@ -727,6 +727,7 @@ fn points_of_interest_reveal_when_their_tiles_enter_the_explored_area() {
             description: "Close enough to notice.".into(),
             discovered: false,
             interacted: false,
+            prerequisites: Vec::new(),
         },
         crate::spatial::PointOfInterest {
             id: "poi.far".into(),
@@ -735,6 +736,7 @@ fn points_of_interest_reveal_when_their_tiles_enter_the_explored_area() {
             description: "Still beyond the explored area.".into(),
             discovered: false,
             interacted: false,
+            prerequisites: Vec::new(),
         },
     ];
     let location_id = map.location_id.clone();
@@ -819,6 +821,7 @@ fn connected_spatial_fixture() -> (
             description: "A waystone left by an earlier traveller.".into(),
             discovered: true,
             interacted: false,
+            prerequisites: Vec::new(),
         });
     game.world.local_maps.push(destination_map);
 
@@ -1508,6 +1511,7 @@ fn contextual_prompt_names_each_target_instead_of_showing_an_action() {
             description: "A dark stone altar.".into(),
             discovered: true,
             interacted: false,
+            prerequisites: Vec::new(),
         });
 
     let interaction = |target, label: &str| AvailableInteraction {
