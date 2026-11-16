@@ -184,7 +184,10 @@ fn nearby_interior_doors_offer_state_appropriate_contextual_actions() {
         "Ash".into(),
         "Wanderer".into(),
     );
-    let player = (5.5, 6.5);
+    let player = (
+        f32::from(map.doors[0].edge.a.x) + 0.5,
+        f32::from(map.doors[0].edge.a.y) + 0.5,
+    );
 
     map.doors[0].state = crate::spatial::DoorState::Closed;
     let available = discover_available_interactions(&map, &game, player);
