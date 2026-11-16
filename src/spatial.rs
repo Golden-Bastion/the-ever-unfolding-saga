@@ -51,6 +51,31 @@ pub struct SpatialEntityPlacement {
     pub position: GridPosition,
 }
 
+/// Lifecycle of a world-persistent spatial encounter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpatialEncounterStatus {
+    Active,
+    Defeated,
+}
+
+/// An encounter's authoritative local identity, profile, state, and map position.
+///
+/// The profile is snapshotted when the encounter is first created so campaign
+/// or mod content changes cannot silently reroll an encounter already in play.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpatialEncounter {
+    pub id: String,
+    pub position: GridPosition,
+    pub enemy_name: String,
+    pub description: String,
+    pub current_hp: i32,
+    pub max_hp: i32,
+    pub power: i32,
+    pub trophy_item_name: String,
+    pub status: SpatialEncounterStatus,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PointOfInterest {
     /// Stable content identifier, independent of display text.
@@ -222,6 +247,10 @@ pub struct LocalMap {
     /// Placements are added deterministically on entry when absent.
     #[serde(default)]
     pub interactables: Vec<SpatialEntityPlacement>,
+    /// Persistent location encounters, including health and defeat state.
+    /// Missing data in older saves defaults to no spatial encounter records.
+    #[serde(default)]
+    pub encounters: Vec<SpatialEncounter>,
 }
 
 impl PointOfInterest {
@@ -545,6 +574,62 @@ impl LocalMap {
         Some(self.exits.remove(index))
     }
 
+    /// Add a persistent encounter to an unoccupied, walkable map cell.
+    pub fn place_spatial_encounter(&mut self, encounter: SpatialEncounter) -> bool {
+        if encounter.id.trim().is_empty()
+            || encounter.enemy_name.trim().is_empty()
+            || encounter.trophy_item_name.trim().is_empty()
+            || encounter.max_hp <= 0
+            || encounter.power < 0
+            || !(0..=encounter.max_hp).contains(&encounter.current_hp)
+            || (encounter.status == SpatialEncounterStatus::Active && encounter.current_hp == 0)
+            || (encounter.status == SpatialEncounterStatus::Defeated && encounter.current_hp != 0)
+            || self
+                .encounters
+                .iter()
+                .any(|existing| existing.id == encounter.id)
+            || !self.encounter_placement_is_valid(encounter.position, None)
+        {
+            return false;
+        }
+        self.encounters.push(encounter);
+        true
+    }
+
+    /// Validate encounter identities, health state, and exclusive map placement.
+    pub fn validate_encounters(&self) -> Result<(), String> {
+        let mut ids = HashSet::new();
+        let mut positions = HashSet::new();
+        for encounter in &self.encounters {
+            if encounter.id.trim().is_empty() || !ids.insert(encounter.id.as_str()) {
+                return Err("encounter IDs must be non-empty and unique".into());
+            }
+            if encounter.enemy_name.trim().is_empty()
+                || encounter.trophy_item_name.trim().is_empty()
+                || encounter.max_hp <= 0
+                || encounter.power < 0
+                || !(0..=encounter.max_hp).contains(&encounter.current_hp)
+                || (encounter.status == SpatialEncounterStatus::Active && encounter.current_hp == 0)
+                || (encounter.status == SpatialEncounterStatus::Defeated
+                    && encounter.current_hp != 0)
+            {
+                return Err(format!(
+                    "encounter {} has invalid profile or health state",
+                    encounter.id
+                ));
+            }
+            if !positions.insert(encounter.position)
+                || !self.encounter_placement_is_valid(encounter.position, Some(&encounter.id))
+            {
+                return Err(format!(
+                    "encounter {} has an invalid or overlapping placement",
+                    encounter.id
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// Place a world-owned actor only when its identity exists in the supplied
     /// sandbox world catalogue.
     pub fn place_spatial_entity(
@@ -676,6 +761,33 @@ impl LocalMap {
             && !self.interactables.iter().any(|actor| {
                 Some(actor.entity_id) != ignored_entity_id && actor.position == position
             })
+            && !self
+                .encounters
+                .iter()
+                .any(|encounter| encounter.position == position)
+    }
+
+    fn encounter_placement_is_valid(
+        &self,
+        position: GridPosition,
+        ignored_encounter_id: Option<&str>,
+    ) -> bool {
+        self.contains(position)
+            && self.is_walkable(position)
+            && position != self.entry
+            && !self
+                .points_of_interest
+                .iter()
+                .any(|point| point.position == position)
+            && !self.exits.iter().any(|exit| exit.position == position)
+            && !self
+                .interactables
+                .iter()
+                .any(|actor| actor.position == position)
+            && !self.encounters.iter().any(|encounter| {
+                Some(encounter.id.as_str()) != ignored_encounter_id
+                    && encounter.position == position
+            })
     }
 
     fn point_of_interest_placement_is_valid(
@@ -698,6 +810,10 @@ impl LocalMap {
                 .props
                 .iter()
                 .any(|prop| prop.footprint_contains(position, self.width))
+            && !self
+                .encounters
+                .iter()
+                .any(|encounter| encounter.position == position)
     }
 
     fn is_editor_reserved_position(&self, position: GridPosition) -> bool {
@@ -711,6 +827,10 @@ impl LocalMap {
                 .interactables
                 .iter()
                 .any(|actor| actor.position == position)
+            || self
+                .encounters
+                .iter()
+                .any(|encounter| encounter.position == position)
             || self.rooms.iter().any(|room| room.cells.contains(&position))
     }
 
@@ -911,6 +1031,7 @@ pub fn generate_local_map_with_layout(
         terrain_changes: Vec::new(),
         props: Vec::new(),
         interactables: Vec::new(),
+        encounters: Vec::new(),
         rooms: Vec::new(),
         doors: Vec::new(),
     };
@@ -1400,6 +1521,116 @@ pub fn apply_authored_spatial_discoveries(
 /// persisted on the local map. Candidate selection is stable for a map seed
 /// and entity ID, and avoids terrain, props, exits, points of interest, and
 /// other placed entities. Only cells reachable from the entry are considered.
+/// Snapshot of the authored encounter profile used when materializing a
+/// persistent encounter on a local map.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpatialEncounterDefinition {
+    pub id: String,
+    pub enemy_name: String,
+    pub description: String,
+    pub max_hp: i32,
+    pub power: i32,
+    pub trophy_item_name: String,
+}
+
+/// Create at most one active encounter on a map. Candidate cells are chosen
+/// deterministically from the map seed and encounter identity, and must be
+/// reachable without overlapping existing authored or persistent content.
+pub fn ensure_spatial_encounter(
+    map: &mut LocalMap,
+    id: String,
+    enemy_name: String,
+    description: String,
+    max_hp: i32,
+    power: i32,
+    trophy_item_name: String,
+) -> bool {
+    ensure_spatial_encounter_avoiding(
+        map,
+        SpatialEncounterDefinition {
+            id,
+            enemy_name,
+            description,
+            max_hp,
+            power,
+            trophy_item_name,
+        },
+        None,
+    )
+}
+
+/// As above, while reserving the character's current saved tile when first
+/// materializing an encounter on a previously explored map.
+pub fn ensure_spatial_encounter_avoiding(
+    map: &mut LocalMap,
+    definition: SpatialEncounterDefinition,
+    avoid_position: Option<GridPosition>,
+) -> bool {
+    let SpatialEncounterDefinition {
+        id,
+        enemy_name,
+        description,
+        max_hp,
+        power,
+        trophy_item_name,
+    } = definition;
+    if id.trim().is_empty()
+        || enemy_name.trim().is_empty()
+        || description.trim().is_empty()
+        || trophy_item_name.trim().is_empty()
+        || max_hp <= 0
+        || power < 0
+        || map.encounters.iter().any(|encounter| encounter.id == id)
+    {
+        return false;
+    }
+    if map
+        .encounters
+        .iter()
+        .any(|encounter| encounter.status == SpatialEncounterStatus::Active)
+    {
+        return false;
+    }
+
+    let reachable = reachable_walkable_tiles(map);
+    let candidates = (1..map.height.saturating_sub(1))
+        .flat_map(|y| (1..map.width.saturating_sub(1)).map(move |x| GridPosition { x, y }))
+        .filter(|position| reachable.contains(position))
+        .filter(|position| position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 2)
+        .filter(|position| Some(*position) != avoid_position)
+        .filter(|position| map.encounter_placement_is_valid(*position, None))
+        .collect::<Vec<_>>();
+    if candidates.is_empty() {
+        return false;
+    }
+
+    let offset = stable_text_hash(&id) as usize % candidates.len();
+    let position = (0..candidates.len())
+        .map(|step| candidates[(offset + step) % candidates.len()])
+        .find(|position| map.encounter_placement_is_valid(*position, None));
+    let Some(position) = position else {
+        return false;
+    };
+
+    map.place_spatial_encounter(SpatialEncounter {
+        id,
+        position,
+        enemy_name,
+        description,
+        current_hp: max_hp,
+        max_hp,
+        power,
+        trophy_item_name,
+        status: SpatialEncounterStatus::Active,
+    })
+}
+
+fn stable_text_hash(value: &str) -> u64 {
+    value.bytes().fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3)
+    })
+}
+
 pub fn ensure_spatial_entity_placements(map: &mut LocalMap, entities: &[(u64, SpatialEntityKind)]) {
     let mut entities = entities.to_vec();
     entities.sort_by_key(|(entity_id, kind)| {
@@ -1432,6 +1663,11 @@ pub fn ensure_spatial_entity_placements(map: &mut LocalMap, entities: &[(u64, Sp
                 !map.interactables
                     .iter()
                     .any(|placement| placement.position == *position)
+            })
+            .filter(|position| {
+                !map.encounters
+                    .iter()
+                    .any(|encounter| encounter.position == *position)
             })
             .collect::<Vec<_>>();
 

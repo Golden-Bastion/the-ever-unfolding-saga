@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use bevy::camera::Viewport;
+use bevy::ecs::system::SystemParam;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{Justify, LineBreak, TextLayout};
@@ -25,9 +26,11 @@ use crate::interaction_actions::{
 };
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
-    apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_entity_placements,
-    generate_local_map_with_layout, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
-    MapExit, SpatialDiscoveryDefinition, SpatialEntityKind, SpatialPropKind, Terrain,
+    apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_encounter_avoiding,
+    ensure_spatial_entity_placements, generate_local_map_with_layout, ExplorationSession,
+    GridPosition, LocalMap, LocalMapConfig, MapExit, SpatialDiscoveryDefinition,
+    SpatialEncounterDefinition, SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind,
+    Terrain,
 };
 use crate::spatial_animation::{
     PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,
@@ -465,9 +468,26 @@ fn should_refresh_spatial_scene(
 
 fn refresh_spatial_scene_on_reentry(
     navigation: Res<NavigationState>,
+    lifecycle: Res<LifecycleState>,
     mut state: ResMut<SpatialExplorationState>,
 ) {
     if should_refresh_spatial_scene(state.last_navigation_screen, navigation.current_screen) {
+        let location_id = state
+            .session
+            .as_ref()
+            .map(|session| session.location_id.clone());
+        if let (Some(location_id), Some(game_session)) = (location_id, lifecycle.session.as_ref()) {
+            let saved_map = game_session
+                .state
+                .world
+                .local_maps
+                .iter()
+                .find(|map| map.location_id == location_id)
+                .cloned();
+            if let Some(saved_map) = saved_map {
+                state.maps.insert(location_id, saved_map);
+            }
+        }
         state.dirty = true;
     }
     state.last_navigation_screen = navigation.current_screen;
@@ -619,6 +639,46 @@ pub(crate) fn enter(
         let prototype_poi_id = format!("{location_id}.poi.initial_discovery");
         map.points_of_interest
             .retain(|poi| poi.id != prototype_poi_id);
+    }
+    if game.threat.active
+        && game
+            .threat
+            .source_location_id
+            .is_none_or(|source| source == location.id)
+        && !map
+            .encounters
+            .iter()
+            .any(|encounter| encounter.status == SpatialEncounterStatus::Active)
+    {
+        let (enemy_name, description, enemy_hp, enemy_power, trophy_name) =
+            crate::game::combat::encounter_profile(game, &location.name);
+        let encounter_id = format!(
+            "location.{}.encounter.{}",
+            location.id,
+            map.encounters.len() + 1
+        );
+        let avoid_position = game
+            .character
+            .exploration_session
+            .as_ref()
+            .filter(|session| session.location_id == location_id)
+            .and(game.character.exploration_position)
+            .map(|position| GridPosition {
+                x: position.x.floor().max(0.0) as u16,
+                y: position.y.floor().max(0.0) as u16,
+            });
+        ensure_spatial_encounter_avoiding(
+            &mut map,
+            SpatialEncounterDefinition {
+                id: encounter_id,
+                enemy_name,
+                description,
+                max_hp: enemy_hp,
+                power: enemy_power,
+                trophy_item_name: trophy_name,
+            },
+            avoid_position,
+        );
     }
     sync_map_interactable_placements(&mut map, game, location.id);
     state.maps.insert(location_id.clone(), map);
@@ -850,12 +910,35 @@ fn spatial_input(
             }
             SpatialAction::Interact => {}
             SpatialAction::Investigate => {
-                let result = lifecycle.session.as_mut().map(|session| {
-                    if spatial_investigation_available(&session.state) {
-                        crate::bevy_combat::begin(&mut session.state, &mut combat_state)
-                    } else {
-                        Err("There is no active threat to investigate.".to_string())
-                    }
+                let encounter_id = state
+                    .session
+                    .as_ref()
+                    .and_then(|session| state.maps.get(&session.location_id))
+                    .zip(lifecycle.session.as_ref())
+                    .and_then(|(map, game_session)| {
+                        available_interactions(map, &game_session.state, state.position)
+                            .into_iter()
+                            .find_map(|interaction| {
+                                match (interaction.action, interaction.target) {
+                                    (
+                                        InteractionActionKind::EngageEncounter,
+                                        InteractionTarget::Encounter(id),
+                                    ) => Some(id),
+                                    _ => None,
+                                }
+                            })
+                    });
+                if encounter_id.is_some() {
+                    sync_spatial_to_game(&state, &mut lifecycle);
+                }
+                let result = encounter_id.as_deref().and_then(|encounter_id| {
+                    lifecycle.session.as_mut().map(|session| {
+                        crate::bevy_combat::begin_spatial(
+                            &mut session.state,
+                            &mut combat_state,
+                            encounter_id,
+                        )
+                    })
                 });
                 match result {
                     Some(Ok(())) => {
@@ -866,7 +949,11 @@ fn spatial_input(
                         state.message = Some(message);
                         state.dirty = true;
                     }
-                    None => {}
+                    None => {
+                        state.message =
+                            Some("Move closer to an active encounter first.".to_string());
+                        state.dirty = true;
+                    }
                 }
             }
             SpatialAction::Exit => exit_spatial(&mut state, &mut navigation),
@@ -1266,6 +1353,7 @@ fn execute_available_interaction(
     state: &mut SpatialExplorationState,
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
+    combat_state: &mut crate::bevy_combat::CombatState,
     requests: &mut MessageWriter<SpatialInteractionRequest>,
     interaction: AvailableInteraction,
 ) {
@@ -1292,6 +1380,24 @@ fn execute_available_interaction(
         (InteractionActionKind::SearchRemains, InteractionTarget::Corpse(id)) => {
             requests.write(SpatialInteractionRequest::SearchRemains(id));
         }
+        (InteractionActionKind::EngageEncounter, InteractionTarget::Encounter(id)) => {
+            sync_spatial_to_game(state, lifecycle);
+            let result = lifecycle.session.as_mut().map(|session| {
+                crate::bevy_combat::begin_spatial(&mut session.state, combat_state, &id)
+            });
+            match result {
+                Some(Ok(())) => {
+                    navigation.open_screen(ScreenId::Combat);
+                    state.interaction_wheel = None;
+                    state.dirty = true;
+                }
+                Some(Err(message)) => {
+                    state.message = Some(message);
+                    state.dirty = true;
+                }
+                None => {}
+            }
+        }
         (InteractionActionKind::Examine, InteractionTarget::PointOfInterest(id)) => {
             interact_with_poi(state, lifecycle, &id);
         }
@@ -1315,23 +1421,29 @@ fn execute_available_interaction(
     }
 }
 
-fn update_spatial_wheel_animation(
-    time: Res<Time>,
-    mut state: ResMut<SpatialExplorationState>,
-    mut lifecycle: ResMut<LifecycleState>,
-    mut navigation: ResMut<NavigationState>,
-    mut requests: MessageWriter<SpatialInteractionRequest>,
-    mut wheel_roots: Query<&mut UiTransform, With<SpatialInteractionWheelRoot>>,
-    mut wheel_entries: Query<
-        (&SpatialWheelEntry, &mut UiTransform),
+#[derive(SystemParam)]
+struct SpatialWheelAnimationParams<'w, 's> {
+    time: Res<'w, Time>,
+    state: ResMut<'w, SpatialExplorationState>,
+    lifecycle: ResMut<'w, LifecycleState>,
+    navigation: ResMut<'w, NavigationState>,
+    combat_state: ResMut<'w, crate::bevy_combat::CombatState>,
+    requests: MessageWriter<'w, SpatialInteractionRequest>,
+    wheel_roots: Query<'w, 's, &'static mut UiTransform, With<SpatialInteractionWheelRoot>>,
+    wheel_entries: Query<
+        'w,
+        's,
+        (&'static SpatialWheelEntry, &'static mut UiTransform),
         Without<SpatialInteractionWheelRoot>,
     >,
-) {
+}
+
+fn update_spatial_wheel_animation(mut params: SpatialWheelAnimationParams<'_, '_>) {
     let mut finished_close = false;
     let mut pending = None;
-    if let Some(wheel) = state.interaction_wheel.as_mut() {
-        wheel.elapsed += time.delta_secs();
-        wheel.selection_elapsed = (wheel.selection_elapsed + time.delta_secs())
+    if let Some(wheel) = params.state.interaction_wheel.as_mut() {
+        wheel.elapsed += params.time.delta_secs();
+        wheel.selection_elapsed = (wheel.selection_elapsed + params.time.delta_secs())
             .min(INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS);
         if wheel.phase == InteractionWheelPhase::Opening
             && wheel.elapsed >= INTERACTION_WHEEL_ANIMATION_SECONDS
@@ -1345,10 +1457,10 @@ fn update_spatial_wheel_animation(
             finished_close = true;
         }
         let scale = interaction_wheel_scale(wheel);
-        for mut transform in &mut wheel_roots {
+        for mut transform in &mut params.wheel_roots {
             transform.scale = Vec2::splat(scale);
         }
-        for (entry, mut transform) in &mut wheel_entries {
+        for (entry, mut transform) in &mut params.wheel_entries {
             transform.scale = Vec2::splat(interaction_wheel_entry_scale(
                 entry.0 == wheel.selected,
                 wheel.selection_elapsed,
@@ -1357,13 +1469,14 @@ fn update_spatial_wheel_animation(
     }
 
     if finished_close {
-        state.interaction_wheel = None;
+        params.state.interaction_wheel = None;
         if let Some(interaction) = pending {
             execute_available_interaction(
-                &mut state,
-                &mut lifecycle,
-                &mut navigation,
-                &mut requests,
+                &mut params.state,
+                &mut params.lifecycle,
+                &mut params.navigation,
+                &mut params.combat_state,
+                &mut params.requests,
                 interaction,
             );
         }
@@ -1927,6 +2040,44 @@ fn render_spatial_screen(
         ));
     }
 
+    for encounter in &map.encounters {
+        let (image, color, size, vertical_offset) = match encounter.status {
+            SpatialEncounterStatus::Active => (
+                assets.npc_image.clone(),
+                Color::srgb(0.82, 0.29, 0.24),
+                Vec2::new(17.0, 22.0),
+                11.0,
+            ),
+            SpatialEncounterStatus::Defeated => (
+                assets.corpse_image.clone(),
+                Color::srgb(0.55, 0.43, 0.39),
+                Vec2::new(21.0, 13.0),
+                5.0,
+            ),
+        };
+        let Some(image) = image else {
+            continue;
+        };
+        let grid_position = Vec2::new(
+            f32::from(encounter.position.x) + 0.5,
+            f32::from(encounter.position.y) + 0.5,
+        );
+        let projected = map_to_world(grid_position, Some(map));
+        let mut sprite = Sprite::from_image(image);
+        sprite.custom_size = Some(size);
+        sprite.color = color;
+        commands.spawn((
+            SpatialWorldEntity,
+            SpatialActorEntity,
+            sprite,
+            Transform::from_xyz(
+                projected.x,
+                projected.y + vertical_offset,
+                depth_for_position(grid_position) + PLAYER_DEPTH_OFFSET - 0.005,
+            ),
+        ));
+    }
+
     let player_ground_position = session_position(&state);
     let player_position = map_to_world(player_ground_position, Some(map));
     let player_sprite_size = spatial_player_sprite_size(&assets);
@@ -2227,14 +2378,18 @@ fn render_spatial_screen(
         Display::None
     };
     let investigation_available = !state.sandbox_mode
-        && lifecycle
+        && state
             .session
             .as_ref()
-            .is_some_and(|game_session| spatial_investigation_available(&game_session.state));
+            .and_then(|session| state.maps.get(&session.location_id))
+            .zip(lifecycle.session.as_ref())
+            .is_some_and(|(map, game_session)| {
+                spatial_investigation_available(&game_session.state, Some(map), state.position)
+            });
     spawn_control(
         &mut commands,
         footer,
-        "Investigate",
+        "Confront",
         SpatialAction::Investigate,
         if investigation_available {
             Display::Flex
@@ -3056,12 +3211,24 @@ fn format_condition_summary(conditions: &[Condition]) -> String {
 }
 
 /// A threat can be investigated from this scene only when it belongs to the active location.
-fn spatial_investigation_available(game: &GameState) -> bool {
-    game.threat.active
-        && game
+fn spatial_investigation_available(
+    game: &GameState,
+    map: Option<&LocalMap>,
+    position: Vec2,
+) -> bool {
+    if !game.threat.active
+        || game
             .threat
             .source_location_id
-            .is_none_or(|source| source == game.character.location_id)
+            .is_some_and(|source| source != game.character.location_id)
+    {
+        return false;
+    }
+    map.is_some_and(|map| {
+        discover_available_interactions(map, game, (position.x, position.y))
+            .iter()
+            .any(|interaction| interaction.action == InteractionActionKind::EngageEncounter)
+    })
 }
 
 fn refresh_spatial_investigation_control(
@@ -3072,10 +3239,14 @@ fn refresh_spatial_investigation_control(
     if navigation.current_screen != Some(ScreenId::SpatialExploration) || state.sandbox_mode {
         return;
     }
-    let available = lifecycle
+    let available = state
         .session
         .as_ref()
-        .is_some_and(|session| spatial_investigation_available(&session.state));
+        .and_then(|session| state.maps.get(&session.location_id))
+        .zip(lifecycle.session.as_ref())
+        .is_some_and(|(map, session)| {
+            spatial_investigation_available(&session.state, Some(map), state.position)
+        });
     if state.last_threat_available != Some(available) {
         state.last_threat_available = Some(available);
         state.dirty = true;
@@ -3414,6 +3585,11 @@ fn interaction_prompt_label(
             .location_by_id(*destination_id)
             .map(|location| location.name.clone()),
         InteractionTarget::Door { .. } => Some("Door".to_string()),
+        InteractionTarget::Encounter(id) => map
+            .encounters
+            .iter()
+            .find(|encounter| encounter.id == *id)
+            .map(|encounter| encounter.enemy_name.clone()),
     }
     .unwrap_or_else(|| "Interact".to_string());
     let target_count = interactions
@@ -3541,10 +3717,14 @@ fn is_position_walkable(map: &LocalMap, position: Vec2) -> bool {
         {
             return false;
         }
-        map.is_walkable(GridPosition {
+        let cell = GridPosition {
             x: sample.x.floor() as u16,
             y: sample.y.floor() as u16,
-        })
+        };
+        map.is_walkable(cell)
+            && !map.encounters.iter().any(|encounter| {
+                encounter.status == SpatialEncounterStatus::Active && encounter.position == cell
+            })
     })
 }
 

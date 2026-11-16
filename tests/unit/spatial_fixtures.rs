@@ -56,6 +56,15 @@ fn saved_fixture_round_trips_the_complete_local_map() {
         })
         .expect("generated map should have a free prop tile");
     assert!(map.place_prop("fixture.pillar", SpatialPropKind::Pillar, prop_position));
+    assert!(crate::spatial::ensure_spatial_encounter(
+        &mut map,
+        "encounter.fixture.1".into(),
+        "Ash Marauder".into(),
+        "A persistent test encounter.".into(),
+        14,
+        2,
+        "Marauder Token".into(),
+    ));
 
     let path =
         save_spatial_fixture(&directory, "Old Shrine Test", &map).expect("fixture should be saved");

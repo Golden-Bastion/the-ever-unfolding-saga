@@ -1735,22 +1735,47 @@ fn returning_to_spatial_exploration_requests_a_scene_rebuild() {
 }
 
 #[test]
-fn spatial_investigation_is_available_only_for_a_threat_at_the_current_location() {
+fn spatial_confront_control_requires_a_nearby_encounter_at_the_current_location() {
     let mut game = crate::model::create_new_state(
         "Investigation Test",
         crate::model::WorldMode::New,
         "Ash".into(),
         "Wanderer".into(),
     );
-    assert!(!spatial_investigation_available(&game));
-
     let current_location = game.character.location_id;
+    let mut map = crate::spatial::generate_local_map(
+        17,
+        format!("location.{current_location}"),
+        crate::spatial::LocalMapConfig::default(),
+    );
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.exits.clear();
+    map.interactables.clear();
+    assert!(crate::spatial::ensure_spatial_encounter(
+        &mut map,
+        "encounter.test.1".into(),
+        "Ash Marauder".into(),
+        "A hostile figure watches the road.".into(),
+        18,
+        3,
+        "Marauder Token".into(),
+    ));
+    let encounter_position = map.encounters[0].position;
+    let nearby = Vec2::new(
+        f32::from(encounter_position.x) + 0.5,
+        f32::from(encounter_position.y) + 0.5,
+    );
+    let distant = Vec2::new(f32::from(map.width) - 1.5, f32::from(map.height) - 1.5);
+
+    assert!(!spatial_investigation_available(&game, Some(&map), nearby));
     game.threat.activate(
         current_location,
         "A nearby threat".to_string(),
         "Something stirs nearby.".to_string(),
     );
-    assert!(spatial_investigation_available(&game));
+    assert!(spatial_investigation_available(&game, Some(&map), nearby));
+    assert!(!spatial_investigation_available(&game, Some(&map), distant));
 
     let other_location = game
         .world
@@ -1764,7 +1789,7 @@ fn spatial_investigation_is_available_only_for_a_threat_at_the_current_location(
         "A distant threat".to_string(),
         "Something stirs elsewhere.".to_string(),
     );
-    assert!(!spatial_investigation_available(&game));
+    assert!(!spatial_investigation_available(&game, Some(&map), nearby));
 }
 
 #[test]

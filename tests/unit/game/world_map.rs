@@ -58,6 +58,7 @@ fn explored_map(location_id: u64) -> LocalMap {
         terrain_changes: Vec::new(),
         props: Vec::new(),
         interactables: Vec::new(),
+        encounters: Vec::new(),
     }
 }
 
