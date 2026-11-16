@@ -320,6 +320,12 @@ fn base_campaign_links_gate_market_and_shrine_clues_into_one_investigation() {
         shrine_quest.required_evidence_ids,
         vec!["poi.old_shrine.black_altar"]
     );
+
+    let issues = content.validate();
+    assert!(
+        issues.is_empty(),
+        "the authored evidence chain should pass campaign validation: {issues:#?}"
+    );
 }
 
 #[test]
