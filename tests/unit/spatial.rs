@@ -514,11 +514,13 @@ fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
             id: "poi.old_shrine.black_altar".into(),
             title: "Black Altar".into(),
             description: "Soot clings to the altar.".into(),
+            prerequisites: Vec::new(),
         },
         SpatialDiscoveryDefinition {
             id: "poi.old_shrine.fresh_soot".into(),
             title: "Fresh Soot".into(),
             description: "Fresh soot crosses the floor.".into(),
+            prerequisites: vec!["poi.old_shrine.black_altar".into()],
         },
     ];
 
@@ -677,6 +679,7 @@ fn editor_operations_place_move_and_remove_points_of_interest_safely() {
         description: "An editable discovery.".into(),
         discovered: true,
         interacted: true,
+        prerequisites: Vec::new(),
     };
     assert!(!map.place_point_of_interest(PointOfInterest {
         position: map.entry,
