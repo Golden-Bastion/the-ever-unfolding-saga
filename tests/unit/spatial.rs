@@ -287,6 +287,30 @@ fn authored_room_does_not_block_generated_edge_passages() {
 }
 
 #[test]
+fn authored_gate_and_market_layouts_fall_back_when_map_is_too_short() {
+    for layout in ["ashen_gate_causeway", "hollow_market_square"] {
+        let plain = generate_local_map(
+            42,
+            "location.layout_size_test",
+            LocalMapConfig {
+                width: DEFAULT_MAP_WIDTH,
+                height: 12,
+            },
+        );
+        let undersized = generate_local_map_with_layout(
+            42,
+            "location.layout_size_test",
+            LocalMapConfig {
+                width: DEFAULT_MAP_WIDTH,
+                height: 12,
+            },
+            Some(layout),
+        );
+        assert_eq!(undersized, plain, "{layout} needs the standard map height");
+    }
+}
+
+#[test]
 fn unknown_spatial_layout_falls_back_to_procedural_generation() {
     let plain = generate_local_map(42, "location.test", LocalMapConfig::default());
     let unknown = generate_local_map_with_layout(
