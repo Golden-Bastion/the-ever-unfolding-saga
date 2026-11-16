@@ -2,6 +2,40 @@ use super::*;
 use crate::model::{create_new_state, Quest, WorldMode};
 
 #[test]
+fn evidence_objectives_follow_the_current_characters_known_evidence() {
+    let mut state = create_new_state(
+        "Evidence Quest",
+        WorldMode::New,
+        "Tester".into(),
+        "Ash Walker".into(),
+    );
+    state.quests.push(crate::model::Quest {
+        id: 909,
+        title: "Understand the marks".into(),
+        offered: true,
+        objectives: vec![crate::model::QuestObjective::discover_evidence(
+            "poi.old_shrine.black_altar",
+            "Black Altar",
+        )],
+        ..Default::default()
+    });
+
+    sync_objectives(&mut state, 0);
+    assert!(!state.quests[0].objectives[0].completed);
+    assert_eq!(
+        state.quests[0].objectives[0].display_label(),
+        "Discover Black Altar"
+    );
+
+    state
+        .character
+        .record_evidence("poi.old_shrine.black_altar");
+    sync_objectives(&mut state, 0);
+    assert!(state.quests[0].objectives[0].completed);
+    assert_eq!(state.quests[0].objectives[0].progress, 1);
+}
+
+#[test]
 fn legacy_quest_is_expanded_into_explicit_objectives() {
     let mut state = create_new_state(
         "Test World",
