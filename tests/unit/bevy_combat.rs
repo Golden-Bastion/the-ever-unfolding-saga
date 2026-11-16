@@ -116,6 +116,15 @@ fn spatial_encounter_game(enemy_hp: i32) -> crate::model::GameState {
         0,
         "Marauder Token".into(),
     ));
+    let encounter_position = map.encounters[0].position;
+    game.character.exploration_session = Some(crate::spatial::ExplorationSession {
+        location_id: map.location_id.clone(),
+        position: encounter_position,
+    });
+    game.character.exploration_position = Some(crate::model::ExplorationPosition {
+        x: f32::from(encounter_position.x) + 0.5,
+        y: f32::from(encounter_position.y) + 0.5,
+    });
     game.world.local_maps.push(map);
     game.threat.activate(
         location_id,
@@ -123,6 +132,20 @@ fn spatial_encounter_game(enemy_hp: i32) -> crate::model::GameState {
         "Something hostile remains here.",
     );
     game
+}
+
+#[test]
+fn spatial_encounter_cannot_be_started_from_outside_interaction_range() {
+    let mut game = spatial_encounter_game(30);
+    let entry = game.world.local_maps[0].entry;
+    game.character.exploration_position = Some(crate::model::ExplorationPosition {
+        x: f32::from(game.world.local_maps[0].width) - 1.5,
+        y: f32::from(game.world.local_maps[0].height) - 1.5,
+    });
+    assert!(matches!(
+        crate::game::combat::start_spatial_encounter(&mut game, "encounter.combat_test.1"),
+        Err(crate::game::combat::CombatStartError::SpatialEncounterOutOfReach)
+    ));
 }
 
 #[test]

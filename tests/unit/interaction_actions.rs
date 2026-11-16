@@ -16,6 +16,10 @@ fn interaction_targets_have_stable_distinct_keys() {
         "door:door.threshold"
     );
     assert_eq!(
+        InteractionTarget::Encounter("encounter.gate.1".into()).stable_key(),
+        "encounter:encounter.gate.1"
+    );
+    assert_eq!(
         InteractionTarget::Passage {
             id: "exit.north".into(),
             destination_id: 12
@@ -23,6 +27,67 @@ fn interaction_targets_have_stable_distinct_keys() {
         .stable_key(),
         "passage:exit.north:12"
     );
+}
+
+#[test]
+fn nearby_active_encounters_offer_a_stable_confront_action() {
+    let mut game = crate::model::create_new_state(
+        "Encounter Interaction Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let location_id = game.character.location_id;
+    let mut map = crate::spatial::generate_local_map(
+        18,
+        format!("location.{location_id}"),
+        crate::spatial::LocalMapConfig::default(),
+    );
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.exits.clear();
+    map.interactables.clear();
+    assert!(crate::spatial::ensure_spatial_encounter(
+        &mut map,
+        "encounter.test.1".into(),
+        "Ash Marauder".into(),
+        "A hostile figure blocks the way.".into(),
+        18,
+        3,
+        "Marauder Token".into(),
+    ));
+    let encounter = map.encounters[0].clone();
+    let nearby = (
+        f32::from(encounter.position.x) + 0.5,
+        f32::from(encounter.position.y) + 0.5,
+    );
+
+    assert!(!discover_available_interactions(&map, &game, nearby)
+        .iter()
+        .any(|item| item.action == InteractionActionKind::EngageEncounter));
+
+    game.threat.activate(
+        location_id,
+        "A nearby threat",
+        "Something hostile remains here.",
+    );
+    let available = discover_available_interactions(&map, &game, nearby);
+    assert!(available.iter().any(|item| {
+        item.action == InteractionActionKind::EngageEncounter
+            && item.target == InteractionTarget::Encounter(encounter.id.clone())
+            && item.label == "Confront: Ash Marauder"
+    }));
+
+    let far_away = (f32::from(map.width) - 1.5, f32::from(map.height) - 1.5);
+    assert!(!discover_available_interactions(&map, &game, far_away)
+        .iter()
+        .any(|item| item.action == InteractionActionKind::EngageEncounter));
+
+    map.encounters[0].status = crate::spatial::SpatialEncounterStatus::Defeated;
+    map.encounters[0].current_hp = 0;
+    assert!(!discover_available_interactions(&map, &game, nearby)
+        .iter()
+        .any(|item| item.action == InteractionActionKind::EngageEncounter));
 }
 
 #[test]

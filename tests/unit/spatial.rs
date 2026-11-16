@@ -513,6 +513,16 @@ fn spatial_encounters_are_deterministic_persistent_and_backward_compatible() {
     assert_ne!(original.position, map.entry);
     assert!(map.validate_encounters().is_ok());
 
+    let mut with_actor = map.clone();
+    ensure_spatial_entity_placements(&mut with_actor, &[(700, SpatialEntityKind::Npc)]);
+    let actor_position = with_actor
+        .interactables
+        .iter()
+        .find(|placement| placement.entity_id == 700)
+        .expect("new actor should receive a placement")
+        .position;
+    assert_ne!(actor_position, original.position);
+
     assert!(!ensure_spatial_encounter(
         &mut map,
         "encounter.test.1".into(),
@@ -541,6 +551,28 @@ fn spatial_encounters_are_deterministic_persistent_and_backward_compatible() {
     let restored: LocalMap =
         serde_json::from_value(legacy).expect("older maps should omit encounter data");
     assert!(restored.encounters.is_empty());
+}
+
+#[test]
+fn encounter_spawn_avoids_the_players_saved_tile() {
+    let mut map = generate_local_map(85, "location.encounter_player_overlap", LocalMapConfig::default());
+    let player_position = reachable_walkable_tiles(&map)
+        .into_iter()
+        .find(|position| {
+            position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 2
+        })
+        .expect("generated map should have a free player tile");
+    assert!(ensure_spatial_encounter_avoiding(
+        &mut map,
+        "encounter.player_overlap".into(),
+        "Ash Marauder".into(),
+        "A hostile figure approaches.".into(),
+        12,
+        2,
+        "Marauder Token".into(),
+        Some(player_position),
+    ));
+    assert_ne!(map.encounters[0].position, player_position);
 }
 
 #[test]
