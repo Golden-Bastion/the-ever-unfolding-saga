@@ -289,7 +289,7 @@ The entries below cover the v0.52.x development line through v0.52.59. This line
 
 - Added deterministic authored local layouts for Ashen Gate and Hollow Market, including the broken gate threshold, market stalls, unlit lantern posts, and explicit approach/court room membership.
 - Added location-authored spatial discoveries for the cracked gate, dead road, abandoned stall, and unlit lantern.
-- Routed graph-backed map exits through each authored threshold so additional connections do not cut arbitrary openings through the layouts. Both thresholds begin open and remain subject to the shared open/close door rules.
+- Routed graph-backed map exits through each authored threshold so additional connections do not cut arbitrary openings through the layouts. Hollow Market places its Old Shrine route beyond the market court and the Ashen Gate return route near the entry. Both thresholds begin open and remain subject to the shared open/close door rules.
 - Added room-bound camera targeting and eased camera movement when crossing open interior doors. The camera retains map-wide clamping and falls back to the existing behavior in unassigned spaces and legacy maps without room topology.
 - Advanced the local-map generator version to 5. Existing saved local maps remain authoritative and are not regenerated.
 - Added deterministic layout, topology, exit reachability, door-blocking, and room-transition regression tests.
