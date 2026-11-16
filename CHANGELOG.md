@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.58. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.59. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -283,3 +283,15 @@ The entries below cover the v0.52.x development line through v0.52.58. This line
 - Extended World Lab with room-cell assignment and interior-door authoring, including open/closed/locked initial states; fixture export validates topology.
 - Added regression coverage for topology validation, canonical edges, door state transitions, contextual door actions, and closed-door pathfinding.
 - Made room and door topology backward-compatible with earlier saves by defaulting missing fields to empty collections; existing saved map geometry is preserved and no inferred topology is added. Advanced the local-map generator and spatial fixture format versions, and bumped the save envelope to version 4 and Rust/Android version metadata to 0.52.58.
+
+
+### v0.52.59: Ashen Gate and Hollow Market layouts with room-aware camera
+
+- Added deterministic authored local layouts for Ashen Gate and Hollow Market, including the broken gate threshold, market stalls, unlit lantern posts, and explicit approach/court room membership.
+- Added location-authored spatial discoveries for the cracked gate, dead road, abandoned stall, and unlit lantern.
+- Routed graph-backed map exits through each authored threshold so additional connections do not cut arbitrary openings through the layouts. Both thresholds begin open and remain subject to the shared open/close door rules.
+- Added room-bound camera targeting and eased camera movement when crossing open interior doors. The camera retains map-wide clamping and falls back to the existing behavior in unassigned spaces and legacy maps without room topology.
+- Advanced the local-map generator version to 5. Existing saved local maps remain authoritative and are not regenerated.
+- Added deterministic layout, topology, exit reachability, door-blocking, and room-transition regression tests.
+- Reused the current table and pillar art as first-pass market stall and lantern-post stand-ins; dedicated gate/market assets remain future art work.
+- Bumped Rust and Android version metadata to 0.52.59.
