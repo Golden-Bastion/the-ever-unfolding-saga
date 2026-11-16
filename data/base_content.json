@@ -12,6 +12,19 @@
         "name": "Ashen Gate",
         "description": "A cracked iron gate hanging between broken towers, staring over a dead road.",
         "dangerous": false,
+        "spatial_layout": "ashen_gate_causeway",
+        "spatial_discoveries": [
+          {
+            "id": "poi.ashen_gate.cracked_gate",
+            "title": "Cracked Gate",
+            "description": "The iron gate hangs between broken towers. Fresh scrape marks score the lower hinge."
+          },
+          {
+            "id": "poi.ashen_gate.dead_road",
+            "title": "Dead Road",
+            "description": "Old cart ruts vanish beneath grey ash, though one set of tracks is newer than the rest."
+          }
+        ],
         "exits": [
           "location.hollow_market",
           "location.charred_watchtower"
@@ -24,6 +37,19 @@
         "name": "Hollow Market",
         "description": "Stalls without merchants, lanterns without flame, and the echo of old bargaining.",
         "dangerous": false,
+        "spatial_layout": "hollow_market_square",
+        "spatial_discoveries": [
+          {
+            "id": "poi.hollow_market.abandoned_stall",
+            "title": "Abandoned Stall",
+            "description": "Dust has settled across the counter, except for a small patch disturbed more recently."
+          },
+          {
+            "id": "poi.hollow_market.unlit_lantern",
+            "title": "Unlit Lantern",
+            "description": "The wick is cold and dry. The lantern has been opened, and something has been removed."
+          }
+        ],
         "exits": [
           "location.ashen_gate",
           "location.old_shrine",
