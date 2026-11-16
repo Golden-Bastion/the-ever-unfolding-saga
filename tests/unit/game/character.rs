@@ -2,6 +2,43 @@ use super::build_character_sheet_view;
 use crate::model::{create_new_state, Condition, Faction, WorldMode};
 
 #[test]
+fn character_sheet_view_resolves_only_the_current_characters_known_evidence() {
+    let mut state = create_new_state(
+        "Evidence Journal",
+        WorldMode::New,
+        "Ash".to_string(),
+        "Wanderer".to_string(),
+    );
+    let evidence = state
+        .campaign_content
+        .as_ref()
+        .and_then(|content| {
+            content
+                .world
+                .locations
+                .iter()
+                .flat_map(|location| location.spatial_discoveries.iter())
+                .next()
+        })
+        .expect("base campaign should contain authored spatial evidence")
+        .clone();
+    state.character.record_evidence(evidence.id.clone());
+    state.character.notes.push("A note in my own words.".into());
+
+    let view = build_character_sheet_view(&state);
+
+    assert_eq!(view.evidence.len(), 1);
+    assert_eq!(view.evidence[0].id, evidence.id);
+    assert_eq!(view.evidence[0].title, evidence.title);
+    assert_eq!(view.evidence[0].description, evidence.description);
+    assert_eq!(view.notes, state.character.notes);
+    assert!(view
+        .notes
+        .iter()
+        .any(|note| note == "A note in my own words."));
+}
+
+#[test]
 fn character_sheet_view_preserves_derived_character_data() {
     let mut state = create_new_state(
         "Test World",

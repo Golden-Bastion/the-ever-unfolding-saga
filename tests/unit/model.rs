@@ -88,6 +88,10 @@ fn inherited_world_keeps_spatial_maps_but_resets_character_session() {
     map.mark_tile_discovered(map.entry);
     map.points_of_interest[0].discovered = true;
     map.points_of_interest[0].interacted = true;
+    state
+        .character
+        .record_evidence(map.points_of_interest[0].id.clone());
+    state.character.record_evidence("evidence.previous_life");
     map.set_terrain(map.entry, crate::spatial::Terrain::Rubble);
     state.world.local_maps.push(map.clone());
     state.character.exploration_session = Some(crate::spatial::ExplorationSession {
@@ -108,12 +112,37 @@ fn inherited_world_keeps_spatial_maps_but_resets_character_session() {
     assert_eq!(inherited.world.local_maps, vec![map.clone()]);
     assert!(inherited.world.local_maps[0].is_tile_discovered(map.entry));
     assert!(inherited.world.local_maps[0].points_of_interest[0].interacted);
+    assert!(
+        inherited.character.known_evidence_ids.is_empty(),
+        "new characters must not inherit the previous life’s individual knowledge"
+    );
     assert_eq!(
         inherited.world.local_maps[0].terrain_at(map.entry),
         Some(crate::spatial::Terrain::Rubble)
     );
     assert!(inherited.character.exploration_session.is_none());
     assert!(inherited.character.exploration_position.is_none());
+}
+
+#[test]
+fn character_evidence_defaults_empty_for_old_saves() {
+    let mut state = create_new_state(
+        "Legacy Character",
+        WorldMode::New,
+        "First Warden".into(),
+        "Ash Walker".into(),
+    );
+    state.character.record_evidence("evidence.known");
+    let serialized = serde_json::to_value(&state.character).unwrap();
+    let restored: Character = serde_json::from_value(serialized.clone())
+        .expect("current character evidence should survive save serialization");
+    assert_eq!(restored.known_evidence_ids, vec!["evidence.known"]);
+
+    let mut legacy = serialized;
+    legacy.as_object_mut().unwrap().remove("known_evidence_ids");
+    let restored: Character = serde_json::from_value(legacy)
+        .expect("older characters deserialize without evidence knowledge");
+    assert!(restored.known_evidence_ids.is_empty());
 }
 
 #[test]
@@ -127,6 +156,15 @@ fn objective_defaults_are_safe_for_old_saves() {
     assert_eq!(objective.required, 1);
     assert_eq!(objective.progress, 0);
     assert!(!objective.completed);
+    assert!(objective.target_label.is_none());
+
+    let evidence = QuestObjective::discover_evidence("evidence.altar", "Black Altar");
+    let serialized = serde_json::to_value(&evidence).expect("evidence objective should serialize");
+    let restored: QuestObjective =
+        serde_json::from_value(serialized).expect("evidence objective should deserialize");
+    assert_eq!(restored.kind, QuestObjectiveKind::DiscoverEvidence);
+    assert_eq!(restored.target, "evidence.altar");
+    assert_eq!(restored.target_label.as_deref(), Some("Black Altar"));
 }
 
 #[test]
@@ -157,4 +195,5 @@ fn character_appearance_is_persisted_and_inherited() {
     let legacy: Character = serde_json::from_value(legacy)
         .expect("legacy character should load without appearance data");
     assert!(legacy.appearance_parts.is_empty());
+    assert!(legacy.known_evidence_ids.is_empty());
 }

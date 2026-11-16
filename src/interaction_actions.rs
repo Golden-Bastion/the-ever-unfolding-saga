@@ -89,7 +89,11 @@ pub(crate) fn discover_available_interactions(
     let mut candidates = Vec::new();
 
     for poi in &map.points_of_interest {
-        if !poi.discovered || !point_of_interest_interaction_available(map, position, poi) {
+        if !poi.discovered
+            || !poi.is_available_to(&game.character.known_evidence_ids)
+            || game.character.knows_evidence(&poi.id)
+            || !point_of_interest_interaction_available(map, position, poi)
+        {
             continue;
         }
         let Some(distance) = point_of_interest_distance_px(map, position, poi) else {

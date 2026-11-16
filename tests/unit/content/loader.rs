@@ -186,11 +186,13 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
             id: "poi.old_shrine.altar".into(),
             title: "Old Altar".into(),
             description: "Base description.".into(),
+            requires_evidence: Vec::new(),
         },
         SpatialDiscoveryContent {
             id: "poi.old_shrine.footprints".into(),
             title: "Footprints".into(),
             description: "Footprints cross the dust.".into(),
+            requires_evidence: vec!["poi.old_shrine.altar".into()],
         },
     ];
     base.world
@@ -205,11 +207,13 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
             id: "poi.old_shrine.altar".into(),
             title: "Black Altar".into(),
             description: "A modded description.".into(),
+            requires_evidence: vec!["poi.old_shrine.scratches".into()],
         },
         SpatialDiscoveryContent {
             id: "poi.old_shrine.scratches".into(),
             title: "Scratches".into(),
             description: "Marks appear in the stone.".into(),
+            requires_evidence: Vec::new(),
         },
     ];
     incoming.world.locations.push(override_location);
@@ -232,12 +236,92 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
             .description,
         "A modded description."
     );
+    assert_eq!(
+        discoveries
+            .iter()
+            .find(|discovery| discovery.id == "poi.old_shrine.altar")
+            .unwrap()
+            .requires_evidence,
+        vec!["poi.old_shrine.scratches"]
+    );
     assert!(discoveries
         .iter()
         .any(|discovery| discovery.id == "poi.old_shrine.footprints"));
     assert!(discoveries
         .iter()
         .any(|discovery| discovery.id == "poi.old_shrine.scratches"));
+}
+
+#[test]
+fn base_campaign_links_gate_market_and_shrine_clues_into_one_investigation() {
+    let content = default_campaign_content();
+    let chain: [(&str, &str, &[&str]); 6] = [
+        ("location.ashen_gate", "poi.ashen_gate.cracked_gate", &[]),
+        (
+            "location.ashen_gate",
+            "poi.ashen_gate.dead_road",
+            &["poi.ashen_gate.cracked_gate"],
+        ),
+        (
+            "location.hollow_market",
+            "poi.hollow_market.abandoned_stall",
+            &["poi.ashen_gate.dead_road"],
+        ),
+        (
+            "location.hollow_market",
+            "poi.hollow_market.unlit_lantern",
+            &["poi.hollow_market.abandoned_stall"],
+        ),
+        (
+            "location.old_shrine",
+            "poi.old_shrine.fresh_soot",
+            &["poi.hollow_market.unlit_lantern"],
+        ),
+        (
+            "location.old_shrine",
+            "poi.old_shrine.black_altar",
+            &["poi.old_shrine.fresh_soot"],
+        ),
+    ];
+
+    for (location_id, evidence_id, prerequisites) in chain {
+        let discovery = content
+            .world
+            .locations
+            .iter()
+            .find(|location| location.id == location_id)
+            .and_then(|location| {
+                location
+                    .spatial_discoveries
+                    .iter()
+                    .find(|discovery| discovery.id == evidence_id)
+            })
+            .unwrap_or_else(|| panic!("missing authored discovery {evidence_id}"));
+        let expected = prerequisites
+            .iter()
+            .map(|id| (*id).to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            discovery.requires_evidence, expected,
+            "unexpected prerequisites for {evidence_id}"
+        );
+    }
+
+    let shrine_quest = content
+        .quests
+        .iter()
+        .find(|quest| quest.id == "quest.quiet_old_shrine")
+        .expect("Quiet the Old Shrine quest should exist");
+    assert_eq!(
+        shrine_quest.required_evidence_ids,
+        vec!["poi.old_shrine.black_altar"]
+    );
+
+    let issues = content.validate();
+    assert!(
+        issues.is_empty(),
+        "the authored evidence chain should pass campaign validation: {issues:#?}"
+    );
 }
 
 #[test]
@@ -254,16 +338,19 @@ fn invalid_spatial_discoveries_are_reported_by_content_validation() {
             id: String::new(),
             title: "Missing ID".into(),
             description: "Invalid discovery.".into(),
+            requires_evidence: Vec::new(),
         },
         SpatialDiscoveryContent {
             id: "poi.old_shrine.duplicate".into(),
             title: String::new(),
             description: "Invalid discovery.".into(),
+            requires_evidence: Vec::new(),
         },
         SpatialDiscoveryContent {
             id: "poi.old_shrine.duplicate".into(),
             title: "Duplicate".into(),
             description: String::new(),
+            requires_evidence: Vec::new(),
         },
     ];
 
@@ -276,4 +363,61 @@ fn invalid_spatial_discoveries_are_reported_by_content_validation() {
     assert!(issues
         .iter()
         .any(|issue| issue.contains("empty description")));
+}
+
+#[test]
+fn quest_evidence_objectives_must_reference_known_unique_discoveries() {
+    let mut content = default_campaign_content();
+    let quest = content
+        .quests
+        .first_mut()
+        .expect("base campaign should contain a quest template");
+    quest.required_evidence_ids = vec![
+        "poi.old_shrine.black_altar".into(),
+        "missing.evidence".into(),
+        "poi.old_shrine.black_altar".into(),
+        String::new(),
+    ];
+
+    let issues = content.validate();
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("unknown spatial evidence missing.evidence")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("repeats required evidence poi.old_shrine.black_altar")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("empty required evidence ID")));
+}
+
+#[test]
+fn spatial_evidence_requirements_must_exist_and_form_an_acyclic_graph() {
+    let mut content = default_campaign_content();
+    let old_shrine = content
+        .world
+        .locations
+        .iter_mut()
+        .find(|location| location.id == "location.old_shrine")
+        .unwrap();
+    old_shrine.spatial_discoveries = vec![
+        SpatialDiscoveryContent {
+            id: "evidence.first".into(),
+            title: "First".into(),
+            description: "First evidence.".into(),
+            requires_evidence: vec!["evidence.second".into(), "missing.evidence".into()],
+        },
+        SpatialDiscoveryContent {
+            id: "evidence.second".into(),
+            title: "Second".into(),
+            description: "Second evidence.".into(),
+            requires_evidence: vec!["evidence.first".into()],
+        },
+    ];
+
+    let issues = content.validate();
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("unknown evidence")));
+    assert!(issues.iter().any(|issue| issue.contains("contain a cycle")));
 }

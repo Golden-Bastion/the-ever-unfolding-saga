@@ -508,17 +508,41 @@ fn existing_spatial_entity_placements_are_preserved_when_new_actors_arrive() {
 }
 
 #[test]
+fn legacy_points_of_interest_default_to_no_evidence_prerequisites() {
+    let legacy = r#"{
+        "id": "poi.legacy",
+        "position": {"x": 2, "y": 3},
+        "title": "Old Discovery",
+        "description": "A discovery from an earlier save.",
+        "discovered": true,
+        "interacted": true
+    }"#;
+    let poi: PointOfInterest =
+        serde_json::from_str(legacy).expect("legacy POIs should load without prerequisites");
+    assert!(poi.prerequisites.is_empty());
+
+    let mut current = poi;
+    current.prerequisites = vec!["evidence.first".into()];
+    let serialized = serde_json::to_string(&current).expect("POI should serialize");
+    let restored: PointOfInterest =
+        serde_json::from_str(&serialized).expect("current POI should deserialize");
+    assert_eq!(restored.prerequisites, vec!["evidence.first"]);
+}
+
+#[test]
 fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
     let definitions = vec![
         SpatialDiscoveryDefinition {
             id: "poi.old_shrine.black_altar".into(),
             title: "Black Altar".into(),
             description: "Soot clings to the altar.".into(),
+            prerequisites: vec!["poi.old_shrine.fresh_soot".into()],
         },
         SpatialDiscoveryDefinition {
             id: "poi.old_shrine.fresh_soot".into(),
             title: "Fresh Soot".into(),
             description: "Fresh soot crosses the floor.".into(),
+            prerequisites: vec!["poi.hollow_market.unlit_lantern".into()],
         },
     ];
 
@@ -545,6 +569,20 @@ fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
         .points_of_interest
         .iter()
         .all(|poi| !poi.discovered && !poi.interacted));
+    assert_eq!(
+        first
+            .point_of_interest("poi.old_shrine.fresh_soot")
+            .unwrap()
+            .prerequisites,
+        vec!["poi.hollow_market.unlit_lantern"]
+    );
+    assert_eq!(
+        first
+            .point_of_interest("poi.old_shrine.black_altar")
+            .unwrap()
+            .prerequisites,
+        vec!["poi.old_shrine.fresh_soot"]
+    );
 
     let positions = first
         .points_of_interest
@@ -677,6 +715,7 @@ fn editor_operations_place_move_and_remove_points_of_interest_safely() {
         description: "An editable discovery.".into(),
         discovered: true,
         interacted: true,
+        prerequisites: Vec::new(),
     };
     assert!(!map.place_point_of_interest(PointOfInterest {
         position: map.entry,

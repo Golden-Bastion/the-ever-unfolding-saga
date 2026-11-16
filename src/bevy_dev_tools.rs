@@ -492,6 +492,7 @@ fn generate_world_lab_session(options: WorldLabOptions) -> (LocalMap, WorldLabSc
                     id: discovery.id.clone(),
                     title: discovery.title.clone(),
                     description: discovery.description.clone(),
+                    prerequisites: discovery.requires_evidence.clone(),
                 })
                 .collect::<Vec<_>>()
         })
@@ -878,6 +879,7 @@ fn place_world_lab_point_of_interest(
             description: "A temporary point of interest authored in World Lab.".into(),
             discovered: false,
             interacted: false,
+            prerequisites: Vec::new(),
         })
     } else {
         false

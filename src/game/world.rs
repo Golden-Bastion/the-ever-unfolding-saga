@@ -102,6 +102,7 @@ pub(crate) fn bootstrap_campaign_content(state: &mut GameState) -> CampaignSeedR
             continue;
         };
         let id = state.world.allocate_id();
+        let quest_index = state.quests.len();
         state.quests.push(Quest::new(
             id,
             quest_content.id.clone(),
@@ -113,6 +114,30 @@ pub(crate) fn bootstrap_campaign_content(state: &mut GameState) -> CampaignSeedR
             quest_content.required_item_name.clone(),
             quest_content.reward_item_name.clone(),
         ));
+
+        if !quest_content.required_evidence_ids.is_empty() {
+            // Build the standard visit/item/encounter objectives first, then
+            // append authored evidence goals so this quest keeps every path.
+            crate::game::quests::normalize_quest(state, quest_index);
+            let evidence_objectives = quest_content
+                .required_evidence_ids
+                .iter()
+                .map(|evidence_id| {
+                    let label = content
+                        .world
+                        .locations
+                        .iter()
+                        .flat_map(|location| location.spatial_discoveries.iter())
+                        .find(|discovery| discovery.id == *evidence_id)
+                        .map(|discovery| discovery.title.clone())
+                        .unwrap_or_else(|| evidence_id.clone());
+                    crate::model::QuestObjective::discover_evidence(evidence_id.clone(), label)
+                })
+                .collect::<Vec<_>>();
+            state.quests[quest_index]
+                .objectives
+                .extend(evidence_objectives);
+        }
         report.quests_added += 1;
     }
 

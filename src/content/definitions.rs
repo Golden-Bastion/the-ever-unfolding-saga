@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CampaignContent {
@@ -66,6 +66,9 @@ pub struct SpatialDiscoveryContent {
     pub id: String,
     pub title: String,
     pub description: String,
+    /// Stable evidence IDs the current character must already know.
+    #[serde(default)]
+    pub requires_evidence: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,6 +125,9 @@ pub struct QuestContent {
     pub giver_npc_name: String,
     pub required_item_name: String,
     pub reward_item_name: String,
+    /// Stable evidence IDs that must be understood to complete this quest.
+    #[serde(default)]
+    pub required_evidence_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -268,8 +274,43 @@ impl CampaignContent {
                 .map(|discovery| discovery.id.as_str()),
             &mut issues,
         );
+        let evidence_ids = self
+            .world
+            .locations
+            .iter()
+            .flat_map(|location| location.spatial_discoveries.iter())
+            .map(|discovery| discovery.id.clone())
+            .collect::<HashSet<_>>();
+        let evidence_graph = self
+            .world
+            .locations
+            .iter()
+            .flat_map(|location| location.spatial_discoveries.iter())
+            .map(|discovery| (discovery.id.clone(), discovery.requires_evidence.clone()))
+            .collect::<HashMap<_, _>>();
+
         for location in &self.world.locations {
             for discovery in &location.spatial_discoveries {
+                let mut prerequisites = HashSet::new();
+                for prerequisite in &discovery.requires_evidence {
+                    if !prerequisites.insert(prerequisite.as_str()) {
+                        issues.push(format!(
+                            "spatial discovery {} repeats prerequisite {}",
+                            discovery.id, prerequisite
+                        ));
+                    }
+                    if prerequisite == &discovery.id {
+                        issues.push(format!(
+                            "spatial discovery {} cannot require itself",
+                            discovery.id
+                        ));
+                    } else if !evidence_ids.contains(prerequisite) {
+                        issues.push(format!(
+                            "spatial discovery {} requires unknown evidence {}",
+                            discovery.id, prerequisite
+                        ));
+                    }
+                }
                 if discovery.id.trim().is_empty() {
                     issues.push(format!(
                         "location {} has a spatial discovery with an empty id",
@@ -290,6 +331,23 @@ impl CampaignContent {
                 }
             }
         }
+
+        let mut visited_evidence = HashSet::new();
+        for evidence_id in evidence_graph.keys() {
+            if has_spatial_evidence_cycle(
+                evidence_id,
+                &evidence_graph,
+                &mut HashSet::new(),
+                &mut visited_evidence,
+            ) {
+                issues.push(format!(
+                    "spatial evidence prerequisites contain a cycle involving {}",
+                    evidence_id
+                ));
+                break;
+            }
+        }
+
         validate_unique_ids(
             "character part",
             self.character_parts.iter().map(|entry| entry.id.as_str()),
@@ -369,6 +427,28 @@ impl CampaignContent {
         }
 
         for quest in &self.quests {
+            let mut required_evidence = HashSet::new();
+            for evidence_id in &quest.required_evidence_ids {
+                if evidence_id.trim().is_empty() {
+                    issues.push(format!(
+                        "quest {} has an empty required evidence ID",
+                        quest.id
+                    ));
+                    continue;
+                }
+                if !required_evidence.insert(evidence_id.as_str()) {
+                    issues.push(format!(
+                        "quest {} repeats required evidence {}",
+                        quest.id, evidence_id
+                    ));
+                }
+                if !evidence_ids.contains(evidence_id) {
+                    issues.push(format!(
+                        "quest {} requires unknown spatial evidence {}",
+                        quest.id, evidence_id
+                    ));
+                }
+            }
             if !location_names.contains(quest.location_name.as_str()) {
                 issues.push(format!(
                     "quest {} uses unknown location {}",
@@ -539,6 +619,30 @@ impl CampaignContent {
             .find(|entry| entry.item_name == item_name)
             .map(|entry| entry.art.as_str())
     }
+}
+
+fn has_spatial_evidence_cycle(
+    evidence_id: &str,
+    graph: &HashMap<String, Vec<String>>,
+    visiting: &mut HashSet<String>,
+    visited: &mut HashSet<String>,
+) -> bool {
+    if visited.contains(evidence_id) {
+        return false;
+    }
+    if !visiting.insert(evidence_id.to_string()) {
+        return true;
+    }
+    if let Some(prerequisites) = graph.get(evidence_id) {
+        for prerequisite in prerequisites {
+            if has_spatial_evidence_cycle(prerequisite, graph, visiting, visited) {
+                return true;
+            }
+        }
+    }
+    visiting.remove(evidence_id);
+    visited.insert(evidence_id.to_string());
+    false
 }
 
 fn validate_unique_ids<'a, I>(kind: &str, ids: I, issues: &mut Vec<String>)

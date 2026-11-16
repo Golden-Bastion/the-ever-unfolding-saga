@@ -18,7 +18,7 @@ Bundled base content and base-game art remain protected package resources. Bundl
 
 Saves use the existing JSON payload format compressed with gzip and are stored under the internal root's `saves/` directory. Character-specific filenames follow the form `ever_unfolding_saga_save_<character>.json.gz` after filename sanitization.
 
-The current save envelope is version 4. Version 3 saves remain readable; their local maps default missing `rooms` and `doors` fields to empty collections, while preserving all saved terrain, positions, discoveries, and existing map geometry.
+The current save envelope is version 4. Version 3 saves remain readable; their local maps default missing `rooms` and `doors` fields to empty collections, while preserving all saved terrain, positions, discoveries, and existing map geometry. Older character records also default missing `known_evidence_ids` to an empty collection. Older points of interest default missing evidence prerequisites to an empty list, and older quest objectives default the optional presentation label to none. These additions do not require a save-envelope version change.
 
 The save envelope records the active mod dependencies at save time. Each dependency includes its stable mod ID, display name, and version. When loading, the game checks those dependencies against the active mod snapshot captured at process startup. Missing, disabled, or version-mismatched dependencies are reported before the player continues; the player may proceed at their own responsibility.
 
@@ -42,9 +42,9 @@ Collection-level backup and cloud synchronization are outside the current scope.
 
 ## World and character boundaries
 
-Character-specific state includes progression, conditions, and the personal quest log. World-persistent state includes faction memories, completed quest deeds, corpses, history, event cooldowns, and world time.
+Character-specific state includes progression, conditions, learned evidence IDs, and the personal quest log. World-persistent state includes faction memories, completed quest deeds, corpses, physical local-map discovery/examination flags, history, event cooldowns, and world time.
 
-When a character dies, the next character can inherit the world without inheriting the dead character's personal quest log or faction reputation. Corpse contents and other persistent traces remain available to later lives.
+When a character dies, the next character can inherit the world without inheriting the dead character's personal quest log, faction reputation, or learned evidence IDs. Corpse contents, physical local-map discoveries, and other persistent traces remain available to later lives.
 
 ## Saving and loading
 

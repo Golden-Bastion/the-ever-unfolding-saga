@@ -111,6 +111,57 @@ fn undiscovered_points_of_interest_do_not_offer_an_examine_action() {
 }
 
 #[test]
+fn evidence_prerequisites_gate_examine_actions_per_character() {
+    let mut map = crate::spatial::generate_local_map(
+        51,
+        "location.evidence_filter",
+        crate::spatial::LocalMapConfig::default(),
+    );
+    map.props.clear();
+    map.exits.clear();
+    map.interactables.clear();
+    let poi = map
+        .points_of_interest
+        .first_mut()
+        .expect("map has a prototype POI");
+    poi.id = "evidence.second".into();
+    poi.title = "Second clue".into();
+    poi.discovered = true;
+    poi.interacted = true;
+    poi.prerequisites = vec!["evidence.first".into()];
+    let position = (
+        f32::from(poi.position.x) + 0.5,
+        f32::from(poi.position.y) + 0.5,
+    );
+
+    let mut game = crate::model::create_new_state(
+        "Evidence Filter Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+
+    assert!(
+        discover_available_interactions(&map, &game, position).is_empty(),
+        "a revealed clue remains uninterpretable until its prerequisite is known"
+    );
+
+    game.character.record_evidence("evidence.first");
+    let available = discover_available_interactions(&map, &game, position);
+    assert_eq!(available.len(), 1);
+    assert_eq!(
+        available[0].target,
+        InteractionTarget::PointOfInterest("evidence.second".into())
+    );
+
+    game.character.record_evidence("evidence.second");
+    assert!(
+        discover_available_interactions(&map, &game, position).is_empty(),
+        "the same character should not be offered evidence they already understand"
+    );
+}
+
+#[test]
 fn discovery_hides_stale_and_one_way_world_passages() {
     let mut map = crate::spatial::generate_local_map(
         31,

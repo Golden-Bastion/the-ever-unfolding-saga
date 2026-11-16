@@ -41,6 +41,13 @@ pub(crate) struct ConditionView {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct EvidenceView {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct CharacterSheetView {
     pub character: CharacterView,
     pub level: u32,
@@ -49,6 +56,8 @@ pub(crate) struct CharacterSheetView {
     pub attributes: AttributesView,
     pub conditions: Vec<ConditionView>,
     pub factions: Vec<FactionView>,
+    /// Evidence understood by this character, in the order it was learned.
+    pub evidence: Vec<EvidenceView>,
     pub notes: Vec<String>,
 }
 

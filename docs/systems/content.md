@@ -32,11 +32,17 @@ A location may optionally declare a `spatial_layout` identifier. The current bui
 
 ## Authored spatial discoveries
 
-A location may define an optional `spatial_discoveries` array. Each entry has a stable `id`, a player-facing `title`, and a `description`. These definitions are converted into points of interest when that location's local map is first generated. Placement is deterministic for the established map seed and avoids blocked or unreachable cells, exits, and actor placements. An empty list keeps the older generic fallback for locations that have not received authored discoveries yet.
+A location may define an optional `spatial_discoveries` array. Each entry has a stable `id`, a player-facing `title`, a `description`, and an optional `requires_evidence` array containing stable IDs of other spatial discoveries. These definitions become points of interest when that location's local map is first generated. Placement is deterministic for the established map seed and avoids blocked or unreachable cells, exits, and actor placements. All listed prerequisites must be known by the current character before the Examine action becomes available. An empty list keeps the older generic fallback for locations that have not received authored discoveries yet.
 
-Mods may extend a location's discoveries or override an entry by stable ID. Entries from earlier content remain when a mod supplies additional IDs; a matching ID replaces its title and description. IDs must be unique, and the required text fields must not be blank. New discovery definitions do not rewrite an already-persisted local map: an established map remains authoritative for its generated placements and discovery state.
+Evidence IDs are global across campaign locations. Content validation rejects empty, repeated, self-referential, unknown, or cyclic prerequisites. Mods may extend a location's discoveries or override an entry by stable ID; a matching ID replaces its title, description, and prerequisite list. New discovery definitions do not rewrite an already-persisted local map: an established map remains authoritative for its generated placements and evidence requirements.
 
-Points of interest are hidden until the player explores the tiles around them. Revealed discoveries become visible world markers and contextual Examine actions. The `discovered` and `interacted` flags are saved with the local map, not regenerated from campaign content after each load.
+The base campaign demonstrates a cross-location investigation: the scraped Ashen Gate hinge leads to newer road tracks, which lead to a disturbed Hollow Market stall and a lantern with its wick removed. That residue is then traced through the fresh soot at Old Shrine to the black altar. Each step requires the preceding evidence ID, and `quest.quiet_old_shrine` requires the final `poi.old_shrine.black_altar` finding.
+
+The local map stores the physical `discovered` and `interacted` flags. Character understanding is separate: each character stores the evidence IDs they personally learned in `known_evidence_ids`. Examining a clue records its ID for that character. A later character may examine a site that was already interacted with in a previous life, but does not inherit the previous character's deductions. Older saves default missing prerequisite and character-knowledge fields to empty collections.
+
+## Evidence-linked quest objectives
+
+A quest template may define an optional `required_evidence_ids` array. Each ID must reference an authored spatial discovery and must be unique within that quest. Campaign seeding adds a `DiscoverEvidence` objective for each required ID, using the discovery title as its player-facing label. These objectives are appended to the quest's existing visit, item, and encounter objectives; they do not replace them. Progress follows the current character's known evidence, not the shared map's physical interaction flags.
 
 ## Optional assets
 

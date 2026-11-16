@@ -131,7 +131,7 @@ Distinguish three categories as spatial and knowledge systems mature:
 2. **Recorded knowledge:** information preserved by a map, journal, letter, public record, monument, or another persistent medium.
 3. **Individual knowledge:** personal observations, secrets, rumors, and leads that have not been recorded or otherwise shared.
 
-Physical state persists. Recorded knowledge remains available through its actual medium. Individual knowledge is not magically transferred to a successor. This may eventually require a clear separation between shared physical local-map state and each character's personal discovery state; new systems should avoid entangling the two.
+Physical state persists. Recorded knowledge remains available through its actual medium. Individual knowledge is not magically transferred to a successor. Spatial evidence follows this boundary: local maps retain physical discovery and examination flags, while each character persists their own learned evidence IDs. A successor starts with an empty evidence list and may re-examine a shared site, subject to that clue's prerequisites. Quest evidence objectives follow the active character's knowledge rather than the world's shared interaction history.
 
 Factions should remember previous deeds without automatically granting the successor the previous character's personal reputation. Family, inherited property, inherited office, or recognition based on name/legacy may later provide explicit exceptions through dedicated systems, not implicit stat copying.
 
