@@ -131,7 +131,12 @@ fn character_evidence_defaults_empty_for_old_saves() {
         "Ash Walker".into(),
     );
     state.character.record_evidence("evidence.known");
-    let mut legacy = serde_json::to_value(&state.character).unwrap();
+    let serialized = serde_json::to_value(&state.character).unwrap();
+    let restored: Character = serde_json::from_value(serialized.clone())
+        .expect("current character evidence should survive save serialization");
+    assert_eq!(restored.known_evidence_ids, vec!["evidence.known"]);
+
+    let mut legacy = serialized;
     legacy
         .as_object_mut()
         .unwrap()
@@ -152,6 +157,15 @@ fn objective_defaults_are_safe_for_old_saves() {
     assert_eq!(objective.required, 1);
     assert_eq!(objective.progress, 0);
     assert!(!objective.completed);
+    assert!(objective.target_label.is_none());
+
+    let evidence = QuestObjective::discover_evidence("evidence.altar", "Black Altar");
+    let serialized = serde_json::to_value(&evidence).expect("evidence objective should serialize");
+    let restored: QuestObjective =
+        serde_json::from_value(serialized).expect("evidence objective should deserialize");
+    assert_eq!(restored.kind, QuestObjectiveKind::DiscoverEvidence);
+    assert_eq!(restored.target, "evidence.altar");
+    assert_eq!(restored.target_label.as_deref(), Some("Black Altar"));
 }
 
 #[test]
