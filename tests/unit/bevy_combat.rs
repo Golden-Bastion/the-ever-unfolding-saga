@@ -137,7 +137,6 @@ fn spatial_encounter_game(enemy_hp: i32) -> crate::model::GameState {
 #[test]
 fn spatial_encounter_cannot_be_started_from_outside_interaction_range() {
     let mut game = spatial_encounter_game(30);
-    let entry = game.world.local_maps[0].entry;
     game.character.exploration_position = Some(crate::model::ExplorationPosition {
         x: f32::from(game.world.local_maps[0].width) - 1.5,
         y: f32::from(game.world.local_maps[0].height) - 1.5,
