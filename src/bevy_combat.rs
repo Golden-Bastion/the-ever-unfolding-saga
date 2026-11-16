@@ -84,15 +84,6 @@ pub(crate) fn install(app: &mut App) {
         .add_systems(Update, (combat_input, render_if_active).chain());
 }
 
-pub(crate) fn begin(
-    state: &mut crate::model::GameState,
-    combat_state: &mut CombatState,
-) -> Result<(), String> {
-    let encounter = combat::start_encounter(state).map_err(|error| error.to_string())?;
-    combat_state.reset(encounter);
-    Ok(())
-}
-
 pub(crate) fn begin_spatial(
     state: &mut crate::model::GameState,
     combat_state: &mut CombatState,
