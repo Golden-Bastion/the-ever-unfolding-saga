@@ -432,6 +432,28 @@ impl CampaignContent {
         }
 
         for quest in &self.quests {
+            let mut required_evidence = HashSet::new();
+            for evidence_id in &quest.required_evidence_ids {
+                if evidence_id.trim().is_empty() {
+                    issues.push(format!(
+                        "quest {} has an empty required evidence ID",
+                        quest.id
+                    ));
+                    continue;
+                }
+                if !required_evidence.insert(evidence_id.as_str()) {
+                    issues.push(format!(
+                        "quest {} repeats required evidence {}",
+                        quest.id, evidence_id
+                    ));
+                }
+                if !evidence_ids.contains(evidence_id) {
+                    issues.push(format!(
+                        "quest {} requires unknown spatial evidence {}",
+                        quest.id, evidence_id
+                    ));
+                }
+            }
             if !location_names.contains(quest.location_name.as_str()) {
                 issues.push(format!(
                     "quest {} uses unknown location {}",
