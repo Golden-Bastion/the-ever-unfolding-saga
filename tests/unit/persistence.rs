@@ -156,7 +156,7 @@ fn save_metadata_details_line_pluralizes_multiple_mod_dependencies() {
 
     assert_eq!(
         metadata.details_line(),
-        "Level 1 | The Cinder March | Day 1 | Format v3 | 2 mods"
+        "Level 1 | The Cinder March | Day 1 | Format v4 | 2 mods"
     );
 }
 
