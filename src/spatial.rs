@@ -904,6 +904,7 @@ pub fn generate_local_map_with_layout(
             description: "Something here resists the passage of time.".to_string(),
             discovered: false,
             interacted: false,
+            prerequisites: Vec::new(),
         }],
         exits: Vec::new(),
         discovered_tiles,
