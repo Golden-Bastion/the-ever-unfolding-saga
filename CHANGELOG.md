@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.59. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.60. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -295,3 +295,14 @@ The entries below cover the v0.52.x development line through v0.52.59. This line
 - Added deterministic layout, topology, exit reachability, door-blocking, and room-transition regression tests.
 - Reused the current table and pillar art as first-pass market stall and lantern-post stand-ins; dedicated gate/market assets remain future art work.
 - Bumped Rust and Android version metadata to 0.52.59.
+
+
+### v0.52.60: Character-specific evidence progression
+
+- Added character-owned learned evidence IDs, separate from shared physical point-of-interest discovery and interaction state. Successors retain the world and its physical traces but begin without the previous character's personal deductions.
+- Added optional prerequisite evidence IDs to authored spatial discoveries. Examine actions are available only after all prerequisites are known by the current character; previously examined physical sites can be examined anew by a later character.
+- Added content validation for missing, empty, repeated, self-referential, and cyclic evidence prerequisites.
+- Added evidence-linked quest objectives and optional `required_evidence_ids` to quest templates. Campaign seeding appends evidence goals alongside the quest's standard objectives, and quest progress follows current-character knowledge.
+- Preserved old-save readability with defaults for character evidence, POI prerequisites, and optional quest objective labels; the save envelope remains version 4.
+- Added regression coverage for evidence examination, prerequisite gates, quest objective synchronization/seeding, inheritance boundaries, content validation, and legacy serialization.
+- Bumped Rust and Android application metadata to 0.52.60.
