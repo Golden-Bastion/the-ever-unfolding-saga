@@ -93,6 +93,17 @@ pub(crate) fn begin(
     Ok(())
 }
 
+pub(crate) fn begin_spatial(
+    state: &mut crate::model::GameState,
+    combat_state: &mut CombatState,
+    encounter_id: &str,
+) -> Result<(), String> {
+    let encounter = combat::start_spatial_encounter(state, encounter_id)
+        .map_err(|error| error.to_string())?;
+    combat_state.reset(encounter);
+    Ok(())
+}
+
 fn combat_input(
     mut lifecycle: ResMut<LifecycleState>,
     mut combat_state: ResMut<CombatState>,

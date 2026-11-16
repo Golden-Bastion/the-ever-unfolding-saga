@@ -1,5 +1,6 @@
 use super::{character, interactions, legacy, state_effects};
 use crate::model::{EntityId, GameState, Item};
+use crate::spatial::SpatialEncounterStatus;
 use crate::presentation::{CharacterView, CombatResultView, CombatView, CombatantView};
 use std::fmt;
 
@@ -12,6 +13,7 @@ pub(crate) struct CombatEncounter {
     pub(crate) enemy_id: EntityId,
     pub(crate) location_id: EntityId,
     pub(crate) location_name: String,
+    pub(crate) spatial_encounter_id: Option<String>,
     trophy_name: String,
     pub(crate) events: Vec<String>,
 }
@@ -20,6 +22,7 @@ pub(crate) struct CombatEncounter {
 pub(crate) enum CombatStartError {
     NoActiveThreat,
     MissingLocation,
+    MissingSpatialEncounter,
 }
 
 impl fmt::Display for CombatStartError {
@@ -27,6 +30,7 @@ impl fmt::Display for CombatStartError {
         match self {
             Self::NoActiveThreat => formatter.write_str("There is no active threat to face."),
             Self::MissingLocation => formatter.write_str("The threat cannot be reached here."),
+            Self::MissingSpatialEncounter => formatter.write_str("That encounter is no longer available here."),
         }
     }
 }
@@ -56,7 +60,8 @@ pub(crate) fn start_encounter(state: &mut GameState) -> Result<CombatEncounter, 
         .location_by_id(state.character.location_id)
         .cloned()
         .ok_or(CombatStartError::MissingLocation)?;
-    let (enemy_name, enemy_hp, enemy_power, trophy_name) = encounter_profile(state, &location.name);
+    let (enemy_name, _description, enemy_hp, enemy_power, trophy_name) =
+        encounter_profile(state, &location.name);
     let enemy_max_hp = enemy_hp.max(1);
     let character_name = state.character.display_name();
     Ok(CombatEncounter {
@@ -67,10 +72,62 @@ pub(crate) fn start_encounter(state: &mut GameState) -> Result<CombatEncounter, 
         enemy_id: state.world.allocate_id(),
         location_id: location.id,
         location_name: location.name,
+        spatial_encounter_id: None,
         trophy_name,
         events: vec![format!(
             "{} engages the threat at {}.",
             character_name,
+            location_name_for_message(state)
+        )],
+    })
+}
+
+/// Start combat against the exact persistent encounter selected in spatial play.
+pub(crate) fn start_spatial_encounter(
+    state: &mut GameState,
+    encounter_id: &str,
+) -> Result<CombatEncounter, CombatStartError> {
+    if !state.threat.active
+        || state
+            .threat
+            .source_location_id
+            .is_some_and(|source| source != state.character.location_id)
+    {
+        return Err(CombatStartError::NoActiveThreat);
+    }
+
+    let location = state
+        .world
+        .location_by_id(state.character.location_id)
+        .cloned()
+        .ok_or(CombatStartError::MissingLocation)?;
+    let map_id = format!("location.{}", location.id);
+    let spatial_encounter = state
+        .world
+        .local_maps
+        .iter()
+        .find(|map| map.location_id == map_id)
+        .and_then(|map| map.encounters.iter().find(|encounter| encounter.id == encounter_id))
+        .filter(|encounter| encounter.status == SpatialEncounterStatus::Active)
+        .cloned()
+        .ok_or(CombatStartError::MissingSpatialEncounter)?;
+
+    let character_name = state.character.display_name();
+    let enemy_name = spatial_encounter.enemy_name.clone();
+    Ok(CombatEncounter {
+        enemy_name: enemy_name.clone(),
+        enemy_hp: spatial_encounter.current_hp,
+        enemy_max_hp: spatial_encounter.max_hp,
+        enemy_power: spatial_encounter.power,
+        enemy_id: state.world.allocate_id(),
+        location_id: location.id,
+        location_name: location.name,
+        spatial_encounter_id: Some(spatial_encounter.id),
+        trophy_name: spatial_encounter.trophy_item_name,
+        events: vec![format!(
+            "{} confronts {} at {}.",
+            character_name,
+            enemy_name,
             location_name_for_message(state)
         )],
     })
@@ -170,6 +227,7 @@ pub(crate) fn resolve_action(
         _ => return CombatStep::Continue,
     }
 
+    persist_spatial_encounter_health(state, encounter);
     if state.character.hp <= 0 {
         return finish_defeat(state, encounter);
     }
@@ -202,6 +260,9 @@ pub(crate) fn build_combat_view(state: &GameState, encounter: &CombatEncounter) 
 fn finish_victory(state: &mut GameState, encounter: &mut CombatEncounter) -> CombatStep {
     let enemy_name = encounter.enemy_name.clone();
     let character_name = state.character.display_name();
+    if let Some(encounter_id) = encounter.spatial_encounter_id.as_deref() {
+        set_spatial_encounter_defeated(state, encounter.location_id, encounter_id);
+    }
     state.threat.clear();
     if let Some(location) = state.world.location_by_id_mut(encounter.location_id) {
         location.dangerous = false;
@@ -319,7 +380,10 @@ fn trim_combat_events(events: &mut Vec<String>) {
     }
 }
 
-fn encounter_profile(state: &GameState, location_name: &str) -> (String, i32, i32, String) {
+pub(crate) fn encounter_profile(
+    state: &GameState,
+    location_name: &str,
+) -> (String, String, i32, i32, String) {
     if let Some(profile) = state
         .campaign_content
         .as_ref()
@@ -327,6 +391,7 @@ fn encounter_profile(state: &GameState, location_name: &str) -> (String, i32, i3
     {
         (
             profile.enemy_name.clone(),
+            profile.description.clone(),
             profile.enemy_hp,
             profile.enemy_power,
             profile.trophy_item_name.clone(),
@@ -334,10 +399,44 @@ fn encounter_profile(state: &GameState, location_name: &str) -> (String, i32, i3
     } else {
         (
             "Ash-Crazed Marauder".to_string(),
+            "A hostile wanderer driven to violence by the ash.".to_string(),
             7,
             2,
             "Marauder's Token".to_string(),
         )
+    }
+}
+
+fn persist_spatial_encounter_health(state: &mut GameState, encounter: &CombatEncounter) {
+    let Some(encounter_id) = encounter.spatial_encounter_id.as_deref() else {
+        return;
+    };
+    let map_id = format!("location.{}", encounter.location_id);
+    if let Some(spatial_encounter) = state
+        .world
+        .local_maps
+        .iter_mut()
+        .find(|map| map.location_id == map_id)
+        .and_then(|map| map.encounters.iter_mut().find(|entry| entry.id == encounter_id))
+    {
+        spatial_encounter.current_hp = encounter.enemy_hp.clamp(0, spatial_encounter.max_hp);
+        if spatial_encounter.current_hp == 0 {
+            spatial_encounter.status = SpatialEncounterStatus::Defeated;
+        }
+    }
+}
+
+fn set_spatial_encounter_defeated(state: &mut GameState, location_id: EntityId, encounter_id: &str) {
+    let map_id = format!("location.{location_id}");
+    if let Some(spatial_encounter) = state
+        .world
+        .local_maps
+        .iter_mut()
+        .find(|map| map.location_id == map_id)
+        .and_then(|map| map.encounters.iter_mut().find(|entry| entry.id == encounter_id))
+    {
+        spatial_encounter.current_hp = 0;
+        spatial_encounter.status = SpatialEncounterStatus::Defeated;
     }
 }
 

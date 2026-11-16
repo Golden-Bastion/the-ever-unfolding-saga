@@ -93,3 +93,92 @@ fn combat_updates_can_replace_log_content_without_rebuilding_the_screen_or_gauge
         .get::<Children>(event_lines)
         .is_none_or(|children| children.is_empty()));
 }
+
+fn spatial_encounter_game(enemy_hp: i32) -> crate::model::GameState {
+    let mut game = crate::model::create_new_state(
+        "Spatial Combat Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let location_id = game.character.location_id;
+    let mut map = crate::spatial::generate_local_map(
+        19,
+        format!("location.{location_id}"),
+        crate::spatial::LocalMapConfig::default(),
+    );
+    assert!(crate::spatial::ensure_spatial_encounter(
+        &mut map,
+        "encounter.combat_test.1".into(),
+        "Ash Marauder".into(),
+        "A hostile figure blocks the way.".into(),
+        enemy_hp,
+        0,
+        "Marauder Token".into(),
+    ));
+    game.world.local_maps.push(map);
+    game.threat.activate(
+        location_id,
+        "A nearby threat",
+        "Something hostile remains here.",
+    );
+    game
+}
+
+#[test]
+fn spatial_encounter_health_survives_combat_retreat_and_reentry() {
+    let mut game = spatial_encounter_game(30);
+    let mut encounter =
+        crate::game::combat::start_spatial_encounter(&mut game, "encounter.combat_test.1")
+            .expect("active spatial encounter should start");
+    assert_eq!(encounter.enemy_hp, 30);
+
+    let step = crate::game::combat::resolve_action(&mut game, &mut encounter, 0);
+    assert!(matches!(step, CombatStep::Continue));
+    let saved_hp = game.world.local_maps[0].encounters[0].current_hp;
+    assert!(saved_hp < 30);
+    assert_eq!(saved_hp, encounter.enemy_hp);
+
+    let mut resumed =
+        crate::game::combat::start_spatial_encounter(&mut game, "encounter.combat_test.1")
+            .expect("the same spatial encounter should resume");
+    assert_eq!(resumed.enemy_hp, saved_hp);
+    let fled = crate::game::combat::resolve_action(&mut game, &mut resumed, 2);
+    assert!(matches!(
+        fled,
+        CombatStep::Result {
+            outcome: crate::game::combat::CombatResult::Fled,
+            ..
+        }
+    ));
+
+    let after_flee =
+        crate::game::combat::start_spatial_encounter(&mut game, "encounter.combat_test.1")
+            .expect("fleeing should leave the encounter active");
+    assert_eq!(after_flee.enemy_hp, saved_hp);
+}
+
+#[test]
+fn spatial_encounter_victory_persists_the_defeated_state() {
+    let mut game = spatial_encounter_game(1);
+    let mut encounter =
+        crate::game::combat::start_spatial_encounter(&mut game, "encounter.combat_test.1")
+            .expect("active spatial encounter should start");
+    let step = crate::game::combat::resolve_action(&mut game, &mut encounter, 0);
+    assert!(matches!(
+        step,
+        CombatStep::Result {
+            outcome: crate::game::combat::CombatResult::Victory,
+            ..
+        }
+    ));
+
+    let record = &game.world.local_maps[0].encounters[0];
+    assert_eq!(record.current_hp, 0);
+    assert_eq!(
+        record.status,
+        crate::spatial::SpatialEncounterStatus::Defeated
+    );
+    assert!(!game.threat.active);
+}
+
