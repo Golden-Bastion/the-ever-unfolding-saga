@@ -508,6 +508,28 @@ fn existing_spatial_entity_placements_are_preserved_when_new_actors_arrive() {
 }
 
 #[test]
+fn legacy_points_of_interest_default_to_no_evidence_prerequisites() {
+    let legacy = r#"{
+        "id": "poi.legacy",
+        "position": {"x": 2, "y": 3},
+        "title": "Old Discovery",
+        "description": "A discovery from an earlier save.",
+        "discovered": true,
+        "interacted": true
+    }"#;
+    let poi: PointOfInterest =
+        serde_json::from_str(legacy).expect("legacy POIs should load without prerequisites");
+    assert!(poi.prerequisites.is_empty());
+
+    let mut current = poi;
+    current.prerequisites = vec!["evidence.first".into()];
+    let serialized = serde_json::to_string(&current).expect("POI should serialize");
+    let restored: PointOfInterest =
+        serde_json::from_str(&serialized).expect("current POI should deserialize");
+    assert_eq!(restored.prerequisites, vec!["evidence.first"]);
+}
+
+#[test]
 fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
     let definitions = vec![
         SpatialDiscoveryDefinition {
