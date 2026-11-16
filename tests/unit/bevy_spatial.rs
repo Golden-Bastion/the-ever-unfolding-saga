@@ -202,12 +202,12 @@ fn camera_follow_is_consistent_across_frame_rates() {
 
     let mut camera_30 = Vec2::ZERO;
     for _ in 0..30 {
-        camera_30 = camera_follow_position(player, camera_30, viewport, &map, 1.0 / 30.0);
+        camera_30 = camera_follow_position(player, Vec2::ZERO, camera_30, viewport, &map, 1.0 / 30.0);
     }
 
     let mut camera_60 = Vec2::ZERO;
     for _ in 0..60 {
-        camera_60 = camera_follow_position(player, camera_60, viewport, &map, 1.0 / 60.0);
+        camera_60 = camera_follow_position(player, Vec2::ZERO, camera_60, viewport, &map, 1.0 / 60.0);
     }
 
     assert!(
@@ -221,9 +221,39 @@ fn camera_follow_clamps_the_smoothed_position_to_map_bounds() {
     let map = generate_local_map(4, "location.camera_bounds_test", LocalMapConfig::default());
     let viewport = Vec2::new(320.0, 180.0);
     let camera = Vec2::new(10_000.0, -10_000.0);
-    let followed = camera_follow_position(Vec2::ZERO, camera, viewport, &map, 0.0);
+    let followed = camera_follow_position(Vec2::ZERO, Vec2::ZERO, camera, viewport, &map, 0.0);
 
     assert_eq!(followed, clamp_camera_target(camera, &map, viewport));
+}
+
+#[test]
+fn room_camera_follow_transitions_between_authored_rooms_smoothly() {
+    let map = crate::spatial::generate_local_map_with_layout(
+        42,
+        "location.ashen_gate",
+        LocalMapConfig::default(),
+        Some("ashen_gate_causeway"),
+    );
+    let viewport = Vec2::new(240.0, 140.0);
+    let west_position = Vec2::new(2.5, 8.5);
+    let east_position = Vec2::new(18.5, 8.5);
+    let west_world = map_to_world(west_position, Some(&map));
+    let east_world = map_to_world(east_position, Some(&map));
+
+    let west_focus = camera_target_in_current_room(west_world, west_position, &map, viewport);
+    let east_focus = camera_target_in_current_room(east_world, east_position, &map, viewport);
+    assert!(
+        west_focus.distance(east_focus) > 100.0,
+        "the two authored rooms should have distinct camera framing regions"
+    );
+
+    let first_transition_frame =
+        camera_follow_position(east_world, east_position, west_focus, viewport, &map, 0.05);
+    assert_ne!(first_transition_frame, west_focus);
+    assert!(
+        first_transition_frame.distance(east_focus) < west_focus.distance(east_focus),
+        "camera motion should move toward the destination room without snapping"
+    );
 }
 
 #[test]
