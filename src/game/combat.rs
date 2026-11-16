@@ -57,37 +57,6 @@ pub(crate) enum CombatStep {
     },
 }
 
-pub(crate) fn start_encounter(state: &mut GameState) -> Result<CombatEncounter, CombatStartError> {
-    if !state.threat.active {
-        return Err(CombatStartError::NoActiveThreat);
-    }
-    let location = state
-        .world
-        .location_by_id(state.character.location_id)
-        .cloned()
-        .ok_or(CombatStartError::MissingLocation)?;
-    let (enemy_name, _description, enemy_hp, enemy_power, trophy_name) =
-        encounter_profile(state, &location.name);
-    let enemy_max_hp = enemy_hp.max(1);
-    let character_name = state.character.display_name();
-    Ok(CombatEncounter {
-        enemy_name,
-        enemy_hp,
-        enemy_max_hp,
-        enemy_power,
-        enemy_id: state.world.allocate_id(),
-        location_id: location.id,
-        location_name: location.name,
-        spatial_encounter_id: None,
-        trophy_name,
-        events: vec![format!(
-            "{} engages the threat at {}.",
-            character_name,
-            location_name_for_message(state)
-        )],
-    })
-}
-
 /// Start combat against the exact persistent encounter selected in spatial play.
 pub(crate) fn start_spatial_encounter(
     state: &mut GameState,
@@ -127,7 +96,7 @@ pub(crate) fn start_spatial_encounter(
         .exploration_session
         .as_ref()
         .filter(|session| session.location_id == map_id)
-        .and_then(|_| state.character.exploration_position)
+        .and(state.character.exploration_position)
         .map(|position| (position.x, position.y))
         .unwrap_or((f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5));
     let can_confront =
