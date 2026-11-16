@@ -470,9 +470,11 @@ fn refresh_spatial_scene_on_reentry(
     mut state: ResMut<SpatialExplorationState>,
 ) {
     if should_refresh_spatial_scene(state.last_navigation_screen, navigation.current_screen) {
-        let location_id = state.session.as_ref().map(|session| session.location_id.clone());
-        if let (Some(location_id), Some(game_session)) = (location_id, lifecycle.session.as_ref())
-        {
+        let location_id = state
+            .session
+            .as_ref()
+            .map(|session| session.location_id.clone());
+        if let (Some(location_id), Some(game_session)) = (location_id, lifecycle.session.as_ref()) {
             let saved_map = game_session
                 .state
                 .world
