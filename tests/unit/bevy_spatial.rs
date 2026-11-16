@@ -843,10 +843,21 @@ fn examining_shared_clues_records_character_knowledge_and_advances_quests() {
         assert!(state.character.knows_evidence("evidence.first"));
         assert!(state.quests[0].objectives[0].completed);
     }
-    assert!(spatial.maps[&format!("location.{}", lifecycle.session.as_ref().unwrap().state.character.location_id)]
-        .point_of_interest("evidence.first")
-        .unwrap()
-        .interacted);
+    assert!(
+        spatial.maps[&format!(
+            "location.{}",
+            lifecycle
+                .session
+                .as_ref()
+                .unwrap()
+                .state
+                .character
+                .location_id
+        )]
+            .point_of_interest("evidence.first")
+            .unwrap()
+            .interacted
+    );
 
     interact_with_poi(&mut spatial, &mut lifecycle, "evidence.second");
     let state = &lifecycle.session.as_ref().unwrap().state;

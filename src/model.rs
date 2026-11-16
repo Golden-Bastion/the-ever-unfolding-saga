@@ -291,10 +291,7 @@ impl QuestObjective {
         }
     }
 
-    pub fn discover_evidence(
-        evidence_id: impl Into<String>,
-        label: impl Into<String>,
-    ) -> Self {
+    pub fn discover_evidence(evidence_id: impl Into<String>, label: impl Into<String>) -> Self {
         let mut objective = Self::new(QuestObjectiveKind::DiscoverEvidence, evidence_id, 1);
         objective.target_label = Some(label.into());
         objective

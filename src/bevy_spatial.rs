@@ -1138,7 +1138,10 @@ fn interact_with_poi(
 
     let character_name = game_session.state.character.display_name();
     let turn = game_session.state.character.turn;
-    game_session.state.character.record_evidence(poi_id.to_string());
+    game_session
+        .state
+        .character
+        .record_evidence(poi_id.to_string());
     crate::game::quests::sync_active_quests(&mut game_session.state);
     game_session.state.world.record_history(
         turn,

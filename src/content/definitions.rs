@@ -286,12 +286,7 @@ impl CampaignContent {
             .locations
             .iter()
             .flat_map(|location| location.spatial_discoveries.iter())
-            .map(|discovery| {
-                (
-                    discovery.id.clone(),
-                    discovery.requires_evidence.clone(),
-                )
-            })
+            .map(|discovery| (discovery.id.clone(), discovery.requires_evidence.clone()))
             .collect::<HashMap<_, _>>();
 
         for location in &self.world.locations {

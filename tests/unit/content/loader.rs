@@ -256,11 +256,7 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
 fn base_campaign_links_gate_market_and_shrine_clues_into_one_investigation() {
     let content = default_campaign_content();
     let chain: [(&str, &str, &[&str]); 6] = [
-        (
-            "location.ashen_gate",
-            "poi.ashen_gate.cracked_gate",
-            &[],
-        ),
+        ("location.ashen_gate", "poi.ashen_gate.cracked_gate", &[]),
         (
             "location.ashen_gate",
             "poi.ashen_gate.dead_road",
@@ -420,6 +416,8 @@ fn spatial_evidence_requirements_must_exist_and_form_an_acyclic_graph() {
     ];
 
     let issues = content.validate();
-    assert!(issues.iter().any(|issue| issue.contains("unknown evidence")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("unknown evidence")));
     assert!(issues.iter().any(|issue| issue.contains("contain a cycle")));
 }

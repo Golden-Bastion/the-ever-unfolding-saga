@@ -35,9 +35,10 @@ fn campaign_quest_templates_add_evidence_goals_without_replacing_existing_object
         .iter()
         .find(|quest| quest.content_id == quest_id)
         .expect("authored quest should be seeded");
-    assert!(quest.objectives.iter().any(|objective| {
-        objective.kind == QuestObjectiveKind::VisitLocation
-    }));
+    assert!(quest
+        .objectives
+        .iter()
+        .any(|objective| { objective.kind == QuestObjectiveKind::VisitLocation }));
     let evidence = quest
         .objectives
         .iter()

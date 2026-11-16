@@ -120,7 +120,10 @@ fn evidence_prerequisites_gate_examine_actions_per_character() {
     map.props.clear();
     map.exits.clear();
     map.interactables.clear();
-    let poi = map.points_of_interest.first_mut().expect("map has a prototype POI");
+    let poi = map
+        .points_of_interest
+        .first_mut()
+        .expect("map has a prototype POI");
     poi.id = "evidence.second".into();
     poi.title = "Second clue".into();
     poi.discovered = true;

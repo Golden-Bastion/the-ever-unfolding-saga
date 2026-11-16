@@ -88,7 +88,9 @@ fn inherited_world_keeps_spatial_maps_but_resets_character_session() {
     map.mark_tile_discovered(map.entry);
     map.points_of_interest[0].discovered = true;
     map.points_of_interest[0].interacted = true;
-    state.character.record_evidence(map.points_of_interest[0].id.clone());
+    state
+        .character
+        .record_evidence(map.points_of_interest[0].id.clone());
     state.character.record_evidence("evidence.previous_life");
     map.set_terrain(map.entry, crate::spatial::Terrain::Rubble);
     state.world.local_maps.push(map.clone());
@@ -137,10 +139,7 @@ fn character_evidence_defaults_empty_for_old_saves() {
     assert_eq!(restored.known_evidence_ids, vec!["evidence.known"]);
 
     let mut legacy = serialized;
-    legacy
-        .as_object_mut()
-        .unwrap()
-        .remove("known_evidence_ids");
+    legacy.as_object_mut().unwrap().remove("known_evidence_ids");
     let restored: Character = serde_json::from_value(legacy)
         .expect("older characters deserialize without evidence knowledge");
     assert!(restored.known_evidence_ids.is_empty());
