@@ -51,8 +51,8 @@
           }
         ],
         "exits": [
-          "location.ashen_gate",
           "location.old_shrine",
+          "location.ashen_gate",
           "location.sootbound_crossing"
         ],
         "scene_art": " [ ] [ ] [ ]\n  |   |   |\n _|___|___|_\n/___________\\\\\n"
