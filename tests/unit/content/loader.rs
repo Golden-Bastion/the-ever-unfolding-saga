@@ -186,11 +186,13 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
             id: "poi.old_shrine.altar".into(),
             title: "Old Altar".into(),
             description: "Base description.".into(),
+            requires_evidence: Vec::new(),
         },
         SpatialDiscoveryContent {
             id: "poi.old_shrine.footprints".into(),
             title: "Footprints".into(),
             description: "Footprints cross the dust.".into(),
+            requires_evidence: vec!["poi.old_shrine.altar".into()],
         },
     ];
     base.world
@@ -205,11 +207,13 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
             id: "poi.old_shrine.altar".into(),
             title: "Black Altar".into(),
             description: "A modded description.".into(),
+            requires_evidence: vec!["poi.old_shrine.scratches".into()],
         },
         SpatialDiscoveryContent {
             id: "poi.old_shrine.scratches".into(),
             title: "Scratches".into(),
             description: "Marks appear in the stone.".into(),
+            requires_evidence: Vec::new(),
         },
     ];
     incoming.world.locations.push(override_location);
@@ -231,6 +235,14 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
             .unwrap()
             .description,
         "A modded description."
+    );
+    assert_eq!(
+        discoveries
+            .iter()
+            .find(|discovery| discovery.id == "poi.old_shrine.altar")
+            .unwrap()
+            .requires_evidence,
+        vec!["poi.old_shrine.footprints"]
     );
     assert!(discoveries
         .iter()
@@ -254,16 +266,19 @@ fn invalid_spatial_discoveries_are_reported_by_content_validation() {
             id: String::new(),
             title: "Missing ID".into(),
             description: "Invalid discovery.".into(),
+            requires_evidence: Vec::new(),
         },
         SpatialDiscoveryContent {
             id: "poi.old_shrine.duplicate".into(),
             title: String::new(),
             description: "Invalid discovery.".into(),
+            requires_evidence: Vec::new(),
         },
         SpatialDiscoveryContent {
             id: "poi.old_shrine.duplicate".into(),
             title: "Duplicate".into(),
             description: String::new(),
+            requires_evidence: Vec::new(),
         },
     ];
 
@@ -276,4 +291,33 @@ fn invalid_spatial_discoveries_are_reported_by_content_validation() {
     assert!(issues
         .iter()
         .any(|issue| issue.contains("empty description")));
+}
+
+#[test]
+fn spatial_evidence_requirements_must_exist_and_form_an_acyclic_graph() {
+    let mut content = default_campaign_content();
+    let old_shrine = content
+        .world
+        .locations
+        .iter_mut()
+        .find(|location| location.id == "location.old_shrine")
+        .unwrap();
+    old_shrine.spatial_discoveries = vec![
+        SpatialDiscoveryContent {
+            id: "evidence.first".into(),
+            title: "First".into(),
+            description: "First evidence.".into(),
+            requires_evidence: vec!["evidence.second".into(), "missing.evidence".into()],
+        },
+        SpatialDiscoveryContent {
+            id: "evidence.second".into(),
+            title: "Second".into(),
+            description: "Second evidence.".into(),
+            requires_evidence: vec!["evidence.first".into()],
+        },
+    ];
+
+    let issues = content.validate();
+    assert!(issues.iter().any(|issue| issue.contains("unknown evidence")));
+    assert!(issues.iter().any(|issue| issue.contains("contain a cycle")));
 }
