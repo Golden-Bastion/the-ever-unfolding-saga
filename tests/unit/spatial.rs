@@ -536,13 +536,13 @@ fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
             id: "poi.old_shrine.black_altar".into(),
             title: "Black Altar".into(),
             description: "Soot clings to the altar.".into(),
-            prerequisites: Vec::new(),
+            prerequisites: vec!["poi.old_shrine.fresh_soot".into()],
         },
         SpatialDiscoveryDefinition {
             id: "poi.old_shrine.fresh_soot".into(),
             title: "Fresh Soot".into(),
             description: "Fresh soot crosses the floor.".into(),
-            prerequisites: vec!["poi.old_shrine.black_altar".into()],
+            prerequisites: vec!["poi.hollow_market.unlit_lantern".into()],
         },
     ];
 
@@ -569,6 +569,20 @@ fn authored_spatial_discoveries_are_deterministic_reachable_and_unique() {
         .points_of_interest
         .iter()
         .all(|poi| !poi.discovered && !poi.interacted));
+    assert_eq!(
+        first
+            .point_of_interest("poi.old_shrine.fresh_soot")
+            .unwrap()
+            .prerequisites,
+        vec!["poi.hollow_market.unlit_lantern"]
+    );
+    assert_eq!(
+        first
+            .point_of_interest("poi.old_shrine.black_altar")
+            .unwrap()
+            .prerequisites,
+        vec!["poi.old_shrine.fresh_soot"]
+    );
 
     let positions = first
         .points_of_interest
