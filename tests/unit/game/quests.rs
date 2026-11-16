@@ -15,10 +15,14 @@ fn campaign_quest_templates_add_evidence_goals_without_replacing_existing_object
         .expect("new game should retain campaign content");
     let quest_content = content
         .quests
-        .first_mut()
-        .expect("base campaign should contain a quest template");
+        .iter_mut()
+        .find(|quest| quest.id == "quest.quiet_old_shrine")
+        .expect("base campaign should contain the Old Shrine quest");
+    assert_eq!(
+        quest_content.required_evidence_ids,
+        vec!["poi.old_shrine.black_altar"]
+    );
     let quest_id = quest_content.id.clone();
-    quest_content.required_evidence_ids = vec!["poi.old_shrine.black_altar".into()];
     state.campaign_content = Some(content);
 
     // Re-seed only the authored quest templates. Existing campaign factions
