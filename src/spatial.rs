@@ -8,7 +8,7 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 4;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 5;
 pub const DEFAULT_MAP_WIDTH: u16 = 24;
 pub const DEFAULT_MAP_HEIGHT: u16 = 16;
 const MIN_MAP_DIMENSION: u16 = 8;
@@ -812,12 +812,17 @@ pub fn generate_local_map_with_layout(
     let mut rng = DeterministicRng::new(seed);
     let width = config.width;
     let height = config.height;
-    let layout_id =
-        if layout == Some("shrine_chamber") && width >= DEFAULT_MAP_WIDTH && height >= 12 {
-            Some("shrine_chamber".to_string())
-        } else {
-            None
-        };
+    let layout_id = if width >= DEFAULT_MAP_WIDTH
+        && height >= 12
+        && matches!(
+            layout,
+            Some("shrine_chamber" | "ashen_gate_causeway" | "hollow_market_square")
+        )
+    {
+        layout.map(str::to_string)
+    } else {
+        None
+    };
     let entry = GridPosition {
         x: 1,
         y: height / 2,
@@ -895,8 +900,11 @@ pub fn generate_local_map_with_layout(
         doors: Vec::new(),
     };
     populate_generated_props(&mut map, &mut rng);
-    if map.layout_id.as_deref() == Some("shrine_chamber") {
-        apply_shrine_chamber(&mut map);
+    match map.layout_id.as_deref() {
+        Some("shrine_chamber") => apply_shrine_chamber(&mut map),
+        Some("ashen_gate_causeway") => apply_ashen_gate_causeway(&mut map),
+        Some("hollow_market_square") => apply_hollow_market_square(&mut map),
+        _ => {}
     }
     map
 }
@@ -994,6 +1002,244 @@ fn apply_shrine_chamber(map: &mut LocalMap) {
         room_b: approach_id,
         state: DoorState::Open,
     }];
+}
+
+/// Build the Ashen Gate approach and road beyond its broken towers.
+/// The open threshold keeps the connected route usable while still making
+/// the gate a real, closable room boundary for traversal and camera framing.
+fn apply_ashen_gate_causeway(map: &mut LocalMap) {
+    let gate_x = map.width / 2;
+    let gate_y = map.entry.y;
+
+    map.props.clear();
+    for y in 1..map.height - 1 {
+        for x in 1..map.width - 1 {
+            let terrain = if (u32::from(x) * 3 + u32::from(y) * 5) % 13 == 0 {
+                Terrain::Rubble
+            } else {
+                Terrain::Ash
+            };
+            let index = usize::from(y) * usize::from(map.width) + usize::from(x);
+            map.terrain[index] = terrain;
+        }
+    }
+
+    // The gate wall separates the western approach from the dead road.
+    // Its only opening is the explicit grid-edge doorway at the road.
+    for y in 1..map.height - 1 {
+        let index = usize::from(y) * usize::from(map.width) + usize::from(gate_x);
+        map.terrain[index] = if y == gate_y { Terrain::Floor } else { Terrain::Wall };
+    }
+    map.terrain[usize::from(gate_y) * usize::from(map.width) + usize::from(gate_x - 1)] =
+        Terrain::Floor;
+
+    // Broken masonry around the gate's two tower bases. The clear road remains
+    // on the entry row and the side of the gate remains traversable.
+    let tower_stones = [
+        (gate_x - 4, 3),
+        (gate_x - 3, 3),
+        (gate_x - 4, 4),
+        (gate_x + 3, 3),
+        (gate_x + 4, 3),
+        (gate_x + 4, 4),
+    ];
+    for (x, y) in tower_stones {
+        let position = GridPosition { x, y };
+        if map.contains(position) {
+            let index = usize::from(y) * usize::from(map.width) + usize::from(x);
+            map.terrain[index] = Terrain::Wall;
+        }
+    }
+
+    let western_room = format!("{}.room.gate_approach", map.location_id);
+    let eastern_room = format!("{}.room.dead_road", map.location_id);
+    let western_cells = (1..gate_x)
+        .flat_map(|x| (1..map.height - 1).map(move |y| GridPosition { x, y }))
+        .filter(|position| map.is_walkable(*position))
+        .collect();
+    let eastern_cells = (gate_x..map.width - 1)
+        .flat_map(|x| (1..map.height - 1).map(move |y| GridPosition { x, y }))
+        .filter(|position| map.is_walkable(*position))
+        .collect();
+
+    map.rooms = vec![
+        SpatialRoom {
+            id: western_room.clone(),
+            cells: western_cells,
+        },
+        SpatialRoom {
+            id: eastern_room.clone(),
+            cells: eastern_cells,
+        },
+    ];
+    map.doors = vec![SpatialDoor {
+        id: format!("{}.door.cracked_gate", map.location_id),
+        edge: GridEdge::new(
+            GridPosition {
+                x: gate_x - 1,
+                y: gate_y,
+            },
+            GridPosition {
+                x: gate_x,
+                y: gate_y,
+            },
+        )
+        .expect("gate threshold cells are adjacent"),
+        room_a: western_room,
+        room_b: eastern_room,
+        state: DoorState::Open,
+    }];
+}
+
+/// Build the abandoned market court. Existing table and pillar assets are used
+/// as first-pass stall counters and unlit lantern posts; dedicated market art
+/// can replace these through the existing mod-aware asset paths later.
+fn apply_hollow_market_square(map: &mut LocalMap) {
+    const GATE_X: u16 = 4;
+    let gate_y = map.entry.y;
+
+    map.props.clear();
+    for y in 1..map.height - 1 {
+        for x in 1..map.width - 1 {
+            let terrain = if y == gate_y {
+                Terrain::Floor
+            } else if (u32::from(x) * 7 + u32::from(y) * 3) % 11 == 0 {
+                Terrain::Rubble
+            } else {
+                Terrain::Ash
+            };
+            let index = usize::from(y) * usize::from(map.width) + usize::from(x);
+            map.terrain[index] = terrain;
+        }
+    }
+
+    // A broken arcade wall marks the threshold from the approach into the
+    // market square. The threshold stays open and every graph exit routes to it.
+    for y in 1..map.height - 1 {
+        let index = usize::from(y) * usize::from(map.width) + usize::from(GATE_X);
+        map.terrain[index] = if y == gate_y { Terrain::Floor } else { Terrain::Wall };
+    }
+
+    let stall_positions = [
+        (7, 4),
+        (12, 4),
+        (17, 4),
+        (8, 11),
+        (13, 11),
+        (18, 11),
+    ];
+    for (index, (x, y)) in stall_positions.into_iter().enumerate() {
+        let position = GridPosition { x, y };
+        if map.contains(position) && x + SpatialPropKind::Table.footprint_width() < map.width {
+            map.props.push(SpatialProp {
+                id: format!("{}.market.stall.{}", map.location_id, index + 1),
+                kind: SpatialPropKind::Table,
+                position,
+            });
+        }
+    }
+
+    for (index, position) in [
+        GridPosition { x: 10, y: 6 },
+        GridPosition { x: 16, y: 10 },
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if map.contains(position) && map.terrain_at(position).is_some_and(Terrain::is_walkable) {
+            map.props.push(SpatialProp {
+                id: format!("{}.market.unlit_lantern.{}", map.location_id, index + 1),
+                kind: SpatialPropKind::Pillar,
+                position,
+            });
+        }
+    }
+
+    let approach_room = format!("{}.room.market_approach", map.location_id);
+    let market_room = format!("{}.room.market_court", map.location_id);
+    let approach_cells = (1..GATE_X)
+        .flat_map(|x| (1..map.height - 1).map(move |y| GridPosition { x, y }))
+        .filter(|position| map.is_walkable(*position))
+        .collect();
+    let market_cells = (GATE_X..map.width - 1)
+        .flat_map(|x| (1..map.height - 1).map(move |y| GridPosition { x, y }))
+        .filter(|position| map.is_walkable(*position))
+        .collect();
+
+    map.rooms = vec![
+        SpatialRoom {
+            id: approach_room.clone(),
+            cells: approach_cells,
+        },
+        SpatialRoom {
+            id: market_room.clone(),
+            cells: market_cells,
+        },
+    ];
+    map.doors = vec![SpatialDoor {
+        id: format!("{}.door.market_arch", map.location_id),
+        edge: GridEdge::new(
+            GridPosition {
+                x: GATE_X - 1,
+                y: gate_y,
+            },
+            GridPosition {
+                x: GATE_X,
+                y: gate_y,
+            },
+        )
+        .expect("market threshold cells are adjacent"),
+        room_a: approach_room,
+        room_b: market_room,
+        state: DoorState::Open,
+    }];
+}
+
+fn authored_gate_barrier_x(map: &LocalMap) -> Option<u16> {
+    match map.layout_id.as_deref() {
+        Some("ashen_gate_causeway") => Some(map.width / 2),
+        Some("hollow_market_square") => Some(4),
+        _ => None,
+    }
+}
+
+/// Return route waypoints that preserve the authored threshold instead of
+/// cutting a new corridor through its wall when map-edge passages are added.
+fn authored_gate_exit_waypoints(
+    map: &LocalMap,
+    exit: GridPosition,
+    side: usize,
+) -> Option<Vec<GridPosition>> {
+    let barrier_x = authored_gate_barrier_x(map)?;
+    let market_side_x = barrier_x + 1;
+    match side {
+        0 => Some(vec![
+            GridPosition {
+                x: exit.x,
+                y: map.entry.y,
+            },
+            GridPosition {
+                x: market_side_x,
+                y: map.entry.y,
+            },
+            map.entry,
+        ]),
+        2 | 3 if exit.x >= barrier_x => {
+            let edge_y = if side == 2 { 1 } else { map.height - 2 };
+            Some(vec![
+                GridPosition {
+                    x: market_side_x,
+                    y: edge_y,
+                },
+                GridPosition {
+                    x: market_side_x,
+                    y: map.entry.y,
+                },
+                map.entry,
+            ])
+        }
+        _ => None,
+    }
 }
 
 /// Add a sparse deterministic set of props outside the guaranteed
@@ -1415,6 +1661,13 @@ fn passage_corridor_positions(map: &LocalMap, exit: GridPosition) -> Vec<GridPos
     let mut position = exit;
     let mut route = Vec::new();
 
+    if let Some(waypoints) = authored_gate_exit_waypoints(map, exit, side) {
+        for target in waypoints {
+            extend_passage_path(&mut positions, &mut position, target);
+        }
+        return positions;
+    }
+
     if map.layout_id.as_deref() == Some("shrine_chamber") {
         let (left, right, top, bottom) = (2_u16, 7_u16, 2_u16, 7_u16);
         let bypass_x = right + 1;
@@ -1503,6 +1756,15 @@ fn extend_passage_path(
 }
 
 fn carve_exit_corridor(map: &mut LocalMap, exit: GridPosition, side: usize) {
+    if let Some(waypoints) = authored_gate_exit_waypoints(map, exit, side) {
+        let mut position = exit;
+        carve_generated_floor(map, position);
+        for target in waypoints {
+            carve_toward(map, &mut position, target);
+        }
+        return;
+    }
+
     if map.layout_id.as_deref() == Some("shrine_chamber")
         && carve_shrine_chamber_exit_corridor(map, exit, side)
     {
