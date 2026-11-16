@@ -1,6 +1,6 @@
 use crate::model::GameState;
 use crate::presentation::{
-    AttributesView, CharacterSheetView, CharacterView, ConditionView, FactionView,
+    AttributesView, CharacterSheetView, CharacterView, ConditionView, EvidenceView, FactionView,
 };
 
 pub(crate) fn gain_experience(state: &mut GameState, amount: u32) {
@@ -57,6 +57,29 @@ pub(crate) fn build_character_sheet_view(state: &GameState) -> CharacterSheetVie
                     .filter(|entry| !crate::model::is_internal_memory_entry(entry))
                     .cloned()
                     .collect(),
+            })
+            .collect(),
+        evidence: character
+            .known_evidence_ids
+            .iter()
+            .map(|evidence_id| {
+                let definition = state.campaign_content.as_ref().and_then(|content| {
+                    content
+                        .world
+                        .locations
+                        .iter()
+                        .flat_map(|location| location.spatial_discoveries.iter())
+                        .find(|discovery| discovery.id == *evidence_id)
+                });
+                EvidenceView {
+                    id: evidence_id.clone(),
+                    title: definition
+                        .map(|discovery| discovery.title.clone())
+                        .unwrap_or_else(|| evidence_id.clone()),
+                    description: definition
+                        .map(|discovery| discovery.description.clone())
+                        .unwrap_or_default(),
+                }
             })
             .collect(),
         notes: character.notes.clone(),
