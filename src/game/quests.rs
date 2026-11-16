@@ -106,6 +106,13 @@ pub(crate) fn sync_objectives(state: &mut GameState, quest_index: usize) {
                 .map(|_| objective.required)
                 .unwrap_or(objective.progress),
             QuestObjectiveKind::DefeatEnemy => objective.progress,
+            QuestObjectiveKind::DiscoverEvidence => {
+                if state.character.knows_evidence(&objective.target) {
+                    objective.required
+                } else {
+                    objective.progress
+                }
+            }
         };
         updates.push(progress.max(objective.progress).min(objective.required));
     }
