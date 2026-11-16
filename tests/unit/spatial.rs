@@ -61,6 +61,7 @@ fn props_round_trip_and_optional_map_fields_default_when_absent() {
     let object = old_value.as_object_mut().expect("map should be an object");
     object.remove("props");
     object.remove("interactables");
+    object.remove("encounters");
     object.remove("exits");
     object.remove("layout_id");
     object.remove("rooms");
@@ -69,6 +70,7 @@ fn props_round_trip_and_optional_map_fields_default_when_absent() {
         .expect("map with omitted optional fields should deserialize");
     assert!(restored_old.props.is_empty());
     assert!(restored_old.interactables.is_empty());
+    assert!(restored_old.encounters.is_empty());
     assert!(restored_old.exits.is_empty());
     assert!(restored_old.layout_id.is_none());
     assert!(restored_old.rooms.is_empty());
@@ -489,6 +491,56 @@ fn spatial_entity_placements_are_stable_unique_and_backward_compatible() {
     let restored: LocalMap =
         serde_json::from_str(&json).expect("map with actor placements should deserialize");
     assert_eq!(restored.interactables, map.interactables);
+}
+
+#[test]
+fn spatial_encounters_are_deterministic_persistent_and_backward_compatible() {
+    let mut map = generate_local_map(84, "location.encounter_test", LocalMapConfig::default());
+    let created = ensure_spatial_encounter(
+        &mut map,
+        "encounter.test.1".into(),
+        "Ash Marauder".into(),
+        "A hostile figure watches the road.".into(),
+        18,
+        3,
+        "Marauder Token".into(),
+    );
+    assert!(created);
+    let original = map.encounters[0].clone();
+
+    assert!(map.is_walkable(original.position));
+    assert!(reachable_walkable_tiles(&map).contains(&original.position));
+    assert_ne!(original.position, map.entry);
+    assert!(map.validate_encounters().is_ok());
+
+    assert!(!ensure_spatial_encounter(
+        &mut map,
+        "encounter.test.1".into(),
+        "Different Enemy".into(),
+        "This must not replace the saved encounter.".into(),
+        99,
+        9,
+        "Different Trophy".into(),
+    ));
+    assert!(!ensure_spatial_encounter(
+        &mut map,
+        "encounter.test.2".into(),
+        "Second Enemy".into(),
+        "Only one active encounter is supported per location in this slice.".into(),
+        10,
+        2,
+        "Second Trophy".into(),
+    ));
+    assert_eq!(map.encounters, vec![original]);
+
+    let mut legacy = serde_json::to_value(&map).expect("map should serialize");
+    legacy
+        .as_object_mut()
+        .expect("map should be an object")
+        .remove("encounters");
+    let restored: LocalMap =
+        serde_json::from_value(legacy).expect("older maps should omit encounter data");
+    assert!(restored.encounters.is_empty());
 }
 
 #[test]
