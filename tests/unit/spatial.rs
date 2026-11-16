@@ -225,6 +225,26 @@ fn authored_gate_and_market_layouts_preserve_room_thresholds_and_exits() {
 
         configure_map_exits(&mut map, &targets);
         assert!(map.validate_room_topology().is_ok());
+        if layout == "hollow_market_square" {
+            let shrine_exit = map
+                .exits
+                .iter()
+                .find(|exit| exit.target_location_id == 201)
+                .expect("first authored connection leads to Old Shrine");
+            let gate_exit = map
+                .exits
+                .iter()
+                .find(|exit| exit.target_location_id == 202)
+                .expect("second authored connection leads back to Ashen Gate");
+            let crossing_exit = map
+                .exits
+                .iter()
+                .find(|exit| exit.target_location_id == 203)
+                .expect("third authored connection leads to Sootbound Crossing");
+            assert_eq!(shrine_exit.position.x, map.width - 1);
+            assert_eq!(gate_exit.position.x, 0);
+            assert_eq!(crossing_exit.position.y, 0);
+        }
         for exit in &map.exits {
             assert!(
                 has_walkable_path(&map, map.entry, exit.position),
