@@ -28,7 +28,7 @@ use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_encounter_avoiding,
     ensure_spatial_entity_placements, generate_local_map_with_layout, ExplorationSession,
     GridPosition, LocalMap, LocalMapConfig, MapExit, SpatialDiscoveryDefinition,
-    SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind, Terrain,
+    SpatialEncounterDefinition, SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind, Terrain,
 };
 use crate::spatial_animation::{
     PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,
@@ -667,12 +667,14 @@ pub(crate) fn enter(
             });
         ensure_spatial_encounter_avoiding(
             &mut map,
-            encounter_id,
-            enemy_name,
-            description,
-            enemy_hp,
-            enemy_power,
-            trophy_name,
+            SpatialEncounterDefinition {
+                id: encounter_id,
+                enemy_name,
+                description,
+                max_hp: enemy_hp,
+                power: enemy_power,
+                trophy_item_name: trophy_name,
+            },
             avoid_position,
         );
     }
@@ -1417,24 +1419,29 @@ fn execute_available_interaction(
     }
 }
 
-fn update_spatial_wheel_animation(
-    time: Res<Time>,
-    mut state: ResMut<SpatialExplorationState>,
-    mut lifecycle: ResMut<LifecycleState>,
-    mut navigation: ResMut<NavigationState>,
-    mut combat_state: ResMut<crate::bevy_combat::CombatState>,
-    mut requests: MessageWriter<SpatialInteractionRequest>,
-    mut wheel_roots: Query<&mut UiTransform, With<SpatialInteractionWheelRoot>>,
-    mut wheel_entries: Query<
-        (&SpatialWheelEntry, &mut UiTransform),
+#[derive(SystemParam)]
+struct SpatialWheelAnimationParams<'w, 's> {
+    time: Res<'w, Time>,
+    state: ResMut<'w, SpatialExplorationState>,
+    lifecycle: ResMut<'w, LifecycleState>,
+    navigation: ResMut<'w, NavigationState>,
+    combat_state: ResMut<'w, crate::bevy_combat::CombatState>,
+    requests: MessageWriter<'w, SpatialInteractionRequest>,
+    wheel_roots: Query<'w, 's, &'static mut UiTransform, With<SpatialInteractionWheelRoot>>,
+    wheel_entries: Query<
+        'w,
+        's,
+        (&'static SpatialWheelEntry, &'static mut UiTransform),
         Without<SpatialInteractionWheelRoot>,
     >,
-) {
+}
+
+fn update_spatial_wheel_animation(mut params: SpatialWheelAnimationParams<'_, '_>) {
     let mut finished_close = false;
     let mut pending = None;
-    if let Some(wheel) = state.interaction_wheel.as_mut() {
-        wheel.elapsed += time.delta_secs();
-        wheel.selection_elapsed = (wheel.selection_elapsed + time.delta_secs())
+    if let Some(wheel) = params.state.interaction_wheel.as_mut() {
+        wheel.elapsed += params.time.delta_secs();
+        wheel.selection_elapsed = (wheel.selection_elapsed + params.time.delta_secs())
             .min(INTERACTION_WHEEL_SELECTION_ANIMATION_SECONDS);
         if wheel.phase == InteractionWheelPhase::Opening
             && wheel.elapsed >= INTERACTION_WHEEL_ANIMATION_SECONDS
@@ -1448,10 +1455,10 @@ fn update_spatial_wheel_animation(
             finished_close = true;
         }
         let scale = interaction_wheel_scale(wheel);
-        for mut transform in &mut wheel_roots {
+        for mut transform in &mut params.wheel_roots {
             transform.scale = Vec2::splat(scale);
         }
-        for (entry, mut transform) in &mut wheel_entries {
+        for (entry, mut transform) in &mut params.wheel_entries {
             transform.scale = Vec2::splat(interaction_wheel_entry_scale(
                 entry.0 == wheel.selected,
                 wheel.selection_elapsed,
@@ -1460,14 +1467,14 @@ fn update_spatial_wheel_animation(
     }
 
     if finished_close {
-        state.interaction_wheel = None;
+        params.state.interaction_wheel = None;
         if let Some(interaction) = pending {
             execute_available_interaction(
-                &mut state,
-                &mut lifecycle,
-                &mut navigation,
-                &mut combat_state,
-                &mut requests,
+                &mut params.state,
+                &mut params.lifecycle,
+                &mut params.navigation,
+                &mut params.combat_state,
+                &mut params.requests,
                 interaction,
             );
         }
