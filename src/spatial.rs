@@ -1521,6 +1521,18 @@ pub fn apply_authored_spatial_discoveries(
 /// persisted on the local map. Candidate selection is stable for a map seed
 /// and entity ID, and avoids terrain, props, exits, points of interest, and
 /// other placed entities. Only cells reachable from the entry are considered.
+/// Snapshot of the authored encounter profile used when materializing a
+/// persistent encounter on a local map.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpatialEncounterDefinition {
+    pub id: String,
+    pub enemy_name: String,
+    pub description: String,
+    pub max_hp: i32,
+    pub power: i32,
+    pub trophy_item_name: String,
+}
+
 /// Create at most one active encounter on a map. Candidate cells are chosen
 /// deterministically from the map seed and encounter identity, and must be
 /// reachable without overlapping existing authored or persistent content.
@@ -1535,12 +1547,14 @@ pub fn ensure_spatial_encounter(
 ) -> bool {
     ensure_spatial_encounter_avoiding(
         map,
-        id,
-        enemy_name,
-        description,
-        max_hp,
-        power,
-        trophy_item_name,
+        SpatialEncounterDefinition {
+            id,
+            enemy_name,
+            description,
+            max_hp,
+            power,
+            trophy_item_name,
+        },
         None,
     )
 }
@@ -1549,14 +1563,17 @@ pub fn ensure_spatial_encounter(
 /// materializing an encounter on a previously explored map.
 pub fn ensure_spatial_encounter_avoiding(
     map: &mut LocalMap,
-    id: String,
-    enemy_name: String,
-    description: String,
-    max_hp: i32,
-    power: i32,
-    trophy_item_name: String,
+    definition: SpatialEncounterDefinition,
     avoid_position: Option<GridPosition>,
 ) -> bool {
+    let SpatialEncounterDefinition {
+        id,
+        enemy_name,
+        description,
+        max_hp,
+        power,
+        trophy_item_name,
+    } = definition;
     if id.trim().is_empty()
         || enemy_name.trim().is_empty()
         || description.trim().is_empty()
