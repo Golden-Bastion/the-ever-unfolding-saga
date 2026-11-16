@@ -88,6 +88,8 @@ fn inherited_world_keeps_spatial_maps_but_resets_character_session() {
     map.mark_tile_discovered(map.entry);
     map.points_of_interest[0].discovered = true;
     map.points_of_interest[0].interacted = true;
+    state.character.record_evidence(map.points_of_interest[0].id.clone());
+    state.character.record_evidence("evidence.previous_life");
     map.set_terrain(map.entry, crate::spatial::Terrain::Rubble);
     state.world.local_maps.push(map.clone());
     state.character.exploration_session = Some(crate::spatial::ExplorationSession {
@@ -108,12 +110,35 @@ fn inherited_world_keeps_spatial_maps_but_resets_character_session() {
     assert_eq!(inherited.world.local_maps, vec![map.clone()]);
     assert!(inherited.world.local_maps[0].is_tile_discovered(map.entry));
     assert!(inherited.world.local_maps[0].points_of_interest[0].interacted);
+    assert!(
+        inherited.character.known_evidence_ids.is_empty(),
+        "new characters must not inherit the previous life’s individual knowledge"
+    );
     assert_eq!(
         inherited.world.local_maps[0].terrain_at(map.entry),
         Some(crate::spatial::Terrain::Rubble)
     );
     assert!(inherited.character.exploration_session.is_none());
     assert!(inherited.character.exploration_position.is_none());
+}
+
+#[test]
+fn character_evidence_defaults_empty_for_old_saves() {
+    let mut state = create_new_state(
+        "Legacy Character",
+        WorldMode::New,
+        "First Warden".into(),
+        "Ash Walker".into(),
+    );
+    state.character.record_evidence("evidence.known");
+    let mut legacy = serde_json::to_value(&state.character).unwrap();
+    legacy
+        .as_object_mut()
+        .unwrap()
+        .remove("known_evidence_ids");
+    let restored: Character = serde_json::from_value(legacy)
+        .expect("older characters deserialize without evidence knowledge");
+    assert!(restored.known_evidence_ids.is_empty());
 }
 
 #[test]
@@ -157,4 +182,5 @@ fn character_appearance_is_persisted_and_inherited() {
     let legacy: Character = serde_json::from_value(legacy)
         .expect("legacy character should load without appearance data");
     assert!(legacy.appearance_parts.is_empty());
+    assert!(legacy.known_evidence_ids.is_empty());
 }
