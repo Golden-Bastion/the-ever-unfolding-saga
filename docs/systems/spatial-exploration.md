@@ -33,13 +33,19 @@ Talking transitions from the spatial view into a dedicated close-up dialogue sce
 
 ## Authored room layouts
 
-Campaign location content may specify the optional `spatial_layout` identifier. The first built-in template, `shrine_chamber`, is assigned to Old Shrine and creates a compact rectangular chamber with intersecting masonry walls, one open doorway, a pillar, and a table. The room is renderer-neutral: terrain cells and prop footprints feed the same movement, collision, and line-of-sight rules as procedural geometry.
+Campaign location content may specify the optional `spatial_layout` identifier. The built-in templates are:
 
-Layout selection affects newly generated maps only. Once saved, a local map's terrain and prop state remain authoritative; existing saved maps are not silently regenerated to apply a new layout. Older content without `spatial_layout` remains valid, and unrecognized layout identifiers fall back to the normal procedural map. The authored template now supplies explicit chamber/approach room membership and a threshold door; arbitrary mod-defined room geometry remains future work.
+- `shrine_chamber` (Old Shrine): a compact rectangular chamber with intersecting masonry walls, one open doorway, a pillar, and a table.
+- `ashen_gate_causeway` (Ashen Gate): an ash-covered approach and dead road divided by the gate wall. The broken tower bases frame one open, closable threshold between the approach and the road beyond.
+- `hollow_market_square` (Hollow Market): an ash-and-rubble market court with abandoned stall counters and unlit lantern posts. Existing table and pillar sprites are first-pass stand-ins until dedicated market props are authored.
+
+Each layout is renderer-neutral. Terrain cells, prop footprints, room membership, and door edges feed the same movement, collision, pathfinding, and line-of-sight rules as procedural geometry. The Ashen Gate and Hollow Market layouts preserve their existing connected-location exits by routing generated edge passages through the authored threshold rather than cutting arbitrary openings through the room boundary. The gate and market templates require at least the standard 24×16 local-map dimensions; smaller maps safely use procedural generation instead. Hollow Market lists Old Shrine first and Ashen Gate second so the eastbound onward exit requires crossing the market threshold, while the return route remains on the entry side.
+
+Layout selection affects newly generated maps only. Once saved, a local map's terrain, prop state, rooms, and doors remain authoritative; existing saved maps are not silently regenerated to apply a new layout. The local-map generator version advances when built-in generation changes, but loading an established map never reruns its layout. Older content without `spatial_layout` remains valid, and unrecognized layout identifiers fall back to the normal procedural map. Arbitrary mod-defined room geometry remains future work.
 
 ## Physical map exits
 
-A local map's `exits` are derived from its world location's existing connected-location IDs. Each passage stores a stable target location ID rather than relying on a name or checking the destination's danger flag. Passage placement is deterministic, passages are positioned on edge tiles, and generated walkable corridors connect them to the map's entry area.
+A local map's `exits` are derived from its world location's existing connected-location IDs. Each passage stores a stable target location ID rather than relying on a name or checking the destination's danger flag. Passage placement is deterministic, passages are positioned on edge tiles, and generated walkable corridors connect them to the map's entry area. Connection order in campaign content determines the stable compass-edge assignment (east, west, north, south, then repeated slots); authored location data can therefore put the primary onward route beyond a room threshold while keeping the return route near the entry.
 
 A contextual passage action appears only when the character is within interaction range and has a clear approach. Pressing the contextual interaction key uses the nearest available passage, or examines the point of interest when no passage is in range. Directly activating a passage action applies the same range and approach validation.
 
@@ -71,7 +77,11 @@ The manifest and PNG use the same mod-aware asset resolver. The manifest is vali
 
 The camera uses a viewport-scaled dead zone: ordinary small player movements do not move the camera, while crossing the dead-zone edge shifts the target by only the excess distance. Exponential smoothing keeps the follow response consistent across frame rates. The resulting camera position is clamped after smoothing as well as at the target, so a stale/out-of-bounds camera position cannot temporarily expose space beyond the projected map after a map or viewport change. Maps smaller than the viewport are centered.
 
-This is not yet full room-aware camera behavior. Local maps currently have no explicit room graph, per-room bounds, or door-to-room transitions. Physical edge passages are world-exit markers, not an interior room system. Room-aware camera behavior should only be introduced alongside a defined room/door model, then tested for smooth transitions and for avoiding views outside playable spaces.
+When the player's current grid cell belongs to an authored room, the camera target is additionally constrained by that room's projected bounds. The bounds include the floor footprint and visible wall-top height. A room smaller than the viewport is centered rather than forcing the camera to chase the player around an area the viewport cannot frame independently. Cells not assigned to a room retain the map-wide camera behavior, which preserves the existing treatment of open corridors and older saves with no room topology.
+
+Crossing an open interior door changes the active room framing region. The camera continues to use the same frame-rate-independent exponential follow, and only the target changes; the interpolated camera is not clamped to the destination room on each frame, avoiding an instantaneous snap at a doorway. Closed and locked doors remain governed by the authoritative movement/pathfinding rules, so the player cannot trigger a room transition by crossing a blocked edge.
+
+Room framing currently uses the axis-aligned projected bounds of a room's cell set. This is a soft framing constraint, not visibility culling; irregular room footprints can still contain empty space inside their bounding rectangle. The map-wide bounds remain the final safety clamp.
 
 ## Validation status and next gates
 

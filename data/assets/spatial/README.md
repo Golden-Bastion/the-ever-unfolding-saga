@@ -14,6 +14,8 @@ These are first-pass original pixel-art assets packaged as protected base-game d
 - `prop_pillar.png`: small stone pillar; 32×40 pixels, one-cell collision footprint.
 - `prop_table.png`: weathered wooden table; 72×48 pixels, two-cell collision footprint.
 
+Ashen Gate currently uses the terrain and masonry set to represent its broken tower bases and gate wall. Hollow Market reuses the table sprite for abandoned stall counters and the pillar sprite for unlit lantern posts. These are functional first-pass placements, not dedicated final market/gate artwork; the layout definitions remain renderer-neutral so their assets can be replaced without changing collision or room topology.
+
 The current art uses nearest-neighbor sampling. The static player fallback remains 16×24; the animated player contract uses 32×48 frames to provide room for a readable hooded adventurer, clothing, boots, and a sheathed sword. Terrain, wall, and prop dimensions continue to follow the existing 48×24 floor diamonds, 24×36 wall faces, and footprint/depth conventions.
 
 A mod can replace any of these defaults by providing the same relative asset path under its own `assets/spatial/` directory. Highest mod priority wins.

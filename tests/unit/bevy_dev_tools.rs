@@ -294,7 +294,10 @@ fn world_lab_preview_matches_generated_map_dimensions() {
 
 #[test]
 fn world_lab_editor_preview_marks_cursor_and_held_prop() {
-    let map = generate_world_lab_map(WorldLabOptions::default());
+    let map = generate_world_lab_map(WorldLabOptions {
+        shrine_layout: true,
+        ..WorldLabOptions::default()
+    });
     let prop = map
         .props
         .first()
@@ -769,6 +772,8 @@ fn world_lab_can_author_two_rooms_and_a_locked_interior_door() {
     let mut map = generate_world_lab_map(WorldLabOptions::default());
     map.props.clear();
     map.points_of_interest.clear();
+    map.rooms.clear();
+    map.doors.clear();
     map.exits.clear();
     map.interactables.clear();
     let first = GridPosition { x: 3, y: 3 };

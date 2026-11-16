@@ -177,6 +177,96 @@ fn authored_shrine_chamber_has_a_clear_doorway_and_deterministic_props() {
 }
 
 #[test]
+fn authored_gate_and_market_layouts_preserve_room_thresholds_and_exits() {
+    for (location_id, layout, barrier_x, targets) in [
+        (
+            "location.ashen_gate",
+            "ashen_gate_causeway",
+            12,
+            vec![101, 102],
+        ),
+        (
+            "location.hollow_market",
+            "hollow_market_square",
+            4,
+            vec![201, 202, 203],
+        ),
+    ] {
+        let mut map = generate_local_map_with_layout(
+            84,
+            location_id,
+            LocalMapConfig::default(),
+            Some(layout),
+        );
+        let repeated = generate_local_map_with_layout(
+            84,
+            location_id,
+            LocalMapConfig::default(),
+            Some(layout),
+        );
+
+        assert_eq!(map, repeated, "{layout} must be deterministic");
+        assert_eq!(map.layout_id.as_deref(), Some(layout));
+        assert_eq!(map.rooms.len(), 2);
+        assert_eq!(map.doors.len(), 1);
+        assert_eq!(map.doors[0].state, DoorState::Open);
+        assert!(map.validate_room_topology().is_ok());
+
+        let door_id = map.doors[0].id.clone();
+        let west_threshold = GridPosition {
+            x: barrier_x - 1,
+            y: map.entry.y,
+        };
+        let east_threshold = GridPosition {
+            x: barrier_x,
+            y: map.entry.y,
+        };
+        assert!(map.can_cross_edge(west_threshold, east_threshold));
+
+        configure_map_exits(&mut map, &targets);
+        assert!(map.validate_room_topology().is_ok());
+        if layout == "hollow_market_square" {
+            let shrine_exit = map
+                .exits
+                .iter()
+                .find(|exit| exit.target_location_id == 201)
+                .expect("first authored connection leads to Old Shrine");
+            let gate_exit = map
+                .exits
+                .iter()
+                .find(|exit| exit.target_location_id == 202)
+                .expect("second authored connection leads back to Ashen Gate");
+            let crossing_exit = map
+                .exits
+                .iter()
+                .find(|exit| exit.target_location_id == 203)
+                .expect("third authored connection leads to Sootbound Crossing");
+            assert_eq!(shrine_exit.position.x, map.width - 1);
+            assert_eq!(gate_exit.position.x, 0);
+            assert_eq!(crossing_exit.position.y, 0);
+        }
+        for exit in &map.exits {
+            assert!(
+                has_walkable_path(&map, map.entry, exit.position),
+                "{layout} exit {} must remain reachable through its authored threshold",
+                exit.id
+            );
+        }
+
+        let far_side = GridPosition {
+            x: barrier_x + 3,
+            y: map.entry.y,
+        };
+        assert!(has_walkable_path(&map, map.entry, far_side));
+        assert!(map.set_door_state(&door_id, DoorState::Closed));
+        assert!(
+            !has_walkable_path(&map, map.entry, far_side),
+            "{layout} threshold must be the only route between its two rooms"
+        );
+    }
+}
+
+#[test]
 fn authored_room_does_not_block_generated_edge_passages() {
     for target_count in [2, 3, 4, 6, 8] {
         let mut map = generate_local_map_with_layout(
@@ -213,6 +303,30 @@ fn authored_room_does_not_block_generated_edge_passages() {
         for exit in &map.exits {
             assert!(has_walkable_path(&map, map.entry, exit.position));
         }
+    }
+}
+
+#[test]
+fn authored_gate_and_market_layouts_fall_back_when_map_is_too_short() {
+    for layout in ["ashen_gate_causeway", "hollow_market_square"] {
+        let plain = generate_local_map(
+            42,
+            "location.layout_size_test",
+            LocalMapConfig {
+                width: DEFAULT_MAP_WIDTH,
+                height: 12,
+            },
+        );
+        let undersized = generate_local_map_with_layout(
+            42,
+            "location.layout_size_test",
+            LocalMapConfig {
+                width: DEFAULT_MAP_WIDTH,
+                height: 12,
+            },
+            Some(layout),
+        );
+        assert_eq!(undersized, plain, "{layout} needs the standard map height");
     }
 }
 

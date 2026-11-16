@@ -1643,7 +1643,7 @@ fn update_spatial_world(
             .unwrap_or(Vec2::ZERO);
         let current = transform.translation.truncate();
         let camera_position =
-            camera_follow_position(target, current, viewport, map, time.delta_secs());
+            camera_follow_position(target, position, current, viewport, map, time.delta_secs());
         transform.translation.x = camera_position.x;
         transform.translation.y = camera_position.y;
     }
@@ -3247,23 +3247,77 @@ fn camera_target_with_dead_zone(player: Vec2, camera: Vec2, viewport: Vec2) -> V
 
 fn camera_follow_position(
     player: Vec2,
+    player_grid_position: Vec2,
     camera: Vec2,
     viewport: Vec2,
     map: &LocalMap,
     delta_secs: f32,
 ) -> Vec2 {
-    let target = clamp_camera_target(
+    let target = camera_target_in_current_room(
         camera_target_with_dead_zone(player, camera, viewport),
+        player_grid_position,
         map,
         viewport,
     );
+    let target = clamp_camera_target(target, map, viewport);
     let elapsed = if delta_secs.is_finite() {
         delta_secs.max(0.0)
     } else {
         0.0
     };
     let amount = (1.0 - (-CAMERA_LERP_SPEED * elapsed).exp()).clamp(0.0, 1.0);
+    // Clamp the interpolated result to the map, not the destination room.
+    // This lets the camera travel smoothly between room framing regions
+    // instead of snapping to the new room's bounds on a doorway crossing.
     clamp_camera_target(camera.lerp(target, amount), map, viewport)
+}
+
+fn camera_target_in_current_room(
+    target: Vec2,
+    player_grid_position: Vec2,
+    map: &LocalMap,
+    viewport: Vec2,
+) -> Vec2 {
+    if !player_grid_position.is_finite()
+        || player_grid_position.x < 0.0
+        || player_grid_position.y < 0.0
+        || player_grid_position.x >= f32::from(map.width)
+        || player_grid_position.y >= f32::from(map.height)
+    {
+        return target;
+    }
+
+    let position = GridPosition {
+        x: player_grid_position.x.floor() as u16,
+        y: player_grid_position.y.floor() as u16,
+    };
+    let Some(room) = map.room_at(position) else {
+        return target;
+    };
+    let mut minimum = Vec2::splat(f32::INFINITY);
+    let mut maximum = Vec2::splat(f32::NEG_INFINITY);
+
+    for cell in &room.cells {
+        let center = map_to_world(
+            Vec2::new(f32::from(cell.x) + 0.5, f32::from(cell.y) + 0.5),
+            Some(map),
+        );
+        minimum = minimum.min(center);
+        maximum = maximum.max(center);
+    }
+
+    if !minimum.is_finite() || !maximum.is_finite() {
+        return target;
+    }
+
+    // Include the floor diamond and the visible height of nearby wall tops.
+    minimum -= Vec2::new(TILE_HALF_WIDTH, WALL_HEIGHT);
+    maximum += Vec2::new(TILE_HALF_WIDTH, TILE_HALF_HEIGHT);
+
+    Vec2::new(
+        clamp_camera_axis(target.x, minimum.x, maximum.x, viewport.x * 0.5),
+        clamp_camera_axis(target.y, minimum.y, maximum.y, viewport.y * 0.5),
+    )
 }
 
 fn clamp_camera_axis(target: f32, min: f32, max: f32, viewport_half_extent: f32) -> f32 {
