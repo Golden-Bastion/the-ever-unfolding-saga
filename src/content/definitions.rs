@@ -125,6 +125,9 @@ pub struct QuestContent {
     pub giver_npc_name: String,
     pub required_item_name: String,
     pub reward_item_name: String,
+    /// Stable evidence IDs that must be understood to complete this quest.
+    #[serde(default)]
+    pub required_evidence_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
