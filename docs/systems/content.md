@@ -36,6 +36,8 @@ A location may define an optional `spatial_discoveries` array. Each entry has a 
 
 Evidence IDs are global across campaign locations. Content validation rejects empty, repeated, self-referential, unknown, or cyclic prerequisites. Mods may extend a location's discoveries or override an entry by stable ID; a matching ID replaces its title, description, and prerequisite list. New discovery definitions do not rewrite an already-persisted local map: an established map remains authoritative for its generated placements and evidence requirements.
 
+The base campaign demonstrates a cross-location investigation: the scraped Ashen Gate hinge leads to newer road tracks, which lead to a disturbed Hollow Market stall and a lantern with its wick removed. That residue is then traced through the fresh soot at Old Shrine to the black altar. Each step requires the preceding evidence ID, and `quest.quiet_old_shrine` requires the final `poi.old_shrine.black_altar` finding.
+
 The local map stores the physical `discovered` and `interacted` flags. Character understanding is separate: each character stores the evidence IDs they personally learned in `known_evidence_ids`. Examining a clue records its ID for that character. A later character may examine a site that was already interacted with in a previous life, but does not inherit the previous character's deductions. Older saves default missing prerequisite and character-knowledge fields to empty collections.
 
 ## Evidence-linked quest objectives
