@@ -812,16 +812,16 @@ pub fn generate_local_map_with_layout(
     let mut rng = DeterministicRng::new(seed);
     let width = config.width;
     let height = config.height;
-    let layout_id = if width >= DEFAULT_MAP_WIDTH
-        && height >= 12
-        && matches!(
-            layout,
-            Some("shrine_chamber" | "ashen_gate_causeway" | "hollow_market_square")
-        )
-    {
-        layout.map(str::to_string)
-    } else {
-        None
+    let layout_id = match layout {
+        Some("shrine_chamber") if width >= DEFAULT_MAP_WIDTH && height >= 12 => {
+            Some("shrine_chamber".to_string())
+        }
+        Some("ashen_gate_causeway" | "hollow_market_square")
+            if width >= DEFAULT_MAP_WIDTH && height >= 16 =>
+        {
+            layout.map(str::to_string)
+        }
+        _ => None,
     };
     let entry = GridPosition {
         x: 1,
