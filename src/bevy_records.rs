@@ -1140,6 +1140,18 @@ fn render_journal_tab(
         }
     }
 
+    bevy_presentation::spawn_label(commands, parent, "KNOWN EVIDENCE");
+    if character.evidence.is_empty() {
+        bevy_presentation::spawn_muted_label(commands, parent, "No evidence has been understood by this character.");
+    } else {
+        for evidence in &character.evidence {
+            bevy_presentation::spawn_label(commands, parent, &evidence.title);
+            if !evidence.description.trim().is_empty() {
+                bevy_presentation::spawn_muted_label(commands, parent, &evidence.description);
+            }
+        }
+    }
+
     bevy_presentation::spawn_label(commands, parent, "PERSONAL NOTES");
     if character.notes.is_empty() {
         bevy_presentation::spawn_muted_label(commands, parent, "The journal is empty.");
