@@ -242,7 +242,7 @@ fn mods_extend_and_override_spatial_discoveries_by_stable_id() {
             .find(|discovery| discovery.id == "poi.old_shrine.altar")
             .unwrap()
             .requires_evidence,
-        vec!["poi.old_shrine.footprints"]
+        vec!["poi.old_shrine.scratches"]
     );
     assert!(discoveries
         .iter()
