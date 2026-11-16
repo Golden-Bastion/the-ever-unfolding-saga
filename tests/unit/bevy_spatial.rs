@@ -202,12 +202,14 @@ fn camera_follow_is_consistent_across_frame_rates() {
 
     let mut camera_30 = Vec2::ZERO;
     for _ in 0..30 {
-        camera_30 = camera_follow_position(player, Vec2::ZERO, camera_30, viewport, &map, 1.0 / 30.0);
+        camera_30 =
+            camera_follow_position(player, Vec2::ZERO, camera_30, viewport, &map, 1.0 / 30.0);
     }
 
     let mut camera_60 = Vec2::ZERO;
     for _ in 0..60 {
-        camera_60 = camera_follow_position(player, Vec2::ZERO, camera_60, viewport, &map, 1.0 / 60.0);
+        camera_60 =
+            camera_follow_position(player, Vec2::ZERO, camera_60, viewport, &map, 1.0 / 60.0);
     }
 
     assert!(

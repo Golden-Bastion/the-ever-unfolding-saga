@@ -1028,7 +1028,11 @@ fn apply_ashen_gate_causeway(map: &mut LocalMap) {
     // Its only opening is the explicit grid-edge doorway at the road.
     for y in 1..map.height - 1 {
         let index = usize::from(y) * usize::from(map.width) + usize::from(gate_x);
-        map.terrain[index] = if y == gate_y { Terrain::Floor } else { Terrain::Wall };
+        map.terrain[index] = if y == gate_y {
+            Terrain::Floor
+        } else {
+            Terrain::Wall
+        };
     }
     map.terrain[usize::from(gate_y) * usize::from(map.width) + usize::from(gate_x - 1)] =
         Terrain::Floor;
@@ -1117,17 +1121,14 @@ fn apply_hollow_market_square(map: &mut LocalMap) {
     // market square. The threshold stays open and every graph exit routes to it.
     for y in 1..map.height - 1 {
         let index = usize::from(y) * usize::from(map.width) + usize::from(GATE_X);
-        map.terrain[index] = if y == gate_y { Terrain::Floor } else { Terrain::Wall };
+        map.terrain[index] = if y == gate_y {
+            Terrain::Floor
+        } else {
+            Terrain::Wall
+        };
     }
 
-    let stall_positions = [
-        (7, 4),
-        (12, 4),
-        (17, 4),
-        (8, 11),
-        (13, 11),
-        (18, 11),
-    ];
+    let stall_positions = [(7, 4), (12, 4), (17, 4), (8, 11), (13, 11), (18, 11)];
     for (index, (x, y)) in stall_positions.into_iter().enumerate() {
         let position = GridPosition { x, y };
         if map.contains(position) && x + SpatialPropKind::Table.footprint_width() < map.width {
@@ -1139,12 +1140,9 @@ fn apply_hollow_market_square(map: &mut LocalMap) {
         }
     }
 
-    for (index, position) in [
-        GridPosition { x: 10, y: 6 },
-        GridPosition { x: 16, y: 10 },
-    ]
-    .into_iter()
-    .enumerate()
+    for (index, position) in [GridPosition { x: 10, y: 6 }, GridPosition { x: 16, y: 10 }]
+        .into_iter()
+        .enumerate()
     {
         if map.contains(position) && map.terrain_at(position).is_some_and(Terrain::is_walkable) {
             map.props.push(SpatialProp {
