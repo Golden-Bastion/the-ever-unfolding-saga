@@ -566,12 +566,14 @@ fn encounter_spawn_avoids_the_players_saved_tile() {
         .expect("generated map should have a free player tile");
     assert!(ensure_spatial_encounter_avoiding(
         &mut map,
-        "encounter.player_overlap".into(),
-        "Ash Marauder".into(),
-        "A hostile figure approaches.".into(),
-        12,
-        2,
-        "Marauder Token".into(),
+        SpatialEncounterDefinition {
+            id: "encounter.player_overlap".into(),
+            enemy_name: "Ash Marauder".into(),
+            description: "A hostile figure approaches.".into(),
+            max_hp: 12,
+            power: 2,
+            trophy_item_name: "Marauder Token".into(),
+        },
         Some(player_position),
     ));
     assert_ne!(map.encounters[0].position, player_position);
