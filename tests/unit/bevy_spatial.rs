@@ -758,6 +758,106 @@ fn points_of_interest_reveal_when_their_tiles_enter_the_explored_area() {
     assert!(map_mark_discovered(&mut state, position).is_empty());
 }
 
+#[test]
+fn examining_shared_clues_records_character_knowledge_and_advances_quests() {
+    let mut game = crate::model::create_new_state(
+        "Evidence Examination",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let location_id = game.character.location_id;
+    let location_key = format!("location.{location_id}");
+    let mut map = generate_local_map(71, &location_key, LocalMapConfig::default());
+    map.props.clear();
+    let first_position = map.entry;
+    let second_position = GridPosition {
+        x: first_position.x + 1,
+        y: first_position.y,
+    };
+    map.set_terrain(first_position, Terrain::Floor);
+    map.set_terrain(second_position, Terrain::Floor);
+    map.points_of_interest = vec![
+        crate::spatial::PointOfInterest {
+            id: "evidence.first".into(),
+            position: first_position,
+            title: "First Mark".into(),
+            description: "A deliberate mark in the stone.".into(),
+            discovered: true,
+            interacted: true,
+            prerequisites: Vec::new(),
+        },
+        crate::spatial::PointOfInterest {
+            id: "evidence.second".into(),
+            position: second_position,
+            title: "Second Mark".into(),
+            description: "A second mark follows the first.".into(),
+            discovered: true,
+            interacted: true,
+            prerequisites: vec!["evidence.first".into()],
+        },
+    ];
+    game.quests.push(crate::model::Quest {
+        id: 900,
+        title: "Read the marks".into(),
+        offered: true,
+        objectives: vec![crate::model::QuestObjective::discover_evidence(
+            "evidence.first",
+            "First Mark",
+        )],
+        ..Default::default()
+    });
+
+    let mut lifecycle = LifecycleState::default();
+    lifecycle.phase = LifecyclePhase::Complete;
+    lifecycle.session = Some(crate::bevy_lifecycle::GameSession {
+        state: game,
+        save_path: std::path::PathBuf::new(),
+    });
+    let position = Vec2::new(
+        f32::from(first_position.x) + 0.5,
+        f32::from(first_position.y) + 0.5,
+    );
+    let mut spatial = SpatialExplorationState {
+        maps: HashMap::from([(location_key.clone(), map)]),
+        session: Some(ExplorationSession {
+            location_id: location_key,
+            position: first_position,
+        }),
+        position,
+        ..default()
+    };
+
+    // The world remembers that these sites were examined in another life,
+    // but the current character must still earn the knowledge.
+    interact_with_poi(&mut spatial, &mut lifecycle, "evidence.second");
+    {
+        let state = &lifecycle.session.as_ref().unwrap().state;
+        assert!(!state.character.knows_evidence("evidence.second"));
+        assert!(!state.character.knows_evidence("evidence.first"));
+    }
+
+    interact_with_poi(&mut spatial, &mut lifecycle, "evidence.first");
+    {
+        let state = &lifecycle.session.as_ref().unwrap().state;
+        assert!(state.character.knows_evidence("evidence.first"));
+        assert!(state.quests[0].objectives[0].completed);
+    }
+    assert!(spatial.maps[&format!("location.{}", lifecycle.session.as_ref().unwrap().state.character.location_id)]
+        .point_of_interest("evidence.first")
+        .unwrap()
+        .interacted);
+
+    interact_with_poi(&mut spatial, &mut lifecycle, "evidence.second");
+    let state = &lifecycle.session.as_ref().unwrap().state;
+    assert!(state.character.knows_evidence("evidence.second"));
+    assert!(state
+        .world
+        .history
+        .iter()
+        .any(|entry| entry.text.contains("examined Second Mark")));
+}
+
 fn connected_spatial_fixture() -> (
     LifecycleState,
     SpatialExplorationState,
