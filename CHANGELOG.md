@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.60. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.61. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -306,3 +306,10 @@ The entries below cover the v0.52.x development line through v0.52.60. This line
 - Preserved old-save readability with defaults for character evidence, POI prerequisites, and optional quest objective labels; the save envelope remains version 4.
 - Added regression coverage for evidence examination, prerequisite gates, quest objective synchronization/seeding, inheritance boundaries, content validation, and legacy serialization.
 - Bumped Rust and Android application metadata to 0.52.60.
+
+### v0.52.61: Authored Gate-to-Shrine evidence investigation
+
+- Connected the six existing Ashen Gate, Hollow Market, and Old Shrine discoveries into a prerequisite-gated investigation, following recent tracks from the gate to a disturbed market stall, a missing lantern wick, and matching soot at the shrine altar.
+- Made the final Black Altar finding an evidence objective for "Quiet the Old Shrine"; the authored prerequisite chain ensures the preceding clues must be understood first.
+- Added campaign-content and map-placement regression coverage for the clue order and prerequisite metadata, and documented the shipped investigation.
+- Bumped Rust and Android application metadata to 0.52.61.
