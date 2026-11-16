@@ -204,4 +204,3 @@ fn spatial_encounter_victory_persists_the_defeated_state() {
     );
     assert!(!game.threat.active);
 }
-

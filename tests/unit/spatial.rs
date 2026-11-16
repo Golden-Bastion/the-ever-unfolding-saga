@@ -555,12 +555,14 @@ fn spatial_encounters_are_deterministic_persistent_and_backward_compatible() {
 
 #[test]
 fn encounter_spawn_avoids_the_players_saved_tile() {
-    let mut map = generate_local_map(85, "location.encounter_player_overlap", LocalMapConfig::default());
+    let mut map = generate_local_map(
+        85,
+        "location.encounter_player_overlap",
+        LocalMapConfig::default(),
+    );
     let player_position = reachable_walkable_tiles(&map)
         .into_iter()
-        .find(|position| {
-            position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 2
-        })
+        .find(|position| position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 2)
         .expect("generated map should have a free player tile");
     assert!(ensure_spatial_encounter_avoiding(
         &mut map,

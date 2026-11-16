@@ -584,7 +584,10 @@ impl LocalMap {
             || !(0..=encounter.max_hp).contains(&encounter.current_hp)
             || (encounter.status == SpatialEncounterStatus::Active && encounter.current_hp == 0)
             || (encounter.status == SpatialEncounterStatus::Defeated && encounter.current_hp != 0)
-            || self.encounters.iter().any(|existing| existing.id == encounter.id)
+            || self
+                .encounters
+                .iter()
+                .any(|existing| existing.id == encounter.id)
             || !self.encounter_placement_is_valid(encounter.position, None)
         {
             return false;
@@ -606,17 +609,22 @@ impl LocalMap {
                 || encounter.max_hp <= 0
                 || encounter.power < 0
                 || !(0..=encounter.max_hp).contains(&encounter.current_hp)
-                || (encounter.status == SpatialEncounterStatus::Active
-                    && encounter.current_hp == 0)
+                || (encounter.status == SpatialEncounterStatus::Active && encounter.current_hp == 0)
                 || (encounter.status == SpatialEncounterStatus::Defeated
                     && encounter.current_hp != 0)
             {
-                return Err(format!("encounter {} has invalid profile or health state", encounter.id));
+                return Err(format!(
+                    "encounter {} has invalid profile or health state",
+                    encounter.id
+                ));
             }
             if !positions.insert(encounter.position)
                 || !self.encounter_placement_is_valid(encounter.position, Some(&encounter.id))
             {
-                return Err(format!("encounter {} has an invalid or overlapping placement", encounter.id));
+                return Err(format!(
+                    "encounter {} has an invalid or overlapping placement",
+                    encounter.id
+                ));
             }
         }
         Ok(())
@@ -753,7 +761,10 @@ impl LocalMap {
             && !self.interactables.iter().any(|actor| {
                 Some(actor.entity_id) != ignored_entity_id && actor.position == position
             })
-            && !self.encounters.iter().any(|encounter| encounter.position == position)
+            && !self
+                .encounters
+                .iter()
+                .any(|encounter| encounter.position == position)
     }
 
     fn encounter_placement_is_valid(
@@ -764,11 +775,18 @@ impl LocalMap {
         self.contains(position)
             && self.is_walkable(position)
             && position != self.entry
-            && !self.points_of_interest.iter().any(|point| point.position == position)
+            && !self
+                .points_of_interest
+                .iter()
+                .any(|point| point.position == position)
             && !self.exits.iter().any(|exit| exit.position == position)
-            && !self.interactables.iter().any(|actor| actor.position == position)
+            && !self
+                .interactables
+                .iter()
+                .any(|actor| actor.position == position)
             && !self.encounters.iter().any(|encounter| {
-                Some(encounter.id.as_str()) != ignored_encounter_id && encounter.position == position
+                Some(encounter.id.as_str()) != ignored_encounter_id
+                    && encounter.position == position
             })
     }
 
@@ -792,7 +810,10 @@ impl LocalMap {
                 .props
                 .iter()
                 .any(|prop| prop.footprint_contains(position, self.width))
-            && !self.encounters.iter().any(|encounter| encounter.position == position)
+            && !self
+                .encounters
+                .iter()
+                .any(|encounter| encounter.position == position)
     }
 
     fn is_editor_reserved_position(&self, position: GridPosition) -> bool {
@@ -806,7 +827,10 @@ impl LocalMap {
                 .interactables
                 .iter()
                 .any(|actor| actor.position == position)
-            || self.encounters.iter().any(|encounter| encounter.position == position)
+            || self
+                .encounters
+                .iter()
+                .any(|encounter| encounter.position == position)
             || self.rooms.iter().any(|room| room.cells.contains(&position))
     }
 
@@ -1555,9 +1579,7 @@ pub fn ensure_spatial_encounter_avoiding(
     let candidates = (1..map.height.saturating_sub(1))
         .flat_map(|y| (1..map.width.saturating_sub(1)).map(move |x| GridPosition { x, y }))
         .filter(|position| reachable.contains(position))
-        .filter(|position| {
-            position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 2
-        })
+        .filter(|position| position.x.abs_diff(map.entry.x) + position.y.abs_diff(map.entry.y) >= 2)
         .filter(|position| Some(*position) != avoid_position)
         .filter(|position| map.encounter_placement_is_valid(*position, None))
         .collect::<Vec<_>>();

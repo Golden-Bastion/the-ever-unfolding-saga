@@ -1,7 +1,7 @@
 use super::{character, interactions, legacy, state_effects};
 use crate::model::{EntityId, GameState, Item};
-use crate::spatial::SpatialEncounterStatus;
 use crate::presentation::{CharacterView, CombatResultView, CombatView, CombatantView};
+use crate::spatial::SpatialEncounterStatus;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,8 +31,12 @@ impl fmt::Display for CombatStartError {
         match self {
             Self::NoActiveThreat => formatter.write_str("There is no active threat to face."),
             Self::MissingLocation => formatter.write_str("The threat cannot be reached here."),
-            Self::MissingSpatialEncounter => formatter.write_str("That encounter is no longer available here."),
-            Self::SpatialEncounterOutOfReach => formatter.write_str("Move closer before confronting that encounter."),
+            Self::MissingSpatialEncounter => {
+                formatter.write_str("That encounter is no longer available here.")
+            }
+            Self::SpatialEncounterOutOfReach => {
+                formatter.write_str("Move closer before confronting that encounter.")
+            }
         }
     }
 }
@@ -125,21 +129,18 @@ pub(crate) fn start_spatial_encounter(
         .filter(|session| session.location_id == map_id)
         .and_then(|_| state.character.exploration_position)
         .map(|position| (position.x, position.y))
-        .unwrap_or((
-            f32::from(map.entry.x) + 0.5,
-            f32::from(map.entry.y) + 0.5,
-        ));
-    let can_confront = crate::interaction_actions::discover_available_interactions(
-        map,
-        state,
-        player_position,
-    )
-    .iter()
-    .any(|interaction| {
-        interaction.action == crate::interaction_actions::InteractionActionKind::EngageEncounter
-            && interaction.target
-                == crate::interaction_actions::InteractionTarget::Encounter(encounter_id.into())
-    });
+        .unwrap_or((f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5));
+    let can_confront =
+        crate::interaction_actions::discover_available_interactions(map, state, player_position)
+            .iter()
+            .any(|interaction| {
+                interaction.action
+                    == crate::interaction_actions::InteractionActionKind::EngageEncounter
+                    && interaction.target
+                        == crate::interaction_actions::InteractionTarget::Encounter(
+                            encounter_id.into(),
+                        )
+            });
     if !can_confront {
         return Err(CombatStartError::SpatialEncounterOutOfReach);
     }
@@ -449,7 +450,11 @@ fn persist_spatial_encounter_health(state: &mut GameState, encounter: &CombatEnc
         .local_maps
         .iter_mut()
         .find(|map| map.location_id == map_id)
-        .and_then(|map| map.encounters.iter_mut().find(|entry| entry.id == encounter_id))
+        .and_then(|map| {
+            map.encounters
+                .iter_mut()
+                .find(|entry| entry.id == encounter_id)
+        })
     {
         spatial_encounter.current_hp = encounter.enemy_hp.clamp(0, spatial_encounter.max_hp);
         if spatial_encounter.current_hp == 0 {
@@ -458,14 +463,22 @@ fn persist_spatial_encounter_health(state: &mut GameState, encounter: &CombatEnc
     }
 }
 
-fn set_spatial_encounter_defeated(state: &mut GameState, location_id: EntityId, encounter_id: &str) {
+fn set_spatial_encounter_defeated(
+    state: &mut GameState,
+    location_id: EntityId,
+    encounter_id: &str,
+) {
     let map_id = format!("location.{location_id}");
     if let Some(spatial_encounter) = state
         .world
         .local_maps
         .iter_mut()
         .find(|map| map.location_id == map_id)
-        .and_then(|map| map.encounters.iter_mut().find(|entry| entry.id == encounter_id))
+        .and_then(|map| {
+            map.encounters
+                .iter_mut()
+                .find(|entry| entry.id == encounter_id)
+        })
     {
         spatial_encounter.current_hp = 0;
         spatial_encounter.status = SpatialEncounterStatus::Defeated;

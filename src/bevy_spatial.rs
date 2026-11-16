@@ -25,9 +25,8 @@ use crate::interaction_actions::{
 };
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
-    apply_authored_spatial_discoveries, configure_map_exits,
-    ensure_spatial_encounter_avoiding, ensure_spatial_entity_placements,
-    generate_local_map_with_layout, ExplorationSession,
+    apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_encounter_avoiding,
+    ensure_spatial_entity_placements, generate_local_map_with_layout, ExplorationSession,
     GridPosition, LocalMap, LocalMapConfig, MapExit, SpatialDiscoveryDefinition,
     SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind, Terrain,
 };
@@ -481,7 +480,9 @@ fn refresh_spatial_scene_on_reentry(
                 .iter()
                 .find(|map| map.location_id == session.location_id)
             {
-                state.maps.insert(session.location_id.clone(), saved_map.clone());
+                state
+                    .maps
+                    .insert(session.location_id.clone(), saved_map.clone());
             }
         }
         state.dirty = true;
@@ -912,12 +913,14 @@ fn spatial_input(
                     .and_then(|(map, game_session)| {
                         available_interactions(map, &game_session.state, state.position)
                             .into_iter()
-                            .find_map(|interaction| match (interaction.action, interaction.target) {
-                                (
-                                    InteractionActionKind::EngageEncounter,
-                                    InteractionTarget::Encounter(id),
-                                ) => Some(id),
-                                _ => None,
+                            .find_map(|interaction| {
+                                match (interaction.action, interaction.target) {
+                                    (
+                                        InteractionActionKind::EngageEncounter,
+                                        InteractionTarget::Encounter(id),
+                                    ) => Some(id),
+                                    _ => None,
+                                }
                             })
                     });
                 if encounter_id.is_some() {
@@ -942,7 +945,8 @@ fn spatial_input(
                         state.dirty = true;
                     }
                     None => {
-                        state.message = Some("Move closer to an active encounter first.".to_string());
+                        state.message =
+                            Some("Move closer to an active encounter first.".to_string());
                         state.dirty = true;
                     }
                 }
@@ -1374,11 +1378,7 @@ fn execute_available_interaction(
         (InteractionActionKind::EngageEncounter, InteractionTarget::Encounter(id)) => {
             sync_spatial_to_game(state, lifecycle);
             let result = lifecycle.session.as_mut().map(|session| {
-                crate::bevy_combat::begin_spatial(
-                    &mut session.state,
-                    combat_state,
-                    &id,
-                )
+                crate::bevy_combat::begin_spatial(&mut session.state, combat_state, &id)
             });
             match result {
                 Some(Ok(())) => {
@@ -3708,8 +3708,7 @@ fn is_position_walkable(map: &LocalMap, position: Vec2) -> bool {
         };
         map.is_walkable(cell)
             && !map.encounters.iter().any(|encounter| {
-                encounter.status == SpatialEncounterStatus::Active
-                    && encounter.position == cell
+                encounter.status == SpatialEncounterStatus::Active && encounter.position == cell
             })
     })
 }

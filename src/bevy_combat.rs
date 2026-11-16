@@ -98,8 +98,8 @@ pub(crate) fn begin_spatial(
     combat_state: &mut CombatState,
     encounter_id: &str,
 ) -> Result<(), String> {
-    let encounter = combat::start_spatial_encounter(state, encounter_id)
-        .map_err(|error| error.to_string())?;
+    let encounter =
+        combat::start_spatial_encounter(state, encounter_id).map_err(|error| error.to_string())?;
     combat_state.reset(encounter);
     Ok(())
 }
