@@ -138,6 +138,10 @@ pub struct Character {
     /// Stable modular portrait-part IDs selected during character creation.
     #[serde(default)]
     pub appearance_parts: Vec<String>,
+    /// Evidence this character has personally examined and understood.
+    /// World maps retain physical discoveries separately across lives.
+    #[serde(default)]
+    pub known_evidence_ids: Vec<String>,
     pub hp: i32,
     pub max_hp: i32,
     pub location_id: EntityId,
@@ -252,6 +256,7 @@ pub enum QuestObjectiveKind {
     AcquireItem,
     VisitLocation,
     DefeatEnemy,
+    DiscoverEvidence,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -264,6 +269,9 @@ pub struct QuestObjective {
     pub progress: u32,
     #[serde(default)]
     pub completed: bool,
+    /// Optional presentation label; target remains the stable evidence ID.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_label: Option<String>,
 }
 
 fn default_objective_required() -> u32 {
@@ -279,7 +287,17 @@ impl QuestObjective {
             required,
             progress: 0,
             completed: false,
+            target_label: None,
         }
+    }
+
+    pub fn discover_evidence(
+        evidence_id: impl Into<String>,
+        label: impl Into<String>,
+    ) -> Self {
+        let mut objective = Self::new(QuestObjectiveKind::DiscoverEvidence, evidence_id, 1);
+        objective.target_label = Some(label.into());
+        objective
     }
 
     pub fn display_label(&self) -> String {
@@ -287,6 +305,10 @@ impl QuestObjective {
             QuestObjectiveKind::AcquireItem => format!("Acquire {}", self.target),
             QuestObjectiveKind::VisitLocation => format!("Visit {}", self.target),
             QuestObjectiveKind::DefeatEnemy => format!("Defeat {}", self.target),
+            QuestObjectiveKind::DiscoverEvidence => format!(
+                "Discover {}",
+                self.target_label.as_deref().unwrap_or(&self.target)
+            ),
         }
     }
 }
@@ -448,6 +470,7 @@ impl Character {
             name,
             title,
             appearance_parts: Vec::new(),
+            known_evidence_ids: Vec::new(),
             hp: 10,
             max_hp: 10,
             location_id,
@@ -470,6 +493,22 @@ impl Character {
 
     pub fn display_name(&self) -> String {
         format!("{} the {}", self.name, self.title)
+    }
+
+    pub fn knows_evidence(&self, evidence_id: &str) -> bool {
+        self.known_evidence_ids
+            .iter()
+            .any(|known| known == evidence_id)
+    }
+
+    /// Record one stable evidence identity for this character only.
+    pub fn record_evidence(&mut self, evidence_id: impl Into<String>) -> bool {
+        let evidence_id = evidence_id.into();
+        if evidence_id.trim().is_empty() || self.knows_evidence(&evidence_id) {
+            return false;
+        }
+        self.known_evidence_ids.push(evidence_id);
+        true
     }
 
     pub fn effective_might(&self) -> i32 {
