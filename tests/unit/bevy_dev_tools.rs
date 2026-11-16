@@ -762,3 +762,45 @@ fn character_lab_slots_follow_the_portrait_view_order() {
 
     assert_eq!(order, vec!["headgear", "hair", "face", "accessory", "body"]);
 }
+
+#[test]
+fn world_lab_can_author_two_rooms_and_a_locked_interior_door() {
+    let mut spatial = SpatialExplorationState::default();
+    let mut map = generate_world_lab_map(WorldLabOptions::default());
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.exits.clear();
+    map.interactables.clear();
+    let first = GridPosition { x: 3, y: 3 };
+    let second = GridPosition { x: 4, y: 3 };
+    map.set_terrain(first, Terrain::Floor);
+    map.set_terrain(second, Terrain::Floor);
+    bevy_spatial::set_sandbox_map(&mut spatial, map);
+
+    let mut state = DeveloperToolsState {
+        world_lab_cursor: Some(first),
+        world_lab_editor_tool: WorldLabEditorTool::Room,
+        ..Default::default()
+    };
+    place_world_lab_object(&mut state, &mut spatial);
+    state.world_lab_room_index = 1;
+    state.world_lab_cursor = Some(second);
+    place_world_lab_object(&mut state, &mut spatial);
+
+    state.world_lab_editor_tool = WorldLabEditorTool::Door;
+    state.world_lab_door_state = DoorState::Locked;
+    state.world_lab_cursor = Some(first);
+    place_world_lab_object(&mut state, &mut spatial);
+
+    let authored = bevy_spatial::sandbox_map(&spatial).unwrap();
+    assert_eq!(authored.rooms.len(), 2);
+    assert_eq!(authored.doors.len(), 1);
+    assert_eq!(authored.doors[0].state, DoorState::Locked);
+    assert!(authored.validate_room_topology().is_ok());
+
+    remove_world_lab_object(&mut state, &mut spatial);
+    assert!(bevy_spatial::sandbox_map(&spatial)
+        .unwrap()
+        .doors
+        .is_empty());
+}

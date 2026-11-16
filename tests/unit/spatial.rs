@@ -50,7 +50,7 @@ fn generated_props_are_deterministic_and_block_their_footprints() {
 }
 
 #[test]
-fn props_round_trip_and_older_saves_default_to_no_props() {
+fn props_round_trip_and_optional_map_fields_default_when_absent() {
     let map = generate_local_map(12, "location.old_shrine", LocalMapConfig::default());
     let json = serde_json::to_string(&map).expect("map with props should serialize");
     let restored: LocalMap =
@@ -63,12 +63,34 @@ fn props_round_trip_and_older_saves_default_to_no_props() {
     object.remove("interactables");
     object.remove("exits");
     object.remove("layout_id");
-    let restored_old: LocalMap =
-        serde_json::from_value(old_value).expect("pre-prop map should remain loadable");
+    object.remove("rooms");
+    object.remove("doors");
+    let restored_old: LocalMap = serde_json::from_value(old_value)
+        .expect("map with omitted optional fields should deserialize");
     assert!(restored_old.props.is_empty());
     assert!(restored_old.interactables.is_empty());
     assert!(restored_old.exits.is_empty());
     assert!(restored_old.layout_id.is_none());
+    assert!(restored_old.rooms.is_empty());
+    assert!(restored_old.doors.is_empty());
+}
+
+#[test]
+fn pre_topology_local_maps_default_to_empty_rooms_and_doors() {
+    let map = generate_local_map(52, "location.legacy_save", LocalMapConfig::default());
+    let mut value = serde_json::to_value(&map).expect("map should serialize");
+    let object = value.as_object_mut().expect("map should be an object");
+    object.remove("rooms");
+    object.remove("doors");
+
+    let restored: LocalMap = serde_json::from_value(value)
+        .expect("a pre-topology save should load without room and door fields");
+
+    assert!(restored.rooms.is_empty());
+    assert!(restored.doors.is_empty());
+    assert_eq!(restored.terrain, map.terrain);
+    assert_eq!(restored.entry, map.entry);
+    assert_eq!(restored.location_id, map.location_id);
 }
 
 #[test]
@@ -719,4 +741,85 @@ fn editor_operations_place_move_and_remove_real_world_actor_placements() {
         Some(expected_removed)
     );
     assert!(map.interactables.is_empty());
+}
+
+#[test]
+fn interior_door_states_gate_pathfinding_without_blocking_floor_cells() {
+    let mut map = generate_local_map_with_layout(
+        42,
+        "location.old_shrine",
+        LocalMapConfig::default(),
+        Some("shrine_chamber"),
+    );
+    let door = map
+        .doors
+        .first()
+        .expect("shrine should have its threshold door")
+        .clone();
+    assert!(map.validate_room_topology().is_ok());
+    assert!(map.can_cross_edge(door.edge.a, door.edge.b));
+    assert!(map.is_walkable(door.edge.a));
+    assert!(map.is_walkable(door.edge.b));
+
+    assert!(map.set_door_state(&door.id, DoorState::Closed));
+    assert!(!map.can_cross_edge(door.edge.a, door.edge.b));
+    assert!(!map.can_cross_edge(door.edge.b, door.edge.a));
+    assert!(map.set_door_state(&door.id, DoorState::Open));
+    assert!(map.can_cross_edge(door.edge.a, door.edge.b));
+
+    assert!(map.set_door_state(&door.id, DoorState::Locked));
+    assert!(!map.set_door_state(&door.id, DoorState::Open));
+    assert!(!map.can_cross_edge(door.edge.a, door.edge.b));
+    assert!(map.unlock_door(&door.id));
+    assert_eq!(map.doors[0].state, DoorState::Closed);
+    assert!(map.set_door_state(&door.id, DoorState::Open));
+    assert!(map.validate_room_topology().is_ok());
+}
+
+#[test]
+fn grid_edges_are_canonical_and_require_cardinal_adjacency() {
+    let a = GridPosition { x: 4, y: 5 };
+    let b = GridPosition { x: 5, y: 5 };
+    assert_eq!(GridEdge::new(a, b), GridEdge::new(b, a));
+    assert!(GridEdge::new(a, GridPosition { x: 5, y: 6 }).is_none());
+    assert!(GridEdge::new(a, GridPosition { x: 6, y: 5 }).is_none());
+}
+
+#[test]
+fn closed_shrine_threshold_blocks_room_to_room_pathfinding() {
+    let mut map = generate_local_map_with_layout(
+        42,
+        "location.old_shrine",
+        LocalMapConfig::default(),
+        Some("shrine_chamber"),
+    );
+    let door = map
+        .doors
+        .first()
+        .expect("shrine should define its threshold")
+        .clone();
+    let chamber_position = GridPosition { x: 5, y: 6 };
+    let approach_position = GridPosition { x: 5, y: 8 };
+    assert!(has_walkable_path(&map, chamber_position, approach_position));
+    assert!(map.set_door_state(&door.id, DoorState::Closed));
+    assert!(!has_walkable_path(
+        &map,
+        chamber_position,
+        approach_position
+    ));
+    assert!(map.set_door_state(&door.id, DoorState::Open));
+    assert!(has_walkable_path(&map, chamber_position, approach_position));
+}
+
+#[test]
+fn terrain_editor_cannot_turn_a_room_cell_into_a_wall() {
+    let mut map = generate_local_map_with_layout(
+        42,
+        "location.old_shrine",
+        LocalMapConfig::default(),
+        Some("shrine_chamber"),
+    );
+    let room_cell = map.rooms[0].cells[0];
+    assert!(!map.set_terrain_for_editor(room_cell, Terrain::Wall));
+    assert!(map.is_walkable(room_cell));
 }

@@ -8,7 +8,7 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 3;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 4;
 pub const DEFAULT_MAP_WIDTH: u16 = 24;
 pub const DEFAULT_MAP_HEIGHT: u16 = 16;
 const MIN_MAP_DIMENSION: u16 = 8;
@@ -121,6 +121,55 @@ impl SpatialProp {
 /// A physical passage at the edge of a local map. Its destination uses the
 /// persistent world location ID and is validated against the authoritative
 /// location graph before the existing travel rules are applied.
+/// A canonical boundary between two cardinally adjacent map cells.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GridEdge {
+    pub a: GridPosition,
+    pub b: GridPosition,
+}
+
+impl GridEdge {
+    pub fn new(first: GridPosition, second: GridPosition) -> Option<Self> {
+        let distance =
+            u32::from(first.x.abs_diff(second.x)) + u32::from(first.y.abs_diff(second.y));
+        if distance != 1 {
+            return None;
+        }
+
+        let (a, b) = if (first.y, first.x) <= (second.y, second.x) {
+            (first, second)
+        } else {
+            (second, first)
+        };
+        Some(Self { a, b })
+    }
+}
+
+/// A stable room identity with explicit cell membership for irregular layouts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpatialRoom {
+    pub id: String,
+    pub cells: Vec<GridPosition>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DoorState {
+    Open,
+    #[default]
+    Closed,
+    Locked,
+}
+
+/// An interior door occupies an edge and connects the room containing each endpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpatialDoor {
+    pub id: String,
+    pub edge: GridEdge,
+    pub room_a: String,
+    pub room_b: String,
+    pub state: DoorState,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MapExit {
     /// Stable within this local map and independent of destination display text.
@@ -137,7 +186,7 @@ pub struct LocalMap {
     pub location_id: String,
     pub generator_version: u32,
     /// Built-in layout used when the persistent map was first generated.
-    /// Missing in older saves; the saved geometry itself remains authoritative.
+    /// Optional content metadata; the saved geometry itself remains authoritative.
     #[serde(default)]
     pub layout_id: Option<String>,
     pub seed: u64,
@@ -147,19 +196,25 @@ pub struct LocalMap {
     pub terrain: Vec<Terrain>,
     pub entry: GridPosition,
     pub points_of_interest: Vec<PointOfInterest>,
+    /// Empty when loading a save created before room topology was introduced.
+    #[serde(default)]
+    pub rooms: Vec<SpatialRoom>,
+    /// Empty when loading a save created before interior doors were introduced.
+    #[serde(default)]
+    pub doors: Vec<SpatialDoor>,
     /// Connected world locations reachable through physical map-edge passages.
-    /// Defaults empty so maps in older saves remain loadable.
+    /// Defaults empty when a map has no world-location passages.
     #[serde(default)]
     pub exits: Vec<MapExit>,
     #[serde(default)]
     pub discovered_tiles: Vec<bool>,
     #[serde(default)]
     pub terrain_changes: Vec<TerrainChange>,
-    /// Persistent static props and their collision footprints. Missing in older saves.
+    /// Persistent static props and their collision footprints.
     #[serde(default)]
     pub props: Vec<SpatialProp>,
     /// Persistent positions of world-owned NPCs and searchable remains.
-    /// Missing in older saves; placements are added deterministically on entry.
+    /// Placements are added deterministically on entry when absent.
     #[serde(default)]
     pub interactables: Vec<SpatialEntityPlacement>,
 }
@@ -176,6 +231,108 @@ impl LocalMap {
         self.terrain
             .get(usize::from(position.y) * usize::from(self.width) + usize::from(position.x))
             .copied()
+    }
+
+    pub fn room_at(&self, position: GridPosition) -> Option<&SpatialRoom> {
+        self.rooms
+            .iter()
+            .find(|room| room.cells.contains(&position))
+    }
+
+    /// Validate stable identities, exclusive room membership, and door boundaries.
+    pub fn validate_room_topology(&self) -> Result<(), String> {
+        let mut room_ids = HashSet::new();
+        let mut occupied = HashSet::new();
+
+        for room in &self.rooms {
+            if room.id.trim().is_empty() || !room_ids.insert(room.id.as_str()) {
+                return Err("room IDs must be non-empty and unique".into());
+            }
+            if room.cells.is_empty() {
+                return Err(format!("room {} has no cells", room.id));
+            }
+            for cell in &room.cells {
+                if !self.contains(*cell) || !self.is_walkable(*cell) {
+                    return Err(format!(
+                        "room {} contains an invalid or non-walkable cell",
+                        room.id
+                    ));
+                }
+                if !occupied.insert(*cell) {
+                    return Err("a map cell belongs to more than one room".into());
+                }
+            }
+        }
+
+        let mut door_ids = HashSet::new();
+        let mut door_edges = HashSet::new();
+        for door in &self.doors {
+            if door.id.trim().is_empty() || !door_ids.insert(door.id.as_str()) {
+                return Err("door IDs must be non-empty and unique".into());
+            }
+            if !door_edges.insert(door.edge) {
+                return Err("multiple doors occupy the same grid edge".into());
+            }
+
+            let Some(room_a) = self.rooms.iter().find(|room| room.id == door.room_a) else {
+                return Err(format!("door {} references a missing first room", door.id));
+            };
+            let Some(room_b) = self.rooms.iter().find(|room| room.id == door.room_b) else {
+                return Err(format!("door {} references a missing second room", door.id));
+            };
+
+            if door.room_a == door.room_b
+                || GridEdge::new(door.edge.a, door.edge.b) != Some(door.edge)
+                || !self.contains(door.edge.a)
+                || !self.contains(door.edge.b)
+                || !self.is_walkable(door.edge.a)
+                || !self.is_walkable(door.edge.b)
+                || !room_a.cells.contains(&door.edge.a)
+                || !room_b.cells.contains(&door.edge.b)
+            {
+                return Err(format!(
+                    "door {} does not connect its declared adjacent rooms",
+                    door.id
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn door_at_edge(&self, edge: GridEdge) -> Option<&SpatialDoor> {
+        self.doors.iter().find(|door| door.edge == edge)
+    }
+
+    pub fn can_cross_edge(&self, from: GridPosition, to: GridPosition) -> bool {
+        let Some(edge) = GridEdge::new(from, to) else {
+            return false;
+        };
+        self.door_at_edge(edge)
+            .is_none_or(|door| door.state == DoorState::Open)
+    }
+
+    pub fn set_door_state(&mut self, id: &str, state: DoorState) -> bool {
+        let Some(door) = self.doors.iter_mut().find(|door| door.id == id) else {
+            return false;
+        };
+        if door.state == DoorState::Locked && state != DoorState::Locked {
+            return false;
+        }
+        door.state = state;
+        true
+    }
+
+    /// Unlock a door without opening it; a later interaction can open it.
+    pub fn unlock_door(&mut self, id: &str) -> bool {
+        let Some(door) = self.doors.iter_mut().find(|door| door.id == id) else {
+            return false;
+        };
+        if door.state != DoorState::Locked {
+            return false;
+        }
+        door.state = DoorState::Closed;
+        true
     }
 
     pub fn is_walkable(&self, position: GridPosition) -> bool {
@@ -210,7 +367,7 @@ impl LocalMap {
         true
     }
 
-    /// Safely edit terrain without overwriting an entry, discovery, passage, actor, or prop.
+    /// Safely edit terrain without overwriting an entry, discovery, passage, actor, room cell, or prop.
     pub fn set_terrain_for_editor(&mut self, position: GridPosition, terrain: Terrain) -> bool {
         if !self.contains(position)
             || self.is_editor_reserved_position(position)
@@ -540,6 +697,7 @@ impl LocalMap {
                 .interactables
                 .iter()
                 .any(|actor| actor.position == position)
+            || self.rooms.iter().any(|room| room.cells.contains(&position))
     }
 
     fn prop_placement_is_valid(
@@ -733,6 +891,8 @@ pub fn generate_local_map_with_layout(
         terrain_changes: Vec::new(),
         props: Vec::new(),
         interactables: Vec::new(),
+        rooms: Vec::new(),
+        doors: Vec::new(),
     };
     populate_generated_props(&mut map, &mut rng);
     if map.layout_id.as_deref() == Some("shrine_chamber") {
@@ -792,6 +952,48 @@ fn apply_shrine_chamber(map: &mut LocalMap) {
         kind: SpatialPropKind::Table,
         position: GridPosition { x: 5, y: 5 },
     });
+
+    let chamber_id = format!("{}.room.chamber", map.location_id);
+    let approach_id = format!("{}.room.approach", map.location_id);
+    let chamber_cells = (top + 1..bottom)
+        .flat_map(|y| (left + 1..right).map(move |x| GridPosition { x, y }))
+        .chain([GridPosition {
+            x: doorway_x,
+            y: bottom,
+        }])
+        .filter(|position| map.is_walkable(*position))
+        .collect::<Vec<_>>();
+    let approach_cells = (bottom + 1..map.height - 1)
+        .flat_map(|y| (1..map.width - 1).map(move |x| GridPosition { x, y }))
+        .filter(|position| map.is_walkable(*position))
+        .collect::<Vec<_>>();
+    map.rooms = vec![
+        SpatialRoom {
+            id: chamber_id.clone(),
+            cells: chamber_cells,
+        },
+        SpatialRoom {
+            id: approach_id.clone(),
+            cells: approach_cells,
+        },
+    ];
+    map.doors = vec![SpatialDoor {
+        id: format!("{}.door.chamber_threshold", map.location_id),
+        edge: GridEdge::new(
+            GridPosition {
+                x: doorway_x,
+                y: bottom,
+            },
+            GridPosition {
+                x: doorway_x,
+                y: bottom + 1,
+            },
+        )
+        .expect("shrine threshold cells are adjacent"),
+        room_a: chamber_id,
+        room_b: approach_id,
+        state: DoorState::Open,
+    }];
 }
 
 /// Add a sparse deterministic set of props outside the guaranteed
@@ -1413,7 +1615,10 @@ pub fn has_walkable_path(map: &LocalMap, start: GridPosition, goal: GridPosition
         ];
         for neighbor in neighbors.into_iter().flatten() {
             let index = index_of(neighbor);
-            if !visited[index] && map.is_walkable(neighbor) {
+            if !visited[index]
+                && map.is_walkable(neighbor)
+                && map.can_cross_edge(position, neighbor)
+            {
                 visited[index] = true;
                 queue.push_back(neighbor);
             }

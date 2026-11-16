@@ -7,7 +7,7 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
-const SAVE_FILE_VERSION: u32 = 3;
+const SAVE_FILE_VERSION: u32 = 4;
 pub const SAVE_BASE_NAME: &str = "ever_unfolding_saga_save";
 const SAVE_EXTENSION: &str = "json.gz";
 const LEGACY_SAVE_FILE_NAME: &str = "ever_unfolding_saga_save.json";
