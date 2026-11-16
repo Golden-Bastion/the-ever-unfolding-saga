@@ -294,6 +294,32 @@ fn invalid_spatial_discoveries_are_reported_by_content_validation() {
 }
 
 #[test]
+fn quest_evidence_objectives_must_reference_known_unique_discoveries() {
+    let mut content = default_campaign_content();
+    let quest = content
+        .quests
+        .first_mut()
+        .expect("base campaign should contain a quest template");
+    quest.required_evidence_ids = vec![
+        "poi.old_shrine.black_altar".into(),
+        "missing.evidence".into(),
+        "poi.old_shrine.black_altar".into(),
+        String::new(),
+    ];
+
+    let issues = content.validate();
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("unknown spatial evidence missing.evidence")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("repeats required evidence poi.old_shrine.black_altar")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("empty required evidence ID")));
+}
+
+#[test]
 fn spatial_evidence_requirements_must_exist_and_form_an_acyclic_graph() {
     let mut content = default_campaign_content();
     let old_shrine = content
