@@ -62,7 +62,7 @@ fn nearby_active_encounters_offer_a_stable_confront_action() {
         f32::from(encounter.position.y) + 0.5,
     );
 
-    assert!(!discover_available_interactions(&map, &game, nearby)
+    assert!(discover_available_interactions(&map, &game, nearby)
         .iter()
         .any(|item| item.action == InteractionActionKind::EngageEncounter));
 
@@ -77,6 +77,18 @@ fn nearby_active_encounters_offer_a_stable_confront_action() {
             && item.target == InteractionTarget::Encounter(encounter.id.clone())
             && item.label == "Confront: Ash Marauder"
     }));
+
+    let other_location = game
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id != location_id)
+        .expect("world should contain another location")
+        .id;
+    game.threat.activate(other_location, "Distant threat", "Elsewhere.");
+    assert!(discover_available_interactions(&map, &game, nearby)
+        .iter()
+        .any(|item| item.action == InteractionActionKind::EngageEncounter));
 
     let far_away = (f32::from(map.width) - 1.5, f32::from(map.height) - 1.5);
     assert!(!discover_available_interactions(&map, &game, far_away)

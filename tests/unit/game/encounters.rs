@@ -100,11 +100,12 @@ fn authored_encounters_spawn_without_the_legacy_global_threat_flag() {
     let location = state.world.location_by_id(location.id).unwrap().clone();
 
     assert!(!state.threat.active);
+    let player_tile = map.entry;
     assert!(ensure_spatial_encounter_on_entry(
         &state,
         &location,
         &mut map,
-        Some(map.entry),
+        Some(player_tile),
     ));
     let encounter = &map.encounters[0];
     assert_eq!(encounter.enemy_name, "Ash Marauder");

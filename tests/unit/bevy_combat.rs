@@ -126,11 +126,6 @@ fn spatial_encounter_game(enemy_hp: i32) -> crate::model::GameState {
         y: f32::from(encounter_position.y) + 0.5,
     });
     game.world.local_maps.push(map);
-    game.threat.activate(
-        location_id,
-        "A nearby threat",
-        "Something hostile remains here.",
-    );
     game
 }
 
@@ -183,6 +178,11 @@ fn spatial_encounter_health_survives_combat_retreat_and_reentry() {
 #[test]
 fn spatial_encounter_victory_persists_the_defeated_state() {
     let mut game = spatial_encounter_game(1);
+    game.threat.activate(
+        game.character.location_id,
+        "Local threat",
+        "The threat is at this location.",
+    );
     let mut encounter =
         crate::game::combat::start_spatial_encounter(&mut game, "encounter.combat_test.1")
             .expect("active spatial encounter should start");
@@ -202,4 +202,33 @@ fn spatial_encounter_victory_persists_the_defeated_state() {
         crate::spatial::SpatialEncounterStatus::Defeated
     );
     assert!(!game.threat.active);
+}
+#[test]
+fn spatial_encounter_victory_does_not_clear_a_threat_at_another_location() {
+    let mut game = spatial_encounter_game(1);
+    let other_location = game
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id != game.character.location_id)
+        .expect("world should contain another location")
+        .id;
+    game.threat.activate(
+        other_location,
+        "Distant threat",
+        "Something remains elsewhere.",
+    );
+    let mut encounter =
+        crate::game::combat::start_spatial_encounter(&mut game, "encounter.combat_test.1")
+            .expect("local encounter should not depend on the global threat");
+    let step = crate::game::combat::resolve_action(&mut game, &mut encounter, 0);
+    assert!(matches!(
+        step,
+        CombatStep::Result {
+            outcome: crate::game::combat::CombatResult::Victory,
+            ..
+        }
+    ));
+    assert!(game.threat.active);
+    assert_eq!(game.threat.source_location_id, Some(other_location));
 }

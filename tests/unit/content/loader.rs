@@ -71,6 +71,100 @@ fn mods_extend_and_override_character_parts_by_stable_id() {
     assert_eq!(face.requires_tags, vec!["human"]);
 }
 
+
+#[test]
+fn encounter_profiles_merge_by_stable_id_and_legacy_mods_preserve_spawn_metadata() {
+    let mut base = default_campaign_content();
+    let original = base
+        .encounters
+        .iter()
+        .find(|profile| profile.location_id.as_deref() == Some("location.old_shrine"))
+        .expect("base content should define the Old Shrine encounter")
+        .clone();
+
+    let mut legacy_mod = empty_mod_content();
+    legacy_mod.encounters.push(EncounterContent {
+        id: None,
+        location_id: None,
+        quest_id: None,
+        location_name: original.location_name.clone(),
+        enemy_name: "Modded Wretch".into(),
+        enemy_hp: 14,
+        enemy_power: 4,
+        trophy_item_name: original.trophy_item_name.clone(),
+        description: "A modded description.".into(),
+        weight: 1,
+        chance_percent: None,
+        conditions: None,
+    });
+    merge_campaign_content(&mut base, legacy_mod);
+
+    let overridden = base
+        .encounters
+        .iter()
+        .find(|profile| profile.id == original.id)
+        .expect("legacy override should preserve the original stable profile");
+    assert_eq!(overridden.enemy_name, "Modded Wretch");
+    assert_eq!(overridden.location_id, original.location_id);
+    assert_eq!(overridden.quest_id, original.quest_id);
+    assert_eq!(overridden.weight, original.weight);
+    assert_eq!(
+        overridden.conditions.as_ref().and_then(|value| value.dangerous),
+        Some(true)
+    );
+
+    let mut additional_mod = empty_mod_content();
+    additional_mod.encounters.push(EncounterContent {
+        id: Some("encounter.old_shrine.alternate".into()),
+        location_id: original.location_id.clone(),
+        quest_id: original.quest_id.clone(),
+        location_name: original.location_name.clone(),
+        enemy_name: "Shrine Echo".into(),
+        enemy_hp: 9,
+        enemy_power: 2,
+        trophy_item_name: "Echo Shard".into(),
+        description: "An echo rises beneath the altar.".into(),
+        weight: 2,
+        chance_percent: Some(75),
+        conditions: Some(EncounterSpawnConditions {
+            night: Some(true),
+            ..Default::default()
+        }),
+    });
+    merge_campaign_content(&mut base, additional_mod);
+    assert!(base.encounters.iter().any(|profile| {
+        profile.id.as_deref() == Some("encounter.old_shrine.alternate")
+    }));
+    assert!(base.validate().is_empty(), "invalid content: {:?}", base.validate());
+}
+
+#[test]
+fn invalid_encounter_spawn_metadata_is_rejected() {
+    let mut content = default_campaign_content();
+    let profile = content
+        .encounters
+        .first_mut()
+        .expect("base content should contain encounter profiles");
+    profile.weight = 0;
+    profile.chance_percent = Some(101);
+    profile.location_id = Some("location.missing".into());
+    profile.quest_id = Some("quest.missing".into());
+    profile.conditions = Some(EncounterSpawnConditions {
+        min_day: Some(9),
+        max_day: Some(3),
+        required_completed_quest_id: Some("quest.unknown".into()),
+        ..Default::default()
+    });
+
+    let issues = content.validate();
+    assert!(issues.iter().any(|issue| issue.contains("zero weight")));
+    assert!(issues.iter().any(|issue| issue.contains("invalid chance")));
+    assert!(issues.iter().any(|issue| issue.contains("unknown location ID")));
+    assert!(issues.iter().any(|issue| issue.contains("unknown quest ID")));
+    assert!(issues.iter().any(|issue| issue.contains("min_day greater than max_day")));
+    assert!(issues.iter().any(|issue| issue.contains("unknown completed quest")));
+}
+
 #[test]
 fn invalid_events_are_rejected_and_reported() {
     let mut base = default_campaign_content();
