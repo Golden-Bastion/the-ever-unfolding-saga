@@ -1,4 +1,5 @@
 pub(crate) mod actions;
+pub(crate) mod encounters;
 pub(crate) mod character;
 pub(crate) mod combat;
 pub(crate) mod console;

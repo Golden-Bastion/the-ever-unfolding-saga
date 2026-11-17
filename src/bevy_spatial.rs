@@ -26,11 +26,10 @@ use crate::interaction_actions::{
 };
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
-    apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_encounter_avoiding,
-    ensure_spatial_entity_placements, generate_local_map_with_layout, ExplorationSession,
-    GridPosition, LocalMap, LocalMapConfig, MapExit, SpatialDiscoveryDefinition,
-    SpatialEncounterDefinition, SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind,
-    Terrain,
+    apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_entity_placements,
+    generate_local_map_with_layout, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
+    MapExit, SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind,
+    SpatialPropKind, Terrain,
 };
 use crate::spatial_animation::{
     PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,
@@ -640,46 +639,22 @@ pub(crate) fn enter(
         map.points_of_interest
             .retain(|poi| poi.id != prototype_poi_id);
     }
-    if game.threat.active
-        && game
-            .threat
-            .source_location_id
-            .is_none_or(|source| source == location.id)
-        && !map
-            .encounters
-            .iter()
-            .any(|encounter| encounter.status == SpatialEncounterStatus::Active)
-    {
-        let (enemy_name, description, enemy_hp, enemy_power, trophy_name) =
-            crate::game::combat::encounter_profile(game, &location.name);
-        let encounter_id = format!(
-            "location.{}.encounter.{}",
-            location.id,
-            map.encounters.len() + 1
-        );
-        let avoid_position = game
-            .character
-            .exploration_session
-            .as_ref()
-            .filter(|session| session.location_id == location_id)
-            .and(game.character.exploration_position)
-            .map(|position| GridPosition {
-                x: position.x.floor().max(0.0) as u16,
-                y: position.y.floor().max(0.0) as u16,
-            });
-        ensure_spatial_encounter_avoiding(
-            &mut map,
-            SpatialEncounterDefinition {
-                id: encounter_id,
-                enemy_name,
-                description,
-                max_hp: enemy_hp,
-                power: enemy_power,
-                trophy_item_name: trophy_name,
-            },
-            avoid_position,
-        );
-    }
+    let avoid_position = game
+        .character
+        .exploration_session
+        .as_ref()
+        .filter(|session| session.location_id == location_id)
+        .and(game.character.exploration_position)
+        .map(|position| GridPosition {
+            x: position.x.floor().max(0.0) as u16,
+            y: position.y.floor().max(0.0) as u16,
+        });
+    crate::game::encounters::ensure_spatial_encounter_on_entry(
+        game,
+        location,
+        &mut map,
+        avoid_position,
+    );
     sync_map_interactable_placements(&mut map, game, location.id);
     state.maps.insert(location_id.clone(), map);
     let map = state.maps.get(&location_id).expect("map was just inserted");

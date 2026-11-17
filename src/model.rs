@@ -301,7 +301,10 @@ impl QuestObjective {
         match self.kind {
             QuestObjectiveKind::AcquireItem => format!("Acquire {}", self.target),
             QuestObjectiveKind::VisitLocation => format!("Visit {}", self.target),
-            QuestObjectiveKind::DefeatEnemy => format!("Defeat {}", self.target),
+            QuestObjectiveKind::DefeatEnemy => format!(
+                "Defeat {}",
+                self.target_label.as_deref().unwrap_or(&self.target)
+            ),
             QuestObjectiveKind::DiscoverEvidence => format!(
                 "Discover {}",
                 self.target_label.as_deref().unwrap_or(&self.target)
