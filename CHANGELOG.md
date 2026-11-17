@@ -2,22 +2,22 @@
 
 This file records work completed in the current development line. It is not a list of planned work. Earlier lines are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md), while unfinished work remains in [ROADMAP.md](ROADMAP.md).
 
-## v0.53.x — World topology and persistent spatial-world foundations
+## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.53.x development line beginning with v0.53.0. This line extends the local spatial prototype with independently persistent encounters and lays the groundwork for coherent world topology and a more reactive spatial world.
+The entries below cover the v0.52.x development line through v0.52.63. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
-### v0.53.0: Independent persistent spatial encounter groups
+### v0.52.63: Independent persistent spatial encounter groups
 
-- Added the optional `spawn_group` field to campaign encounter profiles. Profiles in the same group are weighted alternatives; different groups are selected independently and can produce multiple persistent encounters on one local map.
-- Kept profiles without a group in one default group, preserving existing campaign behavior and old mod definitions. Legacy local-map records without group metadata also reserve that default group.
-- Snapshotted the selected group with each encounter record. Existing active or defeated encounters retain their identity, health, position, and quest attribution; additional groups can materialize later when their conditions become eligible.
-- Removed the single-active-encounter placement restriction while retaining unique, reachable, collision-safe map positions. Nearby encounter interactions and combat continue to address each encounter by its stable record ID.
-- Added regression coverage for independent group selection, weighted alternatives, delayed group eligibility, legacy-save and mod compatibility, multiple nearby interaction targets, and exact encounter selection in combat.
-- Roaming, respawning, awareness/pursuit, and off-screen simulation remain separate follow-up work.
+- Added optional `spawn_group` metadata to campaign encounter profiles. Profiles in the same group remain weighted alternatives, while separate groups are evaluated independently and can each materialize a persistent encounter on one local map.
+- Snapshotted each encounter's group with its profile, health, placement, lifecycle state, and quest attribution. Existing records—including defeated records—reserve their group and are not rerolled, healed, moved, or respawned.
+- Preserved backward compatibility: profiles and saved records without group metadata use the shared default group, and the default-group deterministic identity format remains unchanged.
+- Added distinct, reachable, collision-safe placements for multiple encounters. Nearby interactions expose separate targets, and combat starts the exact selected encounter record by ID.
+- Added regression coverage for independent groups, weighted alternatives, delayed eligibility, legacy saves and mod definitions, ID-less profiles, multiple nearby targets, and exact combat targeting.
+- Persistent roaming, awareness/pursuit, respawning, off-screen simulation, and real-time spatial action combat remain separate follow-up work.
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.62. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.63. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)

@@ -4,33 +4,39 @@ This is the authoritative overview of unfinished work, current priorities, and p
 
 Completed work in the current development line belongs in [CHANGELOG.md](CHANGELOG.md); earlier completed work belongs in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md). Detailed design decisions live in [docs/design/](docs/design/README.md), while [system documentation](docs/systems/) describes current implementation behavior and boundaries.
 
-## Current development line — v0.53.x
+## Current development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.53.0.**
+**Repository version at this roadmap revision: 0.52.63.**
 
-**Theme:** world topology and persistent spatial-world expansion.
+**Theme:** spatial gameplay and presentation foundations.
 
-This line builds on the spatial exploration, UI, authoring, and persistence foundations established in v0.52.x. The encounter layer now supports multiple persistent records on one local map through independently selected spawn groups: profiles within one group remain weighted alternatives, while separate groups may each materialize one encounter. Stable identity, saved health, defeat state, and quest attribution remain attached to each record. The remaining work extends this foundation toward roaming entities and a richer living world rather than replacing it with a separate encounter simulation.
+The line has established the spatial exploration prototype, character/world authoring tools, spatial-first in-session navigation, contextual interactions, player animation, data-driven persistent encounter materialization with multiple independently selected encounter groups per local map, and the retained-presentation architecture. World Lab and its map editor now share the Character Lab two-pane workspace. Shared action groups give every button the width of the widest intrinsic button, within the available group width, and preserve word-boundary wrapping; the pause menu explicitly retains full-width actions. The delivered scope is recorded in the current changelog.
 
 ### Remaining work
 
-1. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are documented. Continue incremental asset creation and integration, and evolve contextual HUD hierarchy, objective/orientation cues, character-hub presentation, and platform-adaptive controls without overloading the spatial view. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
+1. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are now documented. Remaining work is incremental asset creation and integration, plus continued evolution of contextual HUD hierarchy, objective/orientation cues, character-hub presentation, and platform-adaptive controls without overloading the spatial view. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
 2. **Investigate a hybrid 2D-gameplay / 3D-rendering foundation.** Keep world simulation, grid navigation, collision, and persistent placements 2D while prototyping a 3D Bevy scene for 2D sprite placement, depth-buffer occlusion, lighting, and shadows. Audit the current renderer, test existing sprite-sheet assets and representative occlusion cases, assess Bevy 0.20 and Android feasibility, then record an explicit proceed/defer/reject decision and bounded next steps. Do not begin a wholesale renderer rewrite before the prototype validates the approach. See [hybrid 2D gameplay and 3D rendering](docs/design/hybrid-2d-gameplay-3d-rendering.md).
-3. **Establish coherent macro-geography.** Define shared global/regional coordinates and stable terrain sampling so adjacent regions agree at their boundaries regardless of generation order.
-4. **Anchor locations and routes to physical geography.** Give authored and generated locations stable geographical placement, and make route edges correspond to plausible terrain connections and local-map exits.
-5. **Expand frontier regions on demand.** Generate new regions without creating the entire world or rerolling established geography, routes, local maps, or discoveries.
-6. **Complete hybrid physical and known-route travel.** Keep physical traversal and fast travel complementary, including elapsed time, encounter/event interruption, route discovery, and conservative migration of older worlds.
-7. **Extend exploration across location types.** Make local maps consistently available while preserving direct location-level actions where spatial traversal is unnecessary.
-8. **Continue the dynamic-world layer.** Add persistent roaming entities, awareness and pursuit, and investigation/clue progression where supported by the authoritative world and simulation rules. Multiple independent encounter groups are implemented; roaming, off-screen simulation, and encounter respawning are not.
-9. **Establish the initial state-driven audio/music boundary.** Define transition behavior, separate music/SFX settings, and asset provenance.
 
 The retained-shell and keyed-row UI migration is complete and has been owner-validated through playtesting. New dynamic collections and screen regions should follow the established retained-host and keyed-identity contracts; this is ongoing architectural practice, not an unfinished migration.
 
-The interim World Map is complete for its current purpose: a topological view of known locations with pan/zoom and existing fast-travel behavior. Its screen and current presentation are not a pending redesign. A future geography-backed map depends on the world-generation and topology foundations above, not another interim-map UI pass.
+The interim World Map is complete for its current purpose: a topological view of known locations with pan/zoom and existing fast-travel behavior. Its screen and current presentation are not a pending redesign. A future geography-backed map depends on the world-generation and topology foundations below, not another interim-map UI pass.
 
-Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), [pixel-art direction](docs/design/pixel-art-direction.md), and [hybrid 2D gameplay and 3D rendering](docs/design/hybrid-2d-gameplay-3d-rendering.md).
+## Next milestone — v0.53.x: world topology and spatial-world expansion
 
-## Next milestone — v0.54.x: world content, simulation, character lives, and action combat
+**Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
+
+- Define shared macro-geography and stable regional/global coordinates. Adjacent regions must agree at their boundaries regardless of generation order.
+- Anchor authored and generated locations to physical geography and make route edges correspond to plausible terrain connections and local-map exits.
+- Expand frontier regions on demand without generating the entire world or rerolling established geography, routes, local maps, or discoveries.
+- Keep physical travel and known-route fast travel complementary, including travel time, encounter/event interruption, and conservative migration of older worlds.
+- Make exploration and local maps available consistently across supported location types while preserving direct location-level actions where spatial traversal is unnecessary.
+- Expand the data-driven encounter foundation with multiple independent encounters, persistent roaming entities, and investigation/clue progression where supported by the underlying world and simulation rules.
+- Establish the initial state-driven audio/music boundary, transition behavior, separate music/SFX settings, and provenance tracking.
+- Continue incremental pixel-art asset work against the approved visual standard.
+
+Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
+
+## Following milestone — v0.54.x: world content, simulation, character lives, and action combat
 
 **Goal:** make the expanded world more coherent and reactive, and let individual character lives create lasting, comprehensible consequences.
 
@@ -43,7 +49,7 @@ Design references: [world topology and hybrid travel](docs/design/world-topology
 
 Design references: [procedural content generation](docs/design/procedural-content-generation.md), [world simulation](docs/design/world-simulation.md), [character lives and inheritance](docs/design/character-lives-and-inheritance.md), and [real-time spatial combat](docs/design/real-time-spatial-combat.md).
 
-## Following milestone — v0.55.x: social power, livelihoods, and command
+## Later milestone — v0.55.x: social power, livelihoods, and command
 
 **Goal:** turn relationships, resources, and preparation into practical ways to act on and influence the persistent world.
 
