@@ -13,6 +13,8 @@ mod bevy_presentation;
 mod bevy_records;
 mod bevy_runtime;
 mod bevy_spatial;
+#[cfg(feature = "spatial-3d-prototype")]
+mod bevy_spatial_3d_prototype;
 mod bevy_touch;
 mod bevy_world_map_viewport;
 mod character_appearance;
@@ -45,6 +47,11 @@ pub fn run() {
         panic!("failed to initialize The Ever-Unfolding Saga game storage: {error}");
     }
     mod_manager::initialize_active_mods();
+
+    #[cfg(feature = "spatial-3d-prototype")]
+    bevy_spatial_3d_prototype::run();
+
+    #[cfg(not(feature = "spatial-3d-prototype"))]
     bevy_app::run();
 }
 
