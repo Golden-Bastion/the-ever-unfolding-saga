@@ -116,6 +116,28 @@ fn authored_encounters_spawn_without_the_legacy_global_threat_flag() {
     );
 }
 
+
+#[test]
+fn materialized_encounters_retain_the_authored_quest_identity() {
+    let (mut state, location, mut map, content_location_id) = fixture();
+    let mut authored = profile(
+        "spawn.test.quest-linked",
+        &content_location_id,
+        &location.name,
+        "Quest Warden",
+        1,
+    );
+    authored.quest_id = Some("quest.test.persistent_link".into());
+    replace_location_profiles(&mut state, &location.name, vec![authored]);
+    let location = state.world.location_by_id(location.id).unwrap().clone();
+
+    assert!(ensure_spatial_encounter_on_entry(&state, &location, &mut map, None));
+    assert_eq!(
+        map.encounters[0].quest_id.as_deref(),
+        Some("quest.test.persistent_link")
+    );
+}
+
 #[test]
 fn profile_conditions_require_matching_world_time_quests_and_character_state() {
     let (mut state, location, mut map, content_location_id) = fixture();
