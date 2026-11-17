@@ -6,7 +6,7 @@
 //! The current game renderer remains 2D. This example deliberately owns its
 //! camera, scene, materials, and demo motion so it cannot affect gameplay state.
 
-use std::f32::consts::{FRAC_1_SQRT_2, PI};
+use std::f32::consts::PI;
 
 use bevy::asset::RenderAssetUsages;
 use bevy::image::ImagePlugin;
@@ -147,20 +147,19 @@ fn setup(
     commands.spawn((
         Mesh3d(wall_top_mesh),
         MeshMaterial3d(wall_top_material),
-        Transform::from_translation(wall_ground + Vec3::Y * 1.15),
+        Transform::from_translation(wall_ground + Vec3::Y * 1.25),
     ));
     let wall_face_mesh = meshes.add(vertical_quad(Vec2::new(1.0, 1.25), full_texture_uvs()));
     commands.spawn((
         Mesh3d(wall_face_mesh.clone()),
         MeshMaterial3d(wall_left_material),
-        Transform::from_translation(wall_ground + Vec3::new(-0.48, 0.0, 0.0))
-            .with_rotation(sprite_rotation),
+        Transform::from_translation(wall_ground + Vec3::new(0.0, 0.0, 0.42)),
     ));
     commands.spawn((
         Mesh3d(wall_face_mesh),
         MeshMaterial3d(wall_right_material),
-        Transform::from_translation(wall_ground + Vec3::new(0.48, 0.0, 0.0))
-            .with_rotation(sprite_rotation),
+        Transform::from_translation(wall_ground + Vec3::new(0.42, 0.0, 0.0))
+            .with_rotation(Quat::from_rotation_y(PI * 0.5)),
     ));
 
     // The table is a deliberately wide sprite over a smaller conceptual
@@ -313,11 +312,7 @@ fn atlas_frame_uvs(
 
 fn grid_to_world(grid_position: Vec2) -> Vec3 {
     let centered = grid_position - Vec2::splat(f32::from(MAP_SIZE) * 0.5);
-    Vec3::new(
-        (centered.x - centered.y) * FRAC_1_SQRT_2,
-        0.0,
-        (centered.x + centered.y) * FRAC_1_SQRT_2,
-    )
+    Vec3::new(centered.x, 0.0, centered.y)
 }
 
 fn animate_actors(
@@ -371,7 +366,7 @@ mod tests {
     }
 
     #[test]
-    fn grid_projection_keeps_the_two_gameplay_axes_orthogonal() {
+    fn grid_projection_preserves_orthogonal_unit_gameplay_axes() {
         let origin = grid_to_world(Vec2::ZERO);
         let x_axis = grid_to_world(Vec2::X) - origin;
         let y_axis = grid_to_world(Vec2::Y) - origin;
