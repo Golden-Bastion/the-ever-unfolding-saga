@@ -90,6 +90,7 @@ fn alternate_encounter_profiles_complete_their_shared_authored_quest() {
         "Tester".into(),
         "Ash Walker".into(),
     );
+    crate::game::world::bootstrap_campaign_content(&mut state);
     let quest_index = state
         .quests
         .iter()
@@ -153,6 +154,7 @@ fn snapshotted_encounter_quest_id_survives_campaign_profile_changes() {
         "Tester".into(),
         "Ash Walker".into(),
     );
+    crate::game::world::bootstrap_campaign_content(&mut state);
     let quest_index = state
         .quests
         .iter()
