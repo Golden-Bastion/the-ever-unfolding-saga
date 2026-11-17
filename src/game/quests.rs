@@ -140,10 +140,6 @@ pub(crate) fn sync_objectives(state: &mut GameState, quest_index: usize) {
     }
 }
 
-pub(crate) fn record_enemy_defeat(state: &mut GameState, enemy_name: &str, location_id: EntityId) {
-    record_enemy_defeat_with_quest(state, enemy_name, location_id, None);
-}
-
 /// Credit an encounter using the quest identity snapshotted into its persistent map record.
 /// The current campaign content is only a compatibility fallback for older encounters.
 pub(crate) fn record_spatial_encounter_defeat(
