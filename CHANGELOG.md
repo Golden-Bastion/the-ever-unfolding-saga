@@ -4,7 +4,14 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.63. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.64. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+
+### v0.52.64: Isolated 3D spatial-renderer prototype
+
+- Added an opt-in Bevy 0.20 example that renders the existing spatial pixel-art assets in a 3D orthographic scene without changing the production 2D renderer or renderer-neutral gameplay model.
+- Demonstrated a 2D gameplay-grid-to-3D-ground transform, foot-anchored atlas meshes, two animated crossing actors, textured ground, a separated wall top/face, and a wide prop sprite using depth-buffer visibility.
+- Added a single directional-light shadow test with an L-key toggle and focused tests for atlas UV selection and the orthogonal grid-to-scene mapping.
+- Kept the 3D PBR dependency behind the `spatial-3d-prototype` feature. This is an isolated technical spike, not a production renderer migration or a completed desktop/Android feasibility decision.
 
 ### v0.52.63: Independent persistent spatial encounter groups
 
