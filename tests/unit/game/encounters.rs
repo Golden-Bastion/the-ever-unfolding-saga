@@ -191,6 +191,44 @@ fn weighted_selection_is_deterministic_and_materialized_records_are_never_reroll
     assert_ne!(first.encounters[0].enemy_name, "Changed");
 }
 
+
+#[test]
+fn legacy_location_only_profiles_keep_their_global_threat_gate() {
+    let (mut state, location, mut map, content_location_id) = fixture();
+    let mut legacy = profile(
+        "ignored.test.id",
+        &content_location_id,
+        &location.name,
+        "Legacy Marauder",
+        1,
+    );
+    legacy.id = None;
+    legacy.location_id = None;
+    legacy.quest_id = None;
+    legacy.conditions = None;
+    replace_location_profiles(&mut state, &location.name, vec![legacy]);
+    let location = state.world.location_by_id(location.id).unwrap().clone();
+
+    assert!(!ensure_spatial_encounter_on_entry(
+        &state,
+        &location,
+        &mut map,
+        None
+    ));
+    state.threat.activate(
+        location.id,
+        "Legacy location threat",
+        "The old encounter profile remains available.",
+    );
+    assert!(ensure_spatial_encounter_on_entry(
+        &state,
+        &location,
+        &mut map,
+        None
+    ));
+    assert_eq!(map.encounters[0].enemy_name, "Legacy Marauder");
+}
+
 #[test]
 fn zero_chance_suppresses_a_profile_but_legacy_threats_keep_the_old_fallback() {
     let (mut state, location, mut map, content_location_id) = fixture();

@@ -588,7 +588,7 @@ impl CampaignContent {
                         encounter.id.as_deref().unwrap_or(&encounter.location_name),
                         quest_id
                     )),
-                    Some(quest_location) if *quest_location != encounter.location_name => {
+                    Some(quest_location) if *quest_location != encounter.location_name.as_str() => {
                         issues.push(format!(
                             "encounter profile {} is assigned to a quest at a different location",
                             encounter.id.as_deref().unwrap_or(&encounter.location_name)

@@ -72,6 +72,27 @@ fn mods_extend_and_override_character_parts_by_stable_id() {
 }
 
 
+
+#[test]
+fn legacy_encounter_definitions_receive_safe_default_spawn_metadata() {
+    let legacy = serde_json::json!({
+        "location_name": "Old Shrine",
+        "enemy_name": "Old Marauder",
+        "enemy_hp": 12,
+        "enemy_power": 3,
+        "trophy_item_name": "Old Token",
+        "description": "A threat from an older campaign definition."
+    });
+    let profile: EncounterContent =
+        serde_json::from_value(legacy).expect("legacy profiles should still deserialize");
+    assert!(profile.id.is_none());
+    assert!(profile.location_id.is_none());
+    assert!(profile.quest_id.is_none());
+    assert_eq!(profile.weight, 1);
+    assert!(profile.chance_percent.is_none());
+    assert!(profile.conditions.is_none());
+}
+
 #[test]
 fn encounter_profiles_merge_by_stable_id_and_legacy_mods_preserve_spawn_metadata() {
     let mut base = default_campaign_content();

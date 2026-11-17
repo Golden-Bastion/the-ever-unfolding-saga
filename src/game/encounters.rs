@@ -91,6 +91,9 @@ fn select_profile<'a>(
         .into_iter()
         .filter(|profile| profile.weight > 0)
         .filter(|profile| {
+            !is_legacy_profile(profile) || legacy_threat_belongs_here(state, location)
+        })
+        .filter(|profile| {
             profile.enemy_hp > 0
                 && profile.enemy_power >= 0
                 && !profile.enemy_name.trim().is_empty()
@@ -126,6 +129,21 @@ fn select_profile<'a>(
         selection -= weight;
     }
     candidates.last().copied()
+}
+
+fn is_legacy_profile(profile: &EncounterContent) -> bool {
+    profile.id.is_none()
+        && profile.location_id.is_none()
+        && profile.quest_id.is_none()
+        && profile.conditions.is_none()
+}
+
+fn legacy_threat_belongs_here(state: &GameState, location: &Location) -> bool {
+    state.threat.active
+        && state
+            .threat
+            .source_location_id
+            .is_none_or(|source| source == location.id)
 }
 
 fn conditions_match(
