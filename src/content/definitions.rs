@@ -143,6 +143,10 @@ pub struct EncounterContent {
     /// Optional quest identity used to credit any eligible profile for that quest.
     #[serde(default)]
     pub quest_id: Option<String>,
+    /// Profiles in the same group are weighted alternatives; separate groups spawn independently.
+    /// Omitted groups use the legacy-compatible single default group.
+    #[serde(default)]
+    pub spawn_group: Option<String>,
     pub location_name: String,
     pub enemy_name: String,
     pub enemy_hp: i32,
@@ -576,6 +580,16 @@ impl CampaignContent {
             if encounter.weight == 0 {
                 issues.push(format!(
                     "encounter profile {} has zero weight",
+                    encounter.id.as_deref().unwrap_or(&encounter.location_name)
+                ));
+            }
+            if encounter
+                .spawn_group
+                .as_deref()
+                .is_some_and(|group| group.trim().is_empty())
+            {
+                issues.push(format!(
+                    "encounter profile {} has an empty spawn group",
                     encounter.id.as_deref().unwrap_or(&encounter.location_name)
                 ));
             }

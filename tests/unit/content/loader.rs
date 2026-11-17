@@ -86,6 +86,7 @@ fn legacy_encounter_definitions_receive_safe_default_spawn_metadata() {
     assert!(profile.id.is_none());
     assert!(profile.location_id.is_none());
     assert!(profile.quest_id.is_none());
+    assert!(profile.spawn_group.is_none());
     assert_eq!(profile.weight, 1);
     assert!(profile.chance_percent.is_none());
     assert!(profile.conditions.is_none());
@@ -94,18 +95,22 @@ fn legacy_encounter_definitions_receive_safe_default_spawn_metadata() {
 #[test]
 fn encounter_profiles_merge_by_stable_id_and_legacy_mods_preserve_spawn_metadata() {
     let mut base = default_campaign_content();
-    let original = base
-        .encounters
-        .iter()
-        .find(|profile| profile.location_id.as_deref() == Some("location.old_shrine"))
-        .expect("base content should define the Old Shrine encounter")
-        .clone();
+    let original = {
+        let profile = base
+            .encounters
+            .iter_mut()
+            .find(|profile| profile.location_id.as_deref() == Some("location.old_shrine"))
+            .expect("base content should define the Old Shrine encounter");
+        profile.spawn_group = Some("shrine_watch".into());
+        profile.clone()
+    };
 
     let mut legacy_mod = empty_mod_content();
     legacy_mod.encounters.push(EncounterContent {
         id: None,
         location_id: None,
         quest_id: None,
+        spawn_group: None,
         location_name: original.location_name.clone(),
         enemy_name: "Modded Wretch".into(),
         enemy_hp: 14,
@@ -126,6 +131,7 @@ fn encounter_profiles_merge_by_stable_id_and_legacy_mods_preserve_spawn_metadata
     assert_eq!(overridden.enemy_name, "Modded Wretch");
     assert_eq!(overridden.location_id, original.location_id);
     assert_eq!(overridden.quest_id, original.quest_id);
+    assert_eq!(overridden.spawn_group, original.spawn_group);
     assert_eq!(overridden.weight, original.weight);
     assert_eq!(
         overridden
@@ -140,6 +146,7 @@ fn encounter_profiles_merge_by_stable_id_and_legacy_mods_preserve_spawn_metadata
         id: Some("encounter.old_shrine.alternate".into()),
         location_id: original.location_id.clone(),
         quest_id: original.quest_id.clone(),
+        spawn_group: Some("night_watch".into()),
         location_name: original.location_name.clone(),
         enemy_name: "Shrine Echo".into(),
         enemy_hp: 9,
@@ -154,10 +161,12 @@ fn encounter_profiles_merge_by_stable_id_and_legacy_mods_preserve_spawn_metadata
         }),
     });
     merge_campaign_content(&mut base, additional_mod);
-    assert!(base
+    let alternate = base
         .encounters
         .iter()
-        .any(|profile| { profile.id.as_deref() == Some("encounter.old_shrine.alternate") }));
+        .find(|profile| profile.id.as_deref() == Some("encounter.old_shrine.alternate"))
+        .expect("mod profile should be appended");
+    assert_eq!(alternate.spawn_group.as_deref(), Some("night_watch"));
     assert!(
         base.validate().is_empty(),
         "invalid content: {:?}",
@@ -174,6 +183,7 @@ fn invalid_encounter_spawn_metadata_is_rejected() {
         .expect("base content should contain encounter profiles");
     profile.weight = 0;
     profile.chance_percent = Some(101);
+    profile.spawn_group = Some("  ".into());
     profile.location_id = Some("location.missing".into());
     profile.quest_id = Some("quest.missing".into());
     profile.conditions = Some(EncounterSpawnConditions {
@@ -186,6 +196,7 @@ fn invalid_encounter_spawn_metadata_is_rejected() {
     let issues = content.validate();
     assert!(issues.iter().any(|issue| issue.contains("zero weight")));
     assert!(issues.iter().any(|issue| issue.contains("invalid chance")));
+    assert!(issues.iter().any(|issue| issue.contains("empty spawn group")));
     assert!(issues
         .iter()
         .any(|issue| issue.contains("unknown location ID")));

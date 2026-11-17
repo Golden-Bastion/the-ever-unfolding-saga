@@ -1,9 +1,8 @@
 //! Deterministic, data-driven materialization of persistent local encounters.
 //!
-//! This module selects authored encounter profiles from the current world
-//! context, then snapshots the selected profile into the renderer-neutral local
-//! map. Existing map records always win: content or condition changes never
-//! silently replace, heal, or respawn an established encounter.
+//! Profiles sharing a spawn group are weighted alternatives. Different groups
+//! are evaluated independently, allowing multiple persistent encounters on one
+//! map without changing the existing default-group behavior.
 
 use crate::content::definitions::{EncounterContent, EncounterSpawnConditions};
 use crate::model::{GameState, Location};
@@ -11,20 +10,22 @@ use crate::rng::DeterministicRng;
 use crate::spatial::{
     ensure_spatial_encounter_avoiding, GridPosition, LocalMap, SpatialEncounterDefinition,
 };
+use std::collections::BTreeMap;
 
-/// Materialize the first eligible encounter for a location when its local map
-/// has no encounter history. A defeated record is history too and prevents a
-/// later re-entry from silently respawning the threat.
+const DEFAULT_ENCOUNTER_SPAWN_GROUP: &str = "default";
+
+/// Materialize one eligible profile per unrepresented spawn group on entry.
+///
+/// Existing map records are authoritative: a record reserves its group even
+/// after defeat, and later profile changes cannot replace or heal it. Groups
+/// with no currently eligible profile remain unresolved and can spawn later
+/// when their authored conditions become true.
 pub(crate) fn ensure_spatial_encounter_on_entry(
     state: &GameState,
     location: &Location,
     map: &mut LocalMap,
     avoid_position: Option<GridPosition>,
 ) -> bool {
-    if !map.encounters.is_empty() {
-        return false;
-    }
-
     let content = state.campaign_content.as_ref();
     let content_location_id = content.and_then(|content| {
         content
@@ -44,16 +45,42 @@ pub(crate) fn ensure_spatial_encounter_on_entry(
         .unwrap_or_default();
 
     if !profiles.is_empty() {
-        let Some(selected) = select_profile(state, location, map, profiles) else {
-            return false;
-        };
-        return materialize_profile(location, map, selected, avoid_position);
+        let mut groups = BTreeMap::<String, Vec<&EncounterContent>>::new();
+        for profile in profiles {
+            let group = profile
+                .spawn_group
+                .as_deref()
+                .unwrap_or(DEFAULT_ENCOUNTER_SPAWN_GROUP);
+            if group.trim().is_empty() {
+                continue;
+            }
+            groups.entry(group.to_string()).or_default().push(profile);
+        }
+
+        let mut materialized = false;
+        for (group, candidates) in groups {
+            if map.encounters.iter().any(|existing| {
+                effective_spawn_group(existing.spawn_group.as_deref()) == group
+            }) {
+                continue;
+            }
+            let Some(selected) = select_profile(state, location, map, &group, candidates) else {
+                continue;
+            };
+            materialized |=
+                materialize_profile(location, map, selected, &group, avoid_position);
+        }
+        return materialized;
     }
 
     // Older campaigns and mods may have supplied only the global threat state
     // and a location-name-based encounter definition. Keep that path as a
-    // fallback, but do not let it bypass authored spawn conditions.
-    if !state.threat.active
+    // fallback, but do not let it bypass authored spawn conditions or create a
+    // second record in the default group.
+    if map.encounters.iter().any(|existing| {
+        effective_spawn_group(existing.spawn_group.as_deref())
+            == DEFAULT_ENCOUNTER_SPAWN_GROUP
+    }) || !state.threat.active
         || state
             .threat
             .source_location_id
@@ -75,6 +102,7 @@ pub(crate) fn ensure_spatial_encounter_on_entry(
                 location.id
             ),
             quest_id: None,
+            spawn_group: None,
             enemy_name,
             description,
             max_hp,
@@ -85,10 +113,15 @@ pub(crate) fn ensure_spatial_encounter_on_entry(
     )
 }
 
+fn effective_spawn_group(group: Option<&str>) -> &str {
+    group.unwrap_or(DEFAULT_ENCOUNTER_SPAWN_GROUP)
+}
+
 fn select_profile<'a>(
     state: &GameState,
     location: &Location,
     map: &LocalMap,
+    spawn_group: &str,
     profiles: Vec<&'a EncounterContent>,
 ) -> Option<&'a EncounterContent> {
     let mut candidates = profiles
@@ -123,7 +156,12 @@ fn select_profile<'a>(
     if total_weight == 0 {
         return None;
     }
-    let mut rng = DeterministicRng::new(spawn_seed(state, location, map));
+    let selection_seed = if spawn_group == DEFAULT_ENCOUNTER_SPAWN_GROUP {
+        spawn_seed(state, location, map)
+    } else {
+        spawn_seed(state, location, map) ^ stable_hash(spawn_group)
+    };
+    let mut rng = DeterministicRng::new(selection_seed);
     let mut selection = rng.next_u64() % total_weight;
     for profile in &candidates {
         let weight = u64::from(profile.weight);
@@ -139,6 +177,7 @@ fn is_legacy_profile(profile: &EncounterContent) -> bool {
     profile.id.is_none()
         && profile.location_id.is_none()
         && profile.quest_id.is_none()
+        && profile.spawn_group.is_none()
         && profile.conditions.is_none()
 }
 
@@ -210,6 +249,7 @@ fn materialize_profile(
     location: &Location,
     map: &mut LocalMap,
     profile: &EncounterContent,
+    spawn_group: &str,
     avoid_position: Option<GridPosition>,
 ) -> bool {
     let identity = profile
@@ -222,6 +262,8 @@ fn materialize_profile(
         SpatialEncounterDefinition {
             id: format!("location.{}.encounter.{}", location.id, identity),
             quest_id: profile.quest_id.clone(),
+            spawn_group: (spawn_group != DEFAULT_ENCOUNTER_SPAWN_GROUP)
+                .then(|| spawn_group.to_string()),
             enemy_name: profile.enemy_name.clone(),
             description: profile.description.clone(),
             max_hp: profile.enemy_hp,

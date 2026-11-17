@@ -158,6 +158,7 @@ fn merge_encounters(base: &mut Vec<EncounterContent>, incoming: Vec<EncounterCon
             entry.location_id = existing.location_id.clone();
             entry.quest_id = existing.quest_id.clone();
             entry.weight = existing.weight;
+            entry.spawn_group = existing.spawn_group.clone();
             entry.chance_percent = existing.chance_percent;
             entry.conditions = existing.conditions.clone();
             *existing = entry;

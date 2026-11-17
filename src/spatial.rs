@@ -69,6 +69,9 @@ pub struct SpatialEncounter {
     /// Authored quest identity captured with the profile, independent of later content updates.
     #[serde(default)]
     pub quest_id: Option<String>,
+    /// Stable group identity; absent legacy values belong to the default group.
+    #[serde(default)]
+    pub spawn_group: Option<String>,
     pub position: GridPosition,
     pub enemy_name: String,
     pub description: String,
@@ -617,6 +620,10 @@ impl LocalMap {
                     .quest_id
                     .as_deref()
                     .is_some_and(|id| id.trim().is_empty())
+                || encounter
+                    .spawn_group
+                    .as_deref()
+                    .is_some_and(|group| group.trim().is_empty())
                 || encounter.max_hp <= 0
                 || encounter.power < 0
                 || !(0..=encounter.max_hp).contains(&encounter.current_hp)
@@ -1538,6 +1545,7 @@ pub fn apply_authored_spatial_discoveries(
 pub struct SpatialEncounterDefinition {
     pub id: String,
     pub quest_id: Option<String>,
+    pub spawn_group: Option<String>,
     pub enemy_name: String,
     pub description: String,
     pub max_hp: i32,
@@ -1545,7 +1553,7 @@ pub struct SpatialEncounterDefinition {
     pub trophy_item_name: String,
 }
 
-/// Create at most one active encounter on a map. Candidate cells are chosen
+/// Add one persistent encounter to a map. Candidate cells are chosen
 /// deterministically from the map seed and encounter identity, and must be
 /// reachable without overlapping existing authored or persistent content.
 pub fn ensure_spatial_encounter(
@@ -1562,6 +1570,7 @@ pub fn ensure_spatial_encounter(
         SpatialEncounterDefinition {
             id,
             quest_id: None,
+            spawn_group: None,
             enemy_name,
             description,
             max_hp,
@@ -1582,6 +1591,7 @@ pub fn ensure_spatial_encounter_avoiding(
     let SpatialEncounterDefinition {
         id,
         quest_id,
+        spawn_group,
         enemy_name,
         description,
         max_hp,
@@ -1593,20 +1603,15 @@ pub fn ensure_spatial_encounter_avoiding(
         || description.trim().is_empty()
         || trophy_item_name.trim().is_empty()
         || quest_id.as_deref().is_some_and(|id| id.trim().is_empty())
+        || spawn_group
+            .as_deref()
+            .is_some_and(|group| group.trim().is_empty())
         || max_hp <= 0
         || power < 0
         || map.encounters.iter().any(|encounter| encounter.id == id)
     {
         return false;
     }
-    if map
-        .encounters
-        .iter()
-        .any(|encounter| encounter.status == SpatialEncounterStatus::Active)
-    {
-        return false;
-    }
-
     let reachable = reachable_walkable_tiles(map);
     let candidates = (1..map.height.saturating_sub(1))
         .flat_map(|y| (1..map.width.saturating_sub(1)).map(move |x| GridPosition { x, y }))
@@ -1630,6 +1635,7 @@ pub fn ensure_spatial_encounter_avoiding(
     map.place_spatial_encounter(SpatialEncounter {
         id,
         quest_id,
+        spawn_group,
         position,
         enemy_name,
         description,
