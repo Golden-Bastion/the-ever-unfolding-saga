@@ -1768,12 +1768,6 @@ fn spatial_confront_control_requires_a_nearby_encounter_at_the_current_location(
     );
     let distant = Vec2::new(f32::from(map.width) - 1.5, f32::from(map.height) - 1.5);
 
-    assert!(!spatial_investigation_available(&game, Some(&map), nearby));
-    game.threat.activate(
-        current_location,
-        "A nearby threat".to_string(),
-        "Something stirs nearby.".to_string(),
-    );
     assert!(spatial_investigation_available(&game, Some(&map), nearby));
     assert!(!spatial_investigation_available(&game, Some(&map), distant));
 
@@ -1789,7 +1783,7 @@ fn spatial_confront_control_requires_a_nearby_encounter_at_the_current_location(
         "A distant threat".to_string(),
         "Something stirs elsewhere.".to_string(),
     );
-    assert!(!spatial_investigation_available(&game, Some(&map), nearby));
+    assert!(spatial_investigation_available(&game, Some(&map), nearby));
 }
 
 #[test]

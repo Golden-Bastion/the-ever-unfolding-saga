@@ -36,22 +36,37 @@ pub(crate) fn normalize_quest(state: &mut GameState, quest_index: usize) -> bool
             1,
         ));
     }
-    if let Some(enemy_name) = state
-        .campaign_content
-        .as_ref()
-        .and_then(|content| {
-            state
-                .world
-                .location_by_id(quest_snapshot.target_location_id)
-                .and_then(|location| content.encounter_for(&location.name))
-        })
-        .map(|encounter| encounter.enemy_name.clone())
+    if let Some(location) = state
+        .world
+        .location_by_id(quest_snapshot.target_location_id)
     {
-        objectives.push(QuestObjective::new(
-            QuestObjectiveKind::DefeatEnemy,
-            enemy_name,
-            1,
-        ));
+        let has_quest_profiles = state.campaign_content.as_ref().is_some_and(|content| {
+            !quest_snapshot.content_id.is_empty()
+                && content.encounters.iter().any(|encounter| {
+                    encounter.quest_id.as_deref() == Some(quest_snapshot.content_id.as_str())
+                        && encounter.location_name == location.name
+                })
+        });
+        if has_quest_profiles {
+            let mut objective = QuestObjective::new(
+                QuestObjectiveKind::DefeatEnemy,
+                quest_snapshot.content_id.clone(),
+                1,
+            );
+            objective.target_label = Some(format!("the threat at {}", location.name));
+            objectives.push(objective);
+        } else if let Some(enemy_name) = state
+            .campaign_content
+            .as_ref()
+            .and_then(|content| content.encounter_for(&location.name))
+            .map(|encounter| encounter.enemy_name.clone())
+        {
+            objectives.push(QuestObjective::new(
+                QuestObjectiveKind::DefeatEnemy,
+                enemy_name,
+                1,
+            ));
+        }
     }
     if let Some(quest) = state.quests.get_mut(quest_index) {
         quest.objectives = objectives;
@@ -125,9 +140,75 @@ pub(crate) fn sync_objectives(state: &mut GameState, quest_index: usize) {
     }
 }
 
-pub(crate) fn record_enemy_defeat(state: &mut GameState, enemy_name: &str, location_id: EntityId) {
+/// Credit an encounter using the quest identity snapshotted into its persistent map record.
+/// The current campaign content is only a compatibility fallback for older encounters.
+pub(crate) fn record_spatial_encounter_defeat(
+    state: &mut GameState,
+    enemy_name: &str,
+    location_id: EntityId,
+    quest_id: Option<&str>,
+) {
+    record_enemy_defeat_with_quest(state, enemy_name, location_id, quest_id);
+}
+
+fn record_enemy_defeat_with_quest(
+    state: &mut GameState,
+    enemy_name: &str,
+    location_id: EntityId,
+    encounter_quest_id: Option<&str>,
+) {
     normalize_all(state);
+    let location_name = state
+        .world
+        .location_by_id(location_id)
+        .map(|location| location.name.clone());
     for index in 0..state.quests.len() {
+        let snapshot_matches_quest = encounter_quest_id
+            .is_some_and(|id| !id.trim().is_empty() && state.quests[index].content_id == id);
+        let content_matches_quest = {
+            let quest = &state.quests[index];
+            location_name.as_deref().is_some_and(|location_name| {
+                state.campaign_content.as_ref().is_some_and(|content| {
+                    content.encounters.iter().any(|profile| {
+                        profile.quest_id.as_deref() == Some(quest.content_id.as_str())
+                            && profile.location_name == location_name
+                            && profile.enemy_name == enemy_name
+                    })
+                })
+            })
+        };
+        let profile_matches_quest = snapshot_matches_quest || content_matches_quest;
+
+        if snapshot_matches_quest {
+            if let Some(quest) = state.quests.get_mut(index) {
+                if quest.offered && !quest.completed && quest.target_location_id == location_id {
+                    let content_id = quest.content_id.clone();
+                    let label = location_name
+                        .as_deref()
+                        .map(|name| format!("the threat at {name}"))
+                        .unwrap_or_else(|| "the local threat".to_string());
+                    if !quest.objectives.iter().any(|objective| {
+                        objective.kind == QuestObjectiveKind::DefeatEnemy
+                            && objective.target == content_id
+                            && !objective.completed
+                    }) {
+                        if let Some(existing) = quest.objectives.iter_mut().find(|objective| {
+                            objective.kind == QuestObjectiveKind::DefeatEnemy
+                                && !objective.completed
+                        }) {
+                            existing.target = content_id;
+                            existing.target_label = Some(label);
+                        } else {
+                            let mut objective =
+                                QuestObjective::new(QuestObjectiveKind::DefeatEnemy, content_id, 1);
+                            objective.target_label = Some(label);
+                            quest.objectives.push(objective);
+                        }
+                    }
+                }
+            }
+        }
+
         let relevant = {
             let quest = &state.quests[index];
             quest.offered
@@ -135,18 +216,21 @@ pub(crate) fn record_enemy_defeat(state: &mut GameState, enemy_name: &str, locat
                 && quest.target_location_id == location_id
                 && quest.objectives.iter().any(|objective| {
                     objective.kind == QuestObjectiveKind::DefeatEnemy
-                        && objective.target == enemy_name
                         && !objective.completed
+                        && (objective.target == enemy_name
+                            || (objective.target == quest.content_id && profile_matches_quest))
                 })
         };
         if !relevant {
             continue;
         }
         if let Some(quest) = state.quests.get_mut(index) {
+            let quest_content_id = quest.content_id.clone();
             for objective in &mut quest.objectives {
                 if objective.kind == QuestObjectiveKind::DefeatEnemy
-                    && objective.target == enemy_name
                     && !objective.completed
+                    && (objective.target == enemy_name
+                        || (objective.target == quest_content_id && profile_matches_quest))
                 {
                     objective.progress =
                         objective.progress.saturating_add(1).min(objective.required);

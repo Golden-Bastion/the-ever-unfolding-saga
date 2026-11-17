@@ -4,7 +4,7 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.61. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.62. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
@@ -313,3 +313,13 @@ The entries below cover the v0.52.x development line through v0.52.61. This line
 - Made the final Black Altar finding an evidence objective for "Quiet the Old Shrine"; the authored prerequisite chain ensures the preceding clues must be understood first.
 - Added campaign-content and map-placement regression coverage for the clue order and prerequisite metadata, and documented the shipped investigation.
 - Bumped Rust and Android application metadata to 0.52.61.
+
+### v0.52.62: Data-driven persistent spatial encounter spawning (#470)
+
+- Extended campaign encounter definitions with stable profile, location, and optional quest IDs; weighted selection; deterministic chance; and conditions for time of day, danger, world day, completed quests, and character conditions.
+- Added deterministic on-entry profile selection derived from persistent map/location identity and world time, without consuming the general gameplay RNG stream. The selected combat profile is snapshotted into the local map and is not silently rerolled or respawned after materialization.
+- Made local encounter records authoritative for nearby confrontation and combat startup while retaining the legacy global-threat path for older location-name-only content. Victory only clears a global threat associated with the defeated location.
+- Linked alternative encounter profiles to the same authored quest objective, persisted quest attribution with the local encounter record so later content changes cannot sever that link, and added stable-ID mod extension/override behavior with legacy mod compatibility.
+- Added focused coverage for weighted and conditional selection, deterministic materialization, no-reroll persistence, mod merging and validation, legacy deserialization/threat gating, local confrontation without a global threat, and quest credit for alternative profiles.
+- Documented the current single-record-per-map boundary and left roaming entities, concurrent encounters, and real-time spatial combat to their later development work.
+- Bumped Rust and Android application metadata to 0.52.62.

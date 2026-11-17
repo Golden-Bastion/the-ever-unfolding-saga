@@ -66,6 +66,9 @@ pub enum SpatialEncounterStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpatialEncounter {
     pub id: String,
+    /// Authored quest identity captured with the profile, independent of later content updates.
+    #[serde(default)]
+    pub quest_id: Option<String>,
     pub position: GridPosition,
     pub enemy_name: String,
     pub description: String,
@@ -579,6 +582,10 @@ impl LocalMap {
         if encounter.id.trim().is_empty()
             || encounter.enemy_name.trim().is_empty()
             || encounter.trophy_item_name.trim().is_empty()
+            || encounter
+                .quest_id
+                .as_deref()
+                .is_some_and(|id| id.trim().is_empty())
             || encounter.max_hp <= 0
             || encounter.power < 0
             || !(0..=encounter.max_hp).contains(&encounter.current_hp)
@@ -606,6 +613,10 @@ impl LocalMap {
             }
             if encounter.enemy_name.trim().is_empty()
                 || encounter.trophy_item_name.trim().is_empty()
+                || encounter
+                    .quest_id
+                    .as_deref()
+                    .is_some_and(|id| id.trim().is_empty())
                 || encounter.max_hp <= 0
                 || encounter.power < 0
                 || !(0..=encounter.max_hp).contains(&encounter.current_hp)
@@ -1526,6 +1537,7 @@ pub fn apply_authored_spatial_discoveries(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpatialEncounterDefinition {
     pub id: String,
+    pub quest_id: Option<String>,
     pub enemy_name: String,
     pub description: String,
     pub max_hp: i32,
@@ -1549,6 +1561,7 @@ pub fn ensure_spatial_encounter(
         map,
         SpatialEncounterDefinition {
             id,
+            quest_id: None,
             enemy_name,
             description,
             max_hp,
@@ -1568,6 +1581,7 @@ pub fn ensure_spatial_encounter_avoiding(
 ) -> bool {
     let SpatialEncounterDefinition {
         id,
+        quest_id,
         enemy_name,
         description,
         max_hp,
@@ -1578,6 +1592,7 @@ pub fn ensure_spatial_encounter_avoiding(
         || enemy_name.trim().is_empty()
         || description.trim().is_empty()
         || trophy_item_name.trim().is_empty()
+        || quest_id.as_deref().is_some_and(|id| id.trim().is_empty())
         || max_hp <= 0
         || power < 0
         || map.encounters.iter().any(|encounter| encounter.id == id)
@@ -1614,6 +1629,7 @@ pub fn ensure_spatial_encounter_avoiding(
 
     map.place_spatial_encounter(SpatialEncounter {
         id,
+        quest_id,
         position,
         enemy_name,
         description,

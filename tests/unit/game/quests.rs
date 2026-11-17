@@ -83,6 +83,126 @@ fn evidence_objectives_follow_the_current_characters_known_evidence() {
 }
 
 #[test]
+fn alternate_encounter_profiles_complete_their_shared_authored_quest() {
+    let mut state = create_new_state(
+        "Alternate Encounter Quest",
+        WorldMode::New,
+        "Tester".into(),
+        "Ash Walker".into(),
+    );
+    crate::game::world::bootstrap_campaign_content(&mut state);
+    let quest_index = state
+        .quests
+        .iter()
+        .position(|quest| quest.content_id == "quest.quiet_old_shrine")
+        .expect("base campaign should seed the Old Shrine quest");
+    let location_id = state.quests[quest_index].target_location_id;
+    state.quests[quest_index].objectives.clear();
+    state.quests[quest_index].offered = true;
+    let location_name = state
+        .world
+        .location_by_id(location_id)
+        .expect("quest target location should exist")
+        .name
+        .clone();
+    let alternate = {
+        let content = state.campaign_content.as_ref().unwrap();
+        let original = content
+            .encounters
+            .iter()
+            .find(|profile| profile.quest_id.as_deref() == Some("quest.quiet_old_shrine"))
+            .expect("base quest should have an encounter profile");
+        let mut alternate = original.clone();
+        alternate.id = Some("encounter.old_shrine.alternate_test".into());
+        alternate.enemy_name = "Shrine Echo".into();
+        alternate.trophy_item_name = "Echo Shard".into();
+        alternate
+    };
+    state
+        .campaign_content
+        .as_mut()
+        .unwrap()
+        .encounters
+        .push(alternate);
+
+    assert!(normalize_quest(&mut state, quest_index));
+    let objective = state.quests[quest_index]
+        .objectives
+        .iter()
+        .find(|objective| objective.kind == QuestObjectiveKind::DefeatEnemy)
+        .expect("quest should contain a defeat objective");
+    assert_eq!(objective.target, "quest.quiet_old_shrine");
+    assert_eq!(
+        objective.display_label(),
+        format!("Defeat the threat at {location_name}")
+    );
+
+    record_spatial_encounter_defeat(
+        &mut state,
+        "Shrine Echo",
+        location_id,
+        Some("quest.quiet_old_shrine"),
+    );
+
+    let objective = state.quests[quest_index]
+        .objectives
+        .iter()
+        .find(|objective| objective.kind == QuestObjectiveKind::DefeatEnemy)
+        .unwrap();
+    assert!(objective.completed);
+    assert_eq!(objective.progress, 1);
+}
+
+#[test]
+fn snapshotted_encounter_quest_id_survives_campaign_profile_changes() {
+    let mut state = create_new_state(
+        "Persistent Encounter Quest",
+        WorldMode::New,
+        "Tester".into(),
+        "Ash Walker".into(),
+    );
+    crate::game::world::bootstrap_campaign_content(&mut state);
+    let quest_index = state
+        .quests
+        .iter()
+        .position(|quest| quest.content_id == "quest.quiet_old_shrine")
+        .expect("base campaign should seed the Old Shrine quest");
+    let location_id = state.quests[quest_index].target_location_id;
+    state.quests[quest_index].objectives.clear();
+    state.quests[quest_index].offered = true;
+    assert!(normalize_quest(&mut state, quest_index));
+    assert!(state.quests[quest_index]
+        .objectives
+        .iter()
+        .any(|objective| objective.target == "quest.quiet_old_shrine"));
+
+    let profile = state
+        .campaign_content
+        .as_mut()
+        .unwrap()
+        .encounters
+        .iter_mut()
+        .find(|profile| profile.quest_id.as_deref() == Some("quest.quiet_old_shrine"))
+        .expect("base content should link the encounter to its quest");
+    profile.quest_id = None;
+    profile.enemy_name = "A changed campaign enemy".into();
+
+    record_spatial_encounter_defeat(
+        &mut state,
+        "Ashen Wretch",
+        location_id,
+        Some("quest.quiet_old_shrine"),
+    );
+    let objective = state.quests[quest_index]
+        .objectives
+        .iter()
+        .find(|objective| objective.kind == QuestObjectiveKind::DefeatEnemy)
+        .expect("snapshotted quest identity should retain its defeat objective");
+    assert!(objective.completed);
+    assert_eq!(objective.progress, 1);
+}
+
+#[test]
 fn legacy_quest_is_expanded_into_explicit_objectives() {
     let mut state = create_new_state(
         "Test World",

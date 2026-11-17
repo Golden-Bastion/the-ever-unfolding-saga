@@ -130,14 +130,52 @@ pub struct QuestContent {
     pub required_evidence_ids: Vec<String>,
 }
 
+/// A weighted encounter profile that can be selected when its world conditions match.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncounterContent {
+    /// Stable profile identity. Older content may omit it and remains a single
+    /// legacy profile for its named location.
+    #[serde(default)]
+    pub id: Option<String>,
+    /// Stable authored location ID. Omitted by older mods, which match by name.
+    #[serde(default)]
+    pub location_id: Option<String>,
+    /// Optional quest identity used to credit any eligible profile for that quest.
+    #[serde(default)]
+    pub quest_id: Option<String>,
     pub location_name: String,
     pub enemy_name: String,
     pub enemy_hp: i32,
     pub enemy_power: i32,
     pub trophy_item_name: String,
     pub description: String,
+    #[serde(default = "default_encounter_weight")]
+    pub weight: u32,
+    #[serde(default)]
+    pub chance_percent: Option<u8>,
+    #[serde(default)]
+    pub conditions: Option<EncounterSpawnConditions>,
+}
+
+fn default_encounter_weight() -> u32 {
+    1
+}
+
+/// World-state requirements for selecting an encounter profile.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EncounterSpawnConditions {
+    #[serde(default)]
+    pub night: Option<bool>,
+    #[serde(default)]
+    pub dangerous: Option<bool>,
+    #[serde(default)]
+    pub min_day: Option<u32>,
+    #[serde(default)]
+    pub max_day: Option<u32>,
+    #[serde(default)]
+    pub required_completed_quest_id: Option<String>,
+    #[serde(default)]
+    pub required_condition_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -469,12 +507,128 @@ impl CampaignContent {
             }
         }
 
+        validate_unique_ids(
+            "encounter profile",
+            self.encounters
+                .iter()
+                .filter_map(|entry| entry.id.as_deref()),
+            &mut issues,
+        );
+        let location_ids = self
+            .world
+            .locations
+            .iter()
+            .map(|location| location.id.as_str())
+            .collect::<HashSet<_>>();
+        let quest_ids = self
+            .quests
+            .iter()
+            .map(|quest| (quest.id.as_str(), quest.location_name.as_str()))
+            .collect::<HashMap<_, _>>();
         for encounter in &self.encounters {
             if !location_names.contains(encounter.location_name.as_str()) {
                 issues.push(format!(
                     "encounter {} uses unknown location {}",
                     encounter.enemy_name, encounter.location_name
                 ));
+            }
+            if encounter
+                .id
+                .as_deref()
+                .is_some_and(|id| id.trim().is_empty())
+            {
+                issues.push(format!(
+                    "encounter profile for {} has an empty stable ID",
+                    encounter.location_name
+                ));
+            }
+            if let Some(location_id) = encounter.location_id.as_deref() {
+                if !location_ids.contains(location_id) {
+                    issues.push(format!(
+                        "encounter profile {} uses unknown location ID {}",
+                        encounter.id.as_deref().unwrap_or(&encounter.enemy_name),
+                        location_id
+                    ));
+                } else if self
+                    .world
+                    .locations
+                    .iter()
+                    .find(|location| location.id == location_id)
+                    .is_some_and(|location| location.name != encounter.location_name)
+                {
+                    issues.push(format!(
+                        "encounter profile {} has a location ID/name mismatch",
+                        encounter.id.as_deref().unwrap_or(&encounter.enemy_name)
+                    ));
+                }
+            }
+            if encounter.enemy_name.trim().is_empty()
+                || encounter.description.trim().is_empty()
+                || encounter.trophy_item_name.trim().is_empty()
+                || encounter.enemy_hp <= 0
+                || encounter.enemy_power < 0
+            {
+                issues.push(format!(
+                    "encounter profile {} has an invalid name, description, reward, or combat profile",
+                    encounter.id.as_deref().unwrap_or(&encounter.location_name)
+                ));
+            }
+            if encounter.weight == 0 {
+                issues.push(format!(
+                    "encounter profile {} has zero weight",
+                    encounter.id.as_deref().unwrap_or(&encounter.location_name)
+                ));
+            }
+            if encounter.chance_percent.is_some_and(|chance| chance > 100) {
+                issues.push(format!(
+                    "encounter profile {} has an invalid chance",
+                    encounter.id.as_deref().unwrap_or(&encounter.location_name)
+                ));
+            }
+            if let Some(quest_id) = encounter.quest_id.as_deref() {
+                match quest_ids.get(quest_id) {
+                    None => issues.push(format!(
+                        "encounter profile {} uses unknown quest ID {}",
+                        encounter.id.as_deref().unwrap_or(&encounter.location_name),
+                        quest_id
+                    )),
+                    Some(quest_location) if *quest_location != encounter.location_name.as_str() => {
+                        issues.push(format!(
+                            "encounter profile {} is assigned to a quest at a different location",
+                            encounter.id.as_deref().unwrap_or(&encounter.location_name)
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+            if let Some(conditions) = &encounter.conditions {
+                if let (Some(min_day), Some(max_day)) = (conditions.min_day, conditions.max_day) {
+                    if min_day > max_day {
+                        issues.push(format!(
+                            "encounter profile {} has min_day greater than max_day",
+                            encounter.id.as_deref().unwrap_or(&encounter.location_name)
+                        ));
+                    }
+                }
+                if let Some(quest_id) = conditions.required_completed_quest_id.as_deref() {
+                    if !quest_ids.contains_key(quest_id) {
+                        issues.push(format!(
+                            "encounter profile {} requires unknown completed quest {}",
+                            encounter.id.as_deref().unwrap_or(&encounter.location_name),
+                            quest_id
+                        ));
+                    }
+                }
+                if conditions
+                    .required_condition_name
+                    .as_deref()
+                    .is_some_and(|name| name.trim().is_empty())
+                {
+                    issues.push(format!(
+                        "encounter profile {} has an empty required condition name",
+                        encounter.id.as_deref().unwrap_or(&encounter.location_name)
+                    ));
+                }
             }
         }
 
@@ -580,6 +734,22 @@ impl CampaignContent {
         self.encounters
             .iter()
             .find(|entry| entry.location_name == location_name)
+    }
+
+    /// All profiles authored for a stable location ID. Legacy profiles without
+    /// a location ID are included by their existing location-name reference.
+    pub fn encounter_profiles_for_location(
+        &self,
+        location_id: &str,
+        location_name: &str,
+    ) -> Vec<&EncounterContent> {
+        self.encounters
+            .iter()
+            .filter(|entry| {
+                entry.location_id.as_deref() == Some(location_id)
+                    || (entry.location_id.is_none() && entry.location_name == location_name)
+            })
+            .collect()
     }
 
     pub fn location_art_for(&self, location_name: &str) -> Option<&str> {

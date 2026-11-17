@@ -44,6 +44,40 @@ The local map stores the physical `discovered` and `interacted` flags. Character
 
 A quest template may define an optional `required_evidence_ids` array. Each ID must reference an authored spatial discovery and must be unique within that quest. Campaign seeding adds a `DiscoverEvidence` objective for each required ID, using the discovery title as its player-facing label. These objectives are appended to the quest's existing visit, item, and encounter objectives; they do not replace them. Progress follows the current character's known evidence, not the shared map's physical interaction flags.
 
+## Data-driven spatial encounters
+
+Campaign content may define multiple `encounters` profiles for a location. New profiles should declare a stable `id` and stable `location_id`; `location_name` remains required for human-readable content and compatibility with older definitions. An optional `quest_id` links the selected profile to a quest's location-scoped defeat objective, so alternate enemies can advance the same authored quest.
+
+Each profile defines `enemy_name`, `description`, `enemy_hp`, `enemy_power`, and `trophy_item_name`. `weight` defaults to 1 and controls selection among eligible profiles. `chance_percent` is an optional 0–100 deterministic spawn roll and defaults to 100. Optional `conditions` can constrain selection by `night`, `dangerous`, `min_day`, `max_day`, `required_completed_quest_id`, and `required_condition_name`. Content validation checks profile identity, combat values, location and quest references, location ID/name consistency, chance and weight ranges, and condition ranges.
+
+For example:
+
+```json
+{
+  "id": "encounter.old_shrine.ashen_wretch",
+  "location_id": "location.old_shrine",
+  "quest_id": "quest.quiet_old_shrine",
+  "location_name": "Old Shrine",
+  "enemy_name": "Ashen Wretch",
+  "enemy_hp": 12,
+  "enemy_power": 3,
+  "trophy_item_name": "Wretch's Token",
+  "description": "A hostile figure watches the ruined altar.",
+  "weight": 3,
+  "chance_percent": 80,
+  "conditions": {
+    "dangerous": true,
+    "night": true,
+    "min_day": 2,
+    "required_completed_quest_id": "quest.first_steps",
+    "required_condition_name": "Wounded"
+  }
+}
+```
+
+On local-map entry, eligible profiles are selected deterministically from the map seed, location identity, world day, and time. The weighted selection and per-profile chance checks do not consume the general gameplay random stream. The selected profile is snapshotted into the persistent local map as an encounter record, including its optional quest ID, so later campaign or mod changes cannot silently replace its identity, combat values, or quest attribution. Existing encounter records, including defeated ones, prevent re-materialization. In this first slice a local map receives at most one encounter record; multiple concurrent records, roaming, and respawning are later work.
+
+New stable-ID profiles are evaluated using their authored conditions without requiring the legacy global threat flag. Older location-name-only definitions still deserialize with default metadata and retain the legacy location-scoped threat gate. Mods override a profile by stable ID or, for legacy definitions without IDs, override the existing location profile while preserving its new spawn metadata. New alternative profiles should always use stable IDs.
 ## Optional assets
 
 Content may reference optional ASCII portraits, location scene art, and item illustrations. Missing optional visual assets must not crash the game or make content inaccessible. Use appropriate fallbacks while preserving the intended graphics-first presentation for spatial gameplay; text-only fallback is a resilience measure, not the product’s overall identity.

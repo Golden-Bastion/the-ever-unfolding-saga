@@ -161,13 +161,9 @@ pub(crate) fn discover_available_interactions(
         candidates.push((distance, priority, item.stable_key(), item));
     }
 
-    let threat_belongs_here = game.threat.active
-        && game
-            .threat
-            .source_location_id
-            .is_none_or(|source| source == game.character.location_id)
-        && map.location_id == format!("location.{}", game.character.location_id);
-    if threat_belongs_here {
+    let encounters_belong_here =
+        map.location_id == format!("location.{}", game.character.location_id);
+    if encounters_belong_here {
         for encounter in &map.encounters {
             if encounter.status != SpatialEncounterStatus::Active {
                 continue;
