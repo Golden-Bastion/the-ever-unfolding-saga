@@ -841,6 +841,7 @@ dependencies = [
  "bevy_material",
  "bevy_math",
  "bevy_mesh",
+ "bevy_pbr",
  "bevy_reflect",
  "bevy_render",
  "bevy_shader",
@@ -1088,6 +1089,7 @@ dependencies = [
  "bevy_ecs",
  "bevy_encase_derive",
  "bevy_math",
+ "bevy_mikktspace",
  "bevy_platform",
  "bevy_reflect",
  "bevy_shape",
@@ -1096,6 +1098,7 @@ dependencies = [
  "bytemuck",
  "derive_more",
  "encase",
+ "glam",
  "half",
  "hexasphere",
  "thiserror 2.0.20",
@@ -1104,27 +1107,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_picking"
-version = "0.20.0"
+name = "bevy_mikktspace"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47a04fb644c62a57a4f338f5cd8b61519c569139742eafe87dccb523e4b7cf2e"
-dependencies = [
- "bevy_app",
- "bevy_asset",
- "bevy_camera",
- "bevy_derive",
- "bevy_ecs",
- "bevy_input",
- "bevy_math",
- "bevy_platform",
- "bevy_reflect",
- "bevy_shape",
- "bevy_time",
- "bevy_transform",
- "bevy_window",
- "tracing",
- "uuid",
-]
+checksum = "bff34eb29ff4b8a8688bc7299f14fb6b597461ca80fec03ed7d22939ab33e48f"
 
 [[package]]
 name = "bevy_pbr"
@@ -1168,6 +1154,29 @@ dependencies = [
  "thiserror 2.0.20",
  "tracing",
  "wgpu-types",
+]
+
+[[package]]
+name = "bevy_picking"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47a04fb644c62a57a4f338f5cd8b61519c569139742eafe87dccb523e4b7cf2e"
+dependencies = [
+ "bevy_app",
+ "bevy_asset",
+ "bevy_camera",
+ "bevy_derive",
+ "bevy_ecs",
+ "bevy_input",
+ "bevy_math",
+ "bevy_platform",
+ "bevy_reflect",
+ "bevy_shape",
+ "bevy_time",
+ "bevy_transform",
+ "bevy_window",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -1727,6 +1736,7 @@ version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
 dependencies = [
+ "bytemuck",
  "serde_core",
 ]
 
