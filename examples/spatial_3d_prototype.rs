@@ -131,10 +131,10 @@ fn setup(
             commands.spawn((
                 Mesh3d(tile_mesh.clone()),
                 MeshMaterial3d(material),
-                Transform::from_translation(grid_to_world(Vec2::new(
-                    f32::from(x) + 0.5,
-                    f32::from(y) + 0.5,
-                )) + Vec3::Y * 0.005),
+                Transform::from_translation(
+                    grid_to_world(Vec2::new(f32::from(x) + 0.5, f32::from(y) + 0.5))
+                        + Vec3::Y * 0.005,
+                ),
             ));
         }
     }
@@ -242,10 +242,7 @@ fn masked_material(texture: Handle<Image>) -> StandardMaterial {
     }
 }
 
-fn build_walk_frames(
-    meshes: &mut Assets<Mesh>,
-    size: Vec2,
-) -> DirectionalWalkFrames {
+fn build_walk_frames(meshes: &mut Assets<Mesh>, size: Vec2) -> DirectionalWalkFrames {
     let east = (0..ATLAS_COLUMNS)
         .map(|column| {
             meshes.add(vertical_quad(
@@ -297,12 +294,7 @@ fn full_texture_uvs() -> [[f32; 2]; 4] {
 
 /// UVs follow Bevy's top-left texture origin. The mesh origin is at the feet,
 /// so every atlas frame keeps the same ground-contact anchor.
-fn atlas_frame_uvs(
-    row: usize,
-    column: usize,
-    columns: usize,
-    rows: usize,
-) -> [[f32; 2]; 4] {
+fn atlas_frame_uvs(row: usize, column: usize, columns: usize, rows: usize) -> [[f32; 2]; 4] {
     let u0 = column as f32 / columns as f32;
     let u1 = (column + 1) as f32 / columns as f32;
     let v0 = row as f32 / rows as f32;
@@ -321,13 +313,12 @@ fn animate_actors(
 ) {
     let elapsed = time.elapsed_secs();
     for (actor, mut mesh, mut transform) in &mut actors {
-        let path_progress =
-            ((elapsed / PATH_CYCLE_SECONDS) + actor.phase).rem_euclid(1.0);
+        let path_progress = ((elapsed / PATH_CYCLE_SECONDS) + actor.phase).rem_euclid(1.0);
         let grid_position = actor.start.lerp(actor.end, path_progress);
         transform.translation = grid_to_world(grid_position);
 
-        let animation_frame = ((elapsed / WALK_FRAME_DURATION_SECONDS).floor() as usize)
-            % actor.frames.len();
+        let animation_frame =
+            ((elapsed / WALK_FRAME_DURATION_SECONDS).floor() as usize) % actor.frames.len();
         mesh.0 = actor.frames[animation_frame].clone();
     }
 }
@@ -341,7 +332,10 @@ fn toggle_shadow_maps(
     }
     for mut light in &mut lights {
         light.shadow_maps_enabled = !light.shadow_maps_enabled;
-        info!("Directional-light shadow maps: {}", light.shadow_maps_enabled);
+        info!(
+            "Directional-light shadow maps: {}",
+            light.shadow_maps_enabled
+        );
     }
 }
 
