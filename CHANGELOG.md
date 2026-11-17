@@ -4,7 +4,20 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.62. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.63. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+
+### v0.52.63: Independent persistent spatial encounter groups
+
+- Added optional `spawn_group` metadata to campaign encounter profiles. Profiles in the same group remain weighted alternatives, while separate groups are evaluated independently and can each materialize a persistent encounter on one local map.
+- Snapshotted each encounter's group with its profile, health, placement, lifecycle state, and quest attribution. Existing records—including defeated records—reserve their group and are not rerolled, healed, moved, or respawned.
+- Preserved backward compatibility: profiles and saved records without group metadata use the shared default group, and the default-group deterministic identity format remains unchanged.
+- Added distinct, reachable, collision-safe placements for multiple encounters. Nearby interactions expose separate targets, and combat starts the exact selected encounter record by ID.
+- Added regression coverage for independent groups, weighted alternatives, delayed eligibility, legacy saves and mod definitions, ID-less profiles, multiple nearby targets, and exact combat targeting.
+- Persistent roaming, awareness/pursuit, respawning, off-screen simulation, and real-time spatial action combat remain separate follow-up work.
+
+## v0.52.x — Storage, UI, and spatial-gameplay foundations
+
+The entries below cover the v0.52.x development line through v0.52.63. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)

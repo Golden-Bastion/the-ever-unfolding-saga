@@ -46,7 +46,7 @@ A quest template may define an optional `required_evidence_ids` array. Each ID m
 
 ## Data-driven spatial encounters
 
-Campaign content may define multiple `encounters` profiles for a location. New profiles should declare a stable `id` and stable `location_id`; `location_name` remains required for human-readable content and compatibility with older definitions. An optional `quest_id` links the selected profile to a quest's location-scoped defeat objective, so alternate enemies can advance the same authored quest.
+Campaign content may define multiple `encounters` profiles for a location. New profiles should declare a stable `id` and stable `location_id`; `location_name` remains required for human-readable content and compatibility with older definitions. An optional `quest_id` links the selected profile to a quest's location-scoped defeat objective, so alternate enemies can advance the same authored quest. An optional `spawn_group` determines which encounter slot the profile belongs to. Profiles without this field belong to the shared default group.
 
 Each profile defines `enemy_name`, `description`, `enemy_hp`, `enemy_power`, and `trophy_item_name`. `weight` defaults to 1 and controls selection among eligible profiles. `chance_percent` is an optional 0–100 deterministic spawn roll and defaults to 100. Optional `conditions` can constrain selection by `night`, `dangerous`, `min_day`, `max_day`, `required_completed_quest_id`, and `required_condition_name`. Content validation checks profile identity, combat values, location and quest references, location ID/name consistency, chance and weight ranges, and condition ranges.
 
@@ -57,6 +57,7 @@ For example:
   "id": "encounter.old_shrine.ashen_wretch",
   "location_id": "location.old_shrine",
   "quest_id": "quest.quiet_old_shrine",
+  "spawn_group": "night_watch",
   "location_name": "Old Shrine",
   "enemy_name": "Ashen Wretch",
   "enemy_hp": 12,
@@ -75,9 +76,11 @@ For example:
 }
 ```
 
-On local-map entry, eligible profiles are selected deterministically from the map seed, location identity, world day, and time. The weighted selection and per-profile chance checks do not consume the general gameplay random stream. The selected profile is snapshotted into the persistent local map as an encounter record, including its optional quest ID, so later campaign or mod changes cannot silently replace its identity, combat values, or quest attribution. Existing encounter records, including defeated ones, prevent re-materialization. In this first slice a local map receives at most one encounter record; multiple concurrent records, roaming, and respawning are later work.
+On local-map entry, profiles are grouped by `spawn_group`. Within each group, eligible profiles are filtered by their authored conditions and deterministic chance roll, then one profile is selected by weight. A missing group uses the default group, so older content and current ungrouped campaign profiles continue to form one shared alternative pool. Each distinct group is evaluated independently, with its own deterministic selection seed; this allows multiple records to materialize on one map without consuming the general gameplay random stream.
 
-New stable-ID profiles are evaluated using their authored conditions without requiring the legacy global threat flag. Older location-name-only definitions still deserialize with default metadata and retain the legacy location-scoped threat gate. Mods override a profile by stable ID or, for legacy definitions without IDs, override the existing location profile while preserving its new spawn metadata. New alternative profiles should always use stable IDs.
+The selected profile and group are snapshotted into the persistent local map as an encounter record, including its optional quest ID. Existing records—including defeated records—reserve their group and are never rerolled, healed, moved, or respawned by content updates. A group with no eligible profile remains unresolved and can materialize on a later map entry if its conditions become true. A map can therefore hold one encounter per spawn group, with every record assigned a distinct reachable position.
+
+New stable-ID profiles are evaluated using their authored conditions without requiring the legacy global threat flag. Older location-name-only definitions without the new spawn metadata still deserialize with safe defaults and retain the legacy location-scoped threat gate. Mods override a profile by stable ID or, for legacy definitions without IDs, override the existing location profile while preserving its new spawn metadata. New alternative profiles should always use stable IDs.
 ## Optional assets
 
 Content may reference optional ASCII portraits, location scene art, and item illustrations. Missing optional visual assets must not crash the game or make content inaccessible. Use appropriate fallbacks while preserving the intended graphics-first presentation for spatial gameplay; text-only fallback is a resilience measure, not the product’s overall identity.

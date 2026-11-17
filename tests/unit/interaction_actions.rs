@@ -104,6 +104,108 @@ fn nearby_active_encounters_offer_a_stable_confront_action() {
 }
 
 #[test]
+fn multiple_nearby_encounters_have_distinct_confront_targets() {
+    let game = crate::model::create_new_state(
+        "Multiple Encounter Interaction Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let location_id = game.character.location_id;
+    let mut map = crate::spatial::generate_local_map(
+        19,
+        format!("location.{location_id}"),
+        crate::spatial::LocalMapConfig::default(),
+    );
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.exits.clear();
+    map.interactables.clear();
+    assert!(crate::spatial::ensure_spatial_encounter(
+        &mut map,
+        "encounter.nearby.first".into(),
+        "Ash Marauder".into(),
+        "A hostile figure blocks the way.".into(),
+        18,
+        3,
+        "Marauder Token".into(),
+    ));
+    assert!(crate::spatial::ensure_spatial_encounter(
+        &mut map,
+        "encounter.nearby.second".into(),
+        "Cinder Scout".into(),
+        "A second hostile figure watches from nearby.".into(),
+        11,
+        2,
+        "Scout's Token".into(),
+    ));
+
+    let first = map.encounters[0].clone();
+    let adjacent_candidates = [
+        first
+            .position
+            .x
+            .checked_add(1)
+            .map(|x| crate::spatial::GridPosition {
+                x,
+                y: first.position.y,
+            }),
+        first
+            .position
+            .x
+            .checked_sub(1)
+            .map(|x| crate::spatial::GridPosition {
+                x,
+                y: first.position.y,
+            }),
+        first
+            .position
+            .y
+            .checked_add(1)
+            .map(|y| crate::spatial::GridPosition {
+                x: first.position.x,
+                y,
+            }),
+        first
+            .position
+            .y
+            .checked_sub(1)
+            .map(|y| crate::spatial::GridPosition {
+                x: first.position.x,
+                y,
+            }),
+    ];
+    let adjacent = adjacent_candidates
+        .into_iter()
+        .flatten()
+        .find(|position| {
+            map.contains(*position)
+                && map.is_walkable(*position)
+                && *position != map.entry
+                && *position != map.encounters[1].position
+        })
+        .expect("the open test map should have an adjacent walkable cell");
+    map.encounters[1].position = adjacent;
+    assert!(map.validate_encounters().is_ok());
+
+    let nearby = (
+        f32::from(first.position.x) + 0.5,
+        f32::from(first.position.y) + 0.5,
+    );
+    let available = discover_available_interactions(&map, &game, nearby)
+        .into_iter()
+        .filter(|item| item.action == InteractionActionKind::EngageEncounter)
+        .collect::<Vec<_>>();
+    assert_eq!(available.len(), 2);
+    assert!(available.iter().any(|item| {
+        item.target == InteractionTarget::Encounter("encounter.nearby.first".into())
+    }));
+    assert!(available.iter().any(|item| {
+        item.target == InteractionTarget::Encounter("encounter.nearby.second".into())
+    }));
+}
+
+#[test]
 fn discovery_filters_stale_npcs_and_unsearchable_remains() {
     let mut map = crate::spatial::generate_local_map(
         17,

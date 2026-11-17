@@ -512,9 +512,14 @@ fn spatial_encounters_are_deterministic_persistent_and_backward_compatible() {
         .as_object_mut()
         .expect("encounter should be an object")
         .remove("quest_id");
+    legacy_record
+        .as_object_mut()
+        .expect("encounter should be an object")
+        .remove("spawn_group");
     let legacy_record: SpatialEncounter =
         serde_json::from_value(legacy_record).expect("older encounters should omit quest IDs");
     assert!(legacy_record.quest_id.is_none());
+    assert!(legacy_record.spawn_group.is_none());
 
     assert!(map.is_walkable(original.position));
     assert!(reachable_walkable_tiles(&map).contains(&original.position));
@@ -540,16 +545,23 @@ fn spatial_encounters_are_deterministic_persistent_and_backward_compatible() {
         9,
         "Different Trophy".into(),
     ));
-    assert!(!ensure_spatial_encounter(
+    assert!(ensure_spatial_encounter(
         &mut map,
         "encounter.test.2".into(),
         "Second Enemy".into(),
-        "Only one active encounter is supported per location in this slice.".into(),
+        "Independent encounters can share one persistent map.".into(),
         10,
         2,
         "Second Trophy".into(),
     ));
-    assert_eq!(map.encounters, vec![original]);
+    assert_eq!(map.encounters.len(), 2);
+    assert_eq!(map.encounters[0], original);
+    assert_ne!(map.encounters[0].position, map.encounters[1].position);
+    assert!(map
+        .encounters
+        .iter()
+        .all(|encounter| encounter.status == SpatialEncounterStatus::Active));
+    assert!(map.validate_encounters().is_ok());
 
     let mut legacy = serde_json::to_value(&map).expect("map should serialize");
     legacy
@@ -577,6 +589,7 @@ fn encounter_spawn_avoids_the_players_saved_tile() {
         SpatialEncounterDefinition {
             id: "encounter.player_overlap".into(),
             quest_id: None,
+            spawn_group: None,
             enemy_name: "Ash Marauder".into(),
             description: "A hostile figure approaches.".into(),
             max_hp: 12,

@@ -47,6 +47,7 @@ fn profile(
         id: Some(id.into()),
         location_id: Some(location_id.into()),
         quest_id: None,
+        spawn_group: None,
         location_name: location_name.into(),
         enemy_name: enemy_name.into(),
         enemy_hp: 20,
@@ -223,6 +224,256 @@ fn weighted_selection_is_deterministic_and_materialized_records_are_never_reroll
     assert_eq!(first.encounters[0].id, original.id);
     assert_eq!(first.encounters[0].current_hp, original.current_hp - 5);
     assert_ne!(first.encounters[0].enemy_name, "Changed");
+}
+
+#[test]
+fn independent_spawn_groups_materialize_separately_but_keep_weighted_alternatives() {
+    let (mut state, location, mut map, content_location_id) = fixture();
+    let pack_a = profile(
+        "spawn.test.pack.a",
+        &content_location_id,
+        &location.name,
+        "Ash Hound",
+        1,
+    );
+    let pack_b = profile(
+        "spawn.test.pack.b",
+        &content_location_id,
+        &location.name,
+        "Ash Brute",
+        4,
+    );
+    let mut scout_a = profile(
+        "spawn.test.scout.a",
+        &content_location_id,
+        &location.name,
+        "Cinder Scout",
+        1,
+    );
+    let mut scout_b = profile(
+        "spawn.test.scout.b",
+        &content_location_id,
+        &location.name,
+        "Cinder Lookout",
+        2,
+    );
+    let mut sentinel = profile(
+        "spawn.test.sentinel",
+        &content_location_id,
+        &location.name,
+        "Gate Sentinel",
+        1,
+    );
+    scout_a.spawn_group = Some("scouts".into());
+    scout_b.spawn_group = Some("scouts".into());
+    sentinel.spawn_group = Some("sentinel".into());
+    replace_location_profiles(
+        &mut state,
+        &location.name,
+        vec![pack_a, pack_b, scout_a, scout_b, sentinel],
+    );
+    let location = state.world.location_by_id(location.id).unwrap().clone();
+
+    assert!(ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
+    assert_eq!(map.encounters.len(), 3);
+    assert_eq!(
+        map.encounters
+            .iter()
+            .filter(|encounter| encounter.spawn_group.is_none())
+            .count(),
+        1,
+        "profiles without a group remain weighted alternatives in the default group"
+    );
+    assert_eq!(
+        map.encounters
+            .iter()
+            .filter(|encounter| encounter.spawn_group.as_deref() == Some("scouts"))
+            .count(),
+        1,
+        "a named group selects only one of its alternatives"
+    );
+    assert_eq!(
+        map.encounters
+            .iter()
+            .filter(|encounter| encounter.spawn_group.as_deref() == Some("sentinel"))
+            .count(),
+        1
+    );
+    assert!(map
+        .encounters
+        .iter()
+        .all(|encounter| encounter.status == crate::spatial::SpatialEncounterStatus::Active));
+    let positions = map
+        .encounters
+        .iter()
+        .map(|encounter| encounter.position)
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(positions.len(), map.encounters.len());
+    assert!(map.validate_encounters().is_ok());
+
+    let snapshot = map.encounters.clone();
+    state.world.day += 5;
+    assert!(!ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
+    assert_eq!(map.encounters, snapshot);
+}
+
+#[test]
+fn a_newly_eligible_spawn_group_can_materialize_without_resetting_existing_records() {
+    let (mut state, location, mut map, content_location_id) = fixture();
+    state.world.day = 1;
+    let initial = profile(
+        "spawn.test.initial",
+        &content_location_id,
+        &location.name,
+        "Shrine Guard",
+        1,
+    );
+    let mut later = profile(
+        "spawn.test.later",
+        &content_location_id,
+        &location.name,
+        "Returning Stalker",
+        1,
+    );
+    later.spawn_group = Some("later".into());
+    later.conditions = Some(EncounterSpawnConditions {
+        dangerous: Some(true),
+        min_day: Some(2),
+        ..Default::default()
+    });
+    replace_location_profiles(&mut state, &location.name, vec![initial, later]);
+    let location = state.world.location_by_id(location.id).unwrap().clone();
+
+    assert!(ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
+    assert_eq!(map.encounters.len(), 1);
+    let initial_record = map.encounters[0].clone();
+    map.encounters[0].current_hp -= 3;
+
+    state.world.day = 2;
+    assert!(ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
+    assert_eq!(map.encounters.len(), 2);
+    let restored_initial = map
+        .encounters
+        .iter()
+        .find(|encounter| encounter.id == initial_record.id)
+        .unwrap();
+    assert_eq!(restored_initial.current_hp, initial_record.current_hp - 3);
+    assert_eq!(restored_initial.enemy_name, initial_record.enemy_name);
+    assert!(map
+        .encounters
+        .iter()
+        .any(|encounter| encounter.enemy_name == "Returning Stalker"));
+}
+
+#[test]
+fn legacy_encounter_records_reserve_the_default_group_but_allow_named_groups() {
+    let (mut state, location, mut map, content_location_id) = fixture();
+    assert!(crate::spatial::ensure_spatial_encounter(
+        &mut map,
+        "encounter.legacy.snapshot".into(),
+        "Old Wretch".into(),
+        "A saved encounter from an older schema.".into(),
+        8,
+        2,
+        "Old Token".into(),
+    ));
+    map.encounters[0].current_hp = 0;
+    map.encounters[0].status = crate::spatial::SpatialEncounterStatus::Defeated;
+    let default_profile = profile(
+        "spawn.test.default",
+        &content_location_id,
+        &location.name,
+        "Replacement Wretch",
+        1,
+    );
+    let mut named_profile = profile(
+        "spawn.test.named",
+        &content_location_id,
+        &location.name,
+        "Cinder Scout",
+        1,
+    );
+    named_profile.spawn_group = Some("scouts".into());
+    replace_location_profiles(
+        &mut state,
+        &location.name,
+        vec![default_profile, named_profile],
+    );
+    let location = state.world.location_by_id(location.id).unwrap().clone();
+
+    assert!(ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
+    assert_eq!(map.encounters.len(), 2);
+    assert!(map
+        .encounters
+        .iter()
+        .any(|encounter| encounter.enemy_name == "Old Wretch"));
+    assert!(!map
+        .encounters
+        .iter()
+        .any(|encounter| encounter.enemy_name == "Replacement Wretch"));
+    assert!(map
+        .encounters
+        .iter()
+        .any(|encounter| encounter.enemy_name == "Cinder Scout"));
+}
+
+#[test]
+fn idless_profiles_in_different_groups_receive_distinct_persistent_ids() {
+    let (mut state, location, mut map, _content_location_id) = fixture();
+    let mut northern = profile(
+        "unused.north",
+        "unused",
+        &location.name,
+        "Nameless Threat",
+        1,
+    );
+    northern.id = None;
+    northern.location_id = None;
+    northern.spawn_group = Some("north".into());
+    let mut southern = profile(
+        "unused.south",
+        "unused",
+        &location.name,
+        "Nameless Threat",
+        1,
+    );
+    southern.id = None;
+    southern.location_id = None;
+    southern.spawn_group = Some("south".into());
+    replace_location_profiles(&mut state, &location.name, vec![northern, southern]);
+    let location = state.world.location_by_id(location.id).unwrap().clone();
+
+    assert!(ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
+    assert_eq!(map.encounters.len(), 2);
+    assert_eq!(map.encounters[0].enemy_name, map.encounters[1].enemy_name);
+    assert_ne!(map.encounters[0].id, map.encounters[1].id);
+    assert_eq!(
+        map.encounters
+            .iter()
+            .filter(|encounter| encounter.spawn_group.as_deref() == Some("north"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        map.encounters
+            .iter()
+            .filter(|encounter| encounter.spawn_group.as_deref() == Some("south"))
+            .count(),
+        1
+    );
+    assert!(map.validate_encounters().is_ok());
 }
 
 #[test]
