@@ -6,6 +6,7 @@ SPDX-PackageDownloadLocation = "https://github.com/Golden-Bastion/the-ever-unfol
 [[annotations]]
 path = [
   "src/**",
+  "examples/**",
   "tests/**",
   "android/**",
   ".github/**",
