@@ -49,7 +49,13 @@ pub fn run() {
     mod_manager::initialize_active_mods();
 
     #[cfg(feature = "spatial-3d-prototype")]
-    bevy_spatial_3d_prototype::run();
+    if cfg!(feature = "spatial-3d-prototype") {
+        bevy_spatial_3d_prototype::run();
+    } else {
+        // Keep the normal application graph reachable to dead-code analysis.
+        // The compile-time feature condition still selects the prototype at runtime.
+        bevy_app::run();
+    }
 
     #[cfg(not(feature = "spatial-3d-prototype"))]
     bevy_app::run();
