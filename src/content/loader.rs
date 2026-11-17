@@ -124,15 +124,47 @@ fn merge_campaign_content(base: &mut CampaignContent, incoming: CampaignContent)
         |entry| entry.id.clone(),
     );
     merge_vec_by_key(&mut base.quests, incoming.quests, |entry| entry.id.clone());
-    merge_vec_by_key(&mut base.encounters, incoming.encounters, |entry| {
-        entry.location_name.clone()
-    });
+    merge_encounters(&mut base.encounters, incoming.encounters);
     merge_vec_by_key(&mut base.atmospheres, incoming.atmospheres, |entry| {
         entry.location_name.clone()
     });
     merge_vec_by_key(&mut base.item_visuals, incoming.item_visuals, |entry| {
         entry.item_name.clone()
     });
+}
+
+fn merge_encounters(base: &mut Vec<EncounterContent>, incoming: Vec<EncounterContent>) {
+    for mut entry in incoming {
+        if let Some(id) = entry.id.as_deref() {
+            if let Some(existing) = base
+                .iter_mut()
+                .find(|candidate| candidate.id.as_deref() == Some(id))
+            {
+                *existing = entry;
+                continue;
+            }
+            base.push(entry);
+            continue;
+        }
+
+        // Older mods identify encounter profiles by location name. Preserve the
+        // base profile's new identity and spawn rules while applying their legacy
+        // combat-profile override.
+        if let Some(existing) = base
+            .iter_mut()
+            .find(|candidate| candidate.location_name == entry.location_name)
+        {
+            entry.id = existing.id.clone();
+            entry.location_id = existing.location_id.clone();
+            entry.quest_id = existing.quest_id.clone();
+            entry.weight = existing.weight;
+            entry.chance_percent = existing.chance_percent;
+            entry.conditions = existing.conditions.clone();
+            *existing = entry;
+        } else {
+            base.push(entry);
+        }
+    }
 }
 
 fn merge_mod_events(

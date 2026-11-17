@@ -268,7 +268,14 @@
       "enemy_hp": 6,
       "enemy_power": 2,
       "trophy_item_name": "Trophy from Old Shrine",
-      "description": "A bent thing of ash and hunger tears at the altar steps."
+      "description": "A bent thing of ash and hunger tears at the altar steps.",
+      "id": "encounter.ashen_wretch",
+      "location_id": "location.old_shrine",
+      "quest_id": "quest.quiet_old_shrine",
+      "weight": 3,
+      "conditions": {
+        "dangerous": true
+      }
     },
     {
       "location_name": "Blackroot Hollow",
@@ -276,7 +283,14 @@
       "enemy_hp": 7,
       "enemy_power": 2,
       "trophy_item_name": "Rootbound Fang",
-      "description": "Something with bark-hard limbs stalks between the roots."
+      "description": "Something with bark-hard limbs stalks between the roots.",
+      "id": "encounter.rootbound_stalker",
+      "location_id": "location.blackroot_hollow",
+      "quest_id": "quest.roots_for_market",
+      "weight": 3,
+      "conditions": {
+        "dangerous": true
+      }
     },
     {
       "location_name": "Drowned Chapel",
@@ -284,7 +298,14 @@
       "enemy_hp": 9,
       "enemy_power": 2,
       "trophy_item_name": "Drowned Rosary",
-      "description": "A waterlogged shape rises from the nave, dragging a chain of prayer beads."
+      "description": "A waterlogged shape rises from the nave, dragging a chain of prayer beads.",
+      "id": "encounter.drowned_penitent",
+      "location_id": "location.drowned_chapel",
+      "quest_id": "quest.drowned_bell",
+      "weight": 3,
+      "conditions": {
+        "dangerous": true
+      }
     }
   ],
   "atmospheres": [
