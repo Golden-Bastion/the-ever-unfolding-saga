@@ -14,6 +14,7 @@ pub(crate) struct CombatEncounter {
     pub(crate) location_id: EntityId,
     pub(crate) location_name: String,
     pub(crate) spatial_encounter_id: Option<String>,
+    pub(crate) spatial_quest_id: Option<String>,
     trophy_name: String,
     pub(crate) events: Vec<String>,
 }
@@ -114,6 +115,7 @@ pub(crate) fn start_spatial_encounter(
         location_id: location.id,
         location_name: location.name,
         spatial_encounter_id: Some(spatial_encounter.id),
+        spatial_quest_id: spatial_encounter.quest_id,
         trophy_name: spatial_encounter.trophy_item_name,
         events: vec![format!(
             "{} confronts {} at {}.",
@@ -288,7 +290,12 @@ fn finish_victory(state: &mut GameState, encounter: &mut CombatEncounter) -> Com
         encounter.location_id,
         format!("{} was cleared of danger.", encounter.location_name),
     );
-    crate::game::quests::record_enemy_defeat(state, &enemy_name, encounter.location_id);
+    crate::game::quests::record_spatial_encounter_defeat(
+        state,
+        &enemy_name,
+        encounter.location_id,
+        encounter.spatial_quest_id.as_deref(),
+    );
     character::gain_experience(state, 15);
     let result_note = format!(
         "Loot: {}\n{}\n\nThe threat is broken. The place is quieter now.",

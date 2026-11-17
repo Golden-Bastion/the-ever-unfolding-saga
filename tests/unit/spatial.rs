@@ -507,6 +507,15 @@ fn spatial_encounters_are_deterministic_persistent_and_backward_compatible() {
     );
     assert!(created);
     let original = map.encounters[0].clone();
+    let mut legacy_record =
+        serde_json::to_value(&original).expect("encounter should serialize");
+    legacy_record
+        .as_object_mut()
+        .expect("encounter should be an object")
+        .remove("quest_id");
+    let legacy_record: SpatialEncounter =
+        serde_json::from_value(legacy_record).expect("older encounters should omit quest IDs");
+    assert!(legacy_record.quest_id.is_none());
 
     assert!(map.is_walkable(original.position));
     assert!(reachable_walkable_tiles(&map).contains(&original.position));
@@ -568,6 +577,7 @@ fn encounter_spawn_avoids_the_players_saved_tile() {
         &mut map,
         SpatialEncounterDefinition {
             id: "encounter.player_overlap".into(),
+            quest_id: None,
             enemy_name: "Ash Marauder".into(),
             description: "A hostile figure approaches.".into(),
             max_hp: 12,

@@ -71,6 +71,7 @@ pub(crate) fn ensure_spatial_encounter_on_entry(
         map,
         SpatialEncounterDefinition {
             id: format!("location.{}.encounter.legacy.{profile_key:016x}", location.id),
+            quest_id: None,
             enemy_name,
             description,
             max_hp,
@@ -211,6 +212,7 @@ fn materialize_profile(
         map,
         SpatialEncounterDefinition {
             id: format!("location.{}.encounter.{}", location.id, identity),
+            quest_id: profile.quest_id.clone(),
             enemy_name: profile.enemy_name.clone(),
             description: profile.description.clone(),
             max_hp: profile.enemy_hp,
