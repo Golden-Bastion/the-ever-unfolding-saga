@@ -67,8 +67,7 @@ pub(crate) fn ensure_spatial_encounter_on_entry(
             let Some(selected) = select_profile(state, location, map, &group, candidates) else {
                 continue;
             };
-            materialized |=
-                materialize_profile(location, map, selected, &group, avoid_position);
+            materialized |= materialize_profile(location, map, selected, &group, avoid_position);
         }
         return materialized;
     }
@@ -78,8 +77,7 @@ pub(crate) fn ensure_spatial_encounter_on_entry(
     // fallback, but do not let it bypass authored spawn conditions or create a
     // second record in the default group.
     if map.encounters.iter().any(|existing| {
-        effective_spawn_group(existing.spawn_group.as_deref())
-            == DEFAULT_ENCOUNTER_SPAWN_GROUP
+        effective_spawn_group(existing.spawn_group.as_deref()) == DEFAULT_ENCOUNTER_SPAWN_GROUP
     }) || !state.threat.active
         || state
             .threat

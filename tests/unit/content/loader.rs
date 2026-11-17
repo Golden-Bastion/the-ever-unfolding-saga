@@ -196,7 +196,9 @@ fn invalid_encounter_spawn_metadata_is_rejected() {
     let issues = content.validate();
     assert!(issues.iter().any(|issue| issue.contains("zero weight")));
     assert!(issues.iter().any(|issue| issue.contains("invalid chance")));
-    assert!(issues.iter().any(|issue| issue.contains("empty spawn group")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("empty spawn group")));
     assert!(issues
         .iter()
         .any(|issue| issue.contains("unknown location ID")));

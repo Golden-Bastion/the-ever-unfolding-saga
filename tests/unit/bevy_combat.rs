@@ -155,11 +155,8 @@ fn combat_targets_the_selected_encounter_when_multiple_records_coexist() {
         .unwrap()
         .clone();
 
-    let primary_combat = crate::game::combat::start_spatial_encounter(
-        &mut game,
-        &primary.id,
-    )
-    .expect("the primary encounter should remain confrontable");
+    let primary_combat = crate::game::combat::start_spatial_encounter(&mut game, &primary.id)
+        .expect("the primary encounter should remain confrontable");
     assert_eq!(primary_combat.enemy_name, primary.enemy_name);
     assert_eq!(primary_combat.enemy_hp, primary.current_hp);
 
@@ -167,11 +164,8 @@ fn combat_targets_the_selected_encounter_when_multiple_records_coexist() {
         x: f32::from(secondary.position.x) + 0.5,
         y: f32::from(secondary.position.y) + 0.5,
     });
-    let secondary_combat = crate::game::combat::start_spatial_encounter(
-        &mut game,
-        &secondary.id,
-    )
-    .expect("the second encounter should be independently confrontable");
+    let secondary_combat = crate::game::combat::start_spatial_encounter(&mut game, &secondary.id)
+        .expect("the second encounter should be independently confrontable");
     assert_eq!(secondary_combat.enemy_name, "Cinder Scout");
     assert_eq!(secondary_combat.enemy_hp, 11);
 }

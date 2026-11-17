@@ -142,22 +142,38 @@ fn multiple_nearby_encounters_have_distinct_confront_targets() {
 
     let first = map.encounters[0].clone();
     let adjacent_candidates = [
-        first.position.x.checked_add(1).map(|x| crate::spatial::GridPosition {
-            x,
-            y: first.position.y,
-        }),
-        first.position.x.checked_sub(1).map(|x| crate::spatial::GridPosition {
-            x,
-            y: first.position.y,
-        }),
-        first.position.y.checked_add(1).map(|y| crate::spatial::GridPosition {
-            x: first.position.x,
-            y,
-        }),
-        first.position.y.checked_sub(1).map(|y| crate::spatial::GridPosition {
-            x: first.position.x,
-            y,
-        }),
+        first
+            .position
+            .x
+            .checked_add(1)
+            .map(|x| crate::spatial::GridPosition {
+                x,
+                y: first.position.y,
+            }),
+        first
+            .position
+            .x
+            .checked_sub(1)
+            .map(|x| crate::spatial::GridPosition {
+                x,
+                y: first.position.y,
+            }),
+        first
+            .position
+            .y
+            .checked_add(1)
+            .map(|y| crate::spatial::GridPosition {
+                x: first.position.x,
+                y,
+            }),
+        first
+            .position
+            .y
+            .checked_sub(1)
+            .map(|y| crate::spatial::GridPosition {
+                x: first.position.x,
+                y,
+            }),
     ];
     let adjacent = adjacent_candidates
         .into_iter()
