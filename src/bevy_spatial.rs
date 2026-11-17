@@ -3185,20 +3185,12 @@ fn format_condition_summary(conditions: &[Condition]) -> String {
     }
 }
 
-/// A threat can be investigated from this scene only when it belongs to the active location.
+/// A local encounter is available independently of the legacy global threat flag.
 fn spatial_investigation_available(
     game: &GameState,
     map: Option<&LocalMap>,
     position: Vec2,
 ) -> bool {
-    if !game.threat.active
-        || game
-            .threat
-            .source_location_id
-            .is_some_and(|source| source != game.character.location_id)
-    {
-        return false;
-    }
     map.is_some_and(|map| {
         discover_available_interactions(map, game, (position.x, position.y))
             .iter()

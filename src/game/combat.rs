@@ -20,7 +20,6 @@ pub(crate) struct CombatEncounter {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CombatStartError {
-    NoActiveThreat,
     MissingLocation,
     MissingSpatialEncounter,
     SpatialEncounterOutOfReach,
@@ -29,7 +28,6 @@ pub(crate) enum CombatStartError {
 impl fmt::Display for CombatStartError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NoActiveThreat => formatter.write_str("There is no active threat to face."),
             Self::MissingLocation => formatter.write_str("The threat cannot be reached here."),
             Self::MissingSpatialEncounter => {
                 formatter.write_str("That encounter is no longer available here.")
@@ -62,15 +60,6 @@ pub(crate) fn start_spatial_encounter(
     state: &mut GameState,
     encounter_id: &str,
 ) -> Result<CombatEncounter, CombatStartError> {
-    if !state.threat.active
-        || state
-            .threat
-            .source_location_id
-            .is_some_and(|source| source != state.character.location_id)
-    {
-        return Err(CombatStartError::NoActiveThreat);
-    }
-
     let location = state
         .world
         .location_by_id(state.character.location_id)
@@ -265,7 +254,14 @@ fn finish_victory(state: &mut GameState, encounter: &mut CombatEncounter) -> Com
     if let Some(encounter_id) = encounter.spatial_encounter_id.as_deref() {
         set_spatial_encounter_defeated(state, encounter.location_id, encounter_id);
     }
-    state.threat.clear();
+    if state.threat.active
+        && state
+            .threat
+            .source_location_id
+            .is_none_or(|source| source == encounter.location_id)
+    {
+        state.threat.clear();
+    }
     if let Some(location) = state.world.location_by_id_mut(encounter.location_id) {
         location.dangerous = false;
     }
