@@ -226,8 +226,9 @@ fn setup(
 }
 
 fn load_spatial_image(images: &mut Assets<Image>, reference: &str) -> Handle<Image> {
-    crate::asset_loading::load_image_from_data(images, reference)
-        .unwrap_or_else(|error| panic!("Could not load spatial prototype image {reference}: {error}"))
+    crate::asset_loading::load_image_from_data(images, reference).unwrap_or_else(|error| {
+        panic!("Could not load spatial prototype image {reference}: {error}")
+    })
 }
 
 fn masked_material(texture: Handle<Image>) -> StandardMaterial {
