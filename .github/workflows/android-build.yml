@@ -31,6 +31,11 @@ on:
         description: Existing release tag
         required: false
         type: string
+      spatial_3d_prototype:
+        description: Build the isolated 3D renderer prototype instead of the normal game (build action only)
+        required: false
+        default: false
+        type: boolean
       version_suffix:
         description: Display-only suffix appended after the package version
         required: false
@@ -38,7 +43,7 @@ on:
         type: string
 
 concurrency:
-  group: android-${{ github.ref }}-${{ inputs.action }}-${{ inputs.source }}-${{ inputs.target }}-${{ inputs.release }}-${{ inputs.version_suffix }}
+  group: android-${{ github.ref }}-${{ inputs.action }}-${{ inputs.source }}-${{ inputs.target }}-${{ inputs.release }}-${{ inputs.version_suffix }}-${{ inputs.spatial_3d_prototype }}
   cancel-in-progress: true
 
 permissions:
@@ -106,6 +111,13 @@ jobs:
             echo "Cargo.toml version ($package_version) does not match tag $RELEASE_TAG."
             exit 1
           fi
+
+      - name: Validate prototype build selection
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'release' && inputs.spatial_3d_prototype
+        shell: bash
+        run: |
+          echo "The 3D prototype is a build-only APK and cannot be published as a normal release."
+          exit 1
 
       - name: Resolve build version
         id: version
@@ -292,6 +304,7 @@ jobs:
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
+          SPATIAL_3D_PROTOTYPE: ${{ inputs.spatial_3d_prototype }}
           EVER_UNFOLDING_SAGA_VERSION_SUFFIX: ${{ inputs.version_suffix }}
         run: |
           set -o pipefail
@@ -322,7 +335,12 @@ jobs:
           export "CARGO_TARGET_${target_env}_LINKER=$linker"
 
           rustup target add "$TARGET"
-          cargo build --release --target "$TARGET"
+          cargo_args=(build --release --target "$TARGET")
+          if [[ "$SPATIAL_3D_PROTOTYPE" == "true" ]]; then
+            cargo_args+=(--features spatial-3d-prototype)
+            echo "Building the isolated 3D renderer prototype for Android"
+          fi
+          cargo "${cargo_args[@]}"
 
           so_file="target/$TARGET/release/libever_unfolding_saga.so"
           if [[ ! -s "$so_file" ]]; then
@@ -418,7 +436,11 @@ jobs:
 
           safe_ref="${{ needs.prepare.outputs.artifact_ref }}"
           safe_ref="${safe_ref//\//-}"
-          apk_name="teus-${safe_ref}-android-${{ matrix.arch }}.apk"
+          variant_suffix=""
+          if [[ "${{ inputs.spatial_3d_prototype }}" == "true" ]]; then
+            variant_suffix="-spatial-3d-prototype"
+          fi
+          apk_name="teus-${safe_ref}-android-${{ matrix.arch }}${variant_suffix}.apk"
           cp "$apk" "../$apk_name"
           echo "APK_NAME=$apk_name" >> "$GITHUB_ENV"
           echo "Created $apk_name"

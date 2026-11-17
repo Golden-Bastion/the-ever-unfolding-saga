@@ -1,7 +1,7 @@
 [package]
 name = "ever_unfolding_saga"
 
-version = "0.52.63"
+version = "0.52.64"
 edition = "2021"
 license = "BUSL-1.1"
 # ---- related to license, `data/` is under CC-BY-NC-ND 4.0 ----
@@ -12,6 +12,11 @@ publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+[[example]]
+name = "spatial_3d_prototype"
+path = "examples/spatial_3d_prototype.rs"
+required-features = ["spatial-3d-prototype"]
 
 [dependencies]
 bevy = { version = "0.20.0", default-features = false, features = [
@@ -47,6 +52,7 @@ jni = "0.22.4"
 
 [features]
 dev = ["bevy/dynamic_linking"]
+spatial-3d-prototype = ["bevy/bevy_pbr"]
 
 [profile.dev]
 opt-level = 1

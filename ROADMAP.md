@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.52.63.**
+**Repository version at this roadmap revision: 0.52.64.**
 
 **Theme:** spatial gameplay and presentation foundations.
 
@@ -15,7 +15,7 @@ The line has established the spatial exploration prototype, character/world auth
 ### Remaining work
 
 1. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are now documented. Remaining work is incremental asset creation and integration, plus continued evolution of contextual HUD hierarchy, objective/orientation cues, character-hub presentation, and platform-adaptive controls without overloading the spatial view. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
-2. **Investigate a hybrid 2D-gameplay / 3D-rendering foundation.** Keep world simulation, grid navigation, collision, and persistent placements 2D while prototyping a 3D Bevy scene for 2D sprite placement, depth-buffer occlusion, lighting, and shadows. Audit the current renderer, test existing sprite-sheet assets and representative occlusion cases, assess Bevy 0.20 and Android feasibility, then record an explicit proceed/defer/reject decision and bounded next steps. Do not begin a wholesale renderer rewrite before the prototype validates the approach. See [hybrid 2D gameplay and 3D rendering](docs/design/hybrid-2d-gameplay-3d-rendering.md).
+2. **Investigate a hybrid 2D-gameplay / 3D-rendering foundation.** The isolated Bevy 0.20 prototype is available as an alternate application entry point behind the optional `spatial-3d-prototype` feature, with desktop CI/CD and Android APK workflow options. It uses the mod-aware asset resolver and reuses the existing 2D spatial assets. Remaining work is to compare more demanding occlusion cases, test pixel stability and viable sprite lighting/shadow approaches, validate Android runtime/GPU behavior and performance on real devices, then record an explicit proceed/defer/reject decision. Do not migrate the production renderer before the investigation validates the approach. See [hybrid 2D gameplay and 3D rendering](docs/design/hybrid-2d-gameplay-3d-rendering.md).
 
 The retained-shell and keyed-row UI migration is complete and has been owner-validated through playtesting. New dynamic collections and screen regions should follow the established retained-host and keyed-identity contracts; this is ongoing architectural practice, not an unfinished migration.
 

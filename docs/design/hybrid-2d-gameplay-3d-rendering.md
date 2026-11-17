@@ -1,6 +1,20 @@
 # Hybrid 2D Gameplay and 3D Rendering Architecture
 
-> Status: proposed architectural direction for v0.52.x investigation and prototyping. This specification defines the intended separation and constraints; it does not claim that the renderer migration or any prototype is implemented.
+> Status: active v0.52.x investigation. An opt-in isolated Bevy 0.20 prototype now demonstrates the first 3D scene and core sprite/atlas path; this specification does not claim that the production renderer has been migrated or that desktop/Android feasibility has been established.
+
+## Current technical spike — v0.52.64
+
+The first isolated prototype lives at `examples/spatial_3d_prototype.rs` and is opt-in:
+
+```sh
+cargo run --example spatial_3d_prototype --features spatial-3d-prototype
+```
+
+It uses Bevy 0.20's 3D camera/PBR path while leaving the normal game target on its existing 2D renderer. The optional feature selects this scene from the library's normal application entry point, so the same native application can be built for desktop or Android. Its scene loads the floor, ash, rubble, wall-face, wall-top, table, and player-animation assets through TEUS's existing mod-aware asset resolver. That resolver uses the packaged data directory on desktop and Android's app-private bundled asset copy on Android; the prototype does not override Bevy's filesystem AssetPlugin path. The orthographic camera uses a three-quarter view. A small conversion maps the two grid axes onto orthogonal directions in the 3D ground plane; vertical sprite meshes place their origin at the feet and use atlas UVs generated from the existing 6×8 animation sheet. Two actors animate and traverse crossing paths.
+
+The scene includes a wall represented by a horizontal top and separate vertical faces, a wide table sprite as an overhang/occlusion proxy, and a simple 3D canopy/trunk proxy. A single directional light has shadow maps enabled; press `L` to toggle them. The current prototype deliberately does not use authoritative world/session state, the mod-aware resolver, production UI cameras, or production navigation. It is an isolated render test, not a second gameplay implementation.
+
+This first spike establishes that the relevant Bevy 0.20 camera, mesh, PBR, alpha-mask, atlas-UV, and shadow APIs can be assembled in an isolated example. It does **not** yet establish visual parity with the current renderer, reliable alpha-cutout shadows, a dedicated tree sprite, camera/HUD integration, Android runtime compatibility, or performance on representative devices. Those remain open investigation criteria. The PBR feature is optional and is not enabled in the default application feature set. The CI/CD workflow can package a desktop prototype binary, and the Android APK workflow can package the same alternate application entry point for the selected Android ABI. The Android build path establishes compilation and packaging support, not universal runtime compatibility; GPU/backend behavior and performance still need to be checked on actual devices.
 
 ## Purpose
 
