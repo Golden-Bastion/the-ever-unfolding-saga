@@ -226,18 +226,17 @@ fn weighted_selection_is_deterministic_and_materialized_records_are_never_reroll
     assert_ne!(first.encounters[0].enemy_name, "Changed");
 }
 
-
 #[test]
 fn independent_spawn_groups_materialize_separately_but_keep_weighted_alternatives() {
     let (mut state, location, mut map, content_location_id) = fixture();
-    let mut pack_a = profile(
+    let pack_a = profile(
         "spawn.test.pack.a",
         &content_location_id,
         &location.name,
         "Ash Hound",
         1,
     );
-    let mut pack_b = profile(
+    let pack_b = profile(
         "spawn.test.pack.b",
         &content_location_id,
         &location.name,
@@ -386,6 +385,8 @@ fn legacy_encounter_records_reserve_the_default_group_but_allow_named_groups() {
         2,
         "Old Token".into(),
     ));
+    map.encounters[0].current_hp = 0;
+    map.encounters[0].status = crate::spatial::SpatialEncounterStatus::Defeated;
     let default_profile = profile(
         "spawn.test.default",
         &content_location_id,

@@ -60,7 +60,7 @@ pub(crate) fn ensure_spatial_encounter_on_entry(
         let mut materialized = false;
         for (group, candidates) in groups {
             if map.encounters.iter().any(|existing| {
-                effective_spawn_group(existing.spawn_group.as_deref()) == group
+                effective_spawn_group(existing.spawn_group.as_deref()) == group.as_str()
             }) {
                 continue;
             }

@@ -130,6 +130,53 @@ fn spatial_encounter_game(enemy_hp: i32) -> crate::model::GameState {
 }
 
 #[test]
+fn combat_targets_the_selected_encounter_when_multiple_records_coexist() {
+    let mut game = spatial_encounter_game(30);
+    let map = &mut game.world.local_maps[0];
+    let primary = map.encounters[0].clone();
+    assert!(crate::spatial::ensure_spatial_encounter_avoiding(
+        map,
+        crate::spatial::SpatialEncounterDefinition {
+            id: "encounter.combat_test.support".into(),
+            quest_id: None,
+            spawn_group: Some("support".into()),
+            enemy_name: "Cinder Scout".into(),
+            description: "A second hostile figure circles nearby.".into(),
+            max_hp: 11,
+            power: 2,
+            trophy_item_name: "Scout Token".into(),
+        },
+        Some(primary.position),
+    ));
+    let secondary = map
+        .encounters
+        .iter()
+        .find(|entry| entry.id == "encounter.combat_test.support")
+        .unwrap()
+        .clone();
+
+    let primary_combat = crate::game::combat::start_spatial_encounter(
+        &mut game,
+        &primary.id,
+    )
+    .expect("the primary encounter should remain confrontable");
+    assert_eq!(primary_combat.enemy_name, primary.enemy_name);
+    assert_eq!(primary_combat.enemy_hp, primary.current_hp);
+
+    game.character.exploration_position = Some(crate::model::ExplorationPosition {
+        x: f32::from(secondary.position.x) + 0.5,
+        y: f32::from(secondary.position.y) + 0.5,
+    });
+    let secondary_combat = crate::game::combat::start_spatial_encounter(
+        &mut game,
+        &secondary.id,
+    )
+    .expect("the second encounter should be independently confrontable");
+    assert_eq!(secondary_combat.enemy_name, "Cinder Scout");
+    assert_eq!(secondary_combat.enemy_hp, 11);
+}
+
+#[test]
 fn spatial_encounter_cannot_be_started_from_outside_interaction_range() {
     let mut game = spatial_encounter_game(30);
     game.character.exploration_position = Some(crate::model::ExplorationPosition {
