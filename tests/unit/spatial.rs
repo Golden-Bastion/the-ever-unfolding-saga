@@ -507,8 +507,7 @@ fn spatial_encounters_are_deterministic_persistent_and_backward_compatible() {
     );
     assert!(created);
     let original = map.encounters[0].clone();
-    let mut legacy_record =
-        serde_json::to_value(&original).expect("encounter should serialize");
+    let mut legacy_record = serde_json::to_value(&original).expect("encounter should serialize");
     legacy_record
         .as_object_mut()
         .expect("encounter should be an object")

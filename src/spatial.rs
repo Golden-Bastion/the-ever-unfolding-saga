@@ -582,7 +582,10 @@ impl LocalMap {
         if encounter.id.trim().is_empty()
             || encounter.enemy_name.trim().is_empty()
             || encounter.trophy_item_name.trim().is_empty()
-            || encounter.quest_id.as_deref().is_some_and(|id| id.trim().is_empty())
+            || encounter
+                .quest_id
+                .as_deref()
+                .is_some_and(|id| id.trim().is_empty())
             || encounter.max_hp <= 0
             || encounter.power < 0
             || !(0..=encounter.max_hp).contains(&encounter.current_hp)
@@ -610,7 +613,10 @@ impl LocalMap {
             }
             if encounter.enemy_name.trim().is_empty()
                 || encounter.trophy_item_name.trim().is_empty()
-                || encounter.quest_id.as_deref().is_some_and(|id| id.trim().is_empty())
+                || encounter
+                    .quest_id
+                    .as_deref()
+                    .is_some_and(|id| id.trim().is_empty())
                 || encounter.max_hp <= 0
                 || encounter.power < 0
                 || !(0..=encounter.max_hp).contains(&encounter.current_hp)

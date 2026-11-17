@@ -85,7 +85,8 @@ fn nearby_active_encounters_offer_a_stable_confront_action() {
         .find(|location| location.id != location_id)
         .expect("world should contain another location")
         .id;
-    game.threat.activate(other_location, "Distant threat", "Elsewhere.");
+    game.threat
+        .activate(other_location, "Distant threat", "Elsewhere.");
     assert!(discover_available_interactions(&map, &game, nearby)
         .iter()
         .any(|item| item.action == InteractionActionKind::EngageEncounter));

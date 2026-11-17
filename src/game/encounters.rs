@@ -70,7 +70,10 @@ pub(crate) fn ensure_spatial_encounter_on_entry(
     ensure_spatial_encounter_avoiding(
         map,
         SpatialEncounterDefinition {
-            id: format!("location.{}.encounter.legacy.{profile_key:016x}", location.id),
+            id: format!(
+                "location.{}.encounter.legacy.{profile_key:016x}",
+                location.id
+            ),
             quest_id: None,
             enemy_name,
             description,
@@ -163,20 +166,26 @@ fn conditions_match(
         && conditions
             .max_day
             .is_none_or(|maximum| state.world.day <= maximum)
-        && conditions.required_completed_quest_id.as_deref().is_none_or(|required| {
-            state
-                .world
-                .completed_quest_ids
-                .iter()
-                .any(|completed| completed == required)
-        })
-        && conditions.required_condition_name.as_deref().is_none_or(|required| {
-            state
-                .character
-                .conditions
-                .iter()
-                .any(|condition| condition.name == required)
-        })
+        && conditions
+            .required_completed_quest_id
+            .as_deref()
+            .is_none_or(|required| {
+                state
+                    .world
+                    .completed_quest_ids
+                    .iter()
+                    .any(|completed| completed == required)
+            })
+        && conditions
+            .required_condition_name
+            .as_deref()
+            .is_none_or(|required| {
+                state
+                    .character
+                    .conditions
+                    .iter()
+                    .any(|condition| condition.name == required)
+            })
 }
 
 fn chance_succeeds(

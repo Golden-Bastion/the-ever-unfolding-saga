@@ -82,7 +82,6 @@ fn evidence_objectives_follow_the_current_characters_known_evidence() {
     assert_eq!(state.quests[0].objectives[0].progress, 1);
 }
 
-
 #[test]
 fn alternate_encounter_profiles_complete_their_shared_authored_quest() {
     let mut state = create_new_state(
@@ -146,7 +145,6 @@ fn alternate_encounter_profiles_complete_their_shared_authored_quest() {
     assert!(objective.completed);
     assert_eq!(objective.progress, 1);
 }
-
 
 #[test]
 fn snapshotted_encounter_quest_id_survives_campaign_profile_changes() {

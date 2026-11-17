@@ -71,8 +71,6 @@ fn mods_extend_and_override_character_parts_by_stable_id() {
     assert_eq!(face.requires_tags, vec!["human"]);
 }
 
-
-
 #[test]
 fn legacy_encounter_definitions_receive_safe_default_spawn_metadata() {
     let legacy = serde_json::json!({
@@ -130,7 +128,10 @@ fn encounter_profiles_merge_by_stable_id_and_legacy_mods_preserve_spawn_metadata
     assert_eq!(overridden.quest_id, original.quest_id);
     assert_eq!(overridden.weight, original.weight);
     assert_eq!(
-        overridden.conditions.as_ref().and_then(|value| value.dangerous),
+        overridden
+            .conditions
+            .as_ref()
+            .and_then(|value| value.dangerous),
         Some(true)
     );
 
@@ -153,10 +154,15 @@ fn encounter_profiles_merge_by_stable_id_and_legacy_mods_preserve_spawn_metadata
         }),
     });
     merge_campaign_content(&mut base, additional_mod);
-    assert!(base.encounters.iter().any(|profile| {
-        profile.id.as_deref() == Some("encounter.old_shrine.alternate")
-    }));
-    assert!(base.validate().is_empty(), "invalid content: {:?}", base.validate());
+    assert!(base
+        .encounters
+        .iter()
+        .any(|profile| { profile.id.as_deref() == Some("encounter.old_shrine.alternate") }));
+    assert!(
+        base.validate().is_empty(),
+        "invalid content: {:?}",
+        base.validate()
+    );
 }
 
 #[test]
@@ -180,10 +186,18 @@ fn invalid_encounter_spawn_metadata_is_rejected() {
     let issues = content.validate();
     assert!(issues.iter().any(|issue| issue.contains("zero weight")));
     assert!(issues.iter().any(|issue| issue.contains("invalid chance")));
-    assert!(issues.iter().any(|issue| issue.contains("unknown location ID")));
-    assert!(issues.iter().any(|issue| issue.contains("unknown quest ID")));
-    assert!(issues.iter().any(|issue| issue.contains("min_day greater than max_day")));
-    assert!(issues.iter().any(|issue| issue.contains("unknown completed quest")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("unknown location ID")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("unknown quest ID")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("min_day greater than max_day")));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.contains("unknown completed quest")));
 }
 
 #[test]

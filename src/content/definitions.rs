@@ -532,7 +532,11 @@ impl CampaignContent {
                     encounter.enemy_name, encounter.location_name
                 ));
             }
-            if encounter.id.as_deref().is_some_and(|id| id.trim().is_empty()) {
+            if encounter
+                .id
+                .as_deref()
+                .is_some_and(|id| id.trim().is_empty())
+            {
                 issues.push(format!(
                     "encounter profile for {} has an empty stable ID",
                     encounter.location_name

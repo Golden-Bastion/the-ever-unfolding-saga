@@ -75,10 +75,7 @@ fn replace_location_profiles(
         .encounters
         .retain(|existing| existing.location_name != location_name);
     content.encounters.extend(profiles);
-    if let Some(location) = state
-        .world
-        .location_by_id_mut(state.character.location_id)
-    {
+    if let Some(location) = state.world.location_by_id_mut(state.character.location_id) {
         location.dangerous = true;
     }
 }
@@ -116,7 +113,6 @@ fn authored_encounters_spawn_without_the_legacy_global_threat_flag() {
     );
 }
 
-
 #[test]
 fn materialized_encounters_retain_the_authored_quest_identity() {
     let (mut state, location, mut map, content_location_id) = fixture();
@@ -131,7 +127,9 @@ fn materialized_encounters_retain_the_authored_quest_identity() {
     replace_location_profiles(&mut state, &location.name, vec![authored]);
     let location = state.world.location_by_id(location.id).unwrap().clone();
 
-    assert!(ensure_spatial_encounter_on_entry(&state, &location, &mut map, None));
+    assert!(ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
     assert_eq!(
         map.encounters[0].quest_id.as_deref(),
         Some("quest.test.persistent_link")
@@ -161,16 +159,21 @@ fn profile_conditions_require_matching_world_time_quests_and_character_state() {
 
     state.world.day = 3;
     state.world.time_points = 11;
-    state.world.completed_quest_ids.push("quest.test.completed".into());
-    state.character.conditions.push(Condition::new("Wounded", 3, -1));
-    assert!(!ensure_spatial_encounter_on_entry(&state, &location, &mut map, None));
+    state
+        .world
+        .completed_quest_ids
+        .push("quest.test.completed".into());
+    state
+        .character
+        .conditions
+        .push(Condition::new("Wounded", 3, -1));
+    assert!(!ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
 
     state.world.day = 4;
     assert!(ensure_spatial_encounter_on_entry(
-        &state,
-        &location,
-        &mut map,
-        None
+        &state, &location, &mut map, None
     ));
     assert_eq!(map.encounters[0].enemy_name, "Hollow Stalker");
 }
@@ -190,8 +193,15 @@ fn weighted_selection_is_deterministic_and_materialized_records_are_never_reroll
     let mut first = map.clone();
     let mut second = map.clone();
 
-    assert!(ensure_spatial_encounter_on_entry(&state, &location, &mut first, None));
-    assert!(ensure_spatial_encounter_on_entry(&state, &location, &mut second, None));
+    assert!(ensure_spatial_encounter_on_entry(
+        &state, &location, &mut first, None
+    ));
+    assert!(ensure_spatial_encounter_on_entry(
+        &state,
+        &location,
+        &mut second,
+        None
+    ));
     assert_eq!(first.encounters, second.encounters);
     assert!(["A", "B"].contains(&first.encounters[0].enemy_name.as_str()));
 
@@ -207,12 +217,13 @@ fn weighted_selection_is_deterministic_and_materialized_records_are_never_reroll
         .find(|profile| profile.id.as_deref() == Some("spawn.test.a"))
         .unwrap()
         .enemy_name = "Changed".into();
-    assert!(!ensure_spatial_encounter_on_entry(&state, &location, &mut first, None));
+    assert!(!ensure_spatial_encounter_on_entry(
+        &state, &location, &mut first, None
+    ));
     assert_eq!(first.encounters[0].id, original.id);
     assert_eq!(first.encounters[0].current_hp, original.current_hp - 5);
     assert_ne!(first.encounters[0].enemy_name, "Changed");
 }
-
 
 #[test]
 fn legacy_location_only_profiles_keep_their_global_threat_gate() {
@@ -232,10 +243,7 @@ fn legacy_location_only_profiles_keep_their_global_threat_gate() {
     let location = state.world.location_by_id(location.id).unwrap().clone();
 
     assert!(!ensure_spatial_encounter_on_entry(
-        &state,
-        &location,
-        &mut map,
-        None
+        &state, &location, &mut map, None
     ));
     state.threat.activate(
         location.id,
@@ -243,10 +251,7 @@ fn legacy_location_only_profiles_keep_their_global_threat_gate() {
         "The old encounter profile remains available.",
     );
     assert!(ensure_spatial_encounter_on_entry(
-        &state,
-        &location,
-        &mut map,
-        None
+        &state, &location, &mut map, None
     ));
     assert_eq!(map.encounters[0].enemy_name, "Legacy Marauder");
 }
@@ -265,7 +270,9 @@ fn zero_chance_suppresses_a_profile_but_legacy_threats_keep_the_old_fallback() {
     replace_location_profiles(&mut state, &location.name, vec![unavailable]);
     let location = state.world.location_by_id(location.id).unwrap().clone();
 
-    assert!(!ensure_spatial_encounter_on_entry(&state, &location, &mut map, None));
+    assert!(!ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
     assert!(map.encounters.is_empty());
 
     state.campaign_content.as_mut().unwrap().encounters.clear();
@@ -274,6 +281,8 @@ fn zero_chance_suppresses_a_profile_but_legacy_threats_keep_the_old_fallback() {
         "Legacy threat",
         "The old threat system is active here.",
     );
-    assert!(ensure_spatial_encounter_on_entry(&state, &location, &mut map, None));
+    assert!(ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
     assert!(!map.encounters[0].enemy_name.is_empty());
 }

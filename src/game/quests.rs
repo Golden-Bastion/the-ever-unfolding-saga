@@ -167,9 +167,8 @@ fn record_enemy_defeat_with_quest(
         .location_by_id(location_id)
         .map(|location| location.name.clone());
     for index in 0..state.quests.len() {
-        let snapshot_matches_quest = encounter_quest_id.is_some_and(|id| {
-            !id.trim().is_empty() && state.quests[index].content_id == id
-        });
+        let snapshot_matches_quest = encounter_quest_id
+            .is_some_and(|id| !id.trim().is_empty() && state.quests[index].content_id == id);
         let content_matches_quest = {
             let quest = &state.quests[index];
             location_name.as_deref().is_some_and(|location_name| {
@@ -204,11 +203,8 @@ fn record_enemy_defeat_with_quest(
                             existing.target = content_id;
                             existing.target_label = Some(label);
                         } else {
-                            let mut objective = QuestObjective::new(
-                                QuestObjectiveKind::DefeatEnemy,
-                                content_id,
-                                1,
-                            );
+                            let mut objective =
+                                QuestObjective::new(QuestObjectiveKind::DefeatEnemy, content_id, 1);
                             objective.target_label = Some(label);
                             quest.objectives.push(objective);
                         }
