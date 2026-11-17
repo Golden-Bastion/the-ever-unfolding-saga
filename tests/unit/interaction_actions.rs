@@ -105,7 +105,7 @@ fn nearby_active_encounters_offer_a_stable_confront_action() {
 
 #[test]
 fn multiple_nearby_encounters_have_distinct_confront_targets() {
-    let mut game = crate::model::create_new_state(
+    let game = crate::model::create_new_state(
         "Multiple Encounter Interaction Test",
         crate::model::WorldMode::New,
         "Ash".into(),

@@ -23,7 +23,6 @@ This line builds on the spatial exploration, UI, authoring, and persistence foun
 7. **Extend exploration across location types.** Make local maps consistently available while preserving direct location-level actions where spatial traversal is unnecessary.
 8. **Continue the dynamic-world layer.** Add persistent roaming entities, awareness and pursuit, and investigation/clue progression where supported by the authoritative world and simulation rules. Multiple independent encounter groups are implemented; roaming, off-screen simulation, and encounter respawning are not.
 9. **Establish the initial state-driven audio/music boundary.** Define transition behavior, separate music/SFX settings, and asset provenance.
-10. **Continue incremental pixel-art asset work** against the approved visual standard.
 
 The retained-shell and keyed-row UI migration is complete and has been owner-validated through playtesting. New dynamic collections and screen regions should follow the established retained-host and keyed-identity contracts; this is ongoing architectural practice, not an unfinished migration.
 
