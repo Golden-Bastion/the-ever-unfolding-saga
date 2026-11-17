@@ -136,7 +136,6 @@ fn alternate_encounter_profiles_complete_their_shared_authored_quest() {
         format!("Defeat the threat at {location_name}")
     );
 
-    record_enemy_defeat(&mut state, "Shrine Echo", location_id);
     let objective = state.quests[quest_index]
         .objectives
         .iter()
