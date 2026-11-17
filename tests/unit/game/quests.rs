@@ -137,6 +137,13 @@ fn alternate_encounter_profiles_complete_their_shared_authored_quest() {
         format!("Defeat the threat at {location_name}")
     );
 
+    record_spatial_encounter_defeat(
+        &mut state,
+        "Shrine Echo",
+        location_id,
+        Some("quest.quiet_old_shrine"),
+    );
+
     let objective = state.quests[quest_index]
         .objectives
         .iter()
