@@ -256,7 +256,17 @@ fn materialize_profile(
         .id
         .as_deref()
         .map(str::to_string)
-        .unwrap_or_else(|| format!("legacy.{:016x}", stable_hash(profile_identity(profile))));
+        .unwrap_or_else(|| {
+            let profile_hash = stable_hash(profile_identity(profile));
+            if spawn_group == DEFAULT_ENCOUNTER_SPAWN_GROUP {
+                format!("legacy.{profile_hash:016x}")
+            } else {
+                format!(
+                    "legacy.{profile_hash:016x}.group.{:016x}",
+                    stable_hash(spawn_group)
+                )
+            }
+        });
     ensure_spatial_encounter_avoiding(
         map,
         SpatialEncounterDefinition {

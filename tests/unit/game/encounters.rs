@@ -428,6 +428,55 @@ fn legacy_encounter_records_reserve_the_default_group_but_allow_named_groups() {
 }
 
 #[test]
+fn idless_profiles_in_different_groups_receive_distinct_persistent_ids() {
+    let (mut state, location, mut map, _content_location_id) = fixture();
+    let mut northern = profile(
+        "unused.north",
+        "unused",
+        &location.name,
+        "Nameless Threat",
+        1,
+    );
+    northern.id = None;
+    northern.location_id = None;
+    northern.spawn_group = Some("north".into());
+    let mut southern = profile(
+        "unused.south",
+        "unused",
+        &location.name,
+        "Nameless Threat",
+        1,
+    );
+    southern.id = None;
+    southern.location_id = None;
+    southern.spawn_group = Some("south".into());
+    replace_location_profiles(&mut state, &location.name, vec![northern, southern]);
+    let location = state.world.location_by_id(location.id).unwrap().clone();
+
+    assert!(ensure_spatial_encounter_on_entry(
+        &state, &location, &mut map, None
+    ));
+    assert_eq!(map.encounters.len(), 2);
+    assert_eq!(map.encounters[0].enemy_name, map.encounters[1].enemy_name);
+    assert_ne!(map.encounters[0].id, map.encounters[1].id);
+    assert_eq!(
+        map.encounters
+            .iter()
+            .filter(|encounter| encounter.spawn_group.as_deref() == Some("north"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        map.encounters
+            .iter()
+            .filter(|encounter| encounter.spawn_group.as_deref() == Some("south"))
+            .count(),
+        1
+    );
+    assert!(map.validate_encounters().is_ok());
+}
+
+#[test]
 fn legacy_location_only_profiles_keep_their_global_threat_gate() {
     let (mut state, location, mut map, content_location_id) = fixture();
     let mut legacy = profile(
