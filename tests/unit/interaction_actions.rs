@@ -141,10 +141,30 @@ fn multiple_nearby_encounters_have_distinct_confront_targets() {
     ));
 
     let first = map.encounters[0].clone();
-    let adjacent = crate::spatial::reachable_walkable_tiles(&map)
+    let adjacent_candidates = [
+        first.position.x.checked_add(1).map(|x| crate::spatial::GridPosition {
+            x,
+            y: first.position.y,
+        }),
+        first.position.x.checked_sub(1).map(|x| crate::spatial::GridPosition {
+            x,
+            y: first.position.y,
+        }),
+        first.position.y.checked_add(1).map(|y| crate::spatial::GridPosition {
+            x: first.position.x,
+            y,
+        }),
+        first.position.y.checked_sub(1).map(|y| crate::spatial::GridPosition {
+            x: first.position.x,
+            y,
+        }),
+    ];
+    let adjacent = adjacent_candidates
         .into_iter()
+        .flatten()
         .find(|position| {
-            position.x.abs_diff(first.position.x) + position.y.abs_diff(first.position.y) == 1
+            map.contains(*position)
+                && map.is_walkable(*position)
                 && *position != map.entry
                 && *position != map.encounters[1].position
         })
