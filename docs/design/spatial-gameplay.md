@@ -28,9 +28,9 @@ For locations that are not generally safe, such as wilderness, forests, ruins, o
 
 The spatial world should not be an empty decorative map. Smaller threats and other encounters should appear according to world time, location, current conditions, quests, and other authored rules rather than being limited to a single global threat flag.
 
-The first encounter layer materializes an eligible authored profile as a persistent stationary record when a local map is entered. Its stable identity and combat profile provide the foundation for later movement and simulation; established map state must not be rerolled when the player returns.
+The encounter layer groups authored profiles by optional `spawn_group`. One eligible weighted alternative from each group may materialize as a persistent stationary record when a local map is entered. Profiles without an explicit group share the default pool, while distinct named groups can produce multiple independent records on one map. Each record snapshots its identity, quest link, combat profile, health, group, and location; later content changes or re-entry do not silently reroll or reset it. A group whose conditions are not yet satisfied may materialize when the player next enters the map after those conditions become true.
 
-Enemies may later roam through the spatial world rather than remaining permanently fixed to one tile/location. Multiple concurrent encounter records, roaming, awareness, pursuit, and off-screen updates remain broader simulation work.
+Enemies may later roam through the spatial world rather than remaining permanently fixed to one tile/location. Roaming, awareness, pursuit, encounter respawning, and off-screen updates remain broader simulation work.
 
 The existing world/time/event systems should be extended to drive this behavior where practical instead of creating an unrelated second simulation.
 
