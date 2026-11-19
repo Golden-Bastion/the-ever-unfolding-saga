@@ -1868,6 +1868,27 @@ pub fn spawn_health_gauge(
     current: i32,
     maximum: i32,
 ) -> Entity {
+    // Keep the transitional encounter UI on its existing dimensions. The
+    // exploration HUD opts into a taller, wider presentation independently.
+    spawn_health_gauge_with_height(commands, parent, current, maximum, 28.0)
+}
+
+/// Spawn a shared health gauge with an explicit visual height.
+///
+/// The default helper intentionally preserves the legacy encounter gauge;
+/// callers with a different information hierarchy can select their own size.
+pub fn spawn_health_gauge_with_height(
+    commands: &mut Commands,
+    parent: Entity,
+    current: i32,
+    maximum: i32,
+    height: f32,
+) -> Entity {
+    let height = if height.is_finite() {
+        height.max(1.0)
+    } else {
+        28.0
+    };
     let gauge_ratio = gauge_ratio(current, maximum);
     let gauge = commands
         .spawn((
@@ -1875,7 +1896,9 @@ pub fn spawn_health_gauge(
             Node {
                 width: percent(100),
                 min_width: px(0),
-                min_height: px(28),
+                height: px(height),
+                min_height: px(height),
+                max_height: px(height),
                 position_type: PositionType::Relative,
                 border: UiRect::all(px(1)),
                 ..default()
