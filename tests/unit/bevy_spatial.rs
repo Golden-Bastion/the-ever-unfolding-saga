@@ -1899,6 +1899,28 @@ fn sun_rises_in_the_east_left_and_sets_in_the_west_right() {
 }
 
 #[test]
+fn moon_travels_left_to_right_through_midnight_in_south_facing_sky() {
+    // Slots 8, 9, 10, 11, 0, and 1 represent 18:00 through 04:00.
+    let moon_path = [
+        sky_visual(8),
+        sky_visual(9),
+        sky_visual(10),
+        sky_visual(11),
+        sky_visual(0),
+        sky_visual(1),
+    ];
+
+    assert!(moon_path
+        .iter()
+        .all(|sky| sky.celestial == CelestialBody::Moon));
+    assert!(moon_path
+        .windows(2)
+        .all(|pair| pair[0].celestial_x < pair[1].celestial_x));
+    assert!(moon_path[3].celestial_y < moon_path[0].celestial_y);
+    assert!(moon_path[3].celestial_y < moon_path[5].celestial_y);
+}
+
+#[test]
 fn spatial_time_visuals_cycle_across_the_full_world_clock() {
     for time_points in 0..12 {
         let sky = sky_visual(time_points);
