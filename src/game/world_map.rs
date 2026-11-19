@@ -148,7 +148,7 @@ fn tracked_quest_destination_id(
         .find(|quest| quest.id == tracked_id && quest.offered && !quest.completed)?;
     let objective = quest.objectives.iter().find(|objective| !objective.completed)?;
 
-    match objective.kind {
+    match &objective.kind {
         QuestObjectiveKind::VisitLocation => state
             .world
             .location_by_name(&objective.target)
