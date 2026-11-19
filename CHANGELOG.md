@@ -10,7 +10,7 @@ The entries below cover the v0.52.x development line through v0.52.64. This line
 
 - Added an opt-in Bevy 0.20 3D scene as an alternate application entry point. The normal game remains the default; enabling `spatial-3d-prototype` selects the isolated scene on desktop or Android.
 - Reused the existing spatial pixel-art assets through TEUS's mod-aware asset resolver, with foot-anchored atlas meshes, two animated crossing actors, textured ground, separate wall top/faces, an overhanging prop proxy, and a directional-light shadow toggle.
-- Added desktop CI/CD and Android APK workflow options to package the prototype as a distinct build artifact. The PBR dependency remains optional and the production renderer/gameplay model is untouched.
+- Added desktop CI/CD and Android APK workflow options to package the prototype as a distinct build artifact, including a `disable_shadow_maps` switch for Android/desktop GPU compatibility experiments. The PBR dependency remains optional and the production renderer/gameplay model is untouched.
 - Added focused tests for atlas UV selection and the orthogonal grid-to-ground mapping. Android compilation is now supported by the workflow, but runtime/GPU compatibility and sustained performance still require device validation.
 
 ### v0.52.63: Independent persistent spatial encounter groups
