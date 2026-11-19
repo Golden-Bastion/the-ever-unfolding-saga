@@ -544,8 +544,9 @@ fn health_gauge_height_can_change_without_resizing_the_legacy_gauge() {
     let fixture = world.resource::<Fixture>();
     let legacy = world.get::<Node>(fixture.legacy).unwrap();
     let expanded = world.get::<Node>(fixture.expanded).unwrap();
-    assert_eq!(legacy.height, px(28.0));
+    assert_eq!(legacy.height, Node::default().height);
     assert_eq!(legacy.min_height, px(28.0));
+    assert_eq!(legacy.max_height, Node::default().max_height);
     assert_eq!(expanded.height, px(20.0));
     assert_eq!(expanded.min_height, px(20.0));
     assert_eq!(expanded.max_height, px(20.0));
