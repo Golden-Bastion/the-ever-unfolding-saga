@@ -94,6 +94,11 @@ fn tracked_quest_marks_the_first_incomplete_visit_objective_and_reveals_its_loca
         .expect("the tracked destination should be shown on the map");
     assert!(destination.tracked_objective);
     assert!(!destination.explored);
+    assert!(destination.fast_travel_index.is_none());
+    assert!(view
+        .routes
+        .iter()
+        .all(|route| route.from_id != 14 && route.to_id != 14));
     assert!(!view
         .nodes
         .iter()
@@ -132,6 +137,24 @@ fn tracked_evidence_objective_resolves_to_the_location_that_owns_the_discovery()
         .find(|node| node.location.id == 12)
         .unwrap()
         .tracked_objective);
+}
+
+#[test]
+fn untracked_quests_do_not_add_a_world_map_destination_marker() {
+    let mut state = test_state();
+    let mut quest = Quest::new(
+        704, "quest.untracked", "Untracked", "No marker", 14, 0, 0, "", "",
+    );
+    quest.offered = true;
+    quest.objectives = vec![QuestObjective::new(
+        QuestObjectiveKind::VisitLocation, "Far Ruin", 1,
+    )];
+    state.quests.push(quest);
+
+    let view = build_view(&state);
+
+    assert!(view.nodes.iter().all(|node| !node.tracked_objective));
+    assert!(!view.nodes.iter().any(|node| node.location.id == 14));
 }
 
 #[test]
