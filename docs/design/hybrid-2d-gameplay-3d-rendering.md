@@ -1,20 +1,14 @@
 # Hybrid 2D Gameplay and 3D Rendering Architecture
 
-> Status: active v0.52.x investigation. An opt-in isolated Bevy 0.20 prototype now demonstrates the first 3D scene and core sprite/atlas path; this specification does not claim that the production renderer has been migrated or that desktop/Android feasibility has been established.
+> Status: active v0.52.x investigation. The experimental implementation has been moved out of the TEUS repository into the separate private [TEUS Lab repository](https://github.com/Golden-Bastion/teus-lab). TEUS continues to ship only its existing 2D renderer. This document remains the architectural brief and acceptance record; it does not imply that a 3D renderer has been selected or integrated.
 
-## Current technical spike — v0.52.64
+## Current experiment location — TEUS Lab
 
-The first isolated prototype lives at `examples/spatial_3d_prototype.rs` and is opt-in:
+The standalone Bevy 0.20 scene, rendering code, diagnostic build options, desktop/Android workflows, and copied reference assets are maintained only in [Golden-Bastion/teus-lab](https://github.com/Golden-Bastion/teus-lab) (private repository). The lab has its own Cargo crate, asset-loading path, and Android GameActivity app. It does not depend on the TEUS application crate or change the production game's entry point, renderer, dependency features, or build workflows.
 
-```sh
-cargo run --example spatial_3d_prototype --features spatial-3d-prototype
-```
+The lab retains the current experimental scene: an orthographic three-quarter camera, textured ground, foot-anchored 2D atlas meshes, crossing animated actors, wall top/faces, a table overhang proxy, a simple tree proxy, directional lighting, optional shadow maps, and the direct-output tonemapping configuration. The copied spatial reference art remains under its original CC BY-NC-ND 4.0 license. Refer to the private lab for the exact implementation, build instructions, and experiment results.
 
-It uses Bevy 0.20's 3D camera/PBR path while leaving the normal game target on its existing 2D renderer. The optional feature selects this scene from the library's normal application entry point, so the same native application can be built for desktop or Android. Its scene loads the floor, ash, rubble, wall-face, wall-top, table, and player-animation assets through TEUS's existing mod-aware asset resolver. That resolver uses the packaged data directory on desktop and Android's app-private bundled asset copy on Android; the prototype does not override Bevy's filesystem AssetPlugin path. The orthographic camera uses a three-quarter view and explicitly selects `Tonemapping::None`: this prototype does not bundle Bevy's optional tonemapping lookup tables, and the default LUT-backed transform otherwise renders materials magenta. A small conversion maps the two grid axes onto orthogonal directions in the 3D ground plane; vertical sprite meshes place their origin at the feet and use atlas UVs generated from the existing 6×8 animation sheet. Two actors animate and traverse crossing paths.
-
-The scene includes a wall represented by a horizontal top and separate vertical faces, a wide table sprite as an overhang/occlusion proxy, and a simple 3D canopy/trunk proxy. A single directional light has shadow maps enabled by default; press `L` to toggle them. Both desktop CI/CD and Android APK workflow dispatches expose a `disable_shadow_maps` switch for prototype builds. Enabling it selects the `spatial-3d-no-shadows` Cargo feature, which keeps the directional light but disables its shadow maps at compile time. The current prototype deliberately does not use authoritative world/session state, production UI cameras, or production navigation. It is an isolated render test, not a second gameplay implementation.
-
-This first spike establishes that the relevant Bevy 0.20 camera, mesh, PBR, alpha-mask, atlas-UV, and shadow APIs can be assembled in an isolated example. It does **not** yet establish visual parity with the current renderer, reliable alpha-cutout shadows, a dedicated tree sprite, camera/HUD integration, Android runtime compatibility, or performance on representative devices. Those remain open investigation criteria. The PBR feature is optional and is not enabled in the default application feature set. The CI/CD workflow can package a desktop prototype binary, and the Android APK workflow can package the same alternate application entry point for the selected Android ABI. The Android build path establishes compilation and packaging support, not universal runtime compatibility; GPU/backend behavior and performance still need to be checked on actual devices.
+The investigation remains unfinished. In particular, visual parity, robust occlusion, alpha-cutout shadow behavior, pixel stability, Android runtime/GPU compatibility, sustained mobile performance, and the comparison of tone-mapping approaches still require evidence from the lab. No decision to migrate the production renderer has been made.
 
 ## Purpose
 

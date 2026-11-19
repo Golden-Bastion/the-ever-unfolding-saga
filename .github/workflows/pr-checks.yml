@@ -132,8 +132,8 @@ jobs:
         run: |
           set +e
 
-          echo '=== cargo test --lib (including the 3D prototype feature) ==='
-          cargo test --lib --features "dev spatial-3d-prototype" --no-fail-fast
+          echo '=== cargo test --lib ==='
+          cargo test --lib --no-fail-fast
           test_status=$?
 
           echo "test_status=$test_status"

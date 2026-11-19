@@ -4,7 +4,14 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.66. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.67. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+
+### v0.52.67: Move 3D rendering experiments into TEUS Lab
+
+- Moved the standalone Bevy 0.20 rendering experiment into the separate private Golden-Bastion/teus-lab repository, including its own crate, image-loading path, Android scaffold, desktop/Android build workflows, and copied spatial reference assets.
+- Removed the prototype application entry point, optional PBR/shadow features, and experimental build switches from TEUS. The production game now always launches its existing 2D renderer.
+- Kept the hybrid-rendering architecture brief and remaining investigation goals in TEUS documentation; no production renderer migration or integration decision has been made.
+- Bumped Rust and Android fallback version metadata to 0.52.67.
 
 ### v0.52.66: Correct 3D prototype magenta rendering
 

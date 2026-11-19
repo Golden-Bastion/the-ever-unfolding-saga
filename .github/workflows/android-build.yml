@@ -31,16 +31,6 @@ on:
         description: Existing release tag
         required: false
         type: string
-      spatial_3d_prototype:
-        description: Build the isolated 3D renderer prototype instead of the normal game (build action only)
-        required: false
-        default: false
-        type: boolean
-      disable_shadow_maps:
-        description: Disable directional-light shadow maps in the 3D prototype (build action only)
-        required: false
-        default: false
-        type: boolean
       version_suffix:
         description: Display-only suffix appended after the package version
         required: false
@@ -48,7 +38,7 @@ on:
         type: string
 
 concurrency:
-  group: android-${{ github.ref }}-${{ inputs.action }}-${{ inputs.source }}-${{ inputs.target }}-${{ inputs.release }}-${{ inputs.version_suffix }}-${{ inputs.spatial_3d_prototype }}-${{ inputs.disable_shadow_maps }}
+  group: android-${{ github.ref }}-${{ inputs.action }}-${{ inputs.source }}-${{ inputs.target }}-${{ inputs.release }}-${{ inputs.version_suffix }}
   cancel-in-progress: true
 
 permissions:
@@ -116,13 +106,6 @@ jobs:
             echo "Cargo.toml version ($package_version) does not match tag $RELEASE_TAG."
             exit 1
           fi
-
-      - name: Validate prototype build selection
-        if: github.event_name == 'workflow_dispatch' && inputs.action == 'release' && inputs.spatial_3d_prototype
-        shell: bash
-        run: |
-          echo "The 3D prototype is a build-only APK and cannot be published as a normal release."
-          exit 1
 
       - name: Resolve build version
         id: version
@@ -309,8 +292,6 @@ jobs:
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
-          SPATIAL_3D_PROTOTYPE: ${{ inputs.spatial_3d_prototype }}
-          DISABLE_SHADOW_MAPS: ${{ inputs.disable_shadow_maps }}
           EVER_UNFOLDING_SAGA_VERSION_SUFFIX: ${{ inputs.version_suffix }}
         run: |
           set -o pipefail
@@ -342,15 +323,6 @@ jobs:
 
           rustup target add "$TARGET"
           cargo_args=(build --release --target "$TARGET")
-          if [[ "$SPATIAL_3D_PROTOTYPE" == "true" ]]; then
-            if [[ "$DISABLE_SHADOW_MAPS" == "true" ]]; then
-              cargo_args+=(--features spatial-3d-no-shadows)
-              echo "Building the 3D renderer prototype for Android with directional-light shadow maps disabled"
-            else
-              cargo_args+=(--features spatial-3d-prototype)
-              echo "Building the isolated 3D renderer prototype for Android with shadow maps enabled"
-            fi
-          fi
           cargo "${cargo_args[@]}"
 
           so_file="target/$TARGET/release/libever_unfolding_saga.so"
@@ -447,14 +419,7 @@ jobs:
 
           safe_ref="${{ needs.prepare.outputs.artifact_ref }}"
           safe_ref="${safe_ref//\//-}"
-          variant_suffix=""
-          if [[ "${{ inputs.spatial_3d_prototype }}" == "true" ]]; then
-            variant_suffix="-spatial-3d-prototype"
-            if [[ "${{ inputs.disable_shadow_maps }}" == "true" ]]; then
-              variant_suffix+="-no-shadows"
-            fi
-          fi
-          apk_name="teus-${safe_ref}-android-${{ matrix.arch }}${variant_suffix}.apk"
+          apk_name="teus-${safe_ref}-android-${{ matrix.arch }}.apk"
           cp "$apk" "../$apk_name"
           echo "APK_NAME=$apk_name" >> "$GITHUB_ENV"
           echo "Created $apk_name"

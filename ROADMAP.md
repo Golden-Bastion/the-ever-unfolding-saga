@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.52.65.**
+**Repository version at this roadmap revision: 0.52.67.**
 
 **Theme:** spatial gameplay and presentation foundations.
 
@@ -15,7 +15,7 @@ The line has established the spatial exploration prototype, character/world auth
 ### Remaining work
 
 1. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are documented. The current Character hub and desktop/Android spatial control arrangements are accepted as complete for the present scope; revisit them only when a concrete feature or playtest finding justifies it. The exploration HUD now gives player vitality a stacked panel and a full-width, numeric health bar; further HUD work should remain incremental and prioritize contextual objective/orientation cues, improving the visual representation of world entities, and creating/integrating pixel-art assets. Defer bespoke enemy/boss HUD elements and combat-specific asset production until the transitional encounter UI is replaced by real-time spatial combat; do not heavily polish the current combat presentation. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
-2. **Investigate a hybrid 2D-gameplay / 3D-rendering foundation.** The isolated Bevy 0.20 prototype is available as an alternate application entry point behind the optional `spatial-3d-prototype` feature, with desktop CI/CD and Android APK workflow options. It uses the mod-aware asset resolver and reuses the existing 2D spatial assets. Remaining work is to compare more demanding occlusion cases, test pixel stability and viable sprite lighting/shadow approaches, validate Android runtime/GPU behavior and performance on real devices, then record an explicit proceed/defer/reject decision. Do not migrate the production renderer before the investigation validates the approach. See [hybrid 2D gameplay and 3D rendering](docs/design/hybrid-2d-gameplay-3d-rendering.md).
+2. **Investigate a hybrid 2D-gameplay / 3D-rendering foundation outside the game repository.** All experimental 3D source, build configuration, and platform workflows now live in the separate private [TEUS Lab repository](https://github.com/Golden-Bastion/teus-lab). The production game remains on its existing 2D renderer; no 3D prototype entry point, PBR feature, or experimental build switch is included in TEUS. Continue the investigation in the lab: compare difficult occlusion cases, test pixel stability and viable sprite-lighting/shadow approaches, validate Android runtime/GPU behavior and performance on real devices, then record an explicit proceed/defer/reject decision before proposing any integration. See [hybrid 2D gameplay and 3D rendering](docs/design/hybrid-2d-gameplay-3d-rendering.md).
 
 The retained-shell and keyed-row UI migration is complete and has been owner-validated through playtesting. New dynamic collections and screen regions should follow the established retained-host and keyed-identity contracts; this is ongoing architectural practice, not an unfinished migration.
 
