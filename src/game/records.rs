@@ -46,7 +46,7 @@ pub(crate) fn build_inventory_detail_view(
     })
 }
 
-fn build_quest_view(quest: &Quest) -> QuestView {
+fn build_quest_view(quest: &Quest, tracked: bool) -> QuestView {
     let status = if quest.completed {
         "COMPLETED"
     } else if quest_is_ready(quest) {
@@ -66,6 +66,7 @@ fn build_quest_view(quest: &Quest) -> QuestView {
         .collect();
     QuestView {
         id: quest.id,
+        tracked: tracked && quest.offered && !quest.completed,
         title: quest.title.clone(),
         description: quest.description.clone(),
         objectives,
@@ -84,7 +85,12 @@ pub(crate) fn build_quest_log_view(state: &GameState) -> QuestLogView {
             .quests
             .iter()
             .filter(|quest| quest.offered || quest.completed)
-            .map(build_quest_view)
+            .map(|quest| {
+                build_quest_view(
+                    quest,
+                    state.character.tracked_quest_id == Some(quest.id),
+                )
+            })
             .collect(),
     }
 }
@@ -95,7 +101,10 @@ pub(crate) fn build_quest_view_for(state: &GameState, quest_index: usize) -> Opt
         .iter()
         .filter(|quest| quest.offered || quest.completed)
         .nth(quest_index)?;
-    Some(build_quest_view(quest))
+    Some(build_quest_view(
+        quest,
+        state.character.tracked_quest_id == Some(quest.id),
+    ))
 }
 
 fn quest_is_ready(quest: &Quest) -> bool {
