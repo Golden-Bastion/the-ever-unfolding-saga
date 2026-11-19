@@ -203,6 +203,97 @@ fn snapshotted_encounter_quest_id_survives_campaign_profile_changes() {
 }
 
 #[test]
+fn tracking_is_limited_to_offered_incomplete_quests_and_can_be_switched() {
+    let mut state = create_new_state(
+        "Tracked Quests",
+        WorldMode::New,
+        "Tester".into(),
+        "Ash Walker".into(),
+    );
+    let location_id = state.character.location_id;
+    let mut first = Quest::new(
+        701,
+        "quest.first",
+        "First Quest",
+        "First",
+        location_id,
+        0,
+        0,
+        "",
+        "",
+    );
+    first.offered = true;
+    let mut second = Quest::new(
+        702,
+        "quest.second",
+        "Second Quest",
+        "Second",
+        location_id,
+        0,
+        0,
+        "",
+        "",
+    );
+    second.offered = true;
+    let mut unavailable = Quest::new(
+        703,
+        "quest.unavailable",
+        "Unavailable",
+        "Unavailable",
+        location_id,
+        0,
+        0,
+        "",
+        "",
+    );
+    unavailable.completed = true;
+    state.quests = vec![first, second, unavailable];
+
+    assert!(toggle_tracking(&mut state, 701));
+    assert_eq!(state.character.tracked_quest_id, Some(701));
+    assert!(toggle_tracking(&mut state, 702));
+    assert_eq!(state.character.tracked_quest_id, Some(702));
+    assert!(toggle_tracking(&mut state, 702));
+    assert_eq!(state.character.tracked_quest_id, None);
+    assert!(!toggle_tracking(&mut state, 703));
+    assert!(!toggle_tracking(&mut state, 999));
+    assert_eq!(state.character.tracked_quest_id, None);
+}
+
+#[test]
+fn completing_a_tracked_quest_clears_its_tracking_state() {
+    let mut state = create_new_state(
+        "Completed Tracked Quest",
+        WorldMode::New,
+        "Tester".into(),
+        "Ash Walker".into(),
+    );
+    crate::game::world::bootstrap_campaign_content(&mut state);
+    let quest_index = state
+        .quests
+        .iter()
+        .position(|quest| quest.content_id == "quest.quiet_old_shrine")
+        .expect("base campaign should seed the Old Shrine quest");
+    let quest_id = state.quests[quest_index].id;
+    let target_name = state
+        .world
+        .location_by_id(state.quests[quest_index].target_location_id)
+        .unwrap()
+        .name
+        .clone();
+    state.quests[quest_index].offered = true;
+    let mut objective = QuestObjective::new(QuestObjectiveKind::VisitLocation, target_name, 1);
+    objective.progress = 1;
+    objective.completed = true;
+    state.quests[quest_index].objectives = vec![objective];
+    state.character.tracked_quest_id = Some(quest_id);
+
+    assert!(try_complete(&mut state, quest_index));
+    assert!(state.quests[quest_index].completed);
+    assert_eq!(state.character.tracked_quest_id, None);
+}
+
+#[test]
 fn legacy_quest_is_expanded_into_explicit_objectives() {
     let mut state = create_new_state(
         "Test World",

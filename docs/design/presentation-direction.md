@@ -21,7 +21,7 @@ The following layouts describe intended information hierarchy, not a claim that 
 ## Exploration HUD
 
 - Keep essential character status visible without covering the view: a portrait or clear character marker with health and other currently relevant vitals.
-- Place current objective/quest guidance in a compact, dismissible area, and show a contextual interaction prompt near the person, object, exit, or point of interest it refers to.
+- Keep quest titles, objective lists, and progress in Character Hub → Quests rather than a persistent exploration-HUD panel. Let the player explicitly track one active quest there, then use a small World Map destination marker for its next resolvable objective. Keep contextual interaction prompts near the person, object, exit, or point of interest they refer to.
 - Make local orientation and time context available with a compact compass/minimap and a readable time-of-day cue where useful.
 - Keep secondary shortcuts compact and contextual. Avoid permanent panels for systems that are not relevant to the current activity.
 - Use in-world markers and visual feedback to distinguish nearby opportunities from background scenery without turning every object into a labelled icon.

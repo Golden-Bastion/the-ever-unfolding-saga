@@ -91,6 +91,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                     region_name: "Ashen Vale".to_string(),
                     ..Default::default()
                 },
+                tracked_objective: false,
                 region_id: 1,
                 explored: true,
                 current: true,
@@ -105,6 +106,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                     region_name: "Ashen Vale".to_string(),
                     ..Default::default()
                 },
+                tracked_objective: false,
                 region_id: 1,
                 explored: true,
                 current: false,
@@ -119,6 +121,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                     region_name: "Ashen Vale".to_string(),
                     ..Default::default()
                 },
+                tracked_objective: false,
                 region_id: 1,
                 explored: true,
                 current: false,
@@ -133,6 +136,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                     region_name: "Ashen Vale".to_string(),
                     ..Default::default()
                 },
+                tracked_objective: false,
                 region_id: 1,
                 explored: false,
                 current: false,

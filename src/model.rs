@@ -142,6 +142,9 @@ pub struct Character {
     /// World maps retain physical discoveries separately across lives.
     #[serde(default)]
     pub known_evidence_ids: Vec<String>,
+    /// The active quest this character has chosen to follow on the World Map.
+    #[serde(default)]
+    pub tracked_quest_id: Option<EntityId>,
     pub hp: i32,
     pub max_hp: i32,
     pub location_id: EntityId,
@@ -471,6 +474,7 @@ impl Character {
             title,
             appearance_parts: Vec::new(),
             known_evidence_ids: Vec::new(),
+            tracked_quest_id: None,
             hp: 10,
             max_hp: 10,
             location_id,

@@ -92,6 +92,7 @@ fn inherited_world_keeps_spatial_maps_but_resets_character_session() {
         .character
         .record_evidence(map.points_of_interest[0].id.clone());
     state.character.record_evidence("evidence.previous_life");
+    state.character.tracked_quest_id = Some(701);
     map.set_terrain(map.entry, crate::spatial::Terrain::Rubble);
     state.world.local_maps.push(map.clone());
     state.character.exploration_session = Some(crate::spatial::ExplorationSession {
@@ -116,6 +117,7 @@ fn inherited_world_keeps_spatial_maps_but_resets_character_session() {
         inherited.character.known_evidence_ids.is_empty(),
         "new characters must not inherit the previous life’s individual knowledge"
     );
+    assert_eq!(inherited.character.tracked_quest_id, None);
     assert_eq!(
         inherited.world.local_maps[0].terrain_at(map.entry),
         Some(crate::spatial::Terrain::Rubble)
@@ -143,6 +145,28 @@ fn character_evidence_defaults_empty_for_old_saves() {
     let restored: Character = serde_json::from_value(legacy)
         .expect("older characters deserialize without evidence knowledge");
     assert!(restored.known_evidence_ids.is_empty());
+}
+
+#[test]
+fn tracked_quest_defaults_to_none_and_round_trips_without_breaking_old_saves() {
+    let mut state = create_new_state(
+        "Quest Tracking Save",
+        WorldMode::New,
+        "First Warden".into(),
+        "Ash Walker".into(),
+    );
+    assert_eq!(state.character.tracked_quest_id, None);
+    state.character.tracked_quest_id = Some(704);
+    let serialized = serde_json::to_value(&state.character).unwrap();
+    let restored: Character = serde_json::from_value(serialized.clone())
+        .expect("tracked quest should survive character serialization");
+    assert_eq!(restored.tracked_quest_id, Some(704));
+
+    let mut legacy = serialized;
+    legacy.as_object_mut().unwrap().remove("tracked_quest_id");
+    let restored: Character = serde_json::from_value(legacy)
+        .expect("older characters deserialize without quest tracking");
+    assert_eq!(restored.tracked_quest_id, None);
 }
 
 #[test]

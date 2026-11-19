@@ -727,6 +727,13 @@ fn render_world_map_content(
         panel,
         "Visited places have a warm border. Fast travel needs a known route; unexplored places must be reached in the world.",
     );
+    if view.nodes.iter().any(|node| node.tracked_objective) {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            panel,
+            "The brass marker shows the next destination for your tracked quest.",
+        );
+    }
     if let Some(message) = message {
         bevy_presentation::spawn_muted_label(commands, panel, message);
     }
@@ -924,6 +931,9 @@ fn render_world_map_graph(
                     index,
                 },
             ));
+            if node.tracked_objective {
+                spawn_world_map_tracked_quest_marker(commands, button);
+            }
             if selected == index {
                 commands
                     .entity(button)
@@ -979,7 +989,44 @@ fn render_world_map_graph(
             status.to_string()
         };
         bevy_presentation::spawn_muted_label(commands, card, detail);
+        if node.tracked_objective {
+            spawn_world_map_tracked_quest_marker(commands, card);
+        }
     }
+}
+
+fn spawn_world_map_tracked_quest_marker(commands: &mut Commands, parent: Entity) {
+    let marker = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(7),
+                right: px(7),
+                width: px(14),
+                height: px(14),
+                border: UiRect::all(px(2)),
+                border_radius: BorderRadius::MAX,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BorderColor::all(bevy_presentation::THEME_ACCENT),
+            BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
+        ))
+        .id();
+    let center = commands
+        .spawn((
+            Node {
+                width: px(4),
+                height: px(4),
+                border_radius: BorderRadius::MAX,
+                ..default()
+            },
+            BackgroundColor(bevy_presentation::THEME_ACCENT),
+        ))
+        .id();
+    commands.entity(marker).add_child(center);
+    commands.entity(parent).add_child(marker);
 }
 
 fn spawn_world_map_direction_marker(

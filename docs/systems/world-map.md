@@ -20,6 +20,18 @@ The first version intentionally avoids representing geographical terrain. It vis
 - Choosing a fast-travelable map node is the fast-travel action; there is no separate destination-only Travel screen.
 - Physical passage use remains the normal travel path inside spatial gameplay. It continues to validate the immediate reciprocal connection and enters the destination's local map without invoking fast travel.
 
+## Tracked quest destination marker
+
+Quest tracking is explicitly selected from Character Hub → Quests. A character can track one offered, incomplete quest at a time. The quest title, description, objective list, and progress remain in the Character Hub; the spatial exploration HUD does not display a persistent quest panel.
+
+The map resolves the first incomplete objective for the tracked quest and marks its destination with a small brass indicator on the corresponding location node:
+
+- `VisitLocation` resolves by the objective's exact location name, with a numeric location-ID fallback for legacy objectives.
+- `DiscoverEvidence` resolves the stable evidence ID through authored spatial discoveries, then finds the world location containing that discovery.
+- `AcquireItem` and `DefeatEnemy` use the quest's explicitly assigned target location.
+
+The marker advances when the current objective becomes complete. If the objective has no incomplete step or its destination cannot be resolved, no marker is shown. A known tracked destination may be added as a visible map node even beyond the ordinary exploration frontier, but tracking does not mark it explored, invent route connections, or make it eligible for fast travel. Existing world exits and visited-route rules remain authoritative.
+
 Visibility and visit eligibility primarily use `World.local_maps`: establishing a persistent local map records a durable visit. For saves created before that persistence existed, the map also recognizes retained travel-history entries written by the active character or a recorded predecessor in the same inheritance line. This compatibility fallback can only recover visits still present in the bounded history; once an old travel entry has been trimmed, it cannot reconstruct that visit. New visits continue to be recorded through persistent local maps. This is an interim discovery rule, not the final definition of cartography or fog of war.
 
 ## Presentation-only layout contract

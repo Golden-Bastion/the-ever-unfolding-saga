@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::model::{GameState, Location};
+use crate::model::{GameState, Location, QuestObjectiveKind};
 use crate::presentation::{
     LocationView, WorldMapDestinationView, WorldMapNodeView, WorldMapRouteView, WorldMapView,
 };
@@ -23,8 +23,14 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         .unwrap_or_else(crate::content::load_campaign_content);
     let is_explored =
         |location_id: u64| crate::game::actions::has_visited_location(state, location_id);
+    let tracked_destination_id = tracked_quest_destination_id(state, &campaign);
 
     let mut visible_ids = HashSet::from([current.id]);
+    if let Some(destination_id) = tracked_destination_id {
+        // An explicitly tracked objective is character-known information, so
+        // its destination may appear even beyond the ordinary explored frontier.
+        visible_ids.insert(destination_id);
+    }
     for location in &state.world.locations {
         if location.id == current.id || is_explored(location.id) {
             visible_ids.insert(location.id);
@@ -69,6 +75,7 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
             let fast_travel = fast_travel_indices.get(&location.id).copied();
             WorldMapNodeView {
                 location: location_view(state, location, &campaign),
+                tracked_objective: tracked_destination_id == Some(location.id),
                 region_id: location.region_id,
                 explored: location.id == current.id || is_explored(location.id),
                 current: location.id == current.id,
@@ -127,6 +134,67 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         nodes,
         routes,
         fast_travel_destinations,
+    }
+}
+
+fn tracked_quest_destination_id(
+    state: &GameState,
+    campaign: &crate::content::CampaignContent,
+) -> Option<u64> {
+    let tracked_id = state.character.tracked_quest_id?;
+    let quest = state
+        .quests
+        .iter()
+        .find(|quest| quest.id == tracked_id && quest.offered && !quest.completed)?;
+    let objective = quest
+        .objectives
+        .iter()
+        .find(|objective| !objective.completed)?;
+
+    match &objective.kind {
+        QuestObjectiveKind::VisitLocation => {
+            let mut matching_locations = state
+                .world
+                .locations
+                .iter()
+                .filter(|location| location.name == objective.target);
+            match (matching_locations.next(), matching_locations.next()) {
+                (Some(location), None) => Some(location.id),
+                (None, _) => objective
+                    .target
+                    .parse::<u64>()
+                    .ok()
+                    .and_then(|location_id| state.world.location_by_id(location_id))
+                    .map(|location| location.id),
+                // A duplicated name cannot safely identify a single destination.
+                (Some(_), Some(_)) => None,
+            }
+        }
+        QuestObjectiveKind::DiscoverEvidence => {
+            let mut matching_locations = campaign.world.locations.iter().filter(|location| {
+                location
+                    .spatial_discoveries
+                    .iter()
+                    .any(|discovery| discovery.id == objective.target)
+            });
+            let content_location = match (matching_locations.next(), matching_locations.next()) {
+                (Some(location), None) => location,
+                _ => return None,
+            };
+            let mut world_locations = state
+                .world
+                .locations
+                .iter()
+                .filter(|location| location.name == content_location.name);
+            match (world_locations.next(), world_locations.next()) {
+                (Some(location), None) => Some(location.id),
+                _ => None,
+            }
+        }
+        QuestObjectiveKind::AcquireItem | QuestObjectiveKind::DefeatEnemy => state
+            .world
+            .location_by_id(quest.target_location_id)
+            .map(|location| location.id),
     }
 }
 

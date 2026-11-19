@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.52.68.**
+**Repository version at this roadmap revision: 0.52.69.**
 
 **Theme:** spatial gameplay and presentation foundations.
 
@@ -16,7 +16,7 @@ The line has established the spatial exploration prototype, character/world auth
 
 ### Remaining work
 
-1. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are documented. The current Character hub and desktop/Android spatial control arrangements are accepted as complete for the present scope; revisit them only when a concrete feature or playtest finding justifies it. The exploration HUD now gives player vitality a stacked panel and a full-width, numeric health bar; further HUD work should remain incremental and prioritize contextual objective/orientation cues, improving the visual representation of world entities, and creating/integrating pixel-art assets. Defer bespoke enemy/boss HUD elements and combat-specific asset production until the transitional encounter UI is replaced by real-time spatial combat; do not heavily polish the current combat presentation. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
+1. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are documented. The current Character hub and desktop/Android spatial control arrangements are accepted as complete for the present scope; revisit them only when a concrete feature or playtest finding justifies it. The exploration HUD gives player vitality a stacked panel and a full-width, numeric health bar. Quest tracking is handled in Character Hub → Quests, with the World Map marking the next resolvable objective location; quest titles, objective text, and progress do not occupy the main HUD. Further presentation work should remain incremental and prioritize richer world-entity representation, pixel-art asset coverage, and useful local-orientation cues as the world-topology foundations mature. Defer bespoke enemy/boss HUD elements and combat-specific asset production until the transitional encounter UI is replaced by real-time spatial combat; do not heavily polish the current combat presentation. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
 
 The retained-shell and keyed-row UI migration is complete and has been owner-validated through playtesting. New dynamic collections and screen regions should follow the established retained-host and keyed-identity contracts; this is ongoing architectural practice, not an unfinished migration.
 

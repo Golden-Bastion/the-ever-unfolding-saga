@@ -130,6 +130,7 @@ pub(crate) struct QuestObjectiveView {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct QuestView {
     pub id: u64,
+    pub tracked: bool,
     pub title: String,
     pub description: String,
     pub objectives: Vec<QuestObjectiveView>,
@@ -176,6 +177,8 @@ pub(crate) struct HistoryView {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct WorldMapNodeView {
     pub location: LocationView,
+    /// This node is the next destination for the character's tracked quest.
+    pub tracked_objective: bool,
     pub region_id: u64,
     pub explored: bool,
     pub current: bool,

@@ -4,7 +4,15 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.68. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.69. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+
+### v0.52.69: Character quest tracking and World Map destination marker
+
+- Added character-owned tracking for one offered, incomplete quest at a time, with Track/Untrack controls in Character Hub → Quests and a tracked indicator in the quest list. Quest titles, objectives, and progress remain in the Character Hub rather than the exploration HUD.
+- Added a small brass marker to the World Map node for the first incomplete objective's resolvable location. Visit objectives resolve from their location target, evidence objectives resolve through the authored discovery ID, and item/encounter objectives use the quest's assigned target location.
+- Allowed a known tracked destination to appear beyond the ordinary explored frontier without marking it explored, inventing route connections, or making it eligible for fast travel. Unknown destinations receive no marker.
+- Clear tracking when its quest completes and keep the tracking choice character-specific rather than inheriting it with the world. Added coverage for old-save defaults, serialization, inheritance, tracking lifecycle, and objective destination resolution.
+- Bumped Rust and Android version metadata to 0.52.69.
 
 ### v0.52.68: Correct south-facing celestial travel
 

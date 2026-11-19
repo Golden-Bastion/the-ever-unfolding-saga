@@ -323,9 +323,16 @@ fn selection_count(records_state: &RecordScreenState, lifecycle: &LifecycleState
             )
         }
         RecordScreen::InventoryDetail
-        | RecordScreen::QuestDetail
         | RecordScreen::MeditationResult
         | RecordScreen::ChronicleDetail => 1,
+        RecordScreen::QuestDetail => {
+            let view = records::build_quest_view_for(&session.state, records_state.detail_index);
+            if view.is_some_and(|view| !view.completed) {
+                2
+            } else {
+                1
+            }
+        }
         RecordScreen::Meditation => {
             let view = actions::build_meditation_view(&session.state);
             if view.safe_to_meditate {
@@ -375,124 +382,150 @@ fn activate(
     navigation: &mut NavigationState,
     records_state: &mut RecordScreenState,
 ) {
-    let Some(session) = lifecycle.session.as_mut() else {
-        return;
-    };
+    let mut lifecycle_changed = false;
+    {
+        let Some(session) = lifecycle.session.as_mut() else {
+            return;
+        };
 
-    match records_state.screen {
-        RecordScreen::Character => match records_state.character_tab {
-            CharacterTab::General | CharacterTab::Reputation => {
-                close_to_return_screen(navigation);
-            }
-            CharacterTab::Inventory => {
-                let view = records::build_inventory_view(&session.state);
-                if records_state.selected < view.items.len() {
-                    records_state.detail_index = records_state.selected;
-                    records_state.screen = RecordScreen::InventoryDetail;
-                    records_state.selected = 0;
-                    records_state.dirty = true;
-                } else {
+        match records_state.screen {
+            RecordScreen::Character => match records_state.character_tab {
+                CharacterTab::General | CharacterTab::Reputation => {
                     close_to_return_screen(navigation);
                 }
-            }
-            CharacterTab::Quests => {
-                let view = records::build_quest_log_view(&session.state);
-                if records_state.selected < view.quests.len() {
-                    records_state.detail_index = records_state.selected;
-                    records_state.screen = RecordScreen::QuestDetail;
-                    records_state.selected = 0;
-                    records_state.dirty = true;
-                } else {
-                    close_to_return_screen(navigation);
+                CharacterTab::Inventory => {
+                    let view = records::build_inventory_view(&session.state);
+                    if records_state.selected < view.items.len() {
+                        records_state.detail_index = records_state.selected;
+                        records_state.screen = RecordScreen::InventoryDetail;
+                        records_state.selected = 0;
+                        records_state.dirty = true;
+                    } else {
+                        close_to_return_screen(navigation);
+                    }
                 }
-            }
-            CharacterTab::Journal => {
-                let character_view = character::build_character_sheet_view(&session.state);
-                let history_view = history_screen::build_view(&session.state);
-                let entries = journal_chronicle_entries(&history_view, &character_view);
-                if records_state.selected < entries.len() {
-                    records_state.detail_index = records_state.selected;
-                    records_state.screen = RecordScreen::ChronicleDetail;
-                    records_state.selected = 0;
-                    records_state.dirty = true;
-                } else if records_state.selected == entries.len() {
-                    records_state.screen = RecordScreen::JournalEntry;
-                    records_state.selected = 0;
-                    records_state.message = None;
-                    records_state.journal_draft.clear();
-                    records_state.dirty = true;
-                } else {
-                    close_to_return_screen(navigation);
+                CharacterTab::Quests => {
+                    let view = records::build_quest_log_view(&session.state);
+                    if records_state.selected < view.quests.len() {
+                        records_state.detail_index = records_state.selected;
+                        records_state.screen = RecordScreen::QuestDetail;
+                        records_state.selected = 0;
+                        records_state.dirty = true;
+                    } else {
+                        close_to_return_screen(navigation);
+                    }
                 }
-            }
-        },
-        RecordScreen::InventoryDetail => {
-            return_to_character(records_state, CharacterTab::Inventory);
-        }
-        RecordScreen::QuestDetail => {
-            return_to_character(records_state, CharacterTab::Quests);
-        }
-        RecordScreen::Meditation => {
-            let view = actions::build_meditation_view(&session.state);
-            if !view.safe_to_meditate || records_state.selected >= view.targets.len() {
-                close_to_return_screen(navigation);
-            } else {
-                match actions::meditate_to_target(
-                    &mut session.state,
-                    &session.save_path,
-                    records_state.selected,
-                ) {
-                    Ok(result) => {
-                        records_state.meditation_result = Some(result);
-                        records_state.screen = RecordScreen::MeditationResult;
+                CharacterTab::Journal => {
+                    let character_view = character::build_character_sheet_view(&session.state);
+                    let history_view = history_screen::build_view(&session.state);
+                    let entries = journal_chronicle_entries(&history_view, &character_view);
+                    if records_state.selected < entries.len() {
+                        records_state.detail_index = records_state.selected;
+                        records_state.screen = RecordScreen::ChronicleDetail;
+                        records_state.selected = 0;
+                        records_state.dirty = true;
+                    } else if records_state.selected == entries.len() {
+                        records_state.screen = RecordScreen::JournalEntry;
                         records_state.selected = 0;
                         records_state.message = None;
+                        records_state.journal_draft.clear();
                         records_state.dirty = true;
-                    }
-                    Err(err) => {
-                        records_state.message = Some(err.to_string());
-                        records_state.dirty = true;
-                    }
-                }
-            }
-        }
-        RecordScreen::MeditationResult => close_to_return_screen(navigation),
-        RecordScreen::ChronicleDetail => {
-            return_to_character(records_state, CharacterTab::Journal);
-        }
-        RecordScreen::JournalEntry => {
-            if records_state.message.is_some() {
-                records_state.screen = RecordScreen::Character;
-                records_state.character_tab = CharacterTab::Journal;
-                records_state.selected = 0;
-                records_state.message = None;
-                records_state.journal_draft.clear();
-                records_state.dirty = true;
-                return;
-            }
-            match records_state.selected {
-                0 => {
-                    if records::record_journal_note(
-                        &mut session.state,
-                        &records_state.journal_draft,
-                    ) {
-                        records_state.message = Some("The journal entry is recorded.".to_string());
                     } else {
-                        records_state.message =
-                            Some("Write a note before recording it.".to_string());
+                        close_to_return_screen(navigation);
                     }
-                    records_state.dirty = true;
                 }
-                _ => {
+            },
+            RecordScreen::InventoryDetail => {
+                return_to_character(records_state, CharacterTab::Inventory);
+            }
+            RecordScreen::QuestDetail => {
+                let quest_view =
+                    records::build_quest_view_for(&session.state, records_state.detail_index);
+                if records_state.selected == 0
+                    && quest_view.as_ref().is_some_and(|view| !view.completed)
+                {
+                    let quest_id = quest_view.expect("validated quest view").id;
+                    if crate::game::quests::toggle_tracking(&mut session.state, quest_id) {
+                        lifecycle_changed = true;
+                        records_state.message = Some(
+                            if session.state.character.tracked_quest_id == Some(quest_id) {
+                                "Quest tracked. Its next destination will be marked on the World Map when it can be resolved.".to_string()
+                            } else {
+                                "Quest untracked.".to_string()
+                            },
+                        );
+                        records_state.dirty = true;
+                    }
+                } else {
+                    return_to_character(records_state, CharacterTab::Quests);
+                }
+            }
+            RecordScreen::Meditation => {
+                let view = actions::build_meditation_view(&session.state);
+                if !view.safe_to_meditate || records_state.selected >= view.targets.len() {
+                    close_to_return_screen(navigation);
+                } else {
+                    match actions::meditate_to_target(
+                        &mut session.state,
+                        &session.save_path,
+                        records_state.selected,
+                    ) {
+                        Ok(result) => {
+                            records_state.meditation_result = Some(result);
+                            records_state.screen = RecordScreen::MeditationResult;
+                            records_state.selected = 0;
+                            records_state.message = None;
+                            records_state.dirty = true;
+                        }
+                        Err(err) => {
+                            records_state.message = Some(err.to_string());
+                            records_state.dirty = true;
+                        }
+                    }
+                }
+            }
+            RecordScreen::MeditationResult => close_to_return_screen(navigation),
+            RecordScreen::ChronicleDetail => {
+                return_to_character(records_state, CharacterTab::Journal);
+            }
+            RecordScreen::JournalEntry => {
+                if records_state.message.is_some() {
                     records_state.screen = RecordScreen::Character;
                     records_state.character_tab = CharacterTab::Journal;
                     records_state.selected = 0;
-                    records_state.journal_draft.clear();
                     records_state.message = None;
+                    records_state.journal_draft.clear();
                     records_state.dirty = true;
+                    return;
+                }
+                match records_state.selected {
+                    0 => {
+                        if records::record_journal_note(
+                            &mut session.state,
+                            &records_state.journal_draft,
+                        ) {
+                            records_state.message =
+                                Some("The journal entry is recorded.".to_string());
+                        } else {
+                            records_state.message =
+                                Some("Write a note before recording it.".to_string());
+                        }
+                        records_state.dirty = true;
+                    }
+                    _ => {
+                        records_state.screen = RecordScreen::Character;
+                        records_state.character_tab = CharacterTab::Journal;
+                        records_state.selected = 0;
+                        records_state.journal_draft.clear();
+                        records_state.message = None;
+                        records_state.dirty = true;
+                    }
                 }
             }
         }
+    }
+    if lifecycle_changed {
+        lifecycle.mark_dirty();
     }
 }
 
@@ -690,6 +723,8 @@ fn render_record_detail_content(
             commands,
             content,
             records::build_quest_view_for(state, records_state.detail_index).as_ref(),
+            records_state.selected,
+            records_state.message.as_deref(),
         ),
         RecordScreen::Meditation => render_meditation(
             commands,
@@ -1091,7 +1126,12 @@ fn render_quests_tab(
             (
                 format!("quest:{}", quest.id),
                 "quests".to_string(),
-                format!("[{}] {}", quest.status, quest.title),
+                format!(
+                    "{}[{}] {}",
+                    if quest.tracked { "[TRACKED] " } else { "" },
+                    quest.status,
+                    quest.title
+                ),
             )
         })
         .collect();
@@ -1184,14 +1224,25 @@ fn render_journal_tab(
     }
 }
 
-fn render_quest_detail(commands: &mut Commands, panel: Entity, view: Option<&QuestView>) {
+fn render_quest_detail(
+    commands: &mut Commands,
+    panel: Entity,
+    view: Option<&QuestView>,
+    selected: usize,
+    message: Option<&str>,
+) {
     render_header(commands, panel, "Objective progress and reward.");
+    if let Some(message) = message {
+        bevy_presentation::spawn_muted_label(commands, panel, message);
+    }
     let Some(view) = view else {
         bevy_presentation::spawn_muted_label(commands, panel, "That quest is no longer available.");
         let button = bevy_presentation::spawn_action_button(commands, panel, 0, "back", "Back");
-        commands
-            .entity(button)
-            .insert(bevy_presentation::UiSelected);
+        if selected == 0 {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
         return;
     };
     bevy_presentation::spawn_label(commands, panel, &view.title);
@@ -1223,11 +1274,35 @@ fn render_quest_detail(commands: &mut Commands, panel: Entity, view: Option<&Que
             view.reward_item_name.as_deref().unwrap_or("-")
         ),
     );
-    let button =
-        bevy_presentation::spawn_action_button(commands, panel, 0, "back", "Back to quest log");
-    commands
-        .entity(button)
-        .insert(bevy_presentation::UiSelected);
+    let back_index = if view.completed { 0 } else { 1 };
+    if !view.completed {
+        let tracking = bevy_presentation::spawn_action_button(
+            commands,
+            panel,
+            0,
+            if view.tracked { "untrack" } else { "track" },
+            if view.tracked {
+                "Untrack quest"
+            } else {
+                "Track quest"
+            },
+        );
+        if selected == 0 {
+            commands
+                .entity(tracking)
+                .insert(bevy_presentation::UiSelected);
+        }
+    }
+    let back = bevy_presentation::spawn_action_button(
+        commands,
+        panel,
+        back_index,
+        "back",
+        "Back to quest log",
+    );
+    if selected == back_index {
+        commands.entity(back).insert(bevy_presentation::UiSelected);
+    }
 }
 
 fn render_meditation(
