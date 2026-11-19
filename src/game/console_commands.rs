@@ -238,8 +238,12 @@ fn quest(state: &mut GameState, console: &mut ConsoleState, args: &[&str]) {
     };
     match action {
         "complete" => {
+            let quest_id = quest.id;
             let content_id = quest.content_id.clone();
             quest.completed = true;
+            if state.character.tracked_quest_id == Some(quest_id) {
+                state.character.tracked_quest_id = None;
+            }
             state.world.completed_quest_ids.push(content_id);
         }
         "reset" => {
