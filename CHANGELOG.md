@@ -6,6 +6,10 @@ This file records work completed in the current development line. It is not a li
 
 The entries below cover the v0.52.x development line through v0.52.69. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
+### CI/CD workflow maintenance
+
+- Removed an empty step-level `env` declaration from the formatting-and-tests job so GitHub Actions can validate the workflow configuration.
+
 ### v0.52.69: Character quest tracking and World Map destination marker
 
 - Added character-owned tracking for one offered, incomplete quest at a time, with Track/Untrack controls in Character Hub → Quests and a tracked indicator in the quest list. Quest titles, objectives, and progress remain in the Character Hub rather than the exploration HUD.
