@@ -84,6 +84,24 @@ pub(crate) fn normalize_all(state: &mut GameState) -> usize {
     normalized
 }
 
+/// Toggle one offered, incomplete quest as the current character's tracked quest.
+pub(crate) fn toggle_tracking(state: &mut GameState, quest_id: EntityId) -> bool {
+    let trackable = state
+        .quests
+        .iter()
+        .any(|quest| quest.id == quest_id && quest.offered && !quest.completed);
+    if !trackable {
+        return false;
+    }
+
+    state.character.tracked_quest_id = if state.character.tracked_quest_id == Some(quest_id) {
+        None
+    } else {
+        Some(quest_id)
+    };
+    true
+}
+
 pub(crate) fn sync_active_quests(state: &mut GameState) {
     normalize_all(state);
     for index in 0..state.quests.len() {
@@ -313,6 +331,9 @@ pub(crate) fn try_complete(state: &mut GameState, quest_index: usize) -> bool {
     if let Some(quest) = state.quests.get_mut(quest_index) {
         quest.completed = true;
         quest.reward_claimed = true;
+        if state.character.tracked_quest_id == Some(quest.id) {
+            state.character.tracked_quest_id = None;
+        }
         quest.completed_by = Some(character_name.clone());
     }
     state.world.completed_quest_ids.push(key.clone());
