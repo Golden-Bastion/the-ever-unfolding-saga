@@ -56,7 +56,9 @@ const JOYSTICK_THUMB_TRAVEL_PX: f32 = 36.0;
 const CAMERA_LERP_SPEED: f32 = 8.0;
 const SPATIAL_ROOT_PADDING_PX: f32 = 8.0;
 const SPATIAL_ROOT_GAP_PX: f32 = 8.0;
-const SPATIAL_HEADER_HEIGHT_PX: f32 = 72.0;
+const SPATIAL_HEADER_HEIGHT_PX: f32 = 88.0;
+const SPATIAL_HEADER_ROW_HEIGHT_PX: f32 = 64.0;
+const SPATIAL_HEALTH_GAUGE_HEIGHT_PX: f32 = 20.0;
 const LOCATION_NOTICE_DURATION_SECONDS: f32 = 4.0;
 const CAMERA_DEAD_ZONE_FRACTION: f32 = 0.15;
 const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
@@ -2171,9 +2173,9 @@ fn render_spatial_screen(
     let header_row = commands
         .spawn(Node {
             width: percent(100),
-            height: px(48),
-            min_height: px(48),
-            max_height: px(48),
+            height: px(SPATIAL_HEADER_ROW_HEIGHT_PX),
+            min_height: px(SPATIAL_HEADER_ROW_HEIGHT_PX),
+            max_height: px(SPATIAL_HEADER_ROW_HEIGHT_PX),
             flex_direction: FlexDirection::Row,
             column_gap: px(6),
             align_items: AlignItems::Center,
@@ -2207,9 +2209,9 @@ fn render_spatial_screen(
                 min_width: px(0),
                 flex_grow: 1.0,
                 flex_shrink: 1.0,
-                flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
-                column_gap: px(8),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Stretch,
+                row_gap: px(2),
                 padding: UiRect::axes(px(6), px(4)),
                 border: UiRect::all(px(1)),
                 overflow: Overflow::clip(),
@@ -2236,6 +2238,7 @@ fn render_spatial_screen(
     {
         let identity = commands
             .spawn(Node {
+                width: percent(100),
                 min_width: px(0),
                 flex_grow: 1.0,
                 flex_shrink: 1.0,
@@ -2259,19 +2262,22 @@ fn render_spatial_screen(
 
         let health = commands
             .spawn(Node {
-                width: px(100),
-                min_width: px(72),
-                max_width: percent(48),
-                flex_shrink: 1.0,
+                width: percent(100),
+                min_width: px(0),
+                height: px(SPATIAL_HEALTH_GAUGE_HEIGHT_PX),
+                min_height: px(SPATIAL_HEALTH_GAUGE_HEIGHT_PX),
+                max_height: px(SPATIAL_HEALTH_GAUGE_HEIGHT_PX),
+                flex_shrink: 0.0,
                 ..default()
             })
             .id();
         commands.entity(vitals).add_child(health);
-        bevy_presentation::spawn_health_gauge(
+        bevy_presentation::spawn_health_gauge_with_height(
             &mut commands,
             health,
             character.hp,
             character.max_hp,
+            SPATIAL_HEALTH_GAUGE_HEIGHT_PX,
         );
     }
 
