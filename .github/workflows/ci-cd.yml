@@ -111,7 +111,6 @@ jobs:
 
       - name: Run formatting and tests
         shell: bash
-        env:
         run: |
           set +e
 
