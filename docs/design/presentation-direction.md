@@ -68,7 +68,7 @@ The current turn-based encounter interface is transitional and is not a target f
 
 ## Spatial exploration vitals
 
-Spatial exploration now keeps a compact character panel in the header with character name/level, current and maximum health, and a text summary of active conditions. It reuses the common health-gauge primitive and shared dark theme, so the essential status remains visible without occupying a large permanent panel. This does not imply that the planned combat HUD, minimap, or ally command controls exist yet.
+Spatial exploration uses an 88-logical-pixel header with a 64-pixel primary row. The player-vitals panel stacks character name/level and the condition summary above a full-width 20-pixel health gauge with current/maximum values overlaid on the blood fill. The bar uses the shared health-gauge primitive with an explicit size, while the default gauge dimensions remain available to the transitional encounter screen. This is an exploration-status improvement, not an investment in the current combat interface; the planned enemy/boss HUD, minimap, and ally command controls remain future work.
 
 ## Boundaries
 
