@@ -6,6 +6,7 @@
 use std::f32::consts::PI;
 
 use bevy::asset::RenderAssetUsages;
+use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::image::ImagePlugin;
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
@@ -61,6 +62,9 @@ fn setup(
 
     commands.spawn((
         Camera3d::default(),
+        // The optional tonemapping LUT bundle is intentionally not enabled.
+        // Use the direct output path instead of Bevy's LUT-backed default.
+        Tonemapping::None,
         Projection::from(OrthographicProjection {
             scaling_mode: bevy::camera::ScalingMode::FixedVertical {
                 viewport_height: CAMERA_HEIGHT,
