@@ -76,7 +76,7 @@ fn setup(
     commands.spawn((
         DirectionalLight {
             illuminance: 8_000.0,
-            shadow_maps_enabled: true,
+            shadow_maps_enabled: !cfg!(feature = "spatial-3d-no-shadows"),
             ..default()
         },
         ShadowToggleLight,
