@@ -155,6 +155,7 @@ fn tracked_quest_defaults_to_none_and_round_trips_without_breaking_old_saves() {
         "First Warden".into(),
         "Ash Walker".into(),
     );
+    assert_eq!(state.character.tracked_quest_id, None);
     state.character.tracked_quest_id = Some(704);
     let serialized = serde_json::to_value(&state.character).unwrap();
     let restored: Character = serde_json::from_value(serialized.clone())
