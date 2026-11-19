@@ -76,7 +76,7 @@ fn setup(
     commands.spawn((
         DirectionalLight {
             illuminance: 8_000.0,
-            shadow_maps_enabled: true,
+            shadow_maps_enabled: !cfg!(feature = "spatial-3d-no-shadows"),
             ..default()
         },
         ShadowToggleLight,
@@ -328,7 +328,7 @@ fn toggle_shadow_maps(
     keys: Res<ButtonInput<KeyCode>>,
     mut lights: Query<&mut DirectionalLight, With<ShadowToggleLight>>,
 ) {
-    if !keys.just_pressed(KeyCode::KeyL) {
+    if cfg!(feature = "spatial-3d-no-shadows") || !keys.just_pressed(KeyCode::KeyL) {
         return;
     }
     for mut light in &mut lights {

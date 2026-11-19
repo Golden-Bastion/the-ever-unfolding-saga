@@ -36,6 +36,11 @@ on:
         required: false
         default: false
         type: boolean
+      disable_shadow_maps:
+        description: Disable directional-light shadow maps in the 3D prototype (build action only)
+        required: false
+        default: false
+        type: boolean
       version_suffix:
         description: Display-only suffix appended after the package version
         required: false
@@ -43,7 +48,7 @@ on:
         type: string
 
 concurrency:
-  group: android-${{ github.ref }}-${{ inputs.action }}-${{ inputs.source }}-${{ inputs.target }}-${{ inputs.release }}-${{ inputs.version_suffix }}-${{ inputs.spatial_3d_prototype }}
+  group: android-${{ github.ref }}-${{ inputs.action }}-${{ inputs.source }}-${{ inputs.target }}-${{ inputs.release }}-${{ inputs.version_suffix }}-${{ inputs.spatial_3d_prototype }}-${{ inputs.disable_shadow_maps }}
   cancel-in-progress: true
 
 permissions:
@@ -305,6 +310,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           SPATIAL_3D_PROTOTYPE: ${{ inputs.spatial_3d_prototype }}
+          DISABLE_SHADOW_MAPS: ${{ inputs.disable_shadow_maps }}
           EVER_UNFOLDING_SAGA_VERSION_SUFFIX: ${{ inputs.version_suffix }}
         run: |
           set -o pipefail
@@ -337,8 +343,13 @@ jobs:
           rustup target add "$TARGET"
           cargo_args=(build --release --target "$TARGET")
           if [[ "$SPATIAL_3D_PROTOTYPE" == "true" ]]; then
-            cargo_args+=(--features spatial-3d-prototype)
-            echo "Building the isolated 3D renderer prototype for Android"
+            if [[ "$DISABLE_SHADOW_MAPS" == "true" ]]; then
+              cargo_args+=(--features spatial-3d-no-shadows)
+              echo "Building the 3D renderer prototype for Android with directional-light shadow maps disabled"
+            else
+              cargo_args+=(--features spatial-3d-prototype)
+              echo "Building the isolated 3D renderer prototype for Android with shadow maps enabled"
+            fi
           fi
           cargo "${cargo_args[@]}"
 
@@ -439,6 +450,9 @@ jobs:
           variant_suffix=""
           if [[ "${{ inputs.spatial_3d_prototype }}" == "true" ]]; then
             variant_suffix="-spatial-3d-prototype"
+            if [[ "${{ inputs.disable_shadow_maps }}" == "true" ]]; then
+              variant_suffix+="-no-shadows"
+            fi
           fi
           apk_name="teus-${safe_ref}-android-${{ matrix.arch }}${variant_suffix}.apk"
           cp "$apk" "../$apk_name"

@@ -53,6 +53,7 @@ jni = "0.22.4"
 [features]
 dev = ["bevy/dynamic_linking"]
 spatial-3d-prototype = ["bevy/bevy_pbr"]
+spatial-3d-no-shadows = ["spatial-3d-prototype"]
 
 [profile.dev]
 opt-level = 1
