@@ -419,8 +419,7 @@ jobs:
 
           safe_ref="${{ needs.prepare.outputs.artifact_ref }}"
           safe_ref="${safe_ref//\//-}"
-          variant_suffix=""
-          apk_name="teus-${safe_ref}-android-${{ matrix.arch }}${variant_suffix}.apk"
+          apk_name="teus-${safe_ref}-android-${{ matrix.arch }}.apk"
           cp "$apk" "../$apk_name"
           echo "APK_NAME=$apk_name" >> "$GITHUB_ENV"
           echo "Created $apk_name"

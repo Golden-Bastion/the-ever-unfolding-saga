@@ -339,9 +339,7 @@ jobs:
 
           ref_name="${{ needs.prep_build_matrix.outputs.ref }}"
           ref_name="${ref_name//\//-}"
-          variant_suffix=""
-
-          release_name="teus-${ref_name}-${BUILD_PLATFORM}-${ARCH}${variant_suffix}"
+          release_name="teus-${ref_name}-${BUILD_PLATFORM}-${ARCH}"
           package_dir="package/$release_name"
           mkdir -p "$package_dir"
 
