@@ -128,14 +128,8 @@ fn spatial_actor_visual_roles_preserve_distinct_world_readability() {
         SpatialActorVisualKind::Corpse.sprite_size(),
         SpatialActorVisualKind::DefeatedEncounter.sprite_size()
     );
-    assert_eq!(
-        SpatialActorVisualKind::Npc.ground_contact_offset(),
-        11.0
-    );
-    assert_eq!(
-        SpatialActorVisualKind::Corpse.ground_contact_offset(),
-        5.0
-    );
+    assert_eq!(SpatialActorVisualKind::Npc.ground_contact_offset(), 11.0);
+    assert_eq!(SpatialActorVisualKind::Corpse.ground_contact_offset(), 5.0);
 }
 
 #[test]

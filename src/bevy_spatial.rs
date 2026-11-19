@@ -857,10 +857,9 @@ impl SpatialActorVisualKind {
                 "spatial/player_oathbound.png",
                 "icons/ui/character.png",
             ],
-            Self::Corpse | Self::DefeatedEncounter => &[
-                "spatial/actors/corpse.png",
-                "icons/ui/remains.png",
-            ],
+            Self::Corpse | Self::DefeatedEncounter => {
+                &["spatial/actors/corpse.png", "icons/ui/remains.png"]
+            }
         }
     }
 
@@ -2108,13 +2107,7 @@ fn render_spatial_screen(
             SpatialEntityKind::Npc => SpatialActorVisualKind::Npc,
             SpatialEntityKind::Corpse => SpatialActorVisualKind::Corpse,
         };
-        spawn_spatial_actor(
-            &mut commands,
-            map,
-            placement.position,
-            visual_kind,
-            &assets,
-        );
+        spawn_spatial_actor(&mut commands, map, placement.position, visual_kind, &assets);
     }
 
     for encounter in &map.encounters {
@@ -2122,13 +2115,7 @@ fn render_spatial_screen(
             SpatialEncounterStatus::Active => SpatialActorVisualKind::HostileEncounter,
             SpatialEncounterStatus::Defeated => SpatialActorVisualKind::DefeatedEncounter,
         };
-        spawn_spatial_actor(
-            &mut commands,
-            map,
-            encounter.position,
-            visual_kind,
-            &assets,
-        );
+        spawn_spatial_actor(&mut commands, map, encounter.position, visual_kind, &assets);
     }
 
     let player_ground_position = session_position(&state);
