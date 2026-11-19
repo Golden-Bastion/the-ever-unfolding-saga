@@ -900,15 +900,8 @@ fn render_world_map_graph(
                 "route steps"
             };
             let detail = format!(
-                "{} | FAST TRAVEL | {} {}{}",
-                node.location.region_name,
-                steps,
-                route_label,
-                if node.tracked_objective {
-                    " | NEXT OBJECTIVE"
-                } else {
-                    ""
-                }
+                "{} | FAST TRAVEL | {} {}",
+                node.location.region_name, steps, route_label
             );
             let button = bevy_presentation::spawn_positioned_action_button_with_detail(
                 commands,
@@ -994,11 +987,6 @@ fn render_world_map_graph(
             format!("{status} | DANGER")
         } else {
             status.to_string()
-        };
-        let detail = if node.tracked_objective {
-            format!("{detail} | NEXT OBJECTIVE")
-        } else {
-            detail
         };
         bevy_presentation::spawn_muted_label(commands, card, detail);
         if node.tracked_objective {
