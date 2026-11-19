@@ -4,7 +4,13 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.67. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.68. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+
+### v0.52.68: Correct south-facing lunar travel
+
+- Reoriented the simplified moon path so it travels east-to-west from left to right across the south-facing spatial sky, including the midnight clock wrap.
+- Added regression coverage for the complete dusk-to-pre-dawn path and documented the fixed, non-phase-aware presentation schedule.
+- Bumped Rust and Android version metadata to 0.52.68.
 
 ### v0.52.67: Move 3D rendering experiments into TEUS Lab
 
