@@ -46,16 +46,6 @@ on:
         required: false
         default: false
         type: boolean
-      spatial_3d_prototype:
-        description: Build the isolated 3D renderer prototype instead of the normal game (build operation only)
-        required: false
-        default: false
-        type: boolean
-      disable_shadow_maps:
-        description: Disable directional-light shadow maps in the 3D prototype (build operation only)
-        required: false
-        default: false
-        type: boolean
       version_suffix:
         description: Display-only suffix appended after the package version
         required: false
@@ -63,7 +53,7 @@ on:
         type: string
 
 concurrency:
-  group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.release_tag }}-${{ inputs.version_suffix }}-${{ inputs.spatial_3d_prototype }}-${{ inputs.disable_shadow_maps }}
+  group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.release_tag }}-${{ inputs.version_suffix }}
   cancel-in-progress: true
 
 permissions:
@@ -122,8 +112,6 @@ jobs:
       - name: Run formatting and tests
         shell: bash
         env:
-          SPATIAL_3D_PROTOTYPE: ${{ inputs.spatial_3d_prototype }}
-          DISABLE_SHADOW_MAPS: ${{ inputs.disable_shadow_maps }}
         run: |
           set +e
 
@@ -133,13 +121,6 @@ jobs:
 
           echo '=== cargo test ==='
           cargo_features=(--features dev)
-          if [[ "$SPATIAL_3D_PROTOTYPE" == "true" ]]; then
-            if [[ "$DISABLE_SHADOW_MAPS" == "true" ]]; then
-              cargo_features+=(--features spatial-3d-no-shadows)
-            else
-              cargo_features+=(--features spatial-3d-prototype)
-            fi
-          fi
           cargo test "${cargo_features[@]}" --no-fail-fast
           test_status=$?
 
@@ -171,14 +152,8 @@ jobs:
           OPERATION: ${{ inputs.operation }}
           BRANCH: ${{ inputs.branch }}
           RELEASE_TAG: ${{ inputs.release_tag }}
-          SPATIAL_3D_PROTOTYPE: ${{ inputs.spatial_3d_prototype }}
         run: |
           set -euo pipefail
-
-          if [[ "$OPERATION" == "release" && "$SPATIAL_3D_PROTOTYPE" == "true" ]]; then
-            echo "The 3D prototype is a build-only artifact and cannot be published as a normal release."
-            exit 1
-          fi
 
           matrix='[
             {"platform":"linux","arch":"x86_64","dispatch_target":"linux-x86_64","target":"x86_64-unknown-linux-gnu","runner":"ubuntu-latest","archive_ext":"tar.xz"},
@@ -309,8 +284,6 @@ jobs:
           ARCH: ${{ matrix.arch }}
           DEBUG_BUILD: ${{ inputs.debug_build }}
           OPERATION: ${{ inputs.operation }}
-          SPATIAL_3D_PROTOTYPE: ${{ inputs.spatial_3d_prototype }}
-          DISABLE_SHADOW_MAPS: ${{ inputs.disable_shadow_maps }}
           EVER_UNFOLDING_SAGA_VERSION_SUFFIX: ${{ inputs.version_suffix }}
         run: |
           set -euo pipefail
@@ -351,15 +324,6 @@ jobs:
             cargo_args+=(--features bevy/debug)
             echo "Bevy ECS debug names enabled"
           fi
-          if [[ "$OPERATION" == "build" && "$SPATIAL_3D_PROTOTYPE" == "true" ]]; then
-            if [[ "$DISABLE_SHADOW_MAPS" == "true" ]]; then
-              cargo_args+=(--features spatial-3d-no-shadows)
-              echo "Building the 3D renderer prototype with directional-light shadow maps disabled"
-            else
-              cargo_args+=(--features spatial-3d-prototype)
-              echo "Building the isolated 3D renderer prototype with shadow maps enabled"
-            fi
-          fi
 
           cargo "${cargo_args[@]}"
 
@@ -370,20 +334,12 @@ jobs:
           BUILD_PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
           ARCHIVE_EXT: ${{ matrix.archive_ext }}
-          SPATIAL_3D_PROTOTYPE: ${{ inputs.spatial_3d_prototype }}
-          DISABLE_SHADOW_MAPS: ${{ inputs.disable_shadow_maps }}
         run: |
           set -euo pipefail
 
           ref_name="${{ needs.prep_build_matrix.outputs.ref }}"
           ref_name="${ref_name//\//-}"
           variant_suffix=""
-          if [[ "$SPATIAL_3D_PROTOTYPE" == "true" ]]; then
-            variant_suffix="-spatial-3d-prototype"
-            if [[ "$DISABLE_SHADOW_MAPS" == "true" ]]; then
-              variant_suffix+="-no-shadows"
-            fi
-          fi
 
           release_name="teus-${ref_name}-${BUILD_PLATFORM}-${ARCH}${variant_suffix}"
           package_dir="package/$release_name"
