@@ -192,8 +192,9 @@ struct SpatialRenderAssets {
     player_image: Option<Handle<Image>>,
     passage_image: Option<Handle<Image>>,
     poi_image: Option<Handle<Image>>,
-    npc_image: Option<Handle<Image>>,
-    corpse_image: Option<Handle<Image>>,
+    npc_actor_image: Option<Handle<Image>>,
+    hostile_actor_image: Option<Handle<Image>>,
+    corpse_actor_image: Option<Handle<Image>>,
     prop_images: [Option<Handle<Image>>; 2],
     player_animation_image: Option<Handle<Image>>,
     player_animation_layout: Option<Handle<TextureAtlasLayout>>,
@@ -785,8 +786,25 @@ fn setup_spatial_render_assets(
     });
     let passage_image = load_spatial_image(&mut images, "spatial/passage.png");
     let poi_image = load_spatial_image(&mut images, "icons/ui/investigate.png");
-    let npc_image = load_spatial_image(&mut images, "icons/ui/character.png");
-    let corpse_image = load_spatial_image(&mut images, "icons/ui/remains.png");
+    let actor_fallback_image = player_image
+        .clone()
+        .or_else(|| load_spatial_image(&mut images, "icons/ui/character.png"));
+    let remains_fallback_image = load_spatial_image(&mut images, "icons/ui/remains.png");
+    let npc_actor_image = load_spatial_actor_image(
+        &mut images,
+        SpatialActorVisualKind::Npc,
+        actor_fallback_image.clone(),
+    );
+    let hostile_actor_image = load_spatial_actor_image(
+        &mut images,
+        SpatialActorVisualKind::HostileEncounter,
+        actor_fallback_image,
+    );
+    let corpse_actor_image = load_spatial_actor_image(
+        &mut images,
+        SpatialActorVisualKind::Corpse,
+        remains_fallback_image,
+    );
     let prop_images = [
         load_spatial_image(&mut images, "spatial/prop_pillar.png"),
         load_spatial_image(&mut images, "spatial/prop_table.png"),
@@ -798,8 +816,9 @@ fn setup_spatial_render_assets(
         player_image,
         passage_image,
         poi_image,
-        npc_image,
-        corpse_image,
+        npc_actor_image,
+        hostile_actor_image,
+        corpse_actor_image,
         prop_images,
         player_animation_image,
         player_animation_layout,
@@ -815,6 +834,109 @@ fn load_spatial_image(images: &mut Assets<Image>, reference: &str) -> Option<Han
             None
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SpatialActorVisualKind {
+    Npc,
+    HostileEncounter,
+    Corpse,
+    DefeatedEncounter,
+}
+
+impl SpatialActorVisualKind {
+    const fn asset_candidates(self) -> &'static [&'static str] {
+        match self {
+            Self::Npc => &[
+                "spatial/actors/npc.png",
+                "spatial/player_oathbound.png",
+                "icons/ui/character.png",
+            ],
+            Self::HostileEncounter => &[
+                "spatial/actors/hostile.png",
+                "spatial/player_oathbound.png",
+                "icons/ui/character.png",
+            ],
+            Self::Corpse | Self::DefeatedEncounter => &[
+                "spatial/actors/corpse.png",
+                "icons/ui/remains.png",
+            ],
+        }
+    }
+
+    fn sprite_size(self) -> Vec2 {
+        match self {
+            Self::Npc | Self::HostileEncounter => Vec2::new(17.0, 22.0),
+            Self::Corpse | Self::DefeatedEncounter => Vec2::new(21.0, 13.0),
+        }
+    }
+
+    fn tint(self) -> Color {
+        match self {
+            Self::Npc => Color::srgb(0.76, 0.80, 0.84),
+            Self::HostileEncounter => Color::srgb(0.82, 0.29, 0.24),
+            Self::Corpse => Color::srgb(0.76, 0.43, 0.38),
+            Self::DefeatedEncounter => Color::srgb(0.55, 0.43, 0.39),
+        }
+    }
+
+    fn ground_contact_offset(self) -> f32 {
+        match self {
+            Self::Npc | Self::HostileEncounter => 11.0,
+            Self::Corpse | Self::DefeatedEncounter => 5.0,
+        }
+    }
+}
+
+fn try_load_spatial_image(images: &mut Assets<Image>, reference: &str) -> Option<Handle<Image>> {
+    crate::asset_loading::load_image_from_data(images, reference).ok()
+}
+
+fn load_spatial_actor_image(
+    images: &mut Assets<Image>,
+    visual_kind: SpatialActorVisualKind,
+    fallback: Option<Handle<Image>>,
+) -> Option<Handle<Image>> {
+    let dedicated_reference = visual_kind.asset_candidates()[0];
+    let image = try_load_spatial_image(images, dedicated_reference).or(fallback);
+    if image.is_none() {
+        warn!("No available image for spatial actor visual role {visual_kind:?}");
+    }
+    image
+}
+
+fn spawn_spatial_actor(
+    commands: &mut Commands,
+    map: &LocalMap,
+    position: GridPosition,
+    visual_kind: SpatialActorVisualKind,
+    assets: &SpatialRenderAssets,
+) {
+    let image = match visual_kind {
+        SpatialActorVisualKind::Npc => assets.npc_actor_image.clone(),
+        SpatialActorVisualKind::HostileEncounter => assets.hostile_actor_image.clone(),
+        SpatialActorVisualKind::Corpse | SpatialActorVisualKind::DefeatedEncounter => {
+            assets.corpse_actor_image.clone()
+        }
+    };
+    let Some(image) = image else {
+        return;
+    };
+    let grid_position = Vec2::new(f32::from(position.x) + 0.5, f32::from(position.y) + 0.5);
+    let projected = map_to_world(grid_position, Some(map));
+    let mut sprite = Sprite::from_image(image);
+    sprite.custom_size = Some(visual_kind.sprite_size());
+    sprite.color = visual_kind.tint();
+    commands.spawn((
+        SpatialWorldEntity,
+        SpatialActorEntity,
+        sprite,
+        Transform::from_xyz(
+            projected.x,
+            projected.y + visual_kind.ground_contact_offset(),
+            depth_for_position(grid_position) + PLAYER_DEPTH_OFFSET - 0.005,
+        ),
+    ));
 }
 
 fn load_player_animation_config() -> PlayerAnimationConfig {
@@ -1982,80 +2104,31 @@ fn render_spatial_screen(
         if !exists {
             continue;
         }
-        let image = match placement.kind {
-            SpatialEntityKind::Npc => assets.npc_image.clone(),
-            SpatialEntityKind::Corpse => assets.corpse_image.clone(),
+        let visual_kind = match placement.kind {
+            SpatialEntityKind::Npc => SpatialActorVisualKind::Npc,
+            SpatialEntityKind::Corpse => SpatialActorVisualKind::Corpse,
         };
-        let Some(image) = image else {
-            continue;
-        };
-        let grid_position = Vec2::new(
-            f32::from(placement.position.x) + 0.5,
-            f32::from(placement.position.y) + 0.5,
+        spawn_spatial_actor(
+            &mut commands,
+            map,
+            placement.position,
+            visual_kind,
+            &assets,
         );
-        let projected = map_to_world(grid_position, Some(map));
-        let mut sprite = Sprite::from_image(image);
-        sprite.custom_size = Some(match placement.kind {
-            SpatialEntityKind::Npc => Vec2::new(17.0, 22.0),
-            SpatialEntityKind::Corpse => Vec2::new(21.0, 13.0),
-        });
-        sprite.color = match placement.kind {
-            SpatialEntityKind::Npc => Color::srgb(0.76, 0.80, 0.84),
-            SpatialEntityKind::Corpse => Color::srgb(0.76, 0.43, 0.38),
-        };
-        commands.spawn((
-            SpatialWorldEntity,
-            SpatialActorEntity,
-            sprite,
-            Transform::from_xyz(
-                projected.x,
-                projected.y
-                    + if placement.kind == SpatialEntityKind::Npc {
-                        11.0
-                    } else {
-                        5.0
-                    },
-                depth_for_position(grid_position) + PLAYER_DEPTH_OFFSET - 0.005,
-            ),
-        ));
     }
 
     for encounter in &map.encounters {
-        let (image, color, size, vertical_offset) = match encounter.status {
-            SpatialEncounterStatus::Active => (
-                assets.npc_image.clone(),
-                Color::srgb(0.82, 0.29, 0.24),
-                Vec2::new(17.0, 22.0),
-                11.0,
-            ),
-            SpatialEncounterStatus::Defeated => (
-                assets.corpse_image.clone(),
-                Color::srgb(0.55, 0.43, 0.39),
-                Vec2::new(21.0, 13.0),
-                5.0,
-            ),
+        let visual_kind = match encounter.status {
+            SpatialEncounterStatus::Active => SpatialActorVisualKind::HostileEncounter,
+            SpatialEncounterStatus::Defeated => SpatialActorVisualKind::DefeatedEncounter,
         };
-        let Some(image) = image else {
-            continue;
-        };
-        let grid_position = Vec2::new(
-            f32::from(encounter.position.x) + 0.5,
-            f32::from(encounter.position.y) + 0.5,
+        spawn_spatial_actor(
+            &mut commands,
+            map,
+            encounter.position,
+            visual_kind,
+            &assets,
         );
-        let projected = map_to_world(grid_position, Some(map));
-        let mut sprite = Sprite::from_image(image);
-        sprite.custom_size = Some(size);
-        sprite.color = color;
-        commands.spawn((
-            SpatialWorldEntity,
-            SpatialActorEntity,
-            sprite,
-            Transform::from_xyz(
-                projected.x,
-                projected.y + vertical_offset,
-                depth_for_position(grid_position) + PLAYER_DEPTH_OFFSET - 0.005,
-            ),
-        ));
     }
 
     let player_ground_position = session_position(&state);

@@ -4,7 +4,14 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.69. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.70. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+
+### v0.52.70: Role-specific spatial actor visuals
+
+- Added separate mod-resolvable world-actor asset candidates for NPCs, hostile encounters, and remains. NPC and hostile visuals fall back to the full-body player sprite before the legacy character icon; corpses and defeated encounters share the remains visual fallback.
+- Centralized actor sprite sizing, role tint, ground-contact offset, projection, and depth placement for persistent interactables and spatial encounters without changing renderer-neutral world data or saved maps.
+- Added regression coverage for role-specific asset candidate order, fallback sharing, and visual distinctions. Dedicated base-game actor artwork and per-character appearance variation remain future asset work.
+- Bumped Rust and Android version metadata to 0.52.70.
 
 ### CI/CD workflow maintenance
 
