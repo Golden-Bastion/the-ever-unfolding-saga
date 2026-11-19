@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.52.67.**
+**Repository version at this roadmap revision: 0.52.68.**
 
 **Theme:** spatial gameplay and presentation foundations.
 

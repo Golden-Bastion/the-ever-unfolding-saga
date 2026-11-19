@@ -10,6 +10,10 @@
 
 The spatial HUD uses an 88-logical-pixel opaque header anchored to the top of the full window. Its 64-pixel primary row holds the time-of-day indicator, the player-vitals panel, and the pause/menu control. The vitals panel stacks character identity and the condition summary above a full-width 20-pixel health gauge with numeric current/maximum values. The gauge width follows the available panel width rather than a fixed 100-pixel slot. A 20-pixel status strip below the primary row carries contextual feedback. The spatial world camera renders only inside a viewport beginning below the expanded header and outer spacing; a separate full-window UI camera keeps the header and overlays anchored to the actual screen rather than to the world viewport. Eligible Interact/Investigate controls retain their lower-right map-footer placement, and the Android virtual joystick remains anchored over the map as a movement control.
 
+## Time and celestial display
+
+The compact sky panel is a south-facing view: east is on the left and west is on the right. Both celestial bodies move from left to right as the world clock advances. The simplified sun path begins near the eastern horizon at 06:00, reaches its high point around midday, and descends toward the western horizon by the 16:00 dusk transition. The moon path begins near the eastern horizon at 18:00, reaches its high point around midnight, and approaches the western horizon by 04:00. Both are fixed illustrative paths using the existing two-hour world-time slots; the display does not model minute-level astronomical motion or phase-aware lunar rise/set times.
+
 ## Coordinate conventions
 
 - Grid coordinates are continuous during movement. A tile's center is represented by `(x + 0.5, y + 0.5)`.
