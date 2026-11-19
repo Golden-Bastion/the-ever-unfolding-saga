@@ -149,34 +149,45 @@ fn tracked_quest_destination_id(
     let objective = quest.objectives.iter().find(|objective| !objective.completed)?;
 
     match &objective.kind {
-        QuestObjectiveKind::VisitLocation => state
-            .world
-            .location_by_name(&objective.target)
-            .map(|location| location.id)
-            .or_else(|| {
-                objective
+        QuestObjectiveKind::VisitLocation => {
+            let mut matching_locations = state
+                .world
+                .locations
+                .iter()
+                .filter(|location| location.name == objective.target);
+            match (matching_locations.next(), matching_locations.next()) {
+                (Some(location), None) => Some(location.id),
+                (None, _) => objective
                     .target
                     .parse::<u64>()
                     .ok()
                     .and_then(|location_id| state.world.location_by_id(location_id))
-                    .map(|location| location.id)
-            }),
-        QuestObjectiveKind::DiscoverEvidence => campaign
-            .world
-            .locations
-            .iter()
-            .find(|location| {
+                    .map(|location| location.id),
+                // A duplicated name cannot safely identify a single destination.
+                (Some(_), Some(_)) => None,
+            }
+        }
+        QuestObjectiveKind::DiscoverEvidence => {
+            let mut matching_locations = campaign.world.locations.iter().filter(|location| {
                 location
                     .spatial_discoveries
                     .iter()
                     .any(|discovery| discovery.id == objective.target)
-            })
-            .and_then(|content_location| {
-                state
-                    .world
-                    .location_by_name(&content_location.name)
-                    .map(|location| location.id)
-            }),
+            });
+            let content_location = match (matching_locations.next(), matching_locations.next()) {
+                (Some(location), None) => location,
+                _ => return None,
+            };
+            let mut world_locations = state
+                .world
+                .locations
+                .iter()
+                .filter(|location| location.name == content_location.name);
+            match (world_locations.next(), world_locations.next()) {
+                (Some(location), None) => Some(location.id),
+                _ => None,
+            }
+        },
         QuestObjectiveKind::AcquireItem | QuestObjectiveKind::DefeatEnemy => state
             .world
             .location_by_id(quest.target_location_id)
