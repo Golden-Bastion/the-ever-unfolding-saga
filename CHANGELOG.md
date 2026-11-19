@@ -9,6 +9,7 @@ The entries below cover the v0.52.x development line through v0.52.69. This line
 ### CI/CD workflow maintenance
 
 - Removed an empty step-level `env` declaration from the formatting-and-tests job so GitHub Actions can validate the workflow configuration.
+- Declared `prep_build_matrix` as a direct dependency of the release job so its selected source-ref output is available to the release steps.
 
 ### v0.52.69: Character quest tracking and World Map destination marker
 
