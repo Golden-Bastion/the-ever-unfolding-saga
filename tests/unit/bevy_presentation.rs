@@ -521,6 +521,37 @@ fn gauge_ratio_handles_empty_and_clamps_values() {
 }
 
 #[test]
+fn health_gauge_height_can_change_without_resizing_the_legacy_gauge() {
+    #[derive(Resource)]
+    struct Fixture {
+        legacy: Entity,
+        expanded: Entity,
+    }
+
+    fn setup(mut commands: Commands) {
+        let parent = commands.spawn_empty().id();
+        let legacy = spawn_health_gauge(&mut commands, parent, 75, 100);
+        let expanded = spawn_health_gauge_with_height(&mut commands, parent, 75, 100, 20.0);
+        commands.insert_resource(Fixture { legacy, expanded });
+    }
+
+    let mut world = World::new();
+    let mut schedule = Schedule::default();
+    schedule.add_systems(setup);
+    schedule.run(&mut world);
+    world.flush();
+
+    let fixture = world.resource::<Fixture>();
+    let legacy = world.get::<Node>(fixture.legacy).unwrap();
+    let expanded = world.get::<Node>(fixture.expanded).unwrap();
+    assert_eq!(legacy.height, px(28.0));
+    assert_eq!(legacy.min_height, px(28.0));
+    assert_eq!(expanded.height, px(20.0));
+    assert_eq!(expanded.min_height, px(20.0));
+    assert_eq!(expanded.max_height, px(20.0));
+}
+
+#[test]
 fn shared_tab_strip_marks_only_the_selected_tab() {
     #[derive(Resource)]
     struct Fixture(Entity);
