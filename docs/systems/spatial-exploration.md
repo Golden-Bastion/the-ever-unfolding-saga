@@ -12,7 +12,7 @@ The spatial HUD uses an 88-logical-pixel opaque header anchored to the top of th
 
 ## Time and celestial display
 
-The compact sky panel is a south-facing view: east is on the left and west is on the right. Both celestial bodies move from left to right as the world clock advances. The current simplified moon schedule begins near the eastern horizon at 18:00, reaches its high point around midnight, and approaches the western horizon by 04:00. This is a fixed illustrative path using the existing two-hour world-time slots; it does not model lunar phases, phase-dependent rise/set times, or minute-level astronomical motion.
+The compact sky panel is a south-facing view: east is on the left and west is on the right. Both celestial bodies move from left to right as the world clock advances. The simplified sun path begins near the eastern horizon at 06:00, reaches its high point around midday, and descends toward the western horizon by the 16:00 dusk transition. The moon path begins near the eastern horizon at 18:00, reaches its high point around midnight, and approaches the western horizon by 04:00. Both are fixed illustrative paths using the existing two-hour world-time slots; the display does not model minute-level astronomical motion or phase-aware lunar rise/set times.
 
 ## Coordinate conventions
 

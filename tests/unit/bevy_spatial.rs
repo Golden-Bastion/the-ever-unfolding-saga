@@ -1888,14 +1888,25 @@ fn sky_visual_keeps_distinct_night_dawn_day_and_dusk_states() {
 }
 
 #[test]
-fn sun_rises_in_the_east_left_and_sets_in_the_west_right() {
-    let sunrise = sky_visual(2);
-    let midday = sky_visual(4);
-    let sunset = sky_visual(7);
+fn sun_travels_left_to_right_on_a_midday_centered_arc() {
+    // Slots 2..=7 represent 06:00 through the 16:00 dusk transition.
+    let sun_path = (2..=7).map(sky_visual).collect::<Vec<_>>();
 
-    assert!(sunrise.celestial_x < midday.celestial_x);
-    assert!(midday.celestial_x < sunset.celestial_x);
-    assert!(sky_visual(8).celestial_x > sunset.celestial_x);
+    assert!(sun_path
+        .iter()
+        .all(|sky| sky.celestial == CelestialBody::Sun));
+    assert!(sun_path
+        .windows(2)
+        .all(|pair| pair[0].celestial_x < pair[1].celestial_x));
+
+    // The sun rises from the eastern horizon, peaks around noon, and descends
+    // toward the western horizon. Y decreases as the body appears higher.
+    assert!(sun_path[..4]
+        .windows(2)
+        .all(|pair| pair[0].celestial_y > pair[1].celestial_y));
+    assert!(sun_path[3..]
+        .windows(2)
+        .all(|pair| pair[0].celestial_y < pair[1].celestial_y));
 }
 
 #[test]

@@ -6,10 +6,11 @@ This file records work completed in the current development line. It is not a li
 
 The entries below cover the v0.52.x development line through v0.52.68. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
-### v0.52.68: Correct south-facing lunar travel
+### v0.52.68: Correct south-facing celestial travel
 
-- Reoriented the simplified moon path so it travels east-to-west from left to right across the south-facing spatial sky, including the midnight clock wrap.
-- Added regression coverage for the complete dusk-to-pre-dawn path and documented the fixed, non-phase-aware presentation schedule.
+- Reworked the simplified sun arc so it rises near the eastern horizon, reaches its highest point around midday, and descends toward the western horizon by dusk; it travels left-to-right in the south-facing sky.
+- Reoriented the moon path to travel left-to-right across the midnight clock wrap, from its 18:00 eastern appearance toward the western horizon by 04:00.
+- Added regression coverage for both complete paths and documented the fixed, two-hour-slot presentation schedule.
 - Bumped Rust and Android version metadata to 0.52.68.
 
 ### v0.52.67: Move 3D rendering experiments into TEUS Lab

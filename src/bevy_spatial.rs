@@ -263,8 +263,9 @@ fn advance_location_notice(state: &mut SpatialExplorationState, delta_seconds: f
     }
 }
 
-// The panel faces south: east is left and west is right. The moon's simplified
-// dusk-to-pre-dawn path advances left-to-right across the slot 11 -> 0 wrap.
+// The panel faces south: east is left and west is right. The sun's daytime
+// arc and the moon's night path both travel left-to-right across fixed
+// two-hour world-clock slots rather than astronomical calculations.
 fn sky_visual(time_points: u32) -> SkyVisual {
     match time_points % 12 {
         0 => SkyVisual {
@@ -284,42 +285,42 @@ fn sky_visual(time_points: u32) -> SkyVisual {
         2 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAWN,
             celestial: CelestialBody::Sun,
-            celestial_x: 42.0,
-            celestial_y: 11.0,
+            celestial_x: 22.0,
+            celestial_y: 18.0,
             warm_horizon: true,
         },
         3 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAY,
             celestial: CelestialBody::Sun,
-            celestial_x: 50.0,
-            celestial_y: 7.0,
+            celestial_x: 34.0,
+            celestial_y: 13.0,
             warm_horizon: false,
         },
         4 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAY,
             celestial: CelestialBody::Sun,
-            celestial_x: 58.0,
+            celestial_x: 46.0,
             celestial_y: 9.0,
             warm_horizon: false,
         },
         5 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAY,
             celestial: CelestialBody::Sun,
-            celestial_x: 66.0,
-            celestial_y: 11.0,
+            celestial_x: 58.0,
+            celestial_y: 7.0,
             warm_horizon: false,
         },
         6 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAY,
             celestial: CelestialBody::Sun,
-            celestial_x: 75.0,
-            celestial_y: 14.0,
+            celestial_x: 70.0,
+            celestial_y: 9.0,
             warm_horizon: false,
         },
         7 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DUSK,
             celestial: CelestialBody::Sun,
-            celestial_x: 83.0,
+            celestial_x: 82.0,
             celestial_y: 18.0,
             warm_horizon: true,
         },
