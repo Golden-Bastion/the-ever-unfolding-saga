@@ -1868,18 +1868,62 @@ pub fn spawn_health_gauge(
     current: i32,
     maximum: i32,
 ) -> Entity {
+    // Preserve the original auto-sized layout for the transitional encounter UI.
+    spawn_health_gauge_inner(commands, parent, current, maximum, None)
+}
+
+/// Spawn a shared health gauge with an explicit visual height.
+///
+/// Use this when a screen has a different information hierarchy from the
+/// transitional encounter screen. The legacy helper retains its original layout.
+pub fn spawn_health_gauge_with_height(
+    commands: &mut Commands,
+    parent: Entity,
+    current: i32,
+    maximum: i32,
+    height: f32,
+) -> Entity {
+    let height = if height.is_finite() {
+        height.max(1.0)
+    } else {
+        28.0
+    };
+    spawn_health_gauge_inner(commands, parent, current, maximum, Some(height))
+}
+
+fn spawn_health_gauge_inner(
+    commands: &mut Commands,
+    parent: Entity,
+    current: i32,
+    maximum: i32,
+    height: Option<f32>,
+) -> Entity {
     let gauge_ratio = gauge_ratio(current, maximum);
+    let node = if let Some(height) = height {
+        Node {
+            width: percent(100),
+            min_width: px(0),
+            height: px(height),
+            min_height: px(height),
+            max_height: px(height),
+            position_type: PositionType::Relative,
+            border: UiRect::all(px(1)),
+            ..default()
+        }
+    } else {
+        Node {
+            width: percent(100),
+            min_width: px(0),
+            min_height: px(28),
+            position_type: PositionType::Relative,
+            border: UiRect::all(px(1)),
+            ..default()
+        }
+    };
     let gauge = commands
         .spawn((
             UiHealthGauge { current, maximum },
-            Node {
-                width: percent(100),
-                min_width: px(0),
-                min_height: px(28),
-                position_type: PositionType::Relative,
-                border: UiRect::all(px(1)),
-                ..default()
-            },
+            node,
             BorderColor::all(THEME_BORDER),
             BackgroundColor(THEME_SURFACE_STRONG),
             children![

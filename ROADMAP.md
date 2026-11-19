@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.52.64.**
+**Repository version at this roadmap revision: 0.52.65.**
 
 **Theme:** spatial gameplay and presentation foundations.
 
@@ -14,7 +14,7 @@ The line has established the spatial exploration prototype, character/world auth
 
 ### Remaining work
 
-1. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are now documented. Remaining work is incremental asset creation and integration, plus continued evolution of contextual HUD hierarchy, objective/orientation cues, character-hub presentation, and platform-adaptive controls without overloading the spatial view. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
+1. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are documented. The current Character hub and desktop/Android spatial control arrangements are accepted as complete for the present scope; revisit them only when a concrete feature or playtest finding justifies it. The exploration HUD now gives player vitality a stacked panel and a full-width, numeric health bar; further HUD work should remain incremental and prioritize contextual objective/orientation cues, improving the visual representation of world entities, and creating/integrating pixel-art assets. Defer bespoke enemy/boss HUD elements and combat-specific asset production until the transitional encounter UI is replaced by real-time spatial combat; do not heavily polish the current combat presentation. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
 2. **Investigate a hybrid 2D-gameplay / 3D-rendering foundation.** The isolated Bevy 0.20 prototype is available as an alternate application entry point behind the optional `spatial-3d-prototype` feature, with desktop CI/CD and Android APK workflow options. It uses the mod-aware asset resolver and reuses the existing 2D spatial assets. Remaining work is to compare more demanding occlusion cases, test pixel stability and viable sprite lighting/shadow approaches, validate Android runtime/GPU behavior and performance on real devices, then record an explicit proceed/defer/reject decision. Do not migrate the production renderer before the investigation validates the approach. See [hybrid 2D gameplay and 3D rendering](docs/design/hybrid-2d-gameplay-3d-rendering.md).
 
 The retained-shell and keyed-row UI migration is complete and has been owner-validated through playtesting. New dynamic collections and screen regions should follow the established retained-host and keyed-identity contracts; this is ongoing architectural practice, not an unfinished migration.
@@ -44,7 +44,7 @@ Design references: [world topology and hybrid travel](docs/design/world-topology
 - Extend mod support with schema-validated, mod-authored procedural templates and archetypes, stable-ID-based additions/overrides, and clear precedence with authored campaign content. Defer arbitrary scripted hooks until a concrete design justifies their complexity.
 - Strengthen the authoritative world-time and simulation contract. Support detailed, event-driven, aggregate, and deferred updates according to gameplay relevance, with explicit state ownership, stable ordering, persistence, and duplicate prevention.
 - Extend character progression into meaningful choices, optional backgrounds and ambitions, permanent life records, retirement into persistent NPCs, and continuity rules separating world state, recorded knowledge, and individual knowledge.
-- Design and introduce real-time spatial action combat as a deliberate replacement path for the current turn-based encounter model. Establish attack phases, Strong/Fast/Group styles, target handling, assisted positioning, combos, block/parry, injury consequences, structured combat events, and desktop/Android controls.
+- Design and introduce real-time spatial action combat as a deliberate replacement path for the current turn-based encounter model. Establish attack phases, Strong/Fast/Group styles, target handling, assisted positioning, combos, block/parry, injury consequences, structured combat events, and desktop/Android controls. Develop bespoke combat HUD elements and combat-specific art alongside this replacement system rather than polishing the transitional encounter UI in advance.
 - Profile representative desktop and Android workloads before deciding simulation limits or presentation budgets. Do not impose arbitrary ceilings on future simulation depth.
 
 Design references: [procedural content generation](docs/design/procedural-content-generation.md), [world simulation](docs/design/world-simulation.md), [character lives and inheritance](docs/design/character-lives-and-inheritance.md), and [real-time spatial combat](docs/design/real-time-spatial-combat.md).

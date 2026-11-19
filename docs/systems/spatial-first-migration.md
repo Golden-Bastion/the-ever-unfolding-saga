@@ -18,6 +18,8 @@ The current spatial screen provides:
 - Desktop movement through WASD/arrow keys and interaction through E/Confirm.
 - Android movement through the virtual joystick and touch activation of the visible controls.
 
+The existing desktop keyboard/arrow-key movement and Android virtual-joystick/touch control arrangements are accepted as complete for the current scope. Maintain the current behavior unless a concrete playtest finding or new gameplay feature requires a change.
+
 Desktop Escape and Android system Back now open the existing unified pause menu over the spatial scene. Back while the menu is open dismisses it and resumes the same spatial session. The menu retains its existing Resume, Character, New Game, Load Game, Options, and Quit actions; its child screens continue returning to the paused spatial context. The former visible Leave control was removed during dashboard retirement; the corner menu button now opens pause and long-presses to console. While the menu is open, spatial movement, player animation, camera follow, and Android joystick input are paused.
 
 The spatial screen already rebuilds its presentation after returning from a dedicated screen, using the retained local map and continuous character position. NavigationState now captures and restores the invoking screen. The header menu button replaces the old Gameplay dashboard menu button: tapping opens the unified pause menu, while a 650 ms touch hold without dragging opens the developer console. The desktop slash shortcut also remains available from spatial exploration.

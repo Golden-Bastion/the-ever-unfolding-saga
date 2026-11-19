@@ -4,7 +4,15 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.64. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.65. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+
+### v0.52.65: Exploration HUD vitality hierarchy
+
+- Marked the current Character hub and desktop/Android spatial control arrangements complete for the present scope; future changes should be driven by concrete gameplay needs or playtest findings.
+- Expanded the spatial header to 88 logical pixels and changed the player-vitals panel to stack identity/conditions above a full-width 20-pixel health bar with current/maximum values.
+- Added an explicitly sized shared health-gauge helper while preserving the legacy 28-pixel default for the transitional encounter UI.
+- Deferred bespoke enemy/boss HUD elements and combat-specific asset production until the real-time spatial combat replacement is developed.
+- Added regression coverage for gauge sizing and the expanded camera viewport offset; bumped Rust and Android version metadata to 0.52.65.
 
 ### v0.52.64: Isolated 3D spatial-renderer prototype
 

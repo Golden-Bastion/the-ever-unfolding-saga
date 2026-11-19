@@ -28,6 +28,8 @@ Lifecycle character-creation fields use Bevy's `EditableText` with real `InputFo
 
 Arrow keys, Home/End, Page Up/Page Down, Enter, Escape, Tab, Backspace, Delete, and selected number/vim-style shortcuts remain available where each screen supports them. UI buttons produce the same semantic confirmation events as keyboard input.
 
+The existing desktop keyboard/mouse and Android touch/virtual-joystick arrangements for spatial movement and contextual actions are the accepted control baseline for the current scope. They are considered complete; revisit them when new gameplay mechanics or concrete usability findings require a change.
+
 ## Gameplay and results
 
 The former Gameplay dashboard is retired and no longer has a renderer or navigation destination. Its remaining functions now live in the spatial experience: Map is opened from the pause menu, safe-only Meditation remains there, Investigate appears beside Interact only for an active local threat, and spatial exploration is entered directly through lifecycle completion. Character records, Options, and the developer console remain dedicated screens or tools. Recent history remains in its dedicated record screen. Using a physical passage invokes the established graph-travel rules and loads the connected local map without leaving spatial mode.
@@ -36,7 +38,7 @@ NPCs and searchable remains are positioned in the local map and become contextua
 
 Combat presents player/enemy status, encounter events, action choices, and result details through Bevy nodes while the authoritative combat system continues to own resolution and state mutation.
 
-The Character hub uses the shared tab strip and fixed-panel/scroll-list layout for General, Reputation, Inventory, Quests, and Journal. Journal brings together the chronological world chronicle and the character's personal notes; manually written notes remain available through the existing write-note flow and are not duplicated as chronicle entries. Inventory items, quests, and chronicle entries open detail views that return to their originating tab. Meditation remains a separate record flow. Results stay on-screen until the user advances or returns to the parent flow.
+The Character hub uses the shared tab strip and fixed-panel/scroll-list layout for General, Reputation, Inventory, Quests, and Journal. Journal brings together the chronological world chronicle and the character's personal notes; manually written notes remain available through the existing write-note flow and are not duplicated as chronicle entries. Inventory items, quests, and chronicle entries open detail views that return to their originating tab. Meditation remains a separate record flow. Results stay on-screen until the user advances or returns to the parent flow. The current hub composition is accepted as representative and complete for the present scope; further changes should be driven by a concrete feature or playtest finding rather than routine visual polish.
 
 ## Developer console
 

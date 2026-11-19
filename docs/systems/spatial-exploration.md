@@ -8,7 +8,7 @@
 
 ## HUD and viewport
 
-The spatial HUD uses a compact 72-logical-pixel opaque header anchored to the top of the full window. Its first row holds the time-of-day indicator, character identity, health gauge, condition summary, and pause/menu control. A short status strip below it carries contextual feedback. The spatial world camera renders only inside a viewport beginning below the header and outer spacing; a separate full-window UI camera keeps the header and overlays anchored to the actual screen rather than to the world viewport. Eligible Interact/Investigate controls retain their lower-right map-footer placement, and the Android virtual joystick remains anchored over the map as a movement control.
+The spatial HUD uses an 88-logical-pixel opaque header anchored to the top of the full window. Its 64-pixel primary row holds the time-of-day indicator, the player-vitals panel, and the pause/menu control. The vitals panel stacks character identity and the condition summary above a full-width 20-pixel health gauge with numeric current/maximum values. The gauge width follows the available panel width rather than a fixed 100-pixel slot. A 20-pixel status strip below the primary row carries contextual feedback. The spatial world camera renders only inside a viewport beginning below the expanded header and outer spacing; a separate full-window UI camera keeps the header and overlays anchored to the actual screen rather than to the world viewport. Eligible Interact/Investigate controls retain their lower-right map-footer placement, and the Android virtual joystick remains anchored over the map as a movement control.
 
 ## Coordinate conventions
 

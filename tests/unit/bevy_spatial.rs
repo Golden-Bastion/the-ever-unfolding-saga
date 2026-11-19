@@ -15,6 +15,15 @@ fn spatial_hud_condition_summary_has_a_clear_empty_state() {
 }
 
 #[test]
+fn expanded_spatial_health_header_is_reserved_in_the_camera_viewport() {
+    assert_eq!(SPATIAL_HEADER_HEIGHT_PX, 88.0);
+    assert_eq!(SPATIAL_HEADER_ROW_HEIGHT_PX, 64.0);
+    assert_eq!(SPATIAL_HEALTH_GAUGE_HEIGHT_PX, 20.0);
+    assert_eq!(spatial_camera_viewport_top(1.0), 104);
+    assert_eq!(spatial_camera_viewport_top(2.0), 208);
+}
+
+#[test]
 fn spatial_world_update_initializes_with_disjoint_sprite_queries() {
     let mut app = App::new();
     app.insert_resource(Time::<()>::default())

@@ -27,6 +27,10 @@ The following layouts describe intended information hierarchy, not a claim that 
 - Use in-world markers and visual feedback to distinguish nearby opportunities from background scenery without turning every object into a labelled icon.
 - Keep HUD contrast sufficient over bright snow, pale skies, water, foliage, firelight, and dark interiors. Use controlled backing surfaces or edge contrast where necessary instead of darkening the entire world to accommodate the HUD.
 
+## Current v0.52.x baseline status
+
+The current Character hub is accepted as representative and complete for the present scope. The existing desktop keyboard/mouse and Android touch/virtual-joystick arrangements for spatial exploration are also considered complete. These are stable baselines, not frozen designs: revisit them when a concrete gameplay feature or playtest finding demonstrates a need, rather than carrying routine polish as open work.
+
 ## Real-time combat HUD
 
 - Preserve the spatial view and make combat state legible at a glance: target identity and health, player vitals, available abilities, and important resource/cooldown feedback.
@@ -34,6 +38,8 @@ The following layouts describe intended information hierarchy, not a claim that 
 - Show nearby allies and their current state when that information affects a decision. Offer a small set of plausible local commands and access to slow-motion tactical orders; do not present a remote army-command interface.
 - Let the combat HUD add detail to the exploration HUD when needed, then recede when the encounter ends.
 - Keep telegraphs and combat effects visually distinct from ordinary environmental light and decoration.
+
+The current turn-based encounter interface is transitional and is not a target for significant visual investment. Defer bespoke enemy/boss health displays, combat-only HUD artwork, ability/cooldown presentation, and related assets until the real-time spatial combat replacement is developed. Player-status improvements in the exploration HUD remain useful independently and should avoid assumptions tied to the old encounter flow.
 
 ## Character hub, inventory, and equipment
 
@@ -62,7 +68,7 @@ The following layouts describe intended information hierarchy, not a claim that 
 
 ## Spatial exploration vitals
 
-Spatial exploration now keeps a compact character panel in the header with character name/level, current and maximum health, and a text summary of active conditions. It reuses the common health-gauge primitive and shared dark theme, so the essential status remains visible without occupying a large permanent panel. This does not imply that the planned combat HUD, minimap, or ally command controls exist yet.
+Spatial exploration uses an 88-logical-pixel header with a 64-pixel primary row. The player-vitals panel stacks character name/level and the condition summary above a full-width 20-pixel health gauge with current/maximum values overlaid on the blood fill. The bar uses the shared health-gauge primitive with an explicit size, while the default gauge dimensions remain available to the transitional encounter screen. This is an exploration-status improvement, not an investment in the current combat interface; the planned enemy/boss HUD, minimap, and ally command controls remain future work.
 
 ## Boundaries
 
