@@ -263,20 +263,22 @@ fn advance_location_notice(state: &mut SpatialExplorationState, delta_seconds: f
     }
 }
 
+// The panel faces south: east is left and west is right. The moon's simplified
+// dusk-to-pre-dawn path advances left-to-right across the slot 11 -> 0 wrap.
 fn sky_visual(time_points: u32) -> SkyVisual {
     match time_points % 12 {
         0 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
             celestial: CelestialBody::Moon,
-            celestial_x: 22.0,
+            celestial_x: 70.0,
             celestial_y: 9.0,
             warm_horizon: false,
         },
         1 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DAWN,
             celestial: CelestialBody::Moon,
-            celestial_x: 33.0,
-            celestial_y: 11.0,
+            celestial_x: 82.0,
+            celestial_y: 13.0,
             warm_horizon: true,
         },
         2 => SkyVisual {
@@ -324,29 +326,29 @@ fn sky_visual(time_points: u32) -> SkyVisual {
         8 => SkyVisual {
             background: bevy_presentation::THEME_SKY_DUSK,
             celestial: CelestialBody::Moon,
-            celestial_x: 90.0,
-            celestial_y: 13.0,
+            celestial_x: 22.0,
+            celestial_y: 18.0,
             warm_horizon: true,
         },
         9 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
             celestial: CelestialBody::Moon,
-            celestial_x: 79.0,
-            celestial_y: 10.0,
+            celestial_x: 34.0,
+            celestial_y: 13.0,
             warm_horizon: false,
         },
         10 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
             celestial: CelestialBody::Moon,
-            celestial_x: 63.0,
-            celestial_y: 8.0,
+            celestial_x: 46.0,
+            celestial_y: 9.0,
             warm_horizon: false,
         },
         11 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
             celestial: CelestialBody::Moon,
-            celestial_x: 45.0,
-            celestial_y: 8.0,
+            celestial_x: 58.0,
+            celestial_y: 7.0,
             warm_horizon: false,
         },
         _ => unreachable!(),
