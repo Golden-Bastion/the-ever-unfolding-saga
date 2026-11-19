@@ -1,14 +1,12 @@
 # Hybrid 2D Gameplay and 3D Rendering Architecture
 
-> Status: active v0.52.x investigation. The experimental implementation has been moved out of the TEUS repository into the separate private [TEUS Lab repository](https://github.com/Golden-Bastion/teus-lab). TEUS continues to ship only its existing 2D renderer. This document remains the architectural brief and acceptance record; it does not imply that a 3D renderer has been selected or integrated.
+> Status: reference design only. The prototype, active investigation, implementation planning, validation results, and decisions are maintained exclusively in the separate private [TEUS Lab repository](https://github.com/Golden-Bastion/teus-lab). This document preserves high-level design constraints for TEUS; it is not an active TEUS milestone or a commitment to migrate the production renderer. TEUS continues to ship its existing 2D renderer.
 
-## Current experiment location — TEUS Lab
+## Separate implementation and tracking
 
-The standalone Bevy 0.20 scene, rendering code, diagnostic build options, desktop/Android workflows, and copied reference assets are maintained only in [Golden-Bastion/teus-lab](https://github.com/Golden-Bastion/teus-lab) (private repository). The lab has its own Cargo crate, asset-loading path, and Android GameActivity app. It does not depend on the TEUS application crate or change the production game's entry point, renderer, dependency features, or build workflows.
+The standalone experiment and all active work around it—including source code, build configuration, assets, platform workflows, test cases, validation results, issues, and any recommendation about production integration—are maintained exclusively in the private [TEUS Lab repository](https://github.com/Golden-Bastion/teus-lab).
 
-The lab retains the current experimental scene: an orthographic three-quarter camera, textured ground, foot-anchored 2D atlas meshes, crossing animated actors, wall top/faces, a table overhang proxy, a simple tree proxy, directional lighting, optional shadow maps, and the direct-output tonemapping configuration. The copied spatial reference art remains under its original CC BY-NC-ND 4.0 license. Refer to the private lab for the exact implementation, build instructions, and experiment results.
-
-The investigation remains unfinished. In particular, visual parity, robust occlusion, alpha-cutout shadow behavior, pixel stability, Android runtime/GPU compatibility, sustained mobile performance, and the comparison of tone-mapping approaches still require evidence from the lab. No decision to migrate the production renderer has been made.
+TEUS Lab is the source of truth for the experiment's current state and next steps. This document intentionally does not duplicate that task tracking or attempt to keep experimental implementation details synchronized. The production game remains on its existing 2D renderer; no production renderer migration has been approved.
 
 ## Purpose
 
@@ -170,37 +168,13 @@ The prototype must verify that:
 - UI remains in screen space and is not affected by world lighting, depth, or camera movement.
 - Existing contextual prompts, interaction wheel, dialogue overlays, and pause/navigation flows remain usable.
 
-## Migration strategy
+## Production integration boundary
 
-Migration should be incremental and evidence-driven.
+The hybrid approach is a possible future presentation direction, not a selected production architecture. Prototype work and feasibility investigation belong in TEUS Lab, not in the TEUS application repository.
 
-### Stage 1 — renderer audit and minimal technical spike
+A recommendation to change the production renderer must return to TEUS as a separate, owner-approved task. That proposal should include the lab's relevant evidence, a clear proceed/defer/reject recommendation, the expected benefits and costs, platform implications, and a bounded integration plan. The TEUS roadmap should only gain integration work after that proposal is accepted.
 
-Inspect the current `bevy_spatial.rs` rendering path and identify every assumption tied to 2D cameras, sprite transforms, render layers, projection, depth constants, viewport setup, and asset loading.
-
-Build a small isolated scene using representative existing assets. Demonstrate the three-quarter orthographic camera, ground-anchored sprites, depth-buffer occlusion, and atlas animation. Do not migrate the full spatial screen yet.
-
-### Stage 2 — visual relationship prototype
-
-Add representative terrain, a wall, an overhanging prop, and a moving actor. Validate ground anchors, footprints, wall occlusion, crossing actors, alpha behavior, and pixel stability. Compare the results with the current implementation.
-
-### Stage 3 — lighting and shadow feasibility
-
-Test a small number of lighting approaches with the same assets: unlit sprites over a lit ground, sprite-aware lighting, and at least one shadow technique. Record visual quality, implementation complexity, and desktop/Android performance. Do not select a technique solely because it is physically based.
-
-### Stage 4 — integration decision
-
-Document the results and choose one of three outcomes:
-
-- Proceed with a controlled migration of the spatial world renderer.
-- Retain the 2D renderer and adopt only the specific improvements that demonstrably solve current limitations.
-- Revise the hybrid proposal if Bevy or target-device constraints make the intended result impractical.
-
-If migration proceeds, replace the current spatial renderer behind its existing gameplay/presentation boundary. Do not duplicate world simulation or create a second map model. Keep the old renderer available during the transition until feature parity and validation are established.
-
-### Stage 5 — incremental production migration
-
-Migrate terrain, static props, actors, effects, and lighting in bounded groups. Keep the existing asset catalogue and renderer-neutral world model authoritative. Remove old ordering workarounds only after their replacements are verified against equivalent scenes and gameplay cases.
+If integration is approved, replace the current spatial renderer behind its existing gameplay/presentation boundary. Do not duplicate world simulation or create a second map model. Keep the existing renderer available during the transition until feature parity and validation are established.
 
 ## Performance and platform requirements
 
@@ -220,19 +194,17 @@ Prefer simple geometry, shared materials, texture atlases, and selective lightin
 
 A 2D fallback renderer is not a permanent requirement, but the current renderer should remain available during prototyping and migration so comparisons and rollback are practical.
 
-## Acceptance criteria for the v0.52.x investigation
+## Requirements for a future production integration proposal
 
-The investigation is complete only when:
+TEUS Lab defines and tracks acceptance for its experiments. The following are not TEUS roadmap tasks; they describe the evidence a future production-integration proposal should bring back:
 
-1. The current renderer's layering and projection assumptions have been inventoried.
-2. A minimal Bevy 0.20 prototype demonstrates a 3D scene with the existing 2D sprite assets and the intended orthographic three-quarter view.
-3. Ground anchors and depth-buffer occlusion are demonstrated with actors crossing, an overhanging prop, and a wall/top-face case.
-4. Existing sprite-sheet animation is demonstrated in the prototype.
-5. At least one viable lighting/shadow approach is tested, or the constraints preventing it are documented.
-6. Desktop and Android feasibility, including Bevy feature requirements and performance risks, are recorded.
-7. A clear proceed, defer, or reject decision is documented, with the next bounded implementation tasks identified.
+1. The relevant renderer limitations and representative visual cases are documented.
+2. The proposed approach demonstrates its handling of ground anchors, depth/occlusion, sprite animation, and difficult object relationships.
+3. Any selected lighting/shadow approach is evaluated against the approved pixel-art direction.
+4. Desktop and Android feasibility, including Bevy feature requirements, device compatibility, and performance risks, is supported by evidence.
+5. The proposal states whether production integration is recommended, deferred, or rejected, and explains why.
 
-Completing this investigation does not mean the production spatial renderer has been migrated. That remains separate implementation work and must be represented accurately in the roadmap and changelog.
+Completing the lab investigation would not itself migrate the production spatial renderer. Production integration remains a separate decision and must be represented as such in the TEUS roadmap only after approval.
 
 ## Related specifications
 
