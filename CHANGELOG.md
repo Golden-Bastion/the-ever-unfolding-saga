@@ -17,7 +17,7 @@ The entries below cover the v0.52.x development line through v0.52.68. This line
 
 - Moved the standalone Bevy 0.20 rendering experiment into the separate private Golden-Bastion/teus-lab repository, including its own crate, image-loading path, Android scaffold, desktop/Android build workflows, and copied spatial reference assets.
 - Removed the prototype application entry point, optional PBR/shadow features, and experimental build switches from TEUS. The production game now always launches its existing 2D renderer.
-- Kept the hybrid-rendering architecture brief and remaining investigation goals in TEUS documentation; no production renderer migration or integration decision has been made.
+- Retained a high-level hybrid-rendering architecture reference in TEUS documentation; active experiment implementation, tracking, validation, and decisions are maintained exclusively in TEUS Lab. No production renderer migration or integration decision has been made.
 - Bumped Rust and Android fallback version metadata to 0.52.67.
 
 ### v0.52.66: Correct 3D prototype magenta rendering
