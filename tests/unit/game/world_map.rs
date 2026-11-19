@@ -1,5 +1,7 @@
 use super::*;
-use crate::model::{Location, Region, WorldMode};
+use crate::model::{
+    Location, Quest, QuestObjective, QuestObjectiveKind, Region, WorldMode,
+};
 use crate::spatial::{GridPosition, LocalMap, Terrain};
 
 fn test_state() -> GameState {
@@ -60,6 +62,96 @@ fn explored_map(location_id: u64) -> LocalMap {
         interactables: Vec::new(),
         encounters: Vec::new(),
     }
+}
+
+#[test]
+fn tracked_quest_marks_the_first_incomplete_visit_objective_and_reveals_its_location() {
+    let mut state = test_state();
+    let mut quest = Quest::new(
+        701, "quest.multi_step", "A Three-Step Journey", "Follow the trail",
+        14, 0, 0, "", "",
+    );
+    quest.offered = true;
+    let mut completed = QuestObjective::new(
+        QuestObjectiveKind::VisitLocation, "Crossroads", 1,
+    );
+    completed.progress = 1;
+    completed.completed = true;
+    quest.objectives = vec![
+        completed,
+        QuestObjective::new(QuestObjectiveKind::VisitLocation, "Far Ruin", 1),
+        QuestObjective::new(QuestObjectiveKind::VisitLocation, "Old Shrine", 1),
+    ];
+    state.quests.push(quest);
+    state.character.tracked_quest_id = Some(701);
+
+    let view = build_view(&state);
+
+    let destination = view
+        .nodes
+        .iter()
+        .find(|node| node.location.id == 14)
+        .expect("the tracked destination should be shown on the map");
+    assert!(destination.tracked_objective);
+    assert!(!destination.explored);
+    assert!(!view
+        .nodes
+        .iter()
+        .find(|node| node.location.id == 11)
+        .unwrap()
+        .tracked_objective);
+}
+
+#[test]
+fn tracked_evidence_objective_resolves_to_the_location_that_owns_the_discovery() {
+    let mut state = test_state();
+    state.campaign_content = Some(crate::content::load_campaign_content());
+    let mut quest = Quest::new(
+        702, "quest.evidence", "Read the Signs", "Follow the clues",
+        12, 0, 0, "", "",
+    );
+    quest.offered = true;
+    quest.objectives = vec![QuestObjective::discover_evidence(
+        "poi.old_shrine.black_altar",
+        "Black Altar",
+    )];
+    state.quests.push(quest);
+    state.character.tracked_quest_id = Some(702);
+
+    let view = build_view(&state);
+
+    assert!(view
+        .nodes
+        .iter()
+        .find(|node| node.location.id == 11)
+        .expect("Old Shrine should be visible as the evidence location")
+        .tracked_objective);
+    assert!(!view
+        .nodes
+        .iter()
+        .find(|node| node.location.id == 12)
+        .unwrap()
+        .tracked_objective);
+}
+
+#[test]
+fn unresolved_tracked_objectives_do_not_guess_a_destination() {
+    let mut state = test_state();
+    let mut quest = Quest::new(
+        703, "quest.unknown_evidence", "Unknown Trail", "No authored destination",
+        11, 0, 0, "", "",
+    );
+    quest.offered = true;
+    quest.objectives = vec![QuestObjective::discover_evidence(
+        "poi.not_in_campaign",
+        "Unknown Clue",
+    )];
+    state.quests.push(quest);
+    state.character.tracked_quest_id = Some(703);
+
+    let view = build_view(&state);
+
+    assert!(view.nodes.iter().all(|node| !node.tracked_objective));
 }
 
 #[test]
