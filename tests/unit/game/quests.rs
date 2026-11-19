@@ -212,15 +212,39 @@ fn tracking_is_limited_to_offered_incomplete_quests_and_can_be_switched() {
     );
     let location_id = state.character.location_id;
     let mut first = Quest::new(
-        701, "quest.first", "First Quest", "First", location_id, 0, 0, "", "",
+        701,
+        "quest.first",
+        "First Quest",
+        "First",
+        location_id,
+        0,
+        0,
+        "",
+        "",
     );
     first.offered = true;
     let mut second = Quest::new(
-        702, "quest.second", "Second Quest", "Second", location_id, 0, 0, "", "",
+        702,
+        "quest.second",
+        "Second Quest",
+        "Second",
+        location_id,
+        0,
+        0,
+        "",
+        "",
     );
     second.offered = true;
     let mut unavailable = Quest::new(
-        703, "quest.unavailable", "Unavailable", "Unavailable", location_id, 0, 0, "", "",
+        703,
+        "quest.unavailable",
+        "Unavailable",
+        "Unavailable",
+        location_id,
+        0,
+        0,
+        "",
+        "",
     );
     unavailable.completed = true;
     state.quests = vec![first, second, unavailable];

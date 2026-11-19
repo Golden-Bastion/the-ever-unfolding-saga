@@ -326,14 +326,13 @@ fn selection_count(records_state: &RecordScreenState, lifecycle: &LifecycleState
         | RecordScreen::MeditationResult
         | RecordScreen::ChronicleDetail => 1,
         RecordScreen::QuestDetail => {
-            let view =
-                records::build_quest_view_for(&session.state, records_state.detail_index);
+            let view = records::build_quest_view_for(&session.state, records_state.detail_index);
             if view.is_some_and(|view| !view.completed) {
                 2
             } else {
                 1
             }
-        },
+        }
         RecordScreen::Meditation => {
             let view = actions::build_meditation_view(&session.state);
             if view.safe_to_meditate {
@@ -505,7 +504,8 @@ fn activate(
                             &mut session.state,
                             &records_state.journal_draft,
                         ) {
-                            records_state.message = Some("The journal entry is recorded.".to_string());
+                            records_state.message =
+                                Some("The journal entry is recorded.".to_string());
                         } else {
                             records_state.message =
                                 Some("Write a note before recording it.".to_string());
@@ -1239,7 +1239,9 @@ fn render_quest_detail(
         bevy_presentation::spawn_muted_label(commands, panel, "That quest is no longer available.");
         let button = bevy_presentation::spawn_action_button(commands, panel, 0, "back", "Back");
         if selected == 0 {
-            commands.entity(button).insert(bevy_presentation::UiSelected);
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
         }
         return;
     };
@@ -1279,10 +1281,16 @@ fn render_quest_detail(
             panel,
             0,
             if view.tracked { "untrack" } else { "track" },
-            if view.tracked { "Untrack quest" } else { "Track quest" },
+            if view.tracked {
+                "Untrack quest"
+            } else {
+                "Track quest"
+            },
         );
         if selected == 0 {
-            commands.entity(tracking).insert(bevy_presentation::UiSelected);
+            commands
+                .entity(tracking)
+                .insert(bevy_presentation::UiSelected);
         }
     }
     let back = bevy_presentation::spawn_action_button(

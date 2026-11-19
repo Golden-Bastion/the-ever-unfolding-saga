@@ -86,10 +86,7 @@ pub(crate) fn build_quest_log_view(state: &GameState) -> QuestLogView {
             .iter()
             .filter(|quest| quest.offered || quest.completed)
             .map(|quest| {
-                build_quest_view(
-                    quest,
-                    state.character.tracked_quest_id == Some(quest.id),
-                )
+                build_quest_view(quest, state.character.tracked_quest_id == Some(quest.id))
             })
             .collect(),
     }

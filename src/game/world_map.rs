@@ -146,7 +146,10 @@ fn tracked_quest_destination_id(
         .quests
         .iter()
         .find(|quest| quest.id == tracked_id && quest.offered && !quest.completed)?;
-    let objective = quest.objectives.iter().find(|objective| !objective.completed)?;
+    let objective = quest
+        .objectives
+        .iter()
+        .find(|objective| !objective.completed)?;
 
     match &objective.kind {
         QuestObjectiveKind::VisitLocation => {
@@ -187,7 +190,7 @@ fn tracked_quest_destination_id(
                 (Some(location), None) => Some(location.id),
                 _ => None,
             }
-        },
+        }
         QuestObjectiveKind::AcquireItem | QuestObjectiveKind::DefeatEnemy => state
             .world
             .location_by_id(quest.target_location_id)

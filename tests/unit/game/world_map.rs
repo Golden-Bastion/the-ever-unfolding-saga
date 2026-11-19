@@ -1,7 +1,5 @@
 use super::*;
-use crate::model::{
-    Location, Quest, QuestObjective, QuestObjectiveKind, Region, WorldMode,
-};
+use crate::model::{Location, Quest, QuestObjective, QuestObjectiveKind, Region, WorldMode};
 use crate::spatial::{GridPosition, LocalMap, Terrain};
 
 fn test_state() -> GameState {
@@ -68,13 +66,18 @@ fn explored_map(location_id: u64) -> LocalMap {
 fn tracked_quest_marks_the_first_incomplete_visit_objective_and_reveals_its_location() {
     let mut state = test_state();
     let mut quest = Quest::new(
-        701, "quest.multi_step", "A Three-Step Journey", "Follow the trail",
-        14, 0, 0, "", "",
+        701,
+        "quest.multi_step",
+        "A Three-Step Journey",
+        "Follow the trail",
+        14,
+        0,
+        0,
+        "",
+        "",
     );
     quest.offered = true;
-    let mut completed = QuestObjective::new(
-        QuestObjectiveKind::VisitLocation, "Crossroads", 1,
-    );
+    let mut completed = QuestObjective::new(QuestObjectiveKind::VisitLocation, "Crossroads", 1);
     completed.progress = 1;
     completed.completed = true;
     quest.objectives = vec![
@@ -99,12 +102,14 @@ fn tracked_quest_marks_the_first_incomplete_visit_objective_and_reveals_its_loca
         .routes
         .iter()
         .all(|route| route.from_id != 14 && route.to_id != 14));
-    assert!(!view
-        .nodes
-        .iter()
-        .find(|node| node.location.id == 11)
-        .unwrap()
-        .tracked_objective);
+    assert!(
+        !view
+            .nodes
+            .iter()
+            .find(|node| node.location.id == 11)
+            .unwrap()
+            .tracked_objective
+    );
 }
 
 #[test]
@@ -112,8 +117,15 @@ fn tracked_evidence_objective_resolves_to_the_location_that_owns_the_discovery()
     let mut state = test_state();
     state.campaign_content = Some(crate::content::load_campaign_content());
     let mut quest = Quest::new(
-        702, "quest.evidence", "Read the Signs", "Follow the clues",
-        12, 0, 0, "", "",
+        702,
+        "quest.evidence",
+        "Read the Signs",
+        "Follow the clues",
+        12,
+        0,
+        0,
+        "",
+        "",
     );
     quest.offered = true;
     quest.objectives = vec![QuestObjective::discover_evidence(
@@ -125,29 +137,42 @@ fn tracked_evidence_objective_resolves_to_the_location_that_owns_the_discovery()
 
     let view = build_view(&state);
 
-    assert!(view
-        .nodes
-        .iter()
-        .find(|node| node.location.id == 11)
-        .expect("Old Shrine should be visible as the evidence location")
-        .tracked_objective);
-    assert!(!view
-        .nodes
-        .iter()
-        .find(|node| node.location.id == 12)
-        .unwrap()
-        .tracked_objective);
+    assert!(
+        view.nodes
+            .iter()
+            .find(|node| node.location.id == 11)
+            .expect("Old Shrine should be visible as the evidence location")
+            .tracked_objective
+    );
+    assert!(
+        !view
+            .nodes
+            .iter()
+            .find(|node| node.location.id == 12)
+            .unwrap()
+            .tracked_objective
+    );
 }
 
 #[test]
 fn untracked_quests_do_not_add_a_world_map_destination_marker() {
     let mut state = test_state();
     let mut quest = Quest::new(
-        704, "quest.untracked", "Untracked", "No marker", 14, 0, 0, "", "",
+        704,
+        "quest.untracked",
+        "Untracked",
+        "No marker",
+        14,
+        0,
+        0,
+        "",
+        "",
     );
     quest.offered = true;
     quest.objectives = vec![QuestObjective::new(
-        QuestObjectiveKind::VisitLocation, "Far Ruin", 1,
+        QuestObjectiveKind::VisitLocation,
+        "Far Ruin",
+        1,
     )];
     state.quests.push(quest);
 
@@ -161,8 +186,15 @@ fn untracked_quests_do_not_add_a_world_map_destination_marker() {
 fn unresolved_tracked_objectives_do_not_guess_a_destination() {
     let mut state = test_state();
     let mut quest = Quest::new(
-        703, "quest.unknown_evidence", "Unknown Trail", "No authored destination",
-        11, 0, 0, "", "",
+        703,
+        "quest.unknown_evidence",
+        "Unknown Trail",
+        "No authored destination",
+        11,
+        0,
+        0,
+        "",
+        "",
     );
     quest.offered = true;
     quest.objectives = vec![QuestObjective::discover_evidence(

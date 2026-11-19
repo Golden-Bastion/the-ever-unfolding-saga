@@ -169,7 +169,6 @@ fn tracked_quest_defaults_to_none_and_round_trips_without_breaking_old_saves() {
     assert_eq!(restored.tracked_quest_id, None);
 }
 
-
 #[test]
 fn objective_defaults_are_safe_for_old_saves() {
     let json = r#"{
