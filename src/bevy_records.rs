@@ -323,9 +323,13 @@ fn selection_count(records_state: &RecordScreenState, lifecycle: &LifecycleState
             )
         }
         RecordScreen::InventoryDetail
-        | RecordScreen::QuestDetail
         | RecordScreen::MeditationResult
         | RecordScreen::ChronicleDetail => 1,
+        RecordScreen::QuestDetail => records::build_quest_view_for(
+            &session.state,
+            records_state.detail_index,
+        )
+        .is_some_and(|view| !view.completed) as usize + 1,
         RecordScreen::Meditation => {
             let view = actions::build_meditation_view(&session.state);
             if view.safe_to_meditate {
@@ -375,11 +379,13 @@ fn activate(
     navigation: &mut NavigationState,
     records_state: &mut RecordScreenState,
 ) {
-    let Some(session) = lifecycle.session.as_mut() else {
-        return;
-    };
+    let mut lifecycle_changed = false;
+    {
+        let Some(session) = lifecycle.session.as_mut() else {
+            return;
+        };
 
-    match records_state.screen {
+        match records_state.screen {
         RecordScreen::Character => match records_state.character_tab {
             CharacterTab::General | CharacterTab::Reputation => {
                 close_to_return_screen(navigation);
@@ -430,7 +436,26 @@ fn activate(
             return_to_character(records_state, CharacterTab::Inventory);
         }
         RecordScreen::QuestDetail => {
-            return_to_character(records_state, CharacterTab::Quests);
+            let quest_view =
+                records::build_quest_view_for(&session.state, records_state.detail_index);
+            if records_state.selected == 0
+                && quest_view.as_ref().is_some_and(|view| !view.completed)
+            {
+                let quest_id = quest_view.expect("validated quest view").id;
+                if crate::game::quests::toggle_tracking(&mut session.state, quest_id) {
+                    lifecycle_changed = true;
+                    records_state.message = Some(
+                        if session.state.character.tracked_quest_id == Some(quest_id) {
+                            "Quest tracked. Its next destination will be marked on the World Map when it can be resolved.".to_string()
+                        } else {
+                            "Quest untracked.".to_string()
+                        },
+                    );
+                    records_state.dirty = true;
+                }
+            } else {
+                return_to_character(records_state, CharacterTab::Quests);
+            }
         }
         RecordScreen::Meditation => {
             let view = actions::build_meditation_view(&session.state);
@@ -493,6 +518,10 @@ fn activate(
                 }
             }
         }
+        }
+    }
+    if lifecycle_changed {
+        lifecycle.mark_dirty();
     }
 }
 
@@ -690,6 +719,8 @@ fn render_record_detail_content(
             commands,
             content,
             records::build_quest_view_for(state, records_state.detail_index).as_ref(),
+            records_state.selected,
+            records_state.message.as_deref(),
         ),
         RecordScreen::Meditation => render_meditation(
             commands,
@@ -1091,7 +1122,12 @@ fn render_quests_tab(
             (
                 format!("quest:{}", quest.id),
                 "quests".to_string(),
-                format!("[{}] {}", quest.status, quest.title),
+                format!(
+                    "{}[{}] {}",
+                    if quest.tracked { "[TRACKED] " } else { "" },
+                    quest.status,
+                    quest.title
+                ),
             )
         })
         .collect();
@@ -1184,14 +1220,23 @@ fn render_journal_tab(
     }
 }
 
-fn render_quest_detail(commands: &mut Commands, panel: Entity, view: Option<&QuestView>) {
+fn render_quest_detail(
+    commands: &mut Commands,
+    panel: Entity,
+    view: Option<&QuestView>,
+    selected: usize,
+    message: Option<&str>,
+) {
     render_header(commands, panel, "Objective progress and reward.");
+    if let Some(message) = message {
+        bevy_presentation::spawn_muted_label(commands, panel, message);
+    }
     let Some(view) = view else {
         bevy_presentation::spawn_muted_label(commands, panel, "That quest is no longer available.");
         let button = bevy_presentation::spawn_action_button(commands, panel, 0, "back", "Back");
-        commands
-            .entity(button)
-            .insert(bevy_presentation::UiSelected);
+        if selected == 0 {
+            commands.entity(button).insert(bevy_presentation::UiSelected);
+        }
         return;
     };
     bevy_presentation::spawn_label(commands, panel, &view.title);
@@ -1223,11 +1268,29 @@ fn render_quest_detail(commands: &mut Commands, panel: Entity, view: Option<&Que
             view.reward_item_name.as_deref().unwrap_or("-")
         ),
     );
-    let button =
-        bevy_presentation::spawn_action_button(commands, panel, 0, "back", "Back to quest log");
-    commands
-        .entity(button)
-        .insert(bevy_presentation::UiSelected);
+    let back_index = if view.completed { 0 } else { 1 };
+    if !view.completed {
+        let tracking = bevy_presentation::spawn_action_button(
+            commands,
+            panel,
+            0,
+            if view.tracked { "untrack" } else { "track" },
+            if view.tracked { "Untrack quest" } else { "Track quest" },
+        );
+        if selected == 0 {
+            commands.entity(tracking).insert(bevy_presentation::UiSelected);
+        }
+    }
+    let back = bevy_presentation::spawn_action_button(
+        commands,
+        panel,
+        back_index,
+        "back",
+        "Back to quest log",
+    );
+    if selected == back_index {
+        commands.entity(back).insert(bevy_presentation::UiSelected);
+    }
 }
 
 fn render_meditation(
