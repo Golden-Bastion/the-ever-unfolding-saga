@@ -4,7 +4,11 @@ This file records work completed in the current development line. It is not a li
 
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
-The entries below cover the v0.52.x development line through v0.52.65. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+The entries below cover the v0.52.x development line through v0.52.66. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+
+### v0.52.66: Correct 3D prototype magenta rendering
+
+- Explicitly set the isolated 3D camera to `Tonemapping::None` because the optional Bevy tonemapping LUT assets are not enabled in this minimal-feature build. This removes the documented magenta fallback without adding a LUT feature or changing the normal game renderer.
 
 ### v0.52.65: Exploration HUD vitality hierarchy
 
