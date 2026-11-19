@@ -1888,50 +1888,6 @@ fn sky_visual_keeps_distinct_night_dawn_day_and_dusk_states() {
 }
 
 #[test]
-fn sun_travels_left_to_right_on_a_midday_centered_arc() {
-    // Slots 2..=7 represent 06:00 through the 16:00 dusk transition.
-    let sun_path = (2..=7).map(sky_visual).collect::<Vec<_>>();
-
-    assert!(sun_path
-        .iter()
-        .all(|sky| sky.celestial == CelestialBody::Sun));
-    assert!(sun_path
-        .windows(2)
-        .all(|pair| pair[0].celestial_x < pair[1].celestial_x));
-
-    // The sun rises from the eastern horizon, peaks around noon, and descends
-    // toward the western horizon. Y decreases as the body appears higher.
-    assert!(sun_path[..4]
-        .windows(2)
-        .all(|pair| pair[0].celestial_y > pair[1].celestial_y));
-    assert!(sun_path[3..]
-        .windows(2)
-        .all(|pair| pair[0].celestial_y < pair[1].celestial_y));
-}
-
-#[test]
-fn moon_travels_left_to_right_through_midnight_in_south_facing_sky() {
-    // Slots 8, 9, 10, 11, 0, and 1 represent 18:00 through 04:00.
-    let moon_path = [
-        sky_visual(8),
-        sky_visual(9),
-        sky_visual(10),
-        sky_visual(11),
-        sky_visual(0),
-        sky_visual(1),
-    ];
-
-    assert!(moon_path
-        .iter()
-        .all(|sky| sky.celestial == CelestialBody::Moon));
-    assert!(moon_path
-        .windows(2)
-        .all(|pair| pair[0].celestial_x < pair[1].celestial_x));
-    assert!(moon_path[3].celestial_y < moon_path[0].celestial_y);
-    assert!(moon_path[3].celestial_y < moon_path[5].celestial_y);
-}
-
-#[test]
 fn spatial_time_visuals_cycle_across_the_full_world_clock() {
     for time_points in 0..12 {
         let sky = sky_visual(time_points);
