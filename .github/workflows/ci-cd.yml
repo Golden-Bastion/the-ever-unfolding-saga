@@ -269,6 +269,7 @@ jobs:
   build:
     name: Build ${{ matrix.platform }} ${{ matrix.arch }}
     needs: [prep_build_matrix, prepare_release]
+    if: always() && needs.prep_build_matrix.result == 'success' && (needs.prepare_release.result == 'success' || needs.prepare_release.result == 'skipped')
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
