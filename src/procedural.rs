@@ -1,5 +1,5 @@
 use crate::content::CampaignContent;
-use crate::model::{Location, Region, World, WorldMode};
+use crate::model::{Location, Region, RouteDirection, World, WorldMode, WorldRoute};
 use crate::rng::DeterministicRng;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,7 +86,7 @@ pub fn generate_world(
         attempts += 1;
         let a = rng.gen_range(0..world.locations.len());
         let b = rng.gen_range(0..world.locations.len());
-        if a == b || has_exit(&world.locations[a], world.locations[b].id) {
+        if a == b || world.has_route_between(world.locations[a].id, world.locations[b].id) {
             continue;
         }
         add_bidirectional_exit(&mut world, a, b);
@@ -127,30 +127,58 @@ pub fn place_authored_content(world: &mut World, content: &CampaignContent) -> u
         .map(|(index, location)| (location.id.as_str(), world.locations[index].id))
         .collect::<std::collections::HashMap<_, _>>();
 
-    for (index, authored) in authored_locations.iter().enumerate() {
-        let generated_id = world.locations[index].id;
-        let generated_exits = world.locations[index].exits.clone();
-        let authored_exits = authored
-            .exits
-            .iter()
-            .filter_map(|exit_id| authored_runtime_ids.get(exit_id.as_str()).copied())
-            .collect::<Vec<_>>();
-
-        let mut exits = generated_exits;
-        for exit_id in authored_exits {
-            if exit_id != generated_id && !exits.contains(&exit_id) {
-                exits.push(exit_id);
+    // Retain explicit authored edges as distinct persistent route records.
+    // Generated routes remain in place, even when they connect the same pair.
+    let mut authored_edges = std::collections::BTreeMap::<(u64, u64), (bool, bool)>::new();
+    for authored in &authored_locations {
+        let Some(source_id) = authored_runtime_ids.get(authored.id.as_str()).copied() else {
+            continue;
+        };
+        for exit_id in &authored.exits {
+            let Some(target_id) = authored_runtime_ids.get(exit_id.as_str()).copied() else {
+                continue;
+            };
+            if source_id == target_id {
+                continue;
+            }
+            let (a, b, from_a) = if source_id < target_id {
+                (source_id, target_id, true)
+            } else {
+                (target_id, source_id, false)
+            };
+            let edge = authored_edges.entry((a, b)).or_insert((false, false));
+            if from_a {
+                edge.0 = true;
+            } else {
+                edge.1 = true;
             }
         }
+    }
 
+    for ((a, b), (a_to_b, b_to_a)) in authored_edges {
+        let direction = match (a_to_b, b_to_a) {
+            (true, true) => RouteDirection::Bidirectional,
+            (true, false) => RouteDirection::AtoB,
+            (false, true) => RouteDirection::BtoA,
+            (false, false) => continue,
+        };
+        world.add_route(WorldRoute::new(
+            format!("route.content.{a}.{b}"),
+            a,
+            b,
+            direction,
+        ));
+    }
+
+    for (index, authored) in authored_locations.iter().enumerate() {
         world.locations[index].name = authored.name.clone();
         world.locations[index].description = authored.description.clone();
         world.locations[index].dangerous = authored.dangerous;
         world.locations[index].region_id = anchor_region_id;
-        world.locations[index].exits = exits;
         world.locations[index].spatial_layout = authored.spatial_layout.clone();
     }
 
+    world.rebuild_location_exit_cache();
     rebuild_region_location_ids(world);
     authored_locations.len()
 }
@@ -204,16 +232,16 @@ fn possible_extra_edges(location_count: usize) -> usize {
 fn add_bidirectional_exit(world: &mut World, a_index: usize, b_index: usize) {
     let a_id = world.locations[a_index].id;
     let b_id = world.locations[b_index].id;
-    if !has_exit(&world.locations[a_index], b_id) {
-        world.locations[a_index].exits.push(b_id);
+    if world.has_route_between(a_id, b_id) {
+        return;
     }
-    if !has_exit(&world.locations[b_index], a_id) {
-        world.locations[b_index].exits.push(a_id);
-    }
-}
-
-fn has_exit(location: &Location, target_id: u64) -> bool {
-    location.exits.contains(&target_id)
+    let route_id = format!("route.generated.{}.{}", a_id.min(b_id), a_id.max(b_id));
+    world.add_route(WorldRoute::new(
+        route_id,
+        a_id,
+        b_id,
+        RouteDirection::Bidirectional,
+    ));
 }
 
 #[cfg(test)]

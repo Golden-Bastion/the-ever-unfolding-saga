@@ -1,5 +1,8 @@
 use super::*;
-use crate::model::{Location, Quest, QuestObjective, QuestObjectiveKind, Region, WorldMode};
+use crate::model::{
+    Location, Quest, QuestObjective, QuestObjectiveKind, Region, RouteDirection, WorldMode,
+    WorldRoute,
+};
 use crate::spatial::{GridPosition, LocalMap, Terrain};
 
 fn test_state() -> GameState {
@@ -9,6 +12,7 @@ fn test_state() -> GameState {
         "Tester".to_string(),
         "Wanderer".to_string(),
     );
+    state.world.routes.clear();
     state.world.regions = vec![Region {
         id: 1,
         name: "Ashen Vale".to_string(),
@@ -22,6 +26,7 @@ fn test_state() -> GameState {
         location(13, "Sunken Watch", vec![11]),
         location(14, "Far Ruin", vec![]),
     ];
+    state.world.migrate_legacy_exits();
     state.world.local_maps.clear();
     state.character.location_id = 10;
     state
@@ -424,10 +429,15 @@ fn map_routes_are_derived_only_from_established_graph_edges() {
 }
 
 #[test]
-fn map_does_not_invent_reciprocal_connections_for_one_way_routes() {
+fn map_preserves_explicit_one_way_route_direction() {
     let mut state = test_state();
-    state.world.locations[1].exits = vec![13];
-    state.world.locations[3].exits.clear();
+    state.world.remove_routes_between(11, 13);
+    assert!(state.world.add_route(WorldRoute::new(
+        "route.test.one_way",
+        11,
+        13,
+        RouteDirection::AtoB,
+    )));
     state.world.local_maps.push(explored_map(11));
 
     let view = build_view(&state);

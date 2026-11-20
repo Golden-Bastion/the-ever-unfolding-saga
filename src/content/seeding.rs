@@ -1,5 +1,5 @@
 use crate::content::definitions::CampaignContent;
-use crate::model::{Location, Region, World};
+use crate::model::{Location, Region, RouteDirection, World, WorldRoute};
 
 impl CampaignContent {
     pub fn seed_world(&self, world: &mut World) -> usize {
@@ -46,29 +46,61 @@ impl CampaignContent {
             }
         }
 
-        for location in &self.world.locations.clone() {
-            let exits = location
-                .exits
-                .iter()
-                .filter_map(|exit_id| {
-                    self.world
-                        .locations
-                        .iter()
-                        .find(|candidate| candidate.id == *exit_id)
-                })
-                .filter_map(|exit_location| {
-                    world
-                        .location_by_name(&exit_location.name)
-                        .map(|world_exit| world_exit.id)
-                })
-                .collect::<Vec<_>>();
+        let authored_runtime_ids = self
+            .world
+            .locations
+            .iter()
+            .filter_map(|location| {
+                world
+                    .location_by_name(&location.name)
+                    .map(|runtime| (location.id.as_str(), runtime.id))
+            })
+            .collect::<std::collections::HashMap<_, _>>();
+        let mut authored_edges = std::collections::BTreeMap::<(u64, u64), (bool, bool)>::new();
+
+        for location in &self.world.locations {
+            let Some(source_id) = authored_runtime_ids.get(location.id.as_str()).copied() else {
+                continue;
+            };
             if let Some(world_location) = world.location_by_name_mut(&location.name) {
                 world_location.description = location.description.clone();
                 world_location.dangerous = location.dangerous;
-                world_location.exits = exits;
                 world_location.spatial_layout = location.spatial_layout.clone();
             }
+            for exit_id in &location.exits {
+                let Some(target_id) = authored_runtime_ids.get(exit_id.as_str()).copied() else {
+                    continue;
+                };
+                if source_id == target_id {
+                    continue;
+                }
+                let (a, b, from_a) = if source_id < target_id {
+                    (source_id, target_id, true)
+                } else {
+                    (target_id, source_id, false)
+                };
+                let edge = authored_edges.entry((a, b)).or_insert((false, false));
+                if from_a {
+                    edge.0 = true;
+                } else {
+                    edge.1 = true;
+                }
+            }
         }
+
+        for ((a, b), (a_to_b, b_to_a)) in authored_edges {
+            let direction = match (a_to_b, b_to_a) {
+                (true, true) => RouteDirection::Bidirectional,
+                (true, false) => RouteDirection::AtoB,
+                (false, true) => RouteDirection::BtoA,
+                (false, false) => continue,
+            };
+            let route_id = format!("route.content.{a}.{b}");
+            if world.route_by_id(&route_id).is_none() {
+                world.add_route(WorldRoute::new(route_id, a, b, direction));
+            }
+        }
+        world.rebuild_location_exit_cache();
 
         if let Some(region) = world
             .regions

@@ -342,7 +342,7 @@ fn evidence_prerequisites_gate_examine_actions_per_character() {
 }
 
 #[test]
-fn discovery_hides_stale_and_one_way_world_passages() {
+fn discovery_requires_passages_to_match_authoritative_route_records() {
     let mut map = crate::spatial::generate_local_map(
         31,
         "location.route_filter",
@@ -372,28 +372,27 @@ fn discovery_hides_stale_and_one_way_world_passages() {
         exits: Vec::new(),
         spatial_layout: None,
     });
-    game.world
-        .location_by_id_mut(source_id)
-        .unwrap()
-        .exits
-        .push(destination_id);
+    let route_id = "route.test.one_way";
+    assert!(game.world.add_route(crate::model::WorldRoute::new(
+        route_id,
+        source_id,
+        destination_id,
+        crate::model::RouteDirection::AtoB,
+    )));
     map.exits.push(MapExit {
         id: "exit.one-way".into(),
+        route_id: Some(route_id.into()),
         position: map.entry,
         target_location_id: destination_id,
     });
     let position = (f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
 
-    assert!(discover_available_interactions(&map, &game, position).is_empty());
-
-    game.world
-        .location_by_id_mut(destination_id)
-        .unwrap()
-        .exits
-        .push(source_id);
     let available = discover_available_interactions(&map, &game, position);
     assert_eq!(available.len(), 1);
     assert_eq!(available[0].action, InteractionActionKind::Enter);
+
+    map.exits[0].route_id = Some("route.stale".into());
+    assert!(discover_available_interactions(&map, &game, position).is_empty());
 }
 
 #[test]

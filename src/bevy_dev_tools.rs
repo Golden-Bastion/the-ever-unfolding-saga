@@ -19,13 +19,13 @@ use crate::character_appearance::generate_character_portrait;
 use crate::content::{loader::load_campaign_content_report, CharacterPartContent};
 use crate::game_paths::GamePaths;
 use crate::input::InputEvent;
-use crate::model::{GameState, ThreatState, WorldGenerationMetadata};
+use crate::model::{GameState, RouteDirection, ThreatState, WorldGenerationMetadata, WorldRoute};
 use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
 use crate::spatial::{
-    apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_entity_placements,
+    apply_authored_spatial_discoveries, configure_map_routes, ensure_spatial_entity_placements,
     generate_local_map_with_layout, DoorState, GridEdge, GridPosition, LocalMap, LocalMapConfig,
-    MapExit, PointOfInterest, SpatialDiscoveryDefinition, SpatialDoor, SpatialEntityKind,
-    SpatialEntityPlacement, SpatialPropKind, SpatialRoom, Terrain,
+    MapExit, MapRouteDestination, PointOfInterest, SpatialDiscoveryDefinition, SpatialDoor,
+    SpatialEntityKind, SpatialEntityPlacement, SpatialPropKind, SpatialRoom, Terrain,
 };
 #[cfg(not(target_os = "android"))]
 use crate::spatial_fixtures::load_spatial_fixture;
@@ -472,7 +472,15 @@ fn generate_world_lab_session(options: WorldLabOptions) -> (LocalMap, WorldLabSc
         LocalMapConfig { width, height },
         layout,
     );
-    configure_map_exits(&mut map, &location.exits);
+    let map_routes = game
+        .world
+        .routes_from(location.id)
+        .map(|(route, target_location_id)| MapRouteDestination {
+            route_id: route.id.clone(),
+            target_location_id,
+        })
+        .collect::<Vec<_>>();
+    configure_map_routes(&mut map, &map_routes);
 
     let discoveries = game
         .campaign_content
@@ -540,24 +548,32 @@ fn restore_world_lab_scenario(map: &LocalMap) -> Option<WorldLabScenario> {
         .map(|location| location.id)
         .filter(|id| *id != location_id)
         .collect::<Vec<_>>();
-    let targets = map
+    scenario
+        .world
+        .routes
+        .retain(|route| route.location_a_id != location_id && route.location_b_id != location_id);
+    for exit in map
         .exits
         .iter()
-        .map(|exit| exit.target_location_id)
-        .filter(|target| valid_destinations.contains(target))
-        .collect::<Vec<_>>();
-    if let Some(source) = scenario.world.location_by_id_mut(location_id) {
-        source.exits = targets.clone();
-    }
-    for location in &mut scenario.world.locations {
-        if location.id == location_id {
-            continue;
+        .filter(|exit| valid_destinations.contains(&exit.target_location_id))
+    {
+        let route_id = exit.route_id.clone().unwrap_or_else(|| {
+            format!(
+                "route.world_lab.restored.{}.{}",
+                location_id.min(exit.target_location_id),
+                location_id.max(exit.target_location_id)
+            )
+        });
+        if scenario.world.route_by_id(&route_id).is_none() {
+            scenario.world.add_route(WorldRoute::new(
+                route_id,
+                location_id,
+                exit.target_location_id,
+                RouteDirection::Bidirectional,
+            ));
         }
-        location.exits.retain(|target| *target != location_id);
-        if targets.contains(&location.id) {
-            location.exits.push(location_id);
-        }
     }
+    scenario.world.rebuild_location_exit_cache();
     Some(scenario)
 }
 
@@ -1120,16 +1136,16 @@ fn world_lab_destinations(state: &DeveloperToolsState) -> Vec<(u64, String)> {
     let Some(scenario) = state.world_lab_scenario.as_ref() else {
         return Vec::new();
     };
-    let connected = scenario
-        .world
-        .location_by_id(scenario.location_id)
-        .map(|location| location.exits.clone())
-        .unwrap_or_default();
     scenario
         .world
         .locations
         .iter()
-        .filter(|location| location.id != scenario.location_id && !connected.contains(&location.id))
+        .filter(|location| {
+            location.id != scenario.location_id
+                && !scenario
+                    .world
+                    .has_route_between(scenario.location_id, location.id)
+        })
         .map(|location| (location.id, location.name.clone()))
         .collect()
 }
@@ -1221,28 +1237,31 @@ fn cycle_world_lab_selected_value(state: &mut DeveloperToolsState) {
     }
 }
 
-fn link_world_lab_locations(state: &mut DeveloperToolsState, target_id: u64, connected: bool) {
+fn link_world_lab_locations(state: &mut DeveloperToolsState, target_id: u64, route_id: &str) {
     let Some(scenario) = state.world_lab_scenario.as_mut() else {
         return;
     };
     let source_location_id = scenario.location_id;
-    if let Some(source) = scenario.world.location_by_id_mut(source_location_id) {
-        if connected {
-            if !source.exits.contains(&target_id) {
-                source.exits.push(target_id);
-            }
-        } else {
-            source.exits.retain(|id| *id != target_id);
-        }
+    if scenario.world.route_by_id(route_id).is_none() {
+        scenario.world.add_route(WorldRoute::new(
+            route_id,
+            source_location_id,
+            target_id,
+            RouteDirection::Bidirectional,
+        ));
     }
-    if let Some(target) = scenario.world.location_by_id_mut(target_id) {
-        if connected {
-            if !target.exits.contains(&source_location_id) {
-                target.exits.push(source_location_id);
-            }
-        } else {
-            target.exits.retain(|id| *id != source_location_id);
-        }
+}
+
+fn unlink_world_lab_route(state: &mut DeveloperToolsState, target_id: u64, route_id: Option<&str>) {
+    let Some(scenario) = state.world_lab_scenario.as_mut() else {
+        return;
+    };
+    if let Some(route_id) = route_id {
+        scenario.world.remove_route(route_id);
+    } else {
+        scenario
+            .world
+            .remove_routes_between(scenario.location_id, target_id);
     }
 }
 
@@ -1261,11 +1280,22 @@ fn place_world_lab_passage(state: &mut DeveloperToolsState, spatial: &mut Spatia
     let position = state
         .world_lab_cursor
         .unwrap_or(GridPosition { x: 0, y: 0 });
+    let source_location_id = state
+        .world_lab_scenario
+        .as_ref()
+        .map(|scenario| scenario.location_id)
+        .expect("World Lab scenario was checked above");
+    let route_id = format!(
+        "route.world_lab.{}.{}",
+        source_location_id.min(destination_id),
+        source_location_id.max(destination_id)
+    );
     let placed = bevy_spatial::sandbox_map_mut(spatial).is_some_and(|map| {
-        let id = format!("{}.exit.{}", map.location_id, destination_id);
+        let id = format!("{}.route.{}", map.location_id, route_id);
         map.place_map_exit(
             MapExit {
                 id,
+                route_id: Some(route_id.clone()),
                 position,
                 target_location_id: destination_id,
             },
@@ -1273,7 +1303,7 @@ fn place_world_lab_passage(state: &mut DeveloperToolsState, spatial: &mut Spatia
         )
     });
     if placed {
-        link_world_lab_locations(state, destination_id, true);
+        link_world_lab_locations(state, destination_id, &route_id);
         state.world_lab_status = Some(format!(
             "Connected {destination_name} through a passage at ({}, {}).",
             position.x, position.y
@@ -1342,7 +1372,7 @@ fn remove_world_lab_passage(
         if state.world_lab_held_passage.as_deref() == Some(exit.id.as_str()) {
             state.world_lab_held_passage = None;
         }
-        link_world_lab_locations(state, exit.target_location_id, false);
+        unlink_world_lab_route(state, exit.target_location_id, exit.route_id.as_deref());
         state.world_lab_status = Some(format!(
             "Removed passage to world location {}.",
             exit.target_location_id

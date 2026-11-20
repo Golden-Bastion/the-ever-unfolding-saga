@@ -426,6 +426,7 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
     let poi_id = map.points_of_interest[0].id.clone();
     map.exits = vec![MapExit {
         id: "exit.test".into(),
+        route_id: None,
         position: map.entry,
         target_location_id: 999,
     }];
@@ -449,11 +450,13 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
         exits: vec![location_id],
         spatial_layout: None,
     });
-    game.world
-        .location_by_id_mut(location_id)
-        .unwrap()
-        .exits
-        .push(destination_id);
+    assert!(game.world.add_route(crate::model::WorldRoute::new(
+        "route.test.passage",
+        location_id,
+        destination_id,
+        crate::model::RouteDirection::Bidirectional,
+    )));
+    map.exits[0].route_id = Some("route.test.passage".into());
     map.exits[0].target_location_id = destination_id;
 
     game.npcs.push(crate::model::Npc::new(
@@ -985,11 +988,12 @@ fn connected_spatial_fixture() -> (
         exits: vec![source_location_id],
         spatial_layout: None,
     });
-    game.world
-        .location_by_id_mut(source_location_id)
-        .expect("starting location should still exist")
-        .exits
-        .push(destination_id);
+    assert!(game.world.add_route(crate::model::WorldRoute::new(
+        "route.test.connected",
+        source_location_id,
+        destination_id,
+        crate::model::RouteDirection::Bidirectional,
+    )));
     if let Some(region) = game
         .world
         .regions
@@ -1064,11 +1068,12 @@ fn extend_known_spatial_route(
         exits: vec![middle_id],
         spatial_layout: None,
     });
-    game.world
-        .location_by_id_mut(middle_id)
-        .expect("known intermediate location should still exist")
-        .exits
-        .push(destination_id);
+    assert!(game.world.add_route(crate::model::WorldRoute::new(
+        format!("route.test.middle.{destination_id}"),
+        middle_id,
+        destination_id,
+        crate::model::RouteDirection::Bidirectional,
+    )));
     if let Some(region) = game
         .world
         .regions
@@ -1316,10 +1321,11 @@ fn physical_passage_rejects_a_stale_world_connection_without_traveling() {
         .unwrap()
         .state
         .world
-        .location_by_id_mut(source_location_id)
-        .unwrap()
-        .exits
-        .retain(|target| *target != destination_id);
+        .remove_route(
+            exit.route_id
+                .as_deref()
+                .expect("passage should identify its route"),
+        );
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
 
     use_map_exit(
@@ -1345,7 +1351,7 @@ fn physical_passage_rejects_a_stale_world_connection_without_traveling() {
 }
 
 #[test]
-fn physical_passage_rejects_a_world_connection_without_a_return_route() {
+fn physical_passage_allows_a_one_way_route_in_its_permitted_direction() {
     let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
         connected_spatial_fixture();
     let exit = spatial
@@ -1357,21 +1363,6 @@ fn physical_passage_rejects_a_world_connection_without_a_return_route() {
         .find(|exit| exit.target_location_id == destination_id)
         .unwrap()
         .clone();
-    spatial.position = Vec2::new(
-        f32::from(exit.position.x) + 0.5,
-        f32::from(exit.position.y) + 0.5,
-    );
-    spatial.session.as_mut().unwrap().position = exit.position;
-    lifecycle
-        .session
-        .as_mut()
-        .unwrap()
-        .state
-        .world
-        .location_by_id_mut(destination_id)
-        .unwrap()
-        .exits
-        .clear();
     let source_location_id = lifecycle
         .session
         .as_ref()
@@ -1379,6 +1370,25 @@ fn physical_passage_rejects_a_world_connection_without_a_return_route() {
         .state
         .character
         .location_id;
+    {
+        let world = &mut lifecycle.session.as_mut().unwrap().state.world;
+        world.remove_route(
+            exit.route_id
+                .as_deref()
+                .expect("passage should identify its route"),
+        );
+        assert!(world.add_route(crate::model::WorldRoute::new(
+            "route.test.connected",
+            source_location_id,
+            destination_id,
+            crate::model::RouteDirection::AtoB,
+        )));
+    }
+    spatial.position = Vec2::new(
+        f32::from(exit.position.x) + 0.5,
+        f32::from(exit.position.y) + 0.5,
+    );
+    spatial.session.as_mut().unwrap().position = exit.position;
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
 
     use_map_exit(
@@ -1390,17 +1400,9 @@ fn physical_passage_rejects_a_world_connection_without_a_return_route() {
     );
 
     let game = &lifecycle.session.as_ref().unwrap().state;
-    assert_eq!(game.character.location_id, source_location_id);
-    assert_eq!(game.character.turn, before_turn);
-    assert_eq!(spatial.session.as_ref().unwrap().location_id, source_key);
-    assert_eq!(
-        navigation.current_screen,
-        Some(ScreenId::SpatialExploration)
-    );
-    assert!(spatial
-        .message
-        .as_deref()
-        .is_some_and(|message| message.contains("no longer leads")));
+    assert_eq!(game.character.location_id, destination_id);
+    assert_eq!(game.character.turn, before_turn + 1);
+    assert_ne!(spatial.session.as_ref().unwrap().location_id, source_key);
 }
 
 #[test]
@@ -1533,10 +1535,7 @@ fn known_location_fast_travel_rejects_a_stale_connection_without_leaving_spatial
         .unwrap()
         .state
         .world
-        .location_by_id_mut(source_location_id)
-        .unwrap()
-        .exits
-        .retain(|target| *target != destination_id);
+        .remove_routes_between(source_location_id, destination_id);
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
 
     let result = fast_travel_to_known_location(

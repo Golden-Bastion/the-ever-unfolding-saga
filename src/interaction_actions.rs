@@ -212,8 +212,11 @@ pub(crate) fn discover_available_interactions(
     }
 
     for exit in &map.exits {
-        if !crate::game::actions::has_reciprocal_location_connection(game, exit.target_location_id)
-            || !map_exit_interaction_available(map, position, exit)
+        if !crate::game::actions::has_location_travel_route(
+            game,
+            exit.target_location_id,
+            exit.route_id.as_deref(),
+        ) || !map_exit_interaction_available(map, position, exit)
         {
             continue;
         }

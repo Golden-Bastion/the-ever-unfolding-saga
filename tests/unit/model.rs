@@ -221,3 +221,125 @@ fn character_appearance_is_persisted_and_inherited() {
     assert!(legacy.appearance_parts.is_empty());
     assert!(legacy.known_evidence_ids.is_empty());
 }
+
+#[test]
+fn world_routes_canonicalize_endpoint_order_and_reverse_direction() {
+    let route = WorldRoute::new("route.test.descending", 22, 11, RouteDirection::AtoB);
+
+    assert_eq!(route.location_a_id, 11);
+    assert_eq!(route.location_b_id, 22);
+    assert_eq!(route.direction, RouteDirection::BtoA);
+    assert!(route.allows_travel(22, 11));
+    assert!(!route.allows_travel(11, 22));
+    assert!(!route.allows_travel(11, 33));
+}
+
+#[test]
+fn legacy_route_migration_preserves_missing_directions_and_is_idempotent() {
+    let mut world = World::new("Legacy Route Migration", WorldMode::New);
+    world.locations = vec![
+        Location {
+            id: 10,
+            name: "First".into(),
+            description: String::new(),
+            region_id: 1,
+            dangerous: false,
+            corpse_ids: Vec::new(),
+            exits: Vec::new(),
+            spatial_layout: None,
+        },
+        Location {
+            id: 20,
+            name: "Second".into(),
+            description: String::new(),
+            region_id: 1,
+            dangerous: false,
+            corpse_ids: Vec::new(),
+            exits: Vec::new(),
+            spatial_layout: None,
+        },
+    ];
+    assert!(world.add_route(WorldRoute::new(
+        "route.content.forward",
+        10,
+        20,
+        RouteDirection::AtoB,
+    )));
+    world.location_by_id_mut(20).unwrap().exits.push(10);
+    let expected_next_id = world.next_id;
+
+    world.migrate_legacy_exits();
+
+    let compatibility_route = world
+        .route_by_id("route.compat.legacy.10.20")
+        .expect("the missing legacy direction should receive a compatibility route");
+    assert_eq!(compatibility_route.direction, RouteDirection::BtoA);
+    assert!(world.can_travel_between(10, 20));
+    assert!(world.can_travel_between(20, 10));
+    assert_eq!(world.next_id, expected_next_id);
+    let migrated_routes = world.routes.clone();
+
+    world.migrate_legacy_exits();
+
+    assert_eq!(world.routes, migrated_routes);
+    assert_eq!(world.next_id, expected_next_id);
+}
+
+#[test]
+fn parallel_world_routes_keep_distinct_identity_and_update_the_derived_exit_cache() {
+    let mut state = create_new_state(
+        "Parallel Routes",
+        WorldMode::New,
+        "First Warden".to_string(),
+        "Ash Walker".to_string(),
+    );
+    state.world.routes.clear();
+    state.world.rebuild_location_exit_cache();
+    let source_id = state.character.location_id;
+    let source = state.world.location_by_id(source_id).unwrap().clone();
+    let destination_id = state.world.allocate_id();
+    state.world.locations.push(Location {
+        id: destination_id,
+        name: "Route Test Destination".into(),
+        description: "A place joined by two distinct routes.".into(),
+        region_id: source.region_id,
+        dangerous: false,
+        corpse_ids: Vec::new(),
+        exits: Vec::new(),
+        spatial_layout: None,
+    });
+
+    assert!(state.world.add_route(WorldRoute::new(
+        "route.test.trail",
+        source_id,
+        destination_id,
+        RouteDirection::AtoB,
+    )));
+    assert!(state.world.add_route(WorldRoute::new(
+        "route.test.bridge",
+        source_id,
+        destination_id,
+        RouteDirection::Bidirectional,
+    )));
+    assert_eq!(state.world.routes.len(), 2);
+    assert!(state.world.can_travel_between(source_id, destination_id));
+    assert!(state.world.can_travel_between(destination_id, source_id));
+    assert_eq!(
+        state.world.location_by_id(source_id).unwrap().exits,
+        vec![destination_id]
+    );
+
+    assert!(state.world.remove_route("route.test.bridge"));
+    assert_eq!(state.world.routes.len(), 1);
+    assert!(state.world.can_travel_between(source_id, destination_id));
+    assert!(!state.world.can_travel_between(destination_id, source_id));
+
+    assert!(state.world.remove_route("route.test.trail"));
+    assert!(state.world.routes.is_empty());
+    assert!(state
+        .world
+        .location_by_id(source_id)
+        .unwrap()
+        .exits
+        .is_empty());
+}
