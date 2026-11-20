@@ -410,6 +410,7 @@ fn generate_world_lab_game(seed: u64) -> GameState {
         region_count: config.region_count,
         location_count: config.location_count,
         extra_edges: config.extra_edges,
+        geography_ruleset_version: crate::geography::GEOGRAPHY_RULESET_VERSION,
     });
     crate::procedural::place_authored_content(&mut world, &content);
     let character = world.spawn_character("World Lab Tester".into(), "Observer".into());

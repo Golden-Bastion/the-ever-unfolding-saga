@@ -14,6 +14,7 @@ fn generated_state() -> GameState {
         region_count: config.region_count,
         location_count: config.location_count,
         extra_edges: config.extra_edges,
+        geography_ruleset_version: crate::geography::GEOGRAPHY_RULESET_VERSION,
     });
     place_authored_content(&mut world, &content);
     let character = world.spawn_character("Test".into(), "Warden".into());

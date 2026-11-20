@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::content::{load_campaign_content, CampaignContent};
+use crate::geography::{RegionCoordinate, GEOGRAPHY_RULESET_VERSION};
 use crate::spatial::{ExplorationSession, LocalMap};
 
 pub type EntityId = u64;
@@ -25,6 +26,10 @@ pub struct WorldGenerationMetadata {
     pub region_count: usize,
     pub location_count: usize,
     pub extra_edges: usize,
+    /// Version of the deterministic macro-geography rules used by this world.
+    /// Zero is retained for saves created before geography metadata existed.
+    #[serde(default)]
+    pub geography_ruleset_version: u32,
 }
 
 /// Direction in which a persistent world route can be travelled.
@@ -171,6 +176,10 @@ pub struct Region {
     pub name: String,
     pub description: String,
     pub location_ids: Vec<EntityId>,
+    /// Stable signed chunk coordinate in the shared macro-geography lattice.
+    /// `None` is reserved for existing worlds awaiting compatibility embedding.
+    #[serde(default)]
+    pub coordinate: Option<RegionCoordinate>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -914,6 +923,7 @@ pub fn create_new_state(
         region_count: config.region_count,
         location_count: config.location_count,
         extra_edges: config.extra_edges,
+        geography_ruleset_version: GEOGRAPHY_RULESET_VERSION,
     });
     crate::procedural::place_authored_content(&mut world, &content);
     world.record_history(0, "A new world stirs beneath ash and ruin.");

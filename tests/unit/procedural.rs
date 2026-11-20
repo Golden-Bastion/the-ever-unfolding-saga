@@ -17,11 +17,11 @@ fn same_seed_and_config_produce_identical_world_structure() {
     assert_eq!(
         a.regions
             .iter()
-            .map(|region| (&region.name, &region.location_ids))
+            .map(|region| (&region.name, &region.location_ids, region.coordinate))
             .collect::<Vec<_>>(),
         b.regions
             .iter()
-            .map(|region| (&region.name, &region.location_ids))
+            .map(|region| (&region.name, &region.location_ids, region.coordinate))
             .collect::<Vec<_>>()
     );
     assert_eq!(
@@ -101,6 +101,12 @@ fn generated_world_has_valid_regions_and_symmetric_exits() {
         .location_ids
         .iter()
         .all(|id| location_ids.contains(id))));
+    let region_coordinates = world
+        .regions
+        .iter()
+        .map(|region| region.coordinate.expect("generated regions have coordinates"))
+        .collect::<HashSet<_>>();
+    assert_eq!(region_coordinates.len(), world.regions.len());
     assert!(world.locations.iter().all(|location| {
         location.exits.iter().all(|target_id| {
             world
@@ -125,6 +131,7 @@ fn zero_sized_configuration_is_normalized_to_a_minimal_world() {
 
     assert_eq!(world.regions.len(), 1);
     assert_eq!(world.locations.len(), 1);
+    assert_eq!(world.regions[0].coordinate, Some(crate::geography::RegionCoordinate::ORIGIN));
     assert!(world.locations[0].exits.is_empty());
 }
 

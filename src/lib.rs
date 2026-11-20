@@ -20,6 +20,7 @@ mod content;
 #[cfg(not(target_os = "android"))]
 mod desktop_window;
 mod events;
+pub mod geography;
 mod game;
 mod game_paths;
 mod input;

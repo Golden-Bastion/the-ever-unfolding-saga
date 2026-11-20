@@ -1,4 +1,5 @@
 use crate::content::definitions::CampaignContent;
+use crate::geography::RegionCoordinate;
 use crate::model::{Location, Region, RouteDirection, World, WorldRoute};
 
 impl CampaignContent {
@@ -10,6 +11,7 @@ impl CampaignContent {
                 name: self.world.region.name.clone(),
                 description: self.world.region.description.clone(),
                 location_ids: Vec::new(),
+                coordinate: Some(RegionCoordinate::ORIGIN),
             });
         }
 
@@ -24,6 +26,7 @@ impl CampaignContent {
                     name: self.world.region.name.clone(),
                     description: self.world.region.description.clone(),
                     location_ids: Vec::new(),
+                    coordinate: Some(RegionCoordinate::ORIGIN),
                 });
                 id
             });
