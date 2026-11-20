@@ -1,28 +1,62 @@
 #!/usr/bin/env bash
-# Safely prune old GitHub Actions runs while retaining the current CI/CD run,
-# the newest run of each companion workflow, and every queued/in-progress run.
-set -uo pipefail
+# Manually prune old GitHub Actions runs after a release has completed.
+# Defaults to a dry run; use --apply only after reviewing the proposed deletions.
+set -euo pipefail
 
 usage() {
     cat <<'USAGE'
-Usage: cleanup-workflow-runs.sh [--dry-run] [--force]
+Usage: cleanup-workflow-runs.sh --release-tag vMAJOR.MINOR.PATCH [--dry-run | --apply] [--repo owner/repository]
 
-Requires gh, jq, GH_TOKEN, and GITHUB_REPOSITORY (owner/repository).
-By default, only successful CI/CD push runs on main or version tags (v*) may
-trigger cleanup. --force permits an intentional manual run.
+Requires GitHub CLI (gh), jq, and a GitHub token with Actions: write permission.
+The token may come from GH_TOKEN or an existing 'gh auth login' session.
+
+The default is a dry run. Add --apply to delete completed runs.
+The script retains the successful CI/CD and Android APK runs for the specified
+release tag, the newest completed PR Checks and License check runs, and every
+queued or in-progress run.
 USAGE
 }
 
-dry_run=false
-force=false
-for arg in "$@"; do
-    case "$arg" in
-        --dry-run) dry_run=true ;;
-        --force) force=true ;;
-        -h|--help) usage; exit 0 ;;
-        *) echo "Unknown argument: $arg" >&2; usage >&2; exit 2 ;;
+release_tag=""
+repository="\${GITHUB_REPOSITORY:-}"
+apply=false
+
+while (($#)); do
+    case "$1" in
+        --release-tag)
+            (($# >= 2)) || { echo "--release-tag requires a value." >&2; exit 2; }
+            release_tag=$2
+            shift 2
+            ;;
+        --repo)
+            (($# >= 2)) || { echo "--repo requires a value." >&2; exit 2; }
+            repository=$2
+            shift 2
+            ;;
+        --apply)
+            apply=true
+            shift
+            ;;
+        --dry-run)
+            apply=false
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1" >&2
+            usage >&2
+            exit 2
+            ;;
     esac
 done
+
+if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "A valid --release-tag vMAJOR.MINOR.PATCH is required." >&2
+    exit 2
+fi
 
 for command in gh jq; do
     command -v "$command" >/dev/null 2>&1 || {
@@ -30,118 +64,145 @@ for command in gh jq; do
         exit 2
     }
 done
-: "${GH_TOKEN:?GH_TOKEN must contain a GitHub token with Actions: write permission}"
-: "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be owner/repository}"
 
-if [[ "$force" != true ]]; then
-    [[ "${TRIGGER_CONCLUSION:-}" == success ]] || {
-        echo "Skipping cleanup: triggering CI/CD run did not succeed."
-        exit 0
-    }
-    [[ "${TRIGGER_EVENT:-}" == push ]] || {
-        echo "Skipping cleanup: trigger was not a push."
-        exit 0
-    }
-    branch="${TRIGGER_BRANCH:-}"
-    [[ "$branch" == main || "$branch" == v* ]] || {
-        echo "Skipping cleanup: push was neither main nor a version tag ($branch)."
-        exit 0
+if [[ -z "$repository" ]]; then
+    repository="$(gh repo view --json nameWithOwner --jq '.nameWithOwner')" || {
+        echo "Could not determine the repository. Run this inside its checkout or pass --repo owner/repository." >&2
+        exit 2
     }
 fi
 
+if [[ ! "$repository" =~ ^[^/]+/[^/]+$ ]]; then
+    echo "Invalid repository name: $repository (expected owner/repository)." >&2
+    exit 2
+fi
+
 api() {
-    local attempt=1 max_attempts="${API_MAX_ATTEMPTS:-5}" delay=2
-    while (( attempt <= max_attempts )); do
+    local attempt=1
+    local max_attempts="\${API_MAX_ATTEMPTS:-5}"
+    local delay="\${API_RETRY_INITIAL_DELAY:-2}"
+
+    if [[ ! "$max_attempts" =~ ^[1-9][0-9]*$ || ! "$delay" =~ ^[0-9]+$ ]]; then
+        echo "API_MAX_ATTEMPTS must be positive and API_RETRY_INITIAL_DELAY non-negative." >&2
+        return 2
+    fi
+
+    while ((attempt <= max_attempts)); do
         if gh api "$@"; then
             return 0
         fi
-        if (( attempt == max_attempts )); then
+        if ((attempt == max_attempts)); then
             echo "GitHub API request failed after $attempt attempts: gh api $*" >&2
             return 1
         fi
-        echo "GitHub API request failed (attempt $attempt/$max_attempts); retrying in ${delay}s..." >&2
+        echo "GitHub API request failed (attempt $attempt/$max_attempts); retrying in \${delay}s..." >&2
         sleep "$delay"
         ((attempt += 1))
         ((delay < 30)) && delay=$((delay * 2))
     done
 }
 
-workflow_names=("CI/CD" "PR Checks" "Android APK" "License check")
-current_run_id="${CURRENT_RUN_ID:-}"
-total_deleted=0
-total_failed=0
+workflow_names=("CI/CD" "Android APK" "PR Checks" "License check")
+declare -A workflow_ids run_pages keep_ids
 
-echo "Repository: $GITHUB_REPOSITORY"
-[[ "$dry_run" == true ]] && echo "DRY RUN: no workflow runs will be deleted."
+echo "Repository: $repository"
+echo "Release tag: $release_tag"
+if [[ "$apply" == true ]]; then
+    echo "Mode: APPLY — completed workflow runs will be deleted."
+else
+    echo "Mode: DRY RUN — no workflow runs will be deleted."
+fi
 
-for workflow_name in "${workflow_names[@]}"; do
-    echo
-    echo "=== $workflow_name ==="
+# Complete discovery and safety checks before deleting anything.
+workflow_pages="$(api --paginate --slurp \
+    "repos/$repository/actions/workflows?per_page=100")" || {
+    echo "Unable to list GitHub Actions workflows; nothing was deleted." >&2
+    exit 1
+}
 
-    workflow_pages="$(api --paginate --slurp \
-        "repos/${GITHUB_REPOSITORY}/actions/workflows?per_page=100")" || {
-        echo "Unable to list workflows; continuing to the next workflow." >&2
-        ((total_failed += 1))
-        continue
-    }
-
+for workflow_name in "\${workflow_names[@]}"; do
     workflow_id="$(jq -r --arg name "$workflow_name" \
         '[.[] | .workflows[]? | select(.name == $name)][0].id // empty' \
         <<<"$workflow_pages")"
 
     if [[ -z "$workflow_id" ]]; then
-        echo "Workflow not found; continuing."
-        continue
+        echo "Required workflow not found: $workflow_name. Nothing was deleted." >&2
+        exit 1
     fi
 
-    run_pages="$(api --paginate --slurp \
-        "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/runs?per_page=100")" || {
-        echo "Unable to list runs for $workflow_name; continuing." >&2
-        ((total_failed += 1))
-        continue
+    workflow_ids["$workflow_name"]=$workflow_id
+    run_pages["$workflow_name"]="$(api --paginate --slurp \
+        "repos/$repository/actions/workflows/$workflow_id/runs?per_page=100")" || {
+        echo "Unable to list runs for $workflow_name; nothing was deleted." >&2
+        exit 1
     }
+done
+
+for workflow_name in "\${workflow_names[@]}"; do
+    pages="\${run_pages[$workflow_name]}"
+
+    case "$workflow_name" in
+        "CI/CD"|"Android APK")
+            keep_id="$(jq -r --arg tag "$release_tag" '
+                [.[] | .workflow_runs[]?
+                    | select(.head_branch == $tag and .status == "completed" and .conclusion == "success")]
+                | sort_by(.created_at) | last | .id // empty
+            ' <<<"$pages")"
+            if [[ -z "$keep_id" ]]; then
+                echo "No successful completed $workflow_name run was found for $release_tag. Nothing was deleted." >&2
+                exit 1
+            fi
+            ;;
+        *)
+            keep_id="$(jq -r '
+                [.[] | .workflow_runs[]? | select(.status == "completed")]
+                | sort_by(.created_at) | last | .id // empty
+            ' <<<"$pages")"
+            ;;
+    esac
+
+    keep_ids["$workflow_name"]=$keep_id
+    echo "Keeping $workflow_name run: \${keep_id:-none}"
+done
+
+total_deleted=0
+total_failed=0
+
+for workflow_name in "\${workflow_names[@]}"; do
+    pages="\${run_pages[$workflow_name]}"
+    keep_id="\${keep_ids[$workflow_name]}"
+    workflow_id="\${workflow_ids[$workflow_name]}"
+
+    echo
+    echo "=== $workflow_name (workflow $workflow_id) ==="
 
     mapfile -t runs < <(jq -r \
         '[.[] | .workflow_runs[]?] | sort_by(.created_at) | reverse | .[] | [.id, .status] | @tsv' \
-        <<<"$run_pages")
-
-    # Retain the current CI/CD run, or the newest run of each companion workflow.
-    keep_run_id="$current_run_id"
-    if [[ "$workflow_name" != "CI/CD" || -z "$keep_run_id" ]]; then
-        for run in "${runs[@]}"; do
-            IFS=$'\t' read -r candidate_id candidate_status <<<"$run"
-            if [[ "$candidate_status" != completed ]]; then
-                continue
-            fi
-            keep_run_id="$candidate_id"
-            break
-        done
-    fi
+        <<<"$pages")
 
     deleted=0
     failed=0
-    for run in "${runs[@]}"; do
+
+    for run in "\${runs[@]}"; do
         IFS=$'\t' read -r run_id status <<<"$run"
-
         [[ -n "$run_id" ]] || continue
-        [[ "$run_id" == "$keep_run_id" ]] && continue
+        [[ "$run_id" == "$keep_id" ]] && continue
 
-        # Never cancel or delete runs that are still queued or executing.
-        if [[ "$status" != completed ]]; then
+        if [[ "$status" != "completed" ]]; then
             echo "Keeping active run $run_id (status: $status)."
             continue
         fi
 
-        if [[ "$dry_run" == true ]]; then
+        if [[ "$apply" != true ]]; then
             echo "Would delete completed run $run_id."
             continue
         fi
 
         echo "Deleting completed run $run_id..."
-        if api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}"; then
+        if api --method DELETE "repos/$repository/actions/runs/$run_id"; then
             ((deleted += 1))
         else
-            echo "Failed to delete run $run_id; continuing." >&2
+            echo "Failed to delete run $run_id after retries; continuing." >&2
             ((failed += 1))
         fi
     done
@@ -152,5 +213,5 @@ for workflow_name in "${workflow_names[@]}"; do
 done
 
 echo
-echo "Cleanup finished: deleted $total_deleted workflow runs; $total_failed operation(s) failed."
-(( total_failed == 0 ))
+echo "Cleanup finished: deleted $total_deleted workflow runs; $total_failed deletion(s) failed."
+((total_failed == 0))
