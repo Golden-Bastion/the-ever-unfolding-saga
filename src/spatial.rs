@@ -1782,7 +1782,9 @@ pub fn configure_map_exits(map: &mut LocalMap, target_location_ids: &[u64]) {
     let routes = targets
         .into_iter()
         .map(|target_location_id| MapRouteDestination {
-            route_id: format!("route.compat.target.{target_location_id}"),
+            // Fixed-width decimal keeps compatibility routes numerically ordered
+            // when the authoritative reconciliation sorts by stable route ID.
+            route_id: format!("route.compat.target.{target_location_id:020}"),
             target_location_id,
         })
         .collect::<Vec<_>>();
@@ -1827,25 +1829,46 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
             continue;
         }
 
-        let mut positions = Vec::new();
-        for y in 1..map.height.saturating_sub(1) {
-            positions.push(GridPosition {
+        // Allocate one slot per compass side before using a second slot on
+        // any side. This keeps authored onward/return routes spatially distinct.
+        let east = (1..map.height.saturating_sub(1))
+            .map(|y| GridPosition {
                 x: map.width.saturating_sub(1),
                 y,
-            });
-        }
-        for y in 1..map.height.saturating_sub(1) {
-            positions.push(GridPosition { x: 0, y });
-        }
-        for x in 1..map.width.saturating_sub(1) {
-            positions.push(GridPosition { x, y: 0 });
-        }
-        for x in 1..map.width.saturating_sub(1) {
-            positions.push(GridPosition {
-                x,
-                y: map.height.saturating_sub(1),
-            });
-        }
+            })
+            .collect::<Vec<_>>();
+        let west = (1..map.height.saturating_sub(1))
+            .map(|y| GridPosition { x: 0, y })
+            .collect::<Vec<_>>();
+        let north_start = authored_gate_barrier_x(map)
+            .map(|barrier_x| barrier_x.saturating_add(1))
+            .unwrap_or(1)
+            .max(1)
+            .min(map.width.saturating_sub(1));
+        let north = (north_start..map.width.saturating_sub(1))
+            .map(|x| GridPosition { x, y: 0 })
+            .collect::<Vec<_>>();
+        let south = (north_start..map.width.saturating_sub(1))
+            .map(|x| {
+                GridPosition {
+                    x,
+                    y: map.height.saturating_sub(1),
+                }
+            })
+            .collect::<Vec<_>>();
+        let compass_sides = [&east, &west, &north, &south];
+        let max_slots = compass_sides
+            .iter()
+            .map(|positions| positions.len())
+            .max()
+            .unwrap_or(0);
+        let positions = (0..max_slots)
+            .flat_map(|slot| {
+                compass_sides
+                    .iter()
+                    .filter_map(move |positions| positions.get(slot).copied())
+            })
+            .collect::<Vec<_>>();
 
         let passage_id = format!("{}.route.{}", map.location_id, route.route_id);
         for position in positions {
