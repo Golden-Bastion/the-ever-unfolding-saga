@@ -482,12 +482,13 @@ fn world_lab_session_uses_real_world_graph_and_reproducible_actor_ids() {
 }
 
 #[test]
-fn world_lab_passage_editor_updates_reciprocal_graph_links() {
+fn world_lab_passage_editor_updates_persistent_route_links() {
     let options = WorldLabOptions {
         seed: 887_001,
         ..WorldLabOptions::default()
     };
     let (map, scenario) = generate_world_lab_session(options);
+    let source_id = scenario.location_id;
     let mut spatial = SpatialExplorationState::default();
     bevy_spatial::set_sandbox_map(&mut spatial, map.clone());
     let mut state = DeveloperToolsState {
@@ -499,7 +500,12 @@ fn world_lab_passage_editor_updates_reciprocal_graph_links() {
     };
     let (destination_id, _) = selected_world_lab_destination(&state)
         .expect("selected location should have at least one unconnected destination");
-    let passage_id = format!("{}.exit.{}", map.location_id, destination_id);
+    let route_id = format!(
+        "route.world_lab.{}.{}",
+        source_id.min(destination_id),
+        source_id.max(destination_id)
+    );
+    let passage_id = format!("{}.route.{}", map.location_id, route_id);
     let edge_positions = (1..map.height - 1)
         .flat_map(|y| {
             [
@@ -528,6 +534,7 @@ fn world_lab_passage_editor_updates_reciprocal_graph_links() {
             candidate.place_map_exit(
                 MapExit {
                     id: passage_id.clone(),
+                    route_id: Some(route_id.clone()),
                     position: *position,
                     target_location_id: destination_id,
                 },

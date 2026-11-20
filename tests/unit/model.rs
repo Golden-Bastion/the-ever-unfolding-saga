@@ -221,3 +221,69 @@ fn character_appearance_is_persisted_and_inherited() {
     assert!(legacy.appearance_parts.is_empty());
     assert!(legacy.known_evidence_ids.is_empty());
 }
+
+#[test]
+fn world_routes_canonicalize_endpoint_order_and_reverse_direction() {
+    let route = WorldRoute::new("route.test.descending", 22, 11, RouteDirection::AtoB);
+
+    assert_eq!(route.location_a_id, 11);
+    assert_eq!(route.location_b_id, 22);
+    assert_eq!(route.direction, RouteDirection::BtoA);
+    assert!(route.allows_travel(22, 11));
+    assert!(!route.allows_travel(11, 22));
+    assert!(!route.allows_travel(11, 33));
+}
+
+#[test]
+fn parallel_world_routes_keep_distinct_identity_and_update_the_derived_exit_cache() {
+    let mut state = create_new_state(
+        "Parallel Routes",
+        WorldMode::New,
+        "First Warden".to_string(),
+        "Ash Walker".to_string(),
+    );
+    state.world.routes.clear();
+    state.world.rebuild_location_exit_cache();
+    let source_id = state.character.location_id;
+    let source = state.world.location_by_id(source_id).unwrap().clone();
+    let destination_id = state.world.allocate_id();
+    state.world.locations.push(Location {
+        id: destination_id,
+        name: "Route Test Destination".into(),
+        description: "A place joined by two distinct routes.".into(),
+        region_id: source.region_id,
+        dangerous: false,
+        corpse_ids: Vec::new(),
+        exits: Vec::new(),
+        spatial_layout: None,
+    });
+
+    assert!(state.world.add_route(WorldRoute::new(
+        "route.test.trail",
+        source_id,
+        destination_id,
+        RouteDirection::AtoB,
+    )));
+    assert!(state.world.add_route(WorldRoute::new(
+        "route.test.bridge",
+        source_id,
+        destination_id,
+        RouteDirection::Bidirectional,
+    )));
+    assert_eq!(state.world.routes.len(), 2);
+    assert!(state.world.can_travel_between(source_id, destination_id));
+    assert!(state.world.can_travel_between(destination_id, source_id));
+    assert_eq!(
+        state.world.location_by_id(source_id).unwrap().exits,
+        vec![destination_id]
+    );
+
+    assert!(state.world.remove_route("route.test.bridge"));
+    assert_eq!(state.world.routes.len(), 1);
+    assert!(state.world.can_travel_between(source_id, destination_id));
+    assert!(!state.world.can_travel_between(destination_id, source_id));
+
+    assert!(state.world.remove_route("route.test.trail"));
+    assert!(state.world.routes.is_empty());
+    assert!(state.world.location_by_id(source_id).unwrap().exits.is_empty());
+}

@@ -866,6 +866,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
     let destination_id = 20_u64;
     let exit = MapExit {
         id: "location.10.exit.20".into(),
+        route_id: None,
         position: GridPosition {
             x: map.width - 1,
             y: 1,
@@ -1085,4 +1086,73 @@ fn terrain_editor_cannot_turn_a_room_cell_into_a_wall() {
     let room_cell = map.rooms[0].cells[0];
     assert!(!map.set_terrain_for_editor(room_cell, Terrain::Wall));
     assert!(map.is_walkable(room_cell));
+}
+
+#[test]
+fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_idempotently() {
+    let mut map = generate_local_map(818, "location.10", LocalMapConfig::default());
+    let routes = vec![
+        MapRouteDestination {
+            route_id: "route.path.alpha".into(),
+            target_location_id: 20,
+        },
+        MapRouteDestination {
+            route_id: "route.path.beta".into(),
+            target_location_id: 20,
+        },
+    ];
+
+    configure_map_routes(&mut map, &routes);
+    assert_eq!(map.exits.len(), 2);
+    assert_eq!(
+        map.exits
+            .iter()
+            .map(|exit| exit.route_id.as_deref())
+            .collect::<Vec<_>>(),
+        vec![Some("route.path.alpha"), Some("route.path.beta")]
+    );
+    assert_ne!(map.exits[0].position, map.exits[1].position);
+    let established = map.exits[0].clone();
+
+    let mut expanded_routes = routes.clone();
+    expanded_routes.push(MapRouteDestination {
+        route_id: "route.path.gamma".into(),
+        target_location_id: 21,
+    });
+    configure_map_routes(&mut map, &expanded_routes);
+    assert_eq!(map.exits.len(), 3);
+    assert_eq!(map.exits[0], established);
+
+    let before_repeat = map.exits.clone();
+    configure_map_routes(&mut map, &expanded_routes);
+    assert_eq!(map.exits, before_repeat);
+}
+
+#[test]
+fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
+    let mut map = generate_local_map(819, "location.10", LocalMapConfig::default());
+    let position = GridPosition {
+        x: map.width - 1,
+        y: 1,
+    };
+    assert!(map.set_terrain(position, Terrain::Floor));
+    map.exits.push(MapExit {
+        id: "location.10.exit.20".into(),
+        route_id: None,
+        position,
+        target_location_id: 20,
+    });
+
+    configure_map_routes(
+        &mut map,
+        &[MapRouteDestination {
+            route_id: "route.migrated.20".into(),
+            target_location_id: 20,
+        }],
+    );
+
+    assert_eq!(map.exits.len(), 1);
+    assert_eq!(map.exits[0].id, "location.10.exit.20");
+    assert_eq!(map.exits[0].position, position);
+    assert_eq!(map.exits[0].route_id.as_deref(), Some("route.migrated.20"));
 }
