@@ -140,6 +140,9 @@ fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
         ("spatial/terrain_rubble.png", 48, 24),
         ("spatial/terrain_wall_top.png", 48, 24),
         ("spatial/player_oathbound.png", 16, 24),
+        ("spatial/actors/npc.png", 32, 48),
+        ("spatial/actors/hostile.png", 32, 48),
+        ("spatial/actors/corpse.png", 48, 32),
         ("spatial/passage.png", 24, 32),
         ("spatial/wall_face_left.png", 24, 36),
         ("spatial/wall_face_right.png", 24, 36),
@@ -168,6 +171,26 @@ fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
             image.texture_descriptor.size.height, height,
             "{reference} height"
         );
+
+        if reference.starts_with("spatial/actors/") {
+            let rgba = image
+                .data
+                .as_deref()
+                .unwrap_or_else(|| panic!("{reference} should retain decoded pixel data"));
+            assert_eq!(
+                rgba.len(),
+                width as usize * height as usize * 4,
+                "{reference} should decode to 8-bit RGBA pixels"
+            );
+            assert!(
+                rgba.chunks_exact(4).any(|pixel| pixel[3] == 0),
+                "{reference} should contain transparent background pixels"
+            );
+            assert!(
+                rgba.chunks_exact(4).any(|pixel| pixel[3] == 255),
+                "{reference} should contain opaque sprite pixels"
+            );
+        }
     }
 }
 
