@@ -13,6 +13,11 @@ The entries below cover the v0.52.x development line through v0.52.70. This line
 - Added regression coverage for role-specific asset candidate order, fallback sharing, and visual distinctions. Dedicated base-game actor artwork and per-character appearance variation remain future asset work.
 - Bumped Rust and Android version metadata to 0.52.70.
 
+### World-topology compatibility audit
+
+- Audited current world/region/location identities, finite procedural generation, authored-content mapping, reciprocal route graph, local-map identity and passage synchronization, and save-file compatibility before v0.53.x topology work.
+- Recorded persistent-state invariants, implementation gaps, legacy-world and route-model decisions requiring approval, and focused validation requirements. No gameplay, save schema, or version metadata changed.
+
 ### CI/CD workflow maintenance
 
 - Removed an empty step-level `env` declaration from the formatting-and-tests job so GitHub Actions can validate the workflow configuration.

@@ -35,7 +35,7 @@ The interim World Map is complete for its current purpose: a topological view of
 - Establish the initial state-driven audio/music boundary, transition behavior, separate music/SFX settings, and provenance tracking.
 - Continue incremental pixel-art asset work against the approved visual standard.
 
-Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
+Begin with the [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md) before changing persistent world data. Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
 
 ## Following milestone — v0.54.x: world content, simulation, character lives, and action combat
 

@@ -19,6 +19,7 @@ The root [ROADMAP.md](../../ROADMAP.md) is the only project-wide index of remain
 ## World and character systems
 
 - [World topology and hybrid travel](world-topology-and-travel.md) — regional geography, location graphs, local maps, physical exits, fast travel, persistence, and expansion.
+- [World-topology compatibility audit](world-topology-compatibility-audit.md) — current runtime identities, generation, graph/exit, local-map, and save contracts to preserve during v0.53.x expansion.
 - [Procedural content generation](procedural-content-generation.md) — coherent region/location identity, inhabitants, opportunities, authored-content precedence, and determinism.
 - [World simulation](world-simulation.md) — authoritative time, continuous/event-driven/deferred simulation, persistent consequences, and update guarantees.
 - [Character lives and inheritance](character-lives-and-inheritance.md) — progression, ambitions, permanent life records, retirement, death, and successor continuity.
