@@ -4,38 +4,29 @@ This is the authoritative overview of unfinished work, current priorities, and p
 
 Completed work in the current development line belongs in [CHANGELOG.md](CHANGELOG.md); earlier completed work belongs in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md). Detailed design decisions live in [docs/design/](docs/design/README.md), while [system documentation](docs/systems/) describes current implementation behavior and boundaries.
 
-## Current development line — v0.52.x
+## Current development line — v0.53.x: world topology and spatial-world expansion
 
-**Repository version at this roadmap revision: 0.52.70.**
-
-**Theme:** spatial gameplay and presentation foundations.
-
-The experimental hybrid 2D-gameplay / 3D-rendering work is maintained independently in the private [TEUS Lab repository](https://github.com/Golden-Bastion/teus-lab). Its implementation, progress, validation records, and decisions are tracked there, not as remaining TEUS milestone work. The production game continues to use its existing 2D renderer; any future integration requires a separate, explicitly approved TEUS change.
-
-The line has established the spatial exploration prototype, character/world authoring tools, spatial-first in-session navigation, contextual interactions, player animation, data-driven persistent encounter materialization with multiple independently selected encounter groups per local map, and the retained-presentation architecture. World Lab and its map editor now share the Character Lab two-pane workspace. Shared action groups give every button the width of the widest intrinsic button, within the available group width, and preserve word-boundary wrapping; the pause menu explicitly retains full-width actions. The delivered scope is recorded in the current changelog.
-
-### Remaining work
-
-1. **Continue visual and interface development against the approved standards.** The shared pixel-art direction, reference influences, palette principles, character proportions, perspective, and production boundaries are documented. The current Character hub and desktop/Android spatial control arrangements are accepted as complete for the present scope; revisit them only when a concrete feature or playtest finding justifies it. The exploration HUD gives player vitality a stacked panel and a full-width, numeric health bar. Quest tracking is handled in Character Hub → Quests, with the World Map marking the next resolvable objective location; quest titles, objective text, and progress do not occupy the main HUD. The spatial actor renderer now distinguishes NPCs, hostile encounters, corpses, and defeated encounters through role-specific mod-resolvable asset candidates, centralized sprite presentation, and safe existing-art fallbacks. Dedicated base actor sprites and per-character variation remain outstanding art work. Continue incremental pixel-art coverage, and defer useful local-orientation cues until the world-topology foundations mature. Defer bespoke enemy/boss HUD elements and combat-specific asset production until the transitional encounter UI is replaced by real-time spatial combat; do not heavily polish the current combat presentation. See [pixel-art visual direction](docs/design/pixel-art-direction.md) and [presentation direction](docs/design/presentation-direction.md).
-
-The retained-shell and keyed-row UI migration is complete and has been owner-validated through playtesting. New dynamic collections and screen regions should follow the established retained-host and keyed-identity contracts; this is ongoing architectural practice, not an unfinished migration.
-
-The interim World Map is complete for its current purpose: a topological view of known locations with pan/zoom and existing fast-travel behavior. Its screen and current presentation are not a pending redesign. A future geography-backed map depends on the world-generation and topology foundations below, not another interim-map UI pass.
-
-## Next milestone — v0.53.x: world topology and spatial-world expansion
+**Final v0.52.x package version: 0.52.70.**
 
 **Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
 
-- Define shared macro-geography and stable regional/global coordinates. Adjacent regions must agree at their boundaries regardless of generation order. Deterministically embed existing saved worlds into the coordinate-backed model through a one-time, persisted compatibility migration that preserves their IDs, graph, and local maps.
-- Anchor authored and generated locations to physical geography and make route edges correspond to plausible terrain connections and local-map exits.
-- Expand frontier regions on demand without generating the entire world or rerolling established geography, routes, local maps, or discoveries.
-- Keep physical travel and known-route fast travel complementary, including travel time, encounter/event interruption, and conservative migration of older worlds.
-- Make exploration and local maps available consistently across supported location types while preserving direct location-level actions where spatial traversal is unnecessary.
-- Expand the data-driven encounter foundation with multiple independent encounters, persistent roaming entities, and investigation/clue progression where supported by the underlying world and simulation rules.
-- Establish the initial state-driven audio/music boundary, transition behavior, separate music/SFX settings, and provenance tracking.
-- Continue incremental pixel-art asset work against the approved visual standard.
+The v0.52.x development line is complete. The project owner has confirmed the integrated desktop/Android spatial-first gameplay verification and the separate spatial presentation/player-animation playtesting tracked by [#421](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/421) and [#446](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/446). The full delivered scope and final verification record are in [CHANGELOG.md](CHANGELOG.md), which is also the source for the v0.52.70 release body.
 
-Begin with the [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md) before changing persistent world data. Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
+The initial world-topology compatibility audit is complete in [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md). It records the current identity, generation, route, local-map, and save invariants, plus the owner-selected requirement to deterministically embed existing worlds through a one-time persisted migration. It does not change gameplay or save data.
+
+### Remaining work
+
+1. **Establish first-class persistent route records.** Replace implicit location adjacency with stable route IDs, explicit endpoints and directionality, and one authoritative topology source for travel and map presentation. Migrate legacy exits deterministically without changing runtime IDs, existing graph connectivity, or saved local maps. Start with [#488](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/488).
+2. **Define shared macro-geography and stable regional/global coordinates.** Adjacent regions must agree at their boundaries regardless of generation order. Deterministically embed existing saved worlds into the coordinate-backed model through a one-time, persisted compatibility migration that preserves their IDs, graph, and local maps.
+3. **Anchor authored and generated locations to physical geography.** Make route edges correspond to plausible terrain connections and local-map exits, while preserving authored-content precedence and established placements.
+4. **Expand frontier regions on demand** without generating the entire world or rerolling established geography, routes, local maps, or discoveries.
+5. **Keep physical travel and known-route fast travel complementary,** including travel time, encounter/event interruption, and conservative migration of older worlds.
+6. **Make exploration and local maps available consistently across supported location types** while preserving direct location-level actions where spatial traversal is unnecessary.
+7. **Expand the data-driven encounter foundation** with multiple independent encounters, persistent roaming entities, and investigation/clue progression where supported by the underlying world and simulation rules.
+8. **Establish the initial state-driven audio/music boundary,** transition behavior, separate music/SFX settings, and provenance tracking.
+9. **Continue incremental pixel-art production** against the approved visual standard, including dedicated spatial NPC, hostile, and remains artwork tracked by [#484](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/484). Keep asset work progressing alongside topology development; the renderer's existing role-specific mod-resolvable fallbacks mean these assets are not a prerequisite for topology implementation.
+
+The compatibility audit is complete; begin persistent topology implementation with [#488](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/488). Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
 
 ## Following milestone — v0.54.x: world content, simulation, character lives, and action combat
 
