@@ -1849,11 +1849,9 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
             .map(|x| GridPosition { x, y: 0 })
             .collect::<Vec<_>>();
         let south = (north_start..map.width.saturating_sub(1))
-            .map(|x| {
-                GridPosition {
-                    x,
-                    y: map.height.saturating_sub(1),
-                }
+            .map(|x| GridPosition {
+                x,
+                y: map.height.saturating_sub(1),
             })
             .collect::<Vec<_>>();
         let compass_sides = [&east, &west, &north, &south];
