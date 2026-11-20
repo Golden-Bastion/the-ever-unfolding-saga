@@ -1169,7 +1169,10 @@ fn route_reconciliation_distributes_new_passages_round_robin_by_compass_side() {
             }
         })
         .collect::<Vec<_>>();
-    assert_eq!(sides, vec!["east", "west", "north", "south", "east", "west"]);
+    assert_eq!(
+        sides,
+        vec!["east", "west", "north", "south", "east", "west"]
+    );
 }
 
 #[test]
