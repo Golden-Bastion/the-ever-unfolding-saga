@@ -124,7 +124,7 @@ The sequence in the approved topology design remains appropriate. These substeps
 3. **Introduce regional coordinate/geography primitives.** Establish signed coordinate conventions, region extent/resolution, shared-boundary sampling, and deterministic test oracles before implementing a large terrain field.
 4. **Anchor locations and connect routes.** Add authored/generated location placement constraints and define how existing stable route endpoints map to geographic connection points and local `MapExit` records.
 5. **Implement frontier materialization.** Ensure a frontier region and its connecting route are created once, before presenting the route as usable. Generate only what is required to resolve that frontier.
-6. **Reconcile saved local passages safely.** Specify how new/changed route metadata updates existing maps without shifting old passage identity or discarding local modifications.
+6. **Extend geographic passage reconciliation.** Define terrain-aware connection-point placement for the existing stable routes and local passages while preserving established passage identities, positions, and local modifications.
 7. **Integrate known-route fast travel and persistence.** Reuse the existing travel action and interruption semantics. Add conservative migrations and inheritance coverage.
 8. **Replace interim map geography only after authoritative geography exists.** Current graph layout remains presentation-only until it can be derived from actual world data.
 
