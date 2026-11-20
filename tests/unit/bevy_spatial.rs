@@ -87,6 +87,52 @@ fn wall_tops_and_faces_keep_depth_based_occlusion() {
 }
 
 #[test]
+fn spatial_actor_visual_roles_use_distinct_mod_ready_asset_candidates() {
+    assert_eq!(
+        SpatialActorVisualKind::Npc.asset_candidates(),
+        &[
+            "spatial/actors/npc.png",
+            "spatial/player_oathbound.png",
+            "icons/ui/character.png",
+        ][..]
+    );
+    assert_eq!(
+        SpatialActorVisualKind::HostileEncounter.asset_candidates(),
+        &[
+            "spatial/actors/hostile.png",
+            "spatial/player_oathbound.png",
+            "icons/ui/character.png",
+        ][..]
+    );
+    assert_eq!(
+        SpatialActorVisualKind::Corpse.asset_candidates(),
+        &["spatial/actors/corpse.png", "icons/ui/remains.png"][..]
+    );
+    assert_eq!(
+        SpatialActorVisualKind::DefeatedEncounter.asset_candidates(),
+        SpatialActorVisualKind::Corpse.asset_candidates()
+    );
+}
+
+#[test]
+fn spatial_actor_visual_roles_preserve_distinct_world_readability() {
+    assert_ne!(
+        SpatialActorVisualKind::Npc.tint(),
+        SpatialActorVisualKind::HostileEncounter.tint()
+    );
+    assert_eq!(
+        SpatialActorVisualKind::Npc.sprite_size(),
+        SpatialActorVisualKind::HostileEncounter.sprite_size()
+    );
+    assert_eq!(
+        SpatialActorVisualKind::Corpse.sprite_size(),
+        SpatialActorVisualKind::DefeatedEncounter.sprite_size()
+    );
+    assert_eq!(SpatialActorVisualKind::Npc.ground_contact_offset(), 11.0);
+    assert_eq!(SpatialActorVisualKind::Corpse.ground_contact_offset(), 5.0);
+}
+
+#[test]
 fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
     for (reference, width, height) in [
         ("spatial/terrain_floor.png", 48, 24),
