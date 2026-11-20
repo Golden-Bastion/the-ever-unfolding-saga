@@ -458,20 +458,6 @@ jobs:
           ref: ${{ needs.prep_build_matrix.outputs.ref }}
           fetch-depth: 0
 
-      - name: Extract release metadata from CHANGELOG.md
-        id: release_metadata
-        shell: bash
-        env:
-          RELEASE_TAG: ${{ needs.prep_build_matrix.outputs.ref }}
-        run: |
-          set -euo pipefail
-
-          version="${RELEASE_TAG#v}"
-          release_notes="${RUNNER_TEMP}/release-notes.md"
-
-          bash .github/scripts/extract-release-notes.sh \
-            CHANGELOG.md "$version" "$release_notes"
-
       - name: Download release archives
         uses: actions/download-artifact@v8.0.1
         with:
@@ -480,7 +466,7 @@ jobs:
           merge-multiple: true
           skip-decompress: true
 
-      - name: List Downloaded archives
+      - name: List downloaded archives
         shell: bash
         run: ls -R dist/
 
@@ -491,15 +477,7 @@ jobs:
           TAG_NAME: ${{ needs.prep_build_matrix.outputs.ref }}
         run: |
           set -euo pipefail
-
-          gh release upload "$TAG_NAME" \\
-            dist/teus-"$TAG_NAME"-linux-x86_64.tar.xz \\
-            dist/teus-"$TAG_NAME"-linux-aarch64.tar.xz \\
-            dist/teus-"$TAG_NAME"-macos-aarch64.tar.xz \\
-            dist/teus-"$TAG_NAME"-windows-x86_64.zip \\
-            dist/teus-"$TAG_NAME"-windows-aarch64.zip \\
-            --clobber \\
-            --repo "$GITHUB_REPOSITORY"
+          gh release upload "$TAG_NAME" dist/teus-"$TAG_NAME"-linux-x86_64.tar.xz dist/teus-"$TAG_NAME"-linux-aarch64.tar.xz dist/teus-"$TAG_NAME"-macos-aarch64.tar.xz dist/teus-"$TAG_NAME"-windows-x86_64.zip dist/teus-"$TAG_NAME"-windows-aarch64.zip --clobber --repo "$GITHUB_REPOSITORY"
 
       - name: Verify complete desktop and Android asset set
         shell: bash
@@ -508,7 +486,6 @@ jobs:
           TAG_NAME: ${{ needs.prep_build_matrix.outputs.ref }}
         run: |
           set -euo pipefail
-
           expected_assets=(
             "teus-$TAG_NAME-linux-x86_64.tar.xz"
             "teus-$TAG_NAME-linux-aarch64.tar.xz"
@@ -519,29 +496,25 @@ jobs:
             "teus-$TAG_NAME-android-aarch64.apk"
             "teus-$TAG_NAME-android-armv7.apk"
           )
-
           missing=()
           for attempt in {1..60}; do
-            release_assets="$(gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+            release_assets="$(gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null || true)"
             missing=()
             for asset in "${expected_assets[@]}"; do
               if ! grep -Fxq -- "$asset" <<< "$release_assets"; then
                 missing+=("$asset")
               fi
             done
-
             if [[ "${#missing[@]}" -eq 0 ]]; then
               echo "All eight desktop and Android assets are present."
               break
             fi
-
             echo "Waiting for Android release assets (attempt $attempt/60): ${missing[*]}"
             sleep 30
           done
-
           if [[ "${#missing[@]}" -ne 0 ]]; then
-            printf 'Cannot publish an incomplete release; missing assets:\\n'
-            printf '  %s\\n' "${missing[@]}"
+            printf 'Cannot publish an incomplete release; missing assets:\n'
+            printf '  %s\n' "${missing[@]}"
             exit 1
           fi
 
@@ -552,12 +525,8 @@ jobs:
           TAG_NAME: ${{ needs.prep_build_matrix.outputs.ref }}
         run: |
           set -euo pipefail
-
           release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" --jq '.id')"
-          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \\
-            -F draft=false \\
-            -F make_latest=true
-
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false -F make_latest=true
           echo "Published $TAG_NAME after verifying all eight release assets."
 
   sync_lock:
