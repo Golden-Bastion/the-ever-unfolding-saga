@@ -14,6 +14,8 @@ fail() {
 
 bash -n "$script"
 bash -n "$repo_root/.github/scripts/extract-release-notes.sh"
+[[ ! -e "$repo_root/.github/workflows/clean-up.yml" ]] \
+    || fail "automatic workflow cleanup trigger still exists"
 
 cat > "$test_dir/bin/gh" <<'MOCK_GH'
 #!/usr/bin/env bash
