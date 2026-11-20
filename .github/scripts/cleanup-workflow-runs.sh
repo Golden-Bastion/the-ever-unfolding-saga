@@ -18,7 +18,7 @@ USAGE
 }
 
 release_tag=""
-repository="\${GITHUB_REPOSITORY:-}"
+repository="${GITHUB_REPOSITORY:-}"
 apply=false
 
 while (($#)); do
@@ -79,8 +79,8 @@ fi
 
 api() {
     local attempt=1
-    local max_attempts="\${API_MAX_ATTEMPTS:-5}"
-    local delay="\${API_RETRY_INITIAL_DELAY:-2}"
+    local max_attempts="${API_MAX_ATTEMPTS:-5}"
+    local delay="${API_RETRY_INITIAL_DELAY:-2}"
 
     if [[ ! "$max_attempts" =~ ^[1-9][0-9]*$ || ! "$delay" =~ ^[0-9]+$ ]]; then
         echo "API_MAX_ATTEMPTS must be positive and API_RETRY_INITIAL_DELAY non-negative." >&2
@@ -95,10 +95,10 @@ api() {
             echo "GitHub API request failed after $attempt attempts: gh api $*" >&2
             return 1
         fi
-        echo "GitHub API request failed (attempt $attempt/$max_attempts); retrying in \${delay}s..." >&2
+        echo "GitHub API request failed (attempt $attempt/$max_attempts); retrying in ${delay}s..." >&2
         sleep "$delay"
         ((attempt += 1))
-        ((delay < 30)) && delay=$((delay * 2))
+        if ((delay < 30)); then delay=$((delay * 2)); fi
     done
 }
 
@@ -120,7 +120,7 @@ workflow_pages="$(api --paginate --slurp \
     exit 1
 }
 
-for workflow_name in "\${workflow_names[@]}"; do
+for workflow_name in "${workflow_names[@]}"; do
     workflow_id="$(jq -r --arg name "$workflow_name" \
         '[.[] | .workflows[]? | select(.name == $name)][0].id // empty' \
         <<<"$workflow_pages")"
@@ -138,8 +138,8 @@ for workflow_name in "\${workflow_names[@]}"; do
     }
 done
 
-for workflow_name in "\${workflow_names[@]}"; do
-    pages="\${run_pages[$workflow_name]}"
+for workflow_name in "${workflow_names[@]}"; do
+    pages="${run_pages[$workflow_name]}"
 
     case "$workflow_name" in
         "CI/CD"|"Android APK")
@@ -162,16 +162,16 @@ for workflow_name in "\${workflow_names[@]}"; do
     esac
 
     keep_ids["$workflow_name"]=$keep_id
-    echo "Keeping $workflow_name run: \${keep_id:-none}"
+    echo "Keeping $workflow_name run: ${keep_id:-none}"
 done
 
 total_deleted=0
 total_failed=0
 
-for workflow_name in "\${workflow_names[@]}"; do
-    pages="\${run_pages[$workflow_name]}"
-    keep_id="\${keep_ids[$workflow_name]}"
-    workflow_id="\${workflow_ids[$workflow_name]}"
+for workflow_name in "${workflow_names[@]}"; do
+    pages="${run_pages[$workflow_name]}"
+    keep_id="${keep_ids[$workflow_name]}"
+    workflow_id="${workflow_ids[$workflow_name]}"
 
     echo
     echo "=== $workflow_name (workflow $workflow_id) ==="
@@ -183,7 +183,7 @@ for workflow_name in "\${workflow_names[@]}"; do
     deleted=0
     failed=0
 
-    for run in "\${runs[@]}"; do
+    for run in "${runs[@]}"; do
         IFS=$'\t' read -r run_id status <<<"$run"
         [[ -n "$run_id" ]] || continue
         [[ "$run_id" == "$keep_id" ]] && continue
@@ -208,8 +208,8 @@ for workflow_name in "\${workflow_names[@]}"; do
     done
 
     echo "$workflow_name: deleted $deleted, failed $failed."
-    ((total_deleted += deleted))
-    ((total_failed += failed))
+    total_deleted=$((total_deleted + deleted))
+    total_failed=$((total_failed + failed))
 done
 
 echo
