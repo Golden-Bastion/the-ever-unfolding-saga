@@ -33,6 +33,7 @@ These notes cover the complete v0.52.x development line through its final packag
 - Removed an empty step-level `env` declaration from the formatting-and-tests job so GitHub Actions can validate the workflow configuration.
 - Declared `prep_build_matrix` as a direct dependency of the release job so its selected source-ref output is available to the release steps.
 - Aligned the Android Gradle local-build fallback version code with the version-derived CI value for v0.52.70.
+- Added optional release codenames sourced from each version's `**Codename:**` field in `CHANGELOG.md`; the release workflow uses the codename as the GitHub Release title while preserving the existing version tag, archive names, and release body. Releases without a codename retain the version-only title.
 
 ### v0.52.69: Character quest tracking and World Map destination marker
 
