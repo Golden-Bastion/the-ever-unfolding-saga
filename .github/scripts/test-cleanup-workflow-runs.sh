@@ -33,6 +33,11 @@ fi
 
 args="$*"
 
+if [[ "$args" == *"/git/ref/tags/v0.53.0"* ]]; then
+    echo '{"object":{"type":"commit","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}'
+    exit 0
+fi
+
 if [[ "$args" == *"actions/workflows?per_page=100"* ]]; then
     echo '[{"workflows":[{"id":1,"name":"CI/CD"},{"id":2,"name":"Android APK"},{"id":3,"name":"PR Checks"},{"id":4,"name":"License check"}]}]'
     exit 0
@@ -40,16 +45,16 @@ fi
 
 if [[ "$args" == *"/actions/workflows/1/runs?per_page=100"* ]]; then
     echo '[{"workflow_runs":[
-      {"id":101,"head_branch":"v0.53.0","status":"completed","conclusion":"success","created_at":"2026-11-20T12:00:00Z"},
-      {"id":102,"head_branch":"main","status":"completed","conclusion":"success","created_at":"2026-11-19T12:00:00Z"},
-      {"id":103,"head_branch":"main","status":"in_progress","conclusion":null,"created_at":"2026-11-18T12:00:00Z"}
+      {"id":101,"head_branch":"v0.53.0","head_sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":"completed","conclusion":"success","created_at":"2026-11-20T12:00:00Z"},
+      {"id":102,"head_branch":"main","head_sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","status":"completed","conclusion":"success","created_at":"2026-11-19T12:00:00Z"},
+      {"id":103,"head_branch":"main","head_sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","status":"in_progress","conclusion":null,"created_at":"2026-11-18T12:00:00Z"}
     ]}]'
     exit 0
 fi
 
 if [[ "$args" == *"/actions/workflows/2/runs?per_page=100"* ]]; then
     echo '[{"workflow_runs":[
-      {"id":201,"head_branch":"v0.53.0","status":"completed","conclusion":"success","created_at":"2026-11-20T12:01:00Z"},
+      {"id":201,"head_branch":"v0.53.0","head_sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":"completed","conclusion":"success","created_at":"2026-11-20T12:01:00Z"},
       {"id":202,"head_branch":"v0.52.70","status":"completed","conclusion":"success","created_at":"2026-11-19T12:01:00Z"}
     ]}]'
     exit 0
@@ -58,15 +63,15 @@ fi
 if [[ "$args" == *"/actions/workflows/3/runs?per_page=100"* ]]; then
     echo '[{"workflow_runs":[
       {"id":301,"head_branch":"feature/example","status":"completed","conclusion":"success","created_at":"2026-11-20T12:02:00Z"},
-      {"id":302,"head_branch":"main","status":"completed","conclusion":"failure","created_at":"2026-11-19T12:02:00Z"}
+      {"id":302,"head_branch":"main","head_sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","status":"completed","conclusion":"failure","created_at":"2026-11-19T12:02:00Z"}
     ]}]'
     exit 0
 fi
 
 if [[ "$args" == *"/actions/workflows/4/runs?per_page=100"* ]]; then
     echo '[{"workflow_runs":[
-      {"id":401,"head_branch":"main","status":"completed","conclusion":"success","created_at":"2026-11-20T12:03:00Z"},
-      {"id":402,"head_branch":"main","status":"completed","conclusion":"success","created_at":"2026-11-19T12:03:00Z"}
+      {"id":401,"head_branch":"main","head_sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","status":"completed","conclusion":"success","created_at":"2026-11-20T12:03:00Z"},
+      {"id":402,"head_branch":"main","head_sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","status":"completed","conclusion":"success","created_at":"2026-11-19T12:03:00Z"}
     ]}]'
     exit 0
 fi
@@ -105,6 +110,8 @@ grep -Fq 'Would delete completed run 102.' "$test_dir/dry-run.log" || fail "olde
 grep -Fq 'Keeping active run 103' "$test_dir/dry-run.log" || fail "active workflow run was not retained"
 grep -Fq '4 workflow runs would be deleted; no runs were deleted.' "$test_dir/dry-run.log" \
     || fail "dry-run summary did not count all planned deletions"
+grep -Fq 'Release commit: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' "$test_dir/dry-run.log" \
+    || fail "release tag was not resolved to its commit"
 [[ ! -f "$DELETE_LOG" ]] || fail "dry run deleted a workflow run"
 
 bash "$script" --release-tag v0.53.0 --apply > "$test_dir/apply.log"
