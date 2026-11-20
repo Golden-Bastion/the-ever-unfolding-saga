@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: default
 title: "The Ashen Threshold — TEUS v0.52.70"
 date: 2026-11-20 12:00:00 +0330
 description: "The v0.52.x development line reaches its spatial-first milestone with local exploration, authored investigations, new visual foundations, and desktop/Android verification."
