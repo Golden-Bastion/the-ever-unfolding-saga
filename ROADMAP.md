@@ -4,9 +4,9 @@ This is the authoritative overview of unfinished work, current priorities, and p
 
 Completed work in the current development line belongs in [CHANGELOG.md](CHANGELOG.md); earlier completed work belongs in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md). Detailed design decisions live in [docs/design/](docs/design/README.md), while [system documentation](docs/systems/) describes current implementation behavior and boundaries.
 
-## Current development line — v0.52.x
+## Previous development line — v0.52.x
 
-**Repository version at this roadmap revision: 0.52.70.**
+**Repository version at the end of this development line: 0.52.70.**
 
 **Theme:** spatial gameplay and presentation foundations.
 
@@ -22,9 +22,13 @@ The retained-shell and keyed-row UI migration is complete and has been owner-val
 
 The interim World Map is complete for its current purpose: a topological view of known locations with pan/zoom and existing fast-travel behavior. Its screen and current presentation are not a pending redesign. A future geography-backed map depends on the world-generation and topology foundations below, not another interim-map UI pass.
 
-## Next milestone — v0.53.x: world topology and spatial-world expansion
+## Current development line — v0.53.x: world topology and spatial-world expansion
+
+**Repository version at this roadmap revision: 0.53.0.**
 
 **Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
+
+**Delivered in v0.53.0:** introduced authoritative persistent route records with stable route identities and explicit directionality; migrated legacy location adjacency during save loading without consuming entity IDs; linked local-map passages to route IDs; and added non-destructive passage reconciliation for established maps. Route profiles, terrain constraints, and travel costs are intentionally deferred.
 
 - Define shared macro-geography and stable regional/global coordinates. Adjacent regions must agree at their boundaries regardless of generation order. Deterministically embed existing saved worlds into the coordinate-backed model through a one-time, persisted compatibility migration that preserves their IDs, graph, and local maps.
 - Anchor authored and generated locations to physical geography and make route edges correspond to plausible terrain connections and local-map exits.
@@ -35,7 +39,7 @@ The interim World Map is complete for its current purpose: a topological view of
 - Establish the initial state-driven audio/music boundary, transition behavior, separate music/SFX settings, and provenance tracking.
 - Continue incremental pixel-art asset work against the approved visual standard.
 
-Begin with the [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md) before changing persistent world data. Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
+The [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md) records the implementation baseline and migration invariants. The first route-identity layer is now implemented; next work is coordinate-backed geography and deterministic embedding of existing worlds. Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
 
 ## Following milestone — v0.54.x: world content, simulation, character lives, and action combat
 

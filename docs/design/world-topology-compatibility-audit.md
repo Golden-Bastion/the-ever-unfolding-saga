@@ -1,5 +1,8 @@
 # World Topology Compatibility Audit
 
+> **Baseline note:** implementation observations below describe the pre-route v0.52.70 state. The v0.53.0 route-record implementation and its remaining boundaries are recorded in [Implementation follow-up](#implementation-follow-up--v0530) at the end of this document.
+
+
 > Audit snapshot: `main` at `ea200cda3d8dfe3fe44d4c1ea52b3c47af722caa` (v0.52.70), 20 November 2026. This document records the current implementation before v0.53.x world-topology changes. It supplements, and does not replace, the settled [World Topology, Local Exploration, and Hybrid Travel](world-topology-and-travel.md) design.
 
 ## Purpose and limits
@@ -167,3 +170,15 @@ This resolves whether legacy worlds should be embedded or left behind. The exact
 - `src/bevy_spatial.rs` — lazy map creation, current runtime-derived map keys, graph-to-passage synchronization, and map persistence.
 - `src/persistence.rs` — save version, serde deserialization, and current legacy normalization.
 - `docs/systems/world-map.md` — interim topological map and presentation-only layout contract.
+
+## Implementation follow-up — v0.53.0
+
+The first route-identity layer was implemented after this audit was merged.
+
+- `World.routes` now stores persistent `WorldRoute` records with stable IDs, canonical endpoint ordering, and explicit bidirectional/A-to-B/B-to-A direction. Multiple route IDs may join the same endpoint pair.
+- `Location.exits` is a transient, non-persisted adjacency projection rebuilt from the route records. New save data stores routes rather than a second copy of the graph.
+- Save format v5 migrates version-4 and earlier adjacency data deterministically to `route.compat.legacy.{lower_id}.{higher_id}` IDs. Direction is inferred from the original outgoing adjacency, and the migration does not allocate entity IDs or change `next_id`.
+- Existing local-map passages receive a matching route ID while preserving their existing passage ID and position. New and additional routes are appended through idempotent reconciliation; saved terrain and established passage geometry are not regenerated or moved.
+- Travel, known-route fast-travel traversal, World Map route views, procedural generation, authored seeding, and World Lab route editing now use persistent route records. Physical passage interactions validate the passage's specific route ID.
+
+This layer intentionally does not yet define route type/profile, terrain constraints, macro-geographic route geometry, distance, travel cost, or route discovery state. Those remain dependent on the coordinate-backed world topology design and are not implied by this implementation.

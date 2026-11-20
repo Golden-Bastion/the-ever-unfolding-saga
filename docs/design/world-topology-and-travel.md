@@ -85,6 +85,20 @@ A successor should be able to revisit locations and routes and encounter the per
 
 **Legacy-world embedding decision (20 November 2026):** existing worlds must be brought into the coordinate-backed topology through a deterministic, one-time compatibility embedding. They will not remain on a separate topology-only path. The embedding must derive placements from the saved region/location identities and graph structure, use stable ID-based tie-breaking, and persist the result with migration provenance. It must preserve all existing runtime IDs, `next_id`, graph edges, world history, and saved local maps. This is a compatibility placement, not a claim that the generated coordinates recover the world's original physical geography. New terrain/geography synthesized around those placements must be explicitly understood as a compatibility layer and must fit around established routes and local maps rather than relocating them. Worlds without generation metadata must also receive a deterministic persisted compatibility seed if the geography layer requires one; that seed must be derived from stable saved data, not display names or mutable content.
 
+## Persistent route records
+
+Persistent world connectivity is represented by first-class route records. `World.routes` is the sole saved authority for travel topology; each route has a stable string ID, two location endpoints stored in canonical numeric-ID order, and an explicit direction (`Bidirectional`, `AtoB`, or `BtoA`). Distinct route IDs may connect the same pair of locations. Route identity is independent of display names, local-map positions, and presentation order.
+
+`Location.exits` is now a derived in-memory compatibility view only. It is rebuilt from route records after load and is omitted from new saves. Gameplay travel and known-route pathfinding consult route records directly. A physical `MapExit` carries the identity of the route it represents; entering a passage validates that exact route rather than merely checking that some connection exists between the same endpoints.
+
+### Legacy save migration
+
+Save format v5 migrates pre-route location adjacency deterministically. The migration normalizes each endpoint pair, derives a route ID as `route.compat.legacy.{lower_id}.{higher_id}`, and preserves whether the old adjacency was bidirectional or one-way. It does not allocate entity IDs or change `World.next_id`.
+
+Existing local-map passages are assigned the first matching route ID in stable lexical order without changing their passage ID or grid position. When additional routes exist between the same locations, reconciliation appends distinct passages. Reconciliation never clears established exits or regenerates saved map geometry; repeated reconciliation is idempotent.
+
+Route records currently establish identity and connectivity only. Route profiles/types, macro-terrain constraints, physical route geometry between locations, discovery state, and travel costs remain future topology work.
+
 ## System boundaries
 
 The responsibilities are deliberately separated:

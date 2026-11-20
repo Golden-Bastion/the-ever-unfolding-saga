@@ -2,6 +2,19 @@
 
 This file records work completed in the current development line. It is not a list of planned work. Earlier lines are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md), while unfinished work remains in [ROADMAP.md](ROADMAP.md).
 
+## v0.53.x — World topology and spatial-world expansion
+
+The entries below cover the v0.53.x development line through v0.53.0. This line begins the transition from a finite location graph to persistent, geography-backed world topology.
+
+### v0.53.0: Persistent world route identities
+
+- Added persistent `WorldRoute` records with stable string IDs, canonical endpoint ordering, and explicit bidirectional, A-to-B, or B-to-A travel direction. `World.routes` is the sole persisted authority for connectivity; location exit lists are rebuilt as a transient compatibility view.
+- Added deterministic migration of legacy location adjacency into route records. IDs derive from saved endpoint IDs, one-way edges remain one-way, and the migration does not allocate runtime entity IDs or change `World.next_id`.
+- Bumped the save format to v5. Legacy local-map passages retain their original IDs and positions while receiving matching route IDs; new route connections are reconciled into existing maps without regenerating terrain or relocating established passages.
+- Linked physical passage interactions to their exact route identities, allowed distinct routes to share the same destination, and updated normal travel, fast-travel pathfinding, the interim World Map, campaign seeding, procedural generation, and World Lab route authoring to use route records.
+- Added regression coverage for legacy save migration, one-way travel, route-linked passages, multiple routes to one destination, and idempotent local-map reconciliation.
+- Bumped Rust and Android version metadata to 0.53.0.
+
 ## v0.52.x — Storage, UI, and spatial-gameplay foundations
 
 The entries below cover the v0.52.x development line through v0.52.70. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
