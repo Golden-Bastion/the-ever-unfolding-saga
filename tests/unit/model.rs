@@ -32,8 +32,15 @@ fn new_worlds_record_generation_metadata() {
     assert_eq!(generation.region_count, 3);
     assert_eq!(generation.location_count, 12);
     assert_eq!(generation.extra_edges, 8);
-    assert_eq!(generation.geography_ruleset_version, crate::geography::GEOGRAPHY_RULESET_VERSION);
-    assert!(state.world.regions.iter().all(|region| region.coordinate.is_some()));
+    assert_eq!(
+        generation.geography_ruleset_version,
+        crate::geography::GEOGRAPHY_RULESET_VERSION
+    );
+    assert!(state
+        .world
+        .regions
+        .iter()
+        .all(|region| region.coordinate.is_some()));
     let expected_location_count = generation.location_count.max(state.world.locations.len());
     assert_eq!(state.world.locations.len(), expected_location_count);
     assert_eq!(

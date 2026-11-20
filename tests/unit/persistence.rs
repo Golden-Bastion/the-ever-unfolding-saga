@@ -48,6 +48,12 @@ fn compressed_save_round_trips() {
     });
 
     let generation = state.world.generation;
+    let original_region_coordinates = state
+        .world
+        .regions
+        .iter()
+        .map(|region| region.coordinate)
+        .collect::<Vec<_>>();
     let original_description = state.world.locations[0].description.clone();
     let original_exits = state.world.locations[0].exits.clone();
     state.world.locations[0].description = "A scar left by the first warden.".to_string();
@@ -79,6 +85,15 @@ fn compressed_save_round_trips() {
     );
     assert_eq!(loaded.rng_state, state.rng_state);
     assert_eq!(loaded.world.generation, generation);
+    assert_eq!(
+        loaded
+            .world
+            .regions
+            .iter()
+            .map(|region| region.coordinate)
+            .collect::<Vec<_>>(),
+        original_region_coordinates
+    );
     assert_eq!(loaded.world.locations[0].description, mutated_description);
     assert_ne!(loaded.world.locations[0].description, original_description);
     assert_eq!(loaded.world.locations[0].exits, original_exits);
