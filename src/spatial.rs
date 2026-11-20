@@ -210,7 +210,17 @@ pub struct SpatialDoor {
 pub struct MapExit {
     /// Stable within this local map and independent of destination display text.
     pub id: String,
+    /// Authoritative world-route identity. Missing only on pre-route saves.
+    #[serde(default)]
+    pub route_id: Option<String>,
     pub position: GridPosition,
+    pub target_location_id: u64,
+}
+
+/// A route from this local map to a destination in the persistent world graph.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MapRouteDestination {
+    pub route_id: String,
     pub target_location_id: u64,
 }
 
@@ -539,7 +549,12 @@ impl LocalMap {
             || exit.target_location_id == source_id
             || !valid_target_location_ids.contains(&exit.target_location_id)
             || self.exits.iter().any(|existing| {
-                existing.id == exit.id || existing.target_location_id == exit.target_location_id
+                existing.id == exit.id
+                    || match (&existing.route_id, &exit.route_id) {
+                        (Some(existing), Some(incoming)) => existing == incoming,
+                        (None, None) => existing.target_location_id == exit.target_location_id,
+                        _ => false,
+                    }
             })
             || !self.map_exit_placement_is_valid(exit.position, None)
         {
@@ -1761,50 +1776,94 @@ fn reserved_discovery_corridor(
 
 /// Place a physical map-edge passage for each connected world location.
 ///
-/// Passages are assigned deterministically to east, west, north, and south
-/// edges. Each gets a clear walkable corridor to the entry area. Exit targets
-/// are world IDs, so destination danger state does not affect passage identity.
+/// Compatibility helper for older callers which only know destination IDs.
 pub fn configure_map_exits(map: &mut LocalMap, target_location_ids: &[u64]) {
-    let mut targets = Vec::with_capacity(target_location_ids.len());
-    for target in target_location_ids {
-        if !targets.contains(target) {
-            targets.push(*target);
+    let mut targets = target_location_ids.to_vec();
+    targets.sort_unstable();
+    targets.dedup();
+    let routes = targets
+        .into_iter()
+        .map(|target_location_id| MapRouteDestination {
+            route_id: format!("route.compat.target.{target_location_id}"),
+            target_location_id,
+        })
+        .collect::<Vec<_>>();
+    configure_map_routes(map, &routes);
+}
+
+/// Reconcile authoritative world routes into an established local map.
+///
+/// Existing passage IDs, positions, terrain, props, discoveries, and encounter
+/// state are never reset or relocated. A legacy passage without a route ID is
+/// attached to the first stable route leading to its destination; additional
+/// parallel routes receive new passages in the first available edge positions.
+pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestination]) {
+    let mut routes = destinations
+        .iter()
+        .filter(|route| !route.route_id.trim().is_empty())
+        .cloned()
+        .collect::<Vec<_>>();
+    routes.sort_by(|left, right| left.route_id.cmp(&right.route_id));
+    routes.dedup_by(|left, right| left.route_id == right.route_id);
+
+    let mut valid_targets = routes
+        .iter()
+        .map(|route| route.target_location_id)
+        .collect::<Vec<_>>();
+    valid_targets.sort_unstable();
+    valid_targets.dedup();
+
+    for route in routes {
+        if map
+            .exits
+            .iter()
+            .any(|exit| exit.route_id.as_deref() == Some(route.route_id.as_str()))
+        {
+            continue;
+        }
+
+        if let Some(legacy_passage) = map.exits.iter_mut().find(|exit| {
+            exit.route_id.is_none() && exit.target_location_id == route.target_location_id
+        }) {
+            legacy_passage.route_id = Some(route.route_id);
+            continue;
+        }
+
+        let mut positions = Vec::new();
+        for y in 1..map.height.saturating_sub(1) {
+            positions.push(GridPosition {
+                x: map.width.saturating_sub(1),
+                y,
+            });
+        }
+        for y in 1..map.height.saturating_sub(1) {
+            positions.push(GridPosition { x: 0, y });
+        }
+        for x in 1..map.width.saturating_sub(1) {
+            positions.push(GridPosition { x, y: 0 });
+        }
+        for x in 1..map.width.saturating_sub(1) {
+            positions.push(GridPosition {
+                x,
+                y: map.height.saturating_sub(1),
+            });
+        }
+
+        let passage_id = format!("{}.route.{}", map.location_id, route.route_id);
+        for position in positions {
+            let exit = MapExit {
+                id: passage_id.clone(),
+                route_id: Some(route.route_id.clone()),
+                position,
+                target_location_id: route.target_location_id,
+            };
+            if map.place_map_exit(exit, &valid_targets) {
+                break;
+            }
         }
     }
-
-    map.exits.clear();
-    for (index, target_location_id) in targets.iter().copied().enumerate() {
-        let side = index % 4;
-        let slot = index / 4;
-        let side_count = targets.iter().skip(side).step_by(4).count();
-        let (x, y) = match side {
-            // East and west exits are spaced along the vertical edge.
-            0 => (
-                map.width - 1,
-                spaced_edge_coordinate(slot, side_count, map.height),
-            ),
-            1 => (0, spaced_edge_coordinate(slot, side_count, map.height)),
-            // North and south exits are spaced along the horizontal edge.
-            2 => (spaced_edge_coordinate(slot, side_count, map.width), 0),
-            _ => (
-                spaced_edge_coordinate(slot, side_count, map.width),
-                map.height - 1,
-            ),
-        };
-        let position = GridPosition { x, y };
-        carve_exit_corridor(map, position, side);
-        map.exits.push(MapExit {
-            id: format!("{}.exit.{}", map.location_id, target_location_id),
-            position,
-            target_location_id,
-        });
-    }
 }
 
-fn spaced_edge_coordinate(slot: usize, count: usize, dimension: u16) -> u16 {
-    let usable = usize::from(dimension.saturating_sub(2));
-    (1 + (slot + 1) * usable / (count + 1)) as u16
-}
 
 /// Route passages around the authored chamber so extra graph connections do
 /// not punch arbitrary holes through its walls or remove its furniture.

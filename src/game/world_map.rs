@@ -34,7 +34,12 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
     for location in &state.world.locations {
         if location.id == current.id || is_explored(location.id) {
             visible_ids.insert(location.id);
-            visible_ids.extend(location.exits.iter().copied());
+            visible_ids.extend(
+                state
+                    .world
+                    .routes_from(location.id)
+                    .map(|(_, destination_id)| destination_id),
+            );
         }
     }
     visible_ids.retain(|id| state.world.location_by_id(*id).is_some());
@@ -79,9 +84,10 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
                 region_id: location.region_id,
                 explored: location.id == current.id || is_explored(location.id),
                 current: location.id == current.id,
-                reachable: crate::game::actions::has_reciprocal_location_connection(
+                reachable: crate::game::actions::has_location_travel_route(
                     state,
                     location.id,
+                    None,
                 ),
                 fast_travel_index: fast_travel.map(|(index, _)| index),
                 fast_travel_steps: fast_travel.map(|(_, steps)| steps),
@@ -89,43 +95,41 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         })
         .collect();
 
-    let mut routes: Vec<WorldMapRouteView> = Vec::new();
+    let mut route_directions =
+        std::collections::BTreeMap::<(u64, u64), (bool, bool)>::new();
     for source in &state.world.locations {
         if source.id != current.id && !is_explored(source.id) {
             continue;
         }
-        for target_id in &source.exits {
-            if !visible_ids.contains(target_id) {
-                continue;
-            }
-            let Some(target) = state.world.location_by_id(*target_id) else {
-                continue;
-            };
-            let (first_id, second_id) = if source.id <= target.id {
-                (source.id, target.id)
-            } else {
-                (target.id, source.id)
-            };
-            let bidirectional = target.exits.contains(&source.id);
-            if let Some(existing) = routes.iter_mut().find(|route| {
-                let key = if route.from_id <= route.to_id {
-                    (route.from_id, route.to_id)
-                } else {
-                    (route.to_id, route.from_id)
-                };
-                key == (first_id, second_id)
-            }) {
-                existing.bidirectional |= bidirectional;
-            } else {
-                routes.push(WorldMapRouteView {
-                    // Retain the actual source -> destination orientation for one-way routes.
-                    from_id: source.id,
-                    to_id: target.id,
-                    bidirectional,
-                });
-            }
+        for (route, _) in state.world.routes_from(source.id) {
+            let a = route.location_a_id;
+            let b = route.location_b_id;
+            let directions = route_directions.entry((a, b)).or_insert((false, false));
+            directions.0 |= route.allows_travel(a, b);
+            directions.1 |= route.allows_travel(b, a);
         }
     }
+
+    let routes: Vec<WorldMapRouteView> = route_directions
+        .into_iter()
+        .filter_map(|((a, b), (a_to_b, b_to_a))| {
+            if a_to_b {
+                Some(WorldMapRouteView {
+                    from_id: a,
+                    to_id: b,
+                    bidirectional: b_to_a,
+                })
+            } else if b_to_a {
+                Some(WorldMapRouteView {
+                    from_id: b,
+                    to_id: a,
+                    bidirectional: false,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
 
     let current_location = Some(location_view(state, current, &campaign));
 

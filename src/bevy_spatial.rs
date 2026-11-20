@@ -26,9 +26,10 @@ use crate::interaction_actions::{
 };
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
-    apply_authored_spatial_discoveries, configure_map_exits, ensure_spatial_entity_placements,
-    generate_local_map_with_layout, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
-    MapExit, SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind,
+    apply_authored_spatial_discoveries, configure_map_routes, ensure_spatial_entity_placements,
+    generate_local_map_with_layout, ExplorationSession, GridPosition,
+    LocalMap, LocalMapConfig, MapExit, MapRouteDestination, SpatialDiscoveryDefinition,
+    SpatialEncounterStatus, SpatialEntityKind,
     SpatialPropKind, Terrain,
 };
 use crate::spatial_animation::{
@@ -587,6 +588,14 @@ pub(crate) fn enter(
         return;
     };
     let location_id = format!("location.{}", location.id);
+    let map_routes = game
+        .world
+        .routes_from(location.id)
+        .map(|(route, target_location_id)| MapRouteDestination {
+            route_id: route.id.clone(),
+            target_location_id,
+        })
+        .collect::<Vec<_>>();
     let world_seed = game
         .world
         .generation
@@ -607,7 +616,7 @@ pub(crate) fn enter(
             LocalMapConfig::default(),
             location.spatial_layout.as_deref(),
         );
-        configure_map_exits(&mut generated, &location.exits);
+        configure_map_routes(&mut generated, &map_routes);
 
         let discoveries = game
             .campaign_content
@@ -635,11 +644,9 @@ pub(crate) fn enter(
         apply_authored_spatial_discoveries(&mut generated, &discoveries);
         generated
     };
-    // Migrate older saved maps without exits and configure new maps from the
-    // actual world graph. Passage targets are stored as stable world IDs.
-    if map.exits.is_empty() {
-        configure_map_exits(&mut map, &location.exits);
-    }
+    // Reconcile every authoritative route into an existing map. Established
+    // passages retain their IDs and positions; newly added routes append exits.
+    configure_map_routes(&mut map, &map_routes);
     if !location.dangerous {
         let prototype_poi_id = format!("{location_id}.poi.initial_discovery");
         map.points_of_interest
@@ -1602,7 +1609,7 @@ fn use_map_exit(
         .session
         .as_ref()
         .is_some_and(|session| session.location_id == expected_map_id);
-    let passage_available = state
+    let selected_passage = state
         .session
         .as_ref()
         .and_then(|session| state.maps.get(&session.location_id))
@@ -1610,17 +1617,25 @@ fn use_map_exit(
             map.exits
                 .iter()
                 .find(|exit| exit.id == exit_id && exit.target_location_id == target_location_id)
-                .map(|exit| exit_interaction_available(map, state.position, exit))
-        })
-        .unwrap_or(false);
+                .map(|exit| (exit.route_id.clone(), exit_interaction_available(map, state.position, exit)))
+        });
 
+    let Some((route_id, passage_available)) = selected_passage else {
+        state.message = Some("Move closer to the passage and find a clear approach.".to_string());
+        state.dirty = true;
+        return;
+    };
     if !active_map_matches || !passage_available {
         state.message = Some("Move closer to the passage and find a clear approach.".to_string());
         state.dirty = true;
         return;
     }
 
-    if !crate::game::actions::has_reciprocal_location_connection(game_state, target_location_id) {
+    if !crate::game::actions::has_location_travel_route(
+        game_state,
+        target_location_id,
+        route_id.as_deref(),
+    ) {
         state.message = Some("That passage no longer leads to a connected location.".to_string());
         state.dirty = true;
         return;
@@ -1631,6 +1646,7 @@ fn use_map_exit(
         lifecycle,
         navigation,
         target_location_id,
+        route_id.as_deref(),
         "That passage no longer leads to a connected location.",
     ) {
         state.message = Some(message.to_string());
@@ -1713,28 +1729,37 @@ fn travel_to_location(
     lifecycle: &mut LifecycleState,
     navigation: &mut NavigationState,
     target_location_id: EntityId,
+    route_id: Option<&str>,
     invalid_route_message: &'static str,
 ) -> Result<(), &'static str> {
     sync_spatial_to_game(state, lifecycle);
-    let Some((old_turn, reciprocal_route)) = lifecycle.session.as_ref().map(|session| {
+    let Some((old_turn, valid_route)) = lifecycle.session.as_ref().map(|session| {
         (
             session.state.character.turn,
-            crate::game::actions::has_reciprocal_location_connection(
+            crate::game::actions::has_location_travel_route(
                 &session.state,
                 target_location_id,
+                route_id,
             ),
         )
     }) else {
         return Err("The current world session is unavailable.");
     };
-    if !reciprocal_route {
+    if !valid_route {
         return Err(invalid_route_message);
     }
 
-    let travel_result = lifecycle
-        .session
-        .as_mut()
-        .map(|session| crate::game::actions::travel_to(&mut session.state, target_location_id));
+    let travel_result = lifecycle.session.as_mut().map(|session| {
+        if let Some(route_id) = route_id {
+            crate::game::actions::travel_via_route(
+                &mut session.state,
+                target_location_id,
+                route_id,
+            )
+        } else {
+            crate::game::actions::travel_to(&mut session.state, target_location_id)
+        }
+    });
     match travel_result {
         Some(Ok(())) => {}
         Some(Err(_)) | None => return Err(invalid_route_message),

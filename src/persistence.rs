@@ -7,7 +7,7 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
-const SAVE_FILE_VERSION: u32 = 4;
+const SAVE_FILE_VERSION: u32 = 5;
 pub const SAVE_BASE_NAME: &str = "ever_unfolding_saga_save";
 const SAVE_EXTENSION: &str = "json.gz";
 const LEGACY_SAVE_FILE_NAME: &str = "ever_unfolding_saga_save.json";
@@ -271,6 +271,36 @@ fn normalize_loaded_game(mut game: GameState, save_file_version: u32) -> GameSta
             game.character.attributes.endurance = 1;
         }
     }
+
+    // The route graph supersedes legacy location adjacency lists. This
+    // deterministic migration uses string identities and never consumes
+    // runtime entity IDs or changes World.next_id.
+    game.world.migrate_legacy_exits();
+    let routes = game.world.routes.clone();
+    for map in &mut game.world.local_maps {
+        let Some(source_id) = map
+            .location_id
+            .strip_prefix("location.")
+            .and_then(|value| value.parse::<u64>().ok())
+        else {
+            continue;
+        };
+        for exit in &mut map.exits {
+            if exit.route_id.is_some() {
+                continue;
+            }
+            let route_id = routes
+                .iter()
+                .filter(|route| {
+                    route.allows_travel(source_id, exit.target_location_id)
+                })
+                .map(|route| route.id.as_str())
+                .min()
+                .map(str::to_string);
+            exit.route_id = route_id;
+        }
+    }
+
     game
 }
 
