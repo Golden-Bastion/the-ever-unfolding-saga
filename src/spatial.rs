@@ -541,12 +541,10 @@ impl LocalMap {
     /// The caller supplies valid destination IDs from that graph; this keeps
     /// the renderer-neutral map model from inventing world identities.
     pub fn place_map_exit(&mut self, exit: MapExit, valid_target_location_ids: &[u64]) -> bool {
-        let Some(source_id) = self.location_entity_id() else {
-            return false;
-        };
+        let source_id = self.location_entity_id();
         if exit.id.trim().is_empty()
             || exit.target_location_id == 0
-            || exit.target_location_id == source_id
+            || source_id.is_some_and(|source_id| exit.target_location_id == source_id)
             || !valid_target_location_ids.contains(&exit.target_location_id)
             || self.exits.iter().any(|existing| {
                 existing.id == exit.id
