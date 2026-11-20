@@ -2,47 +2,47 @@
 layout: default
 title: The Game
 permalink: /game/
-description: "Meet the people, places, and ideas behind The Ashen Chronicle, a dark-fantasy RPG about a world that remembers."
+description: "Explore the design, gameplay, and current development status of The Ever-Unfolding Saga, a character-centred dark fantasy RPG."
 ---
 
-# A world that refuses to forget
+# A life of your own in a world that keeps unfolding
 
-The Ashen Chronicle is a dark-fantasy RPG about exploration, consequences, and the lives that follow yours. The Ashen Crown is a place of ruined roads and uneasy settlements, where danger is real and even a small kindness—or a terrible mistake—can become part of a larger story.
+**The Ever-Unfolding Saga (TEUS)** is a character-centred dark fantasy RPG built around exploration, adventure, relationships, and meaningful decisions. Its world is not just a backdrop for a fixed storyline: it is a place to travel through, encounter people, pursue ambitions, and leave consequences behind.
 
-It is playable today, and still growing. Here is what makes it different.
+The game is in active development. The sections below describe the established direction while distinguishing it from systems that are still being built.
 
-## One life ends. The world carries on.
+## Explore the world directly
 
-Death is part of the story, not just a failure screen. Depending on the legacy option you choose, the world can remain for a successor to inherit or be reset for a new beginning. The previous character's deeds, remains, and consequences can leave traces in the world.
+TEUS is a graphics-first game. Movement, exploration, atmosphere, and encounters belong in a shared spatial experience, presented from a flexible three-quarter view with pixel-art visuals. Locations are distinct spaces connected by travel, rather than one mandatory seamless terrain map.
 
-That changes the question from only *"Can I survive?"* to *"What will be left if I don't?"*
+Procedural generation is intended to provide variety, while authored locations, characters, events, and quests give the world a recognisable identity. The current project is expanding its foundations for persistent routes, regional geography, and on-demand frontier exploration.
 
-## People remember what you do
+## Follow your own ambitions
 
-The people of the Ashen Crown have memories, loyalties, and ties to factions. Their attitudes can shift with your actions, and reputation can shape how the world responds to you. A quest is not just a marker to clear: it can connect you to someone, a faction, a place, and the history being made there.
+There is no single required life path. Quests and authored stories offer opportunities, but players can choose what to pursue, ignore, or abandon. Exploration, relationships, work, trade, leadership, and other activities are intended to connect into a broader character-driven experience as development progresses.
 
-The history record helps keep those moments together, so a journey feels like more than a string of disconnected encounters.
+## People are part of the world
 
-## A frontier of unsettling places
+NPCs have memories, relationships, loyalties, and affiliations that can shape their reactions. Reputation and information should reflect what individuals and groups actually know, rather than granting the player an omniscient view of the world.
 
-Start among broken towers and a dead road at Ashen Gate. Pass through the Hollow Market, where the stalls are empty but not quite silent. Follow the trail to the Old Shrine, the ash-covered Mourning Fields, the black roots of Blackroot Hollow, or the half-drowned chapel whose bell seems to answer from below.
+The long-term direction is a persistent simulation in which characters, settlements, and factions can continue changing beyond the player's immediate involvement. Important characters will have greater depth, while the wider population will still contribute to a believable world.
 
-Deeper content follows stranger trails: a ruined caravan and broken performance stage lead toward a library of repeating verses, a silent spire, and a corridor that should not fit inside any building.
+## Choices have consequences
 
-These places are designed to leave an impression through atmosphere and detail—not just through how many enemies they contain.
+Actions can affect people, places, and the history of a journey. Failure and death may have lasting consequences. Retirement, inheritance, and former characters continuing as NPCs can extend a story across lives, but these are supporting possibilities—not the central premise or a compulsory succession loop.
 
-## Take risks, make choices, keep moving
+## Combat: a transition in progress
 
-Travel and exploration lead into quests, discoveries, and turn-based encounters. Prepare for danger, decide which paths are worth taking, and learn what the world is willing to reveal. Procedural generation gives the world room to vary, while authored characters, locations, events, and quests give it a distinct dark-fantasy identity.
+The current implementation retains turn-based encounters as a transitional foundation. The intended direction is real-time spatial action combat, combining positioning, timing, enemy behaviour, preparation, abilities, and tactical decisions. This replacement is planned work, not a feature to mistake for already-delivered gameplay.
 
-## A game that can grow with its world
+## Authored content, procedural generation, and mods
 
-The game already has a foundation for loading and extending world content, with included campaigns such as **Echoes of the Ashen Road** and **Echoes of the Ashen Road: The Deeper Road**. The content/mod system is still developing; it is a foundation for growth, not a claim that there is already a large established mod scene.
+TEUS is being built to support authored content alongside procedural generation. Its content-loading and mod-support foundations are in place, including included campaign content. The broader authoring and mod ecosystem is still developing; this should not be mistaken for a mature workshop or a large existing mod community.
 
-## Where the game stands today
+## Current development status
 
-The Ashen Chronicle is in active development. Its graphical interface is in place, but the world remains text-led and currently uses simple ASCII scene art rather than a finished pixel-art presentation. A full music-and-sound experience and further visual polish are still ahead.
+The game is built with Rust and Bevy and targets desktop and Android. It has a graphical interface and spatial gameplay foundations, with pixel-art assets and presentation being developed incrementally. It is an offline-first, single-player project.
 
-That also means you can follow a project while its systems and atmosphere are taking shape. The public build may lag behind the development branch, and features or balance can change as the game grows.
+There is still substantial work ahead: persistent world topology and geography, richer procedural content, deeper world simulation, character-life systems, the real-time combat transition, expanded modular character visuals, and audio. The roadmap describes the intended sequencing and distinguishes current implementation from future design.
 
-[Get the latest public build](https://github.com/right-ward/ashen_chronicle/releases/latest) · [Read the devlog]({{ '/blog/' | relative_url }}) · [Visit the repository](https://github.com/right-ward/ashen_chronicle)
+[Get the latest public release](https://github.com/Golden-Bastion/the-ever-unfolding-saga/releases/latest) · [Read the devlog]({{ '/blog/' | relative_url }}) · [Visit the source repository](https://github.com/Golden-Bastion/the-ever-unfolding-saga)
