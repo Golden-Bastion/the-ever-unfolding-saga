@@ -20,7 +20,7 @@ if [[ ! -f "$release_file" ]]; then
     exit 2
 fi
 
-if [[ -z "\${GITHUB_OUTPUT:-}" ]]; then
+if [[ -z "${GITHUB_OUTPUT:-}" ]]; then
     echo "GITHUB_OUTPUT must point to the GitHub Actions output file." >&2
     exit 2
 fi
@@ -33,8 +33,8 @@ if [[ "$heading" != "$expected_prefix"* ]]; then
     exit 1
 fi
 
-release_title="\${heading#\\# }"
-if [[ -z "\${release_title#v$version — }" ]]; then
+release_title="${heading:2}"
+if [[ -z "${release_title#v$version — }" ]]; then
     echo "The release title must include a non-empty codename after the version." >&2
     exit 1
 fi
