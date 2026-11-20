@@ -19,13 +19,21 @@ pub const GEOGRAPHY_RULESET_VERSION: u32 = 1;
 pub struct RegionCoordinate {
     pub x: i64,
     pub y: i64,
+    /// Vertical geography layer: zero is the surface; negative values identify underground strata.
+    pub stratum: i32,
 }
 
 impl RegionCoordinate {
-    pub const ORIGIN: Self = Self { x: 0, y: 0 };
+    pub const ORIGIN: Self = Self { x: 0, y: 0, stratum: 0 };
 
+    /// Construct a coordinate on the surface stratum.
     pub const fn new(x: i64, y: i64) -> Self {
-        Self { x, y }
+        Self { x, y, stratum: 0 }
+    }
+
+    /// Construct a coordinate on an explicit vertical geography stratum.
+    pub const fn in_stratum(x: i64, y: i64, stratum: i32) -> Self {
+        Self { x, y, stratum }
     }
 
     /// Convert a region-local sample position into the global sample lattice.
@@ -40,6 +48,7 @@ impl RegionCoordinate {
         Some(MacroCoordinate {
             x: self.x.checked_mul(resolution)?.checked_add(i64::from(local_x))?,
             y: self.y.checked_mul(resolution)?.checked_add(i64::from(local_y))?,
+            stratum: self.stratum,
         })
     }
 }
@@ -49,13 +58,21 @@ impl RegionCoordinate {
 pub struct MacroCoordinate {
     pub x: i64,
     pub y: i64,
+    /// Vertical geography layer, matching the owning region's stratum.
+    pub stratum: i32,
 }
 
 impl MacroCoordinate {
-    pub const ORIGIN: Self = Self { x: 0, y: 0 };
+    pub const ORIGIN: Self = Self { x: 0, y: 0, stratum: 0 };
 
+    /// Construct a coordinate on the surface stratum.
     pub const fn new(x: i64, y: i64) -> Self {
-        Self { x, y }
+        Self { x, y, stratum: 0 }
+    }
+
+    /// Construct a coordinate on an explicit vertical geography stratum.
+    pub const fn in_stratum(x: i64, y: i64, stratum: i32) -> Self {
+        Self { x, y, stratum }
     }
 
     /// Resolve this global sample into its owning region chunk and local index.
@@ -67,6 +84,7 @@ impl MacroCoordinate {
         let region = RegionCoordinate {
             x: self.x.div_euclid(resolution),
             y: self.y.div_euclid(resolution),
+            stratum: self.stratum,
         };
         let local_x = self.x.rem_euclid(resolution) as u16;
         let local_y = self.y.rem_euclid(resolution) as u16;
@@ -84,7 +102,8 @@ pub fn coordinate_seed(world_seed: u64, ruleset_version: u32, coordinate: MacroC
     let mut value = mix64(world_seed ^ 0x6D61_6372_6F5F_6765);
     value = mix64(value ^ u64::from(ruleset_version).wrapping_mul(0x9E37_79B9_7F4A_7C15));
     value = mix64(value ^ (coordinate.x as u64).wrapping_mul(0xBF58_476D_1CE4_E5B9));
-    mix64(value ^ (coordinate.y as u64).wrapping_mul(0x94D0_49BB_1331_11EB))
+    value = mix64(value ^ (coordinate.y as u64).wrapping_mul(0x94D0_49BB_1331_11EB));
+    mix64(value ^ (coordinate.stratum as u32 as u64).wrapping_mul(0xD6E8_FEB8_6659_FD93))
 }
 
 fn mix64(value: u64) -> u64 {

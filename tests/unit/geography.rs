@@ -65,3 +65,18 @@ fn coordinate_seed_changes_with_world_ruleset_or_global_position() {
     assert_ne!(baseline, coordinate_seed(42, GEOGRAPHY_RULESET_VERSION + 1, coordinate));
     assert_ne!(baseline, coordinate_seed(42, GEOGRAPHY_RULESET_VERSION, MacroCoordinate::new(-6, 19)));
 }
+
+
+#[test]
+fn underground_strata_keep_horizontal_coordinates_and_change_sample_keys() {
+    let cavern = RegionCoordinate::in_stratum(3, -2, -4);
+    let sample = cavern.global_sample(17, 92).expect("cavern sample should resolve");
+    assert_eq!(sample, MacroCoordinate::in_stratum(785, -420, -4));
+    assert_eq!(sample.region_and_local(), (cavern, 17, 92));
+
+    let surface = MacroCoordinate::new(785, -420);
+    assert_ne!(
+        coordinate_seed(42, GEOGRAPHY_RULESET_VERSION, sample),
+        coordinate_seed(42, GEOGRAPHY_RULESET_VERSION, surface)
+    );
+}

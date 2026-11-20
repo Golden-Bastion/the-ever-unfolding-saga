@@ -7,10 +7,11 @@ The macro-geography module defines the shared coordinate and deterministic sampl
 Implemented in v0.53.1:
 
 - `RegionCoordinate` identifies a fixed 256 × 256 region chunk using signed `i64` chunk coordinates.
-- `MacroCoordinate` identifies a sample in one shared signed global lattice.
+- `MacroCoordinate` identifies a sample in one shared signed global lattice and carries its vertical stratum.
+- Stratum `0` is the surface; negative stratum indices identify underground layers. Surface and underground samples may share horizontal coordinates without sharing sample seeds.
 - Region-local to global conversion uses checked multiplication and addition and rejects local indices outside the chunk.
 - Global to region-local conversion uses Euclidean division and remainder. This is essential for negative coordinates: global sample `-1` belongs to region `-1`, local sample `255`, not region `0`.
-- `coordinate_seed` derives a deterministic seed from the world seed, geography ruleset version, and global sample coordinate. It does not depend on traversal/generation order, runtime IDs, or names.
+- `coordinate_seed` derives a deterministic seed from the world seed, geography ruleset version, and global sample coordinate including stratum. It does not depend on traversal/generation order, runtime IDs, or names.
 - `GEOGRAPHY_RULESET_VERSION` currently identifies the initial coordinate/sampling contract as version `1`.
 
 ## Persistence contract

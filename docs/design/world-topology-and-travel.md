@@ -166,10 +166,10 @@ The intended regional/world map is a geography-informed route graph, not a gener
 The initial macro-geography implementation uses a hierarchical signed coordinate model:
 
 - Each region occupies one fixed **256 × 256 macro-sample chunk**.
-- `RegionCoordinate` identifies a chunk in signed region coordinates. The origin is `(0, 0)`; negative coordinates support expansion in every direction.
-- `MacroCoordinate` identifies a sample in one shared global lattice. Conversion uses Euclidean division/remainder so negative coordinates partition consistently.
+- `RegionCoordinate` identifies a chunk in signed region coordinates. The origin is `(0, 0)`; negative coordinates support expansion in every direction. Its `stratum` is zero at the surface and negative for underground layers.
+- `MacroCoordinate` identifies a sample in one shared global lattice and carries the same stratum index. Conversion uses Euclidean division/remainder so negative coordinates partition consistently; separate underground networks can occupy independently addressable strata while sharing horizontal coordinates.
 - A region-local sample `(x, y)` maps to global sample `(region.x * 256 + x, region.y * 256 + y)`, with checked arithmetic and local indices in `0..256`.
-- Coordinate-derived sample seeds depend only on world seed, geography ruleset version, and signed global coordinate. Generation order, runtime entity IDs, and display names are excluded.
+- Coordinate-derived sample seeds depend only on world seed, geography ruleset version, and signed global coordinate including stratum. Generation order, runtime entity IDs, and display names are excluded.
 - Geography ruleset version `1` identifies this initial coordinate/sampling contract. Legacy saves default to ruleset `0` and unassigned region coordinates until the explicit compatibility embedding migration.
 
 This stage establishes coordinates and deterministic sample keys; it does not yet generate elevation, climate, biomes, coastlines, watersheds, rivers, mountains, underground strata, or location footprints. Region coordinates are gameplay data, not World Map presentation positions. Macro samples are also distinct from local-map tiles; no fixed conversion between those resolutions is implied.
