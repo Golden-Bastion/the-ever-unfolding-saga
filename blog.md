@@ -2,16 +2,16 @@
 layout: default
 title: Devlog
 permalink: /blog/
-description: "Development notes from the making of The Ashen Chronicle: its world, gameplay, interface, and ongoing experiments."
+description: "Development notes from The Ever-Unfolding Saga: its world, gameplay, systems, art, and ongoing experiments."
 ---
 
 # Devlog
 
-The Ashen Chronicle is being built in the open. These notes cover the decisions, improvements, experiments, and rough edges that shape the game as it grows.
+The Ever-Unfolding Saga is built in the open. These notes follow the work behind the game: design decisions, gameplay systems, world-building, visual development, experiments, and the problems encountered along the way.
 
-This is a development log, not a promise that every idea is already in the game. Posts aim to make it clear what has changed, what is still being worked on, and where the project might go next.
+TEUS is an active work in progress. Posts distinguish implemented changes from ideas and future plans; a design direction is not a promise that the corresponding feature is already playable.
 
-Subscribe with the <a href="{{ '/feed.xml' | relative_url }}">Atom feed</a>, or [follow the project on GitHub](https://github.com/right-ward/ashen_chronicle).
+Subscribe with the <a href="{{ '/feed.xml' | relative_url }}">Atom feed</a>, or [follow development on GitHub](https://github.com/Golden-Bastion/the-ever-unfolding-saga).
 
 {% assign blog_posts = site.posts %}
 {% if blog_posts.size > 0 %}
