@@ -1,6 +1,6 @@
 # Changelog History
 
-This file preserves completed work from development lines and milestones before v0.52.x. The current development line is recorded in [CHANGELOG.md](CHANGELOG.md); unfinished work is tracked in [ROADMAP.md](ROADMAP.md).
+This file preserves completed work from older development lines and releases. The current unreleased development line and the latest release notes remain in [CHANGELOG.md](CHANGELOG.md); unfinished work is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Pre-v0.8.0
 
