@@ -37,17 +37,17 @@ This document records ongoing engineering and documentation practices. It is not
 
 ## Changelog and release-note rotation
 
-Keep \`CHANGELOG.md\` as the detailed development record. It may contain implementation history, issue references, validation details, and incremental version entries; it is not the GitHub Release summary.
+Keep `CHANGELOG.md` as the detailed development record. It may contain implementation history, issue references, validation details, and incremental version entries; it is not the GitHub Release summary.
 
-Before creating a version tag, manually replace the template in \`RELEASE-NOTES.md\` with a concise, player-facing summary for that exact release. Its first line must be \`# vMAJOR.MINOR.PATCH — Codename\`, with the version matching the tag. CI/CD rejects a mismatched or incomplete heading, uses that heading as the GitHub Release title, and publishes everything below it as the release description. Do not copy the full changelog into this file.
+Before creating a version tag, manually replace the template in `RELEASE-NOTES.md` with a concise, player-facing summary for that exact release. Its first line must be `# vMAJOR.MINOR.PATCH — Codename`, with the version matching the tag. CI/CD rejects a mismatched or incomplete heading, uses that heading as the GitHub Release title, and publishes everything below it as the release description. Do not copy the full changelog into this file.
 
-After a release is published, the GitHub Release retains its own title and description. Reset \`RELEASE-NOTES.md\` to its template for the next release when appropriate. Keep the current and historical development records in \`CHANGELOG.md\` and \`CHANGELOG-HISTORY.md\`; move older release sections into the history file when a newer development line supersedes them. Update \`ROADMAP.md\` separately to show the current development line and remaining priorities.
+After a release is published, the GitHub Release retains its own title and description. Reset `RELEASE-NOTES.md` to its template for the next release when appropriate. Keep the current and historical development records in `CHANGELOG.md` and `CHANGELOG-HISTORY.md`; move older release sections into the history file when a newer development line supersedes them. Update `ROADMAP.md` separately to show the current development line and remaining priorities.
 
 ## Manual GitHub Actions run cleanup
 
-Workflow-run cleanup is intentionally not part of CI/CD and is not triggered automatically. After a release has completed successfully, run \`.github/scripts/cleanup-workflow-runs.sh --release-tag vMAJOR.MINOR.PATCH\` from the repository checkout to preview cleanup for that release. The script retains the successful CI/CD and Android APK runs for the selected tag, the newest completed PR Checks and License check runs, and every active run. It retries transient GitHub API failures and isolates deletion failures.
+Workflow-run cleanup is intentionally not part of CI/CD and is not triggered automatically. After a release has completed successfully, run `.github/scripts/cleanup-workflow-runs.sh --release-tag vMAJOR.MINOR.PATCH` from the repository checkout to preview cleanup for that release. The script retains the successful CI/CD and Android APK runs for the selected tag, the newest completed PR Checks and License check runs, and every active run. It retries transient GitHub API failures and isolates deletion failures.
 
-The script defaults to a dry run. Review the proposed deletions, then add \`--apply\` to perform them. It requires \`gh\`, \`jq\`, and a GitHub CLI authentication session or \`GH_TOKEN\` with Actions write permission. It also accepts \`--repo owner/repository\` when run outside the repository checkout. Deleting an old workflow run also deletes artifacts attached to that run; release assets uploaded to the GitHub Release are separate and remain available.
+The script defaults to a dry run. Review the proposed deletions, then add `--apply` to perform them. It requires `gh`, `jq`, and a GitHub CLI authentication session or `GH_TOKEN` with Actions write permission. It also accepts `--repo owner/repository` when run outside the repository checkout. Deleting an old workflow run also deletes artifacts attached to that run; release assets uploaded to the GitHub Release are separate and remain available.
 
 ## Cross-platform release coordination
 
