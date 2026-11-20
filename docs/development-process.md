@@ -41,7 +41,7 @@ Keep `CHANGELOG.md` as the detailed development record. It may contain implement
 
 Before creating a version tag, manually replace the template in `RELEASE-NOTES.md` with a concise, player-facing summary for that exact release. Its first line must be `# vMAJOR.MINOR.PATCH — Codename`, with the version matching the tag. CI/CD rejects a mismatched or incomplete heading, uses that heading as the GitHub Release title, and publishes everything below it as the release description. Do not copy the full changelog into this file.
 
-After a release is published, the GitHub Release retains its own title and description. Reset `RELEASE-NOTES.md` to its template for the next release when appropriate. Keep the current and historical development records in `CHANGELOG.md` and `CHANGELOG-HISTORY.md`; move older release sections into the history file when a newer development line supersedes them. Update `ROADMAP.md` separately to show the current development line and remaining priorities.
+After a release is published, the GitHub Release retains its own title and description. `RELEASE-NOTES.md` may retain the concise notes for the just-published release; replace its heading and body with the next version's notes before creating another release tag. Keep the current development record in `CHANGELOG.md` and older completed development lines in `CHANGELOG-HISTORY.md`; move older release sections into the history file when a newer development line supersedes them. Update `ROADMAP.md` separately to show the current development line and remaining priorities.
 
 ## Manual GitHub Actions run cleanup
 
