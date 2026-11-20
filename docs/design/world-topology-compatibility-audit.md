@@ -125,17 +125,26 @@ The sequence in the approved topology design remains appropriate. These substeps
 7. **Integrate known-route fast travel and persistence.** Reuse the existing travel action and interruption semantics. Add conservative migrations and inheritance coverage.
 8. **Replace interim map geography only after authoritative geography exists.** Current graph layout remains presentation-only until it can be derived from actual world data.
 
+## Owner-selected legacy-world policy
+
+On 20 November 2026, the project owner selected deterministic embedding of existing worlds into the coordinate-backed topology. Existing worlds are to be migrated into the new system rather than retained as a separate topology-only mode.
+
+The migration contract is:
+
+- Assign coordinates to existing regions and macro-geographic anchors to existing locations through a deterministic embedding based on saved region/location identities and graph structure.
+- Use stable runtime IDs and deterministic tie-breaking; do not derive placements from mutable display names, current content ordering, or fresh random draws.
+- Persist assigned coordinates, compatibility-seed/provenance metadata, and the embedding version so loading or repeating migration cannot move established places.
+- Preserve runtime IDs, `next_id`, existing graph adjacency (including whether edges are reciprocal), history, character location, and every saved local map and its contents.
+- Treat embedded coordinates and any synthesized surrounding terrain as an explicitly marked compatibility layer, not recovered historical geography. New geography must accommodate established route endpoints and saved local maps rather than relocating them.
+
+This resolves whether legacy worlds should be embedded or left behind. The exact embedding algorithm, coordinate schema, and deterministic compatibility-seed derivation still need to be designed and tested before the save migration is implemented. In particular, geography scale and route geometry must be chosen so the embedding can satisfy the existing graph without pretending that old route layouts were authored against terrain that did not yet exist.
+
 ## Decisions still required before persistent schema work
 
-These choices are not settled by the current code or by the high-level topology direction:
-
-- **Legacy-world representation:** Should old finite worlds receive a deterministic compatibility embedding into region coordinates, or remain explicitly marked as legacy/topology-only while new coordinate-backed regions are introduced through controlled anchors? Either path must preserve the existing graph and local maps; assigning physical terrain to unknown old places must not be presented as recovered historical geography.
 - **Stable route model:** Should a route be a separate persistent record with its own ID/endpoints, or a stable-ID-bearing edge owned by the world graph? The model must support reciprocal routes now and make intentional one-way routes explicit rather than accidental.
 - **Authored placement contract:** Which placement/footprint/connection-point constraints belong on `RegionContent` and `LocationContent`, and how are authored IDs retained in saved runtime entities when display names change?
 - **Geography scale:** What are region dimensions and macro-geography sampling resolution? The design deliberately leaves universal local tile sizes and continuous global terrain implementation details open.
 - **Passage migration policy:** When a route is added/changed after a map has been explored, should migration add a passage to unused space, use a stable authored connection point, or require an explicit map revision? Existing passage positions/state must not silently shift.
-
-The recommended default is to keep legacy worlds playable as legacy topology until the owner approves an explicit, non-destructive mapping policy. Do not fabricate coordinates or backfill physical terrain solely to make the eventual map look geographic.
 
 ## Focused validation required by later implementation stages
 

@@ -83,7 +83,7 @@ World-persistent state includes generated region/location identities, establishe
 
 A successor should be able to revisit locations and routes and encounter the persistent consequences of prior lives. Existing save files and established worlds should retain their current locations, exits, history, and local-map data through conservative migration.
 
-Where older worlds lack regional coordinate metadata, migration must preserve their existing graph rather than rearranging it. Any mapping from an existing finite graph into the expanded regional model must be deterministic and non-destructive.
+**Legacy-world embedding decision (20 November 2026):** existing worlds must be brought into the coordinate-backed topology through a deterministic, one-time compatibility embedding. They will not remain on a separate topology-only path. The embedding must derive placements from the saved region/location identities and graph structure, use stable ID-based tie-breaking, and persist the result with migration provenance. It must preserve all existing runtime IDs, `next_id`, graph edges, world history, and saved local maps. This is a compatibility placement, not a claim that the generated coordinates recover the world's original physical geography. New terrain/geography synthesized around those placements must be explicitly understood as a compatibility layer and must fit around established routes and local maps rather than relocating them. Worlds without generation metadata must also receive a deterministic persisted compatibility seed if the geography layer requires one; that seed must be derived from stable saved data, not display names or mutable content.
 
 ## System boundaries
 

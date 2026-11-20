@@ -16,7 +16,7 @@ The entries below cover the v0.52.x development line through v0.52.70. This line
 ### World-topology compatibility audit
 
 - Audited current world/region/location identities, finite procedural generation, authored-content mapping, reciprocal route graph, local-map identity and passage synchronization, and save-file compatibility before v0.53.x topology work.
-- Recorded persistent-state invariants, implementation gaps, legacy-world and route-model decisions requiring approval, and focused validation requirements. No gameplay, save schema, or version metadata changed.
+- Recorded persistent-state invariants, implementation gaps, open route/placement/scale decisions, and focused validation requirements. The owner selected deterministic, one-time embedding of existing worlds into the coordinate-backed system; the exact migration algorithm remains to be designed. No gameplay, save schema, or version metadata changed.
 
 ### CI/CD workflow maintenance
 
