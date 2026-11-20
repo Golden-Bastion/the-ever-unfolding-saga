@@ -24,7 +24,7 @@ The initial world-topology compatibility audit is complete in [world-topology co
 6. **Make exploration and local maps available consistently across supported location types** while preserving direct location-level actions where spatial traversal is unnecessary.
 7. **Expand the data-driven encounter foundation** with multiple independent encounters, persistent roaming entities, and investigation/clue progression where supported by the underlying world and simulation rules.
 8. **Establish the initial state-driven audio/music boundary,** transition behavior, separate music/SFX settings, and provenance tracking.
-9. **Continue incremental pixel-art production** against the approved visual standard, including dedicated spatial NPC, hostile, and remains artwork tracked by [#484](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/484). Keep asset work progressing alongside topology development; the renderer's existing role-specific mod-resolvable fallbacks mean these assets are not a prerequisite for topology implementation.
+9. **Continue incremental pixel-art production** against the approved visual standard as new visual needs emerge. Dedicated NPC, hostile, and remains artwork is included in the v0.52.70 release; broader asset coverage remains ongoing rather than a blocker for topology implementation.
 
 The compatibility audit is complete; begin persistent topology implementation with [#488](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/488). Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
 
