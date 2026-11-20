@@ -166,6 +166,7 @@ for workflow_name in "${workflow_names[@]}"; do
 done
 
 total_deleted=0
+total_planned=0
 total_failed=0
 
 for workflow_name in "${workflow_names[@]}"; do
@@ -181,6 +182,7 @@ for workflow_name in "${workflow_names[@]}"; do
         <<<"$pages")
 
     deleted=0
+    planned=0
     failed=0
 
     for run in "${runs[@]}"; do
@@ -195,6 +197,7 @@ for workflow_name in "${workflow_names[@]}"; do
 
         if [[ "$apply" != true ]]; then
             echo "Would delete completed run $run_id."
+            ((planned += 1))
             continue
         fi
 
@@ -207,11 +210,20 @@ for workflow_name in "${workflow_names[@]}"; do
         fi
     done
 
-    echo "$workflow_name: deleted $deleted, failed $failed."
+    if [[ "$apply" == true ]]; then
+        echo "$workflow_name: deleted $deleted, failed $failed."
+    else
+        echo "$workflow_name: would delete $planned, failed $failed."
+    fi
+    total_planned=$((total_planned + planned))
     total_deleted=$((total_deleted + deleted))
     total_failed=$((total_failed + failed))
 done
 
 echo
-echo "Cleanup finished: deleted $total_deleted workflow runs; $total_failed deletion(s) failed."
+if [[ "$apply" == true ]]; then
+    echo "Cleanup finished: deleted $total_deleted workflow runs; $total_failed deletion(s) failed."
+else
+    echo "Cleanup preview finished: $total_planned workflow runs would be deleted; no runs were deleted."
+fi
 ((total_failed == 0))
