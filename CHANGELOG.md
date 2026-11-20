@@ -1,10 +1,18 @@
 # Changelog
 
-This file records work completed in the current development line. It is not a list of planned work. Earlier lines are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md), while unfinished work remains in [ROADMAP.md](ROADMAP.md).
+This file records completed work in the current unreleased development line and release notes for the most recent published release. Older releases are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md), while unfinished work remains in [ROADMAP.md](ROADMAP.md).
 
-## v0.52.x — Storage, UI, and spatial-gameplay foundations
+## Unreleased — v0.53.x
 
-The entries below cover the v0.52.x development line through v0.52.70. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+No unreleased changes have been recorded yet.
+
+## v0.52.70 — Storage, UI, and spatial-gameplay foundations
+
+These notes cover the complete v0.52.x development line through its final package version, v0.52.70. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
+
+### Final owner verification
+
+- The project owner confirms that manual desktop and Android landscape verification of the integrated spatial-first gameplay flow (#421) and spatial presentation/player animation (#446) is complete. No manual-playtest blocker remains; owner-performed runtime verification complements rather than replaces automated regression coverage.
 
 ### v0.52.70: Role-specific spatial actor visuals
 
@@ -73,10 +81,6 @@ The entries below cover the v0.52.x development line through v0.52.70. This line
 - Added regression coverage for independent groups, weighted alternatives, delayed eligibility, legacy saves and mod definitions, ID-less profiles, multiple nearby targets, and exact combat targeting.
 - Persistent roaming, awareness/pursuit, respawning, off-screen simulation, and real-time spatial action combat remain separate follow-up work.
 
-## v0.52.x — Storage, UI, and spatial-gameplay foundations
-
-The entries below cover the v0.52.x development line through v0.52.63. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
-
 
 ### v0.52.0: Internal storage and mod-management redesign (#385, #386)
 - Replaced selectable desktop game roots, Android SAF folder selection and mirroring, and multi-root content discovery with one application-managed internal data root per platform. Migration from the removed roots and shared folders was intentionally excluded.
@@ -118,13 +122,13 @@ The entries below cover the v0.52.x development line through v0.52.63. This line
 - Filtered authored-anchor, generated-relationship, and generated-faction metadata from player-facing faction and NPC memories without removing the persistent procedural records.
 - Bumped the project version to 0.52.6.
 
-### v0.52.9: Spatial interaction and modular portrait foundations (PR #404; device validation pending)
+### v0.52.9: Spatial interaction and modular portrait foundations (PR #404)
 - Extended Explore to enter local spatial play at both safe and dangerous locations and removed detached Talk and Search Remains dashboard actions.
 - Added deterministic NPC and searchable-remains placements persisted with local maps, with backward-compatible defaults for older saves.
 - Added stable action/target pairs for nearby NPCs, remains, points of interest, and passages. The current nearest-target control and in-world interaction overlay reuse existing dialogue, quest, time, loot, and recovery rules while keeping the player in the spatial session.
 - Added a mod-extensible, deterministic weighted portrait-part catalogue and bundled 15 transparent 64×96 pixel-art layers across body, face, hair, headgear, and accessory slots. Existing ASCII portraits remain the visible fallback until the dialogue scene composes the layers.
 - Added focused coverage for actor placement, interaction discovery, portrait determinism and compatibility, mod catalogue overrides, and the bundled assets. Formatting, Clippy, all 183 unit tests, REUSE lint, and third-party license checks passed on implementation commit `46cdd86`.
-- Manual desktop and Android landscape playtesting remains required before #404 is complete. The radial interaction wheel, reusable scene transitions, and close-up dialogue scene are follow-up work in #405.
+- The radial interaction wheel, reusable scene transitions, and close-up dialogue scene were follow-up work tracked in #405 and were implemented in subsequent v0.52.x increments; final owner verification is recorded above.
 
 ### v0.52.21: World Lab passage and actor authoring completion (#413, PR #419)
 - Completed the initial Developer Tools milestone with a standalone Developer Tools hub and a portrait-focused Character Workshop using the same modular portrait compositor and mod-aware asset loader as dialogue.
@@ -156,7 +160,7 @@ The entries below cover the v0.52.x development line through v0.52.63. This line
 - Defined the player sprite sheet as a row-major 5×4 atlas of 16×24 frames: north, east, south, and west rows, each with one idle frame followed by four looping walk frames.
 - Integrated four-way screen-facing selection and movement-speed-scaled idle/walk playback into spatial exploration without changing movement, collision, or world-state rules. Blocked movement may change facing but remains idle.
 - Added mod-aware sheet loading and exact atlas-dimension validation; missing, empty, or invalid art falls back to the existing static player sprite.
-- Added the intentionally empty `data/assets/spatial/player_oathbound_animated.png` placeholder and documented its stable path and frame layout. Visible directional artwork and desktop/Android visual verification remain outstanding.
+- Added the intentionally empty `data/assets/spatial/player_oathbound_animated.png` placeholder and documented its stable path and frame layout. The production directional atlas and integration were completed in v0.52.37–v0.52.45; final owner verification is recorded above.
 - Added focused unit coverage for direction selection, frame order, configurable clips, looping, speed scaling, stopping/facing retention, frame-rate independence, and invalid deltas.
 - Bumped the project version to 0.52.24.
 
@@ -173,7 +177,7 @@ The entries below cover the v0.52.x development line through v0.52.63. This line
 - Kept the spatial Leave control as a separate explicit transition to the compatibility dashboard.
 - Paused spatial movement, animation advancement, camera following, and Android virtual-joystick input while the menu is open.
 - Added regression tests for spatial pause entry/exit, parent-screen retention, and input-screen gating.
-- Bumped the project and Android fallback versions to 0.52.26. Desktop and Android landscape playtesting remains outstanding.
+- Bumped the project and Android fallback versions to 0.52.26.
 
 ### v0.52.27: Spatial destination-list travel
 - Added a Travel entry to the existing spatial pause menu without adding a permanent HUD control.
@@ -181,7 +185,7 @@ The entries below cover the v0.52.x development line through v0.52.63. This line
 - Shared the map-preservation and destination-map restoration path between physical passage travel and destination-list travel.
 - Destination selection remains an overlay over spatial exploration. Back returns to the pause menu; successful travel enters the destination's spatial map, while invalid routes leave the source context intact.
 - Added regression coverage for source-map persistence, destination-map restoration, and stale-route rejection.
-- Bumped the project and Android fallback versions to 0.52.27. Desktop and Android landscape playtesting remains outstanding.
+- Bumped the project and Android fallback versions to 0.52.27.
 
 
 ### v0.52.28: Safe meditation entry from spatial exploration
@@ -189,14 +193,14 @@ The entries below cover the v0.52.x development line through v0.52.63. This line
 - Opened the existing dedicated meditation screen from the spatial pause menu and retained the spatial scene as its return context; no artificial movement or permanent HUD control is required.
 - Kept meditation target selection, safety validation, recovery, time advancement, and persistence in the existing action and records systems.
 - Added regression coverage for safe-only visibility, non-spatial exclusion, menu ordering, and conditional menu sizing.
-- Bumped the project and Android fallback versions to 0.52.28. Desktop and Android landscape playtesting remains outstanding.
+- Bumped the project and Android fallback versions to 0.52.28.
 
 
 ### v0.52.29: Contextual investigation in spatial exploration
 - Added an Investigate control beside Interact while an active threat belongs to the current location.
 - Reused the authoritative `bevy_combat::begin` entry point and existing Combat screen; no spatial threat actor or parallel combat rules were introduced.
 - Added regression coverage for inactive, current-location, and other-location threat availability.
-- Bumped Rust and Android version metadata to 0.52.29. Desktop and Android landscape playtesting remains outstanding.
+- Bumped Rust and Android version metadata to 0.52.29.
 
 
 ### v0.52.30: Spatial time-of-day presentation
@@ -205,7 +209,7 @@ The entries below cover the v0.52.x development line through v0.52.63. This line
 - Applied restrained warm dawn/dusk and cool night colour washes to the spatial environment beneath the HUD, preserving the readability of controls and status surfaces.
 - Rebuilt the spatial presentation when the authoritative day/time changes so the sky indicator and environmental treatment cannot drift apart.
 - Added regression tests for the 24-hour time mapping and day-phase lighting bands.
-- Bumped Rust and Android version metadata to 0.52.30. Desktop and Android landscape visual validation remains outstanding.
+- Bumped Rust and Android version metadata to 0.52.30.
 
 
 ### v0.52.31: Spatial lifecycle hand-off and character-context verification
@@ -251,7 +255,7 @@ The entries below cover the v0.52.x development line through v0.52.63. This line
 - Made idle animation advance while the player is stationary and prevented repeated stop/pause calls from resetting the idle cycle.
 - Scaled animated sprites to their manifest-defined frame size while preserving the existing static fallback dimensions, player ground anchor, and collision footprint.
 - Added unit coverage for manifest parsing/validation, row mapping, idle looping, walk looping, movement-speed scaling, and invalid frame deltas.
-- Kept the PNG placeholder empty pending external artwork generation; the static player sprite remains the runtime fallback.
+- Kept the PNG placeholder empty in this increment; production directional artwork and integration followed in v0.52.37–v0.52.45. The static sprite remains the safe fallback when optional animation assets are unavailable or invalid.
 - Bumped Rust and Android fallback version metadata to 0.52.35.
 
 ### v0.52.36: Fix spatial exploration startup query conflict
