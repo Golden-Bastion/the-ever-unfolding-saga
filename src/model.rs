@@ -638,8 +638,7 @@ impl World {
                 (false, true) => RouteDirection::BtoA,
                 (false, false) => continue,
             };
-            self.routes
-                .push(WorldRoute::new(route_id, a, b, direction));
+            self.routes.push(WorldRoute::new(route_id, a, b, direction));
         }
         self.routes.sort_by(|left, right| left.id.cmp(&right.id));
         self.rebuild_location_exit_cache();

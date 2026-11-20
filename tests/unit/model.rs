@@ -265,11 +265,7 @@ fn legacy_route_migration_preserves_missing_directions_and_is_idempotent() {
         20,
         RouteDirection::AtoB,
     )));
-    world
-        .location_by_id_mut(20)
-        .unwrap()
-        .exits
-        .push(10);
+    world.location_by_id_mut(20).unwrap().exits.push(10);
     let expected_next_id = world.next_id;
 
     world.migrate_legacy_exits();
