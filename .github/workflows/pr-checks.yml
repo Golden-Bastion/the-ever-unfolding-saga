@@ -10,6 +10,9 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'data/**'
+      - 'CHANGELOG.md'
+      - '.github/scripts/**'
+      - 'docs/development-process.md'
 
 concurrency:
   group: pr-checks-${{ github.event.pull_request.number }}
@@ -106,6 +109,22 @@ jobs:
           if [ "$clippy_status" -ne 0 ]; then
             exit 1
           fi
+
+  release_metadata:
+    name: Release metadata
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR commit
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+
+      - name: Test changelog release metadata extraction
+        shell: bash
+        run: bash .github/scripts/test-extract-release-notes.sh
 
   test:
     name: Test

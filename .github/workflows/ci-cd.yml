@@ -387,7 +387,7 @@ jobs:
           ref: ${{ needs.prep_build_matrix.outputs.ref }}
           fetch-depth: 0
 
-      - name: Extract release metadata
+      - name: Extract release metadata from CHANGELOG.md
         id: release_metadata
         shell: bash
         env:
@@ -398,52 +398,8 @@ jobs:
           version="${RELEASE_TAG#v}"
           release_notes="${RUNNER_TEMP}/release-notes.md"
 
-          awk -v version="$version" -v heading="## v$version" '
-            $0 == heading || index($0, heading " ") == 1 {
-              found = 1
-              next
-            }
-            found && /^## / {
-              exit
-            }
-            found {
-              print
-            }
-            END {
-              if (!found) {
-                print "No matching release section for v" version " in CHANGELOG.md" > "/dev/stderr"
-                exit 1
-              }
-            }
-          ' CHANGELOG.md > "$release_notes"
-
-          if [[ ! -s "$release_notes" ]]; then
-            echo "Release notes section for v$version is empty."
-            exit 1
-          fi
-
-          release_name="$(awk -v version="$version" '
-            $0 == "## v" version {
-              in_section = 1
-              next
-            }
-            in_section && /^## / {
-              exit
-            }
-            in_section && /^Name:[[:space:]]*/ {
-              sub(/^Name:[[:space:]]*/, "")
-              print
-              exit
-            }
-          ' RELEASE-NAMES.md)"
-
-          if [[ -z "$release_name" ]]; then
-            echo "No release name is defined for v$version in RELEASE-NAMES.md."
-            exit 1
-          fi
-
-          echo "release_name=$release_name" >> "$GITHUB_OUTPUT"
-          echo "Extracted release notes and codename for v$version: $release_name"
+          bash .github/scripts/extract-release-notes.sh \
+            CHANGELOG.md "$version" "$release_notes"
 
       - name: Download release archives
         uses: actions/download-artifact@v8.0.1
@@ -461,7 +417,7 @@ jobs:
         uses: softprops/action-gh-release@v3.0.2
         with:
           tag_name: ${{ needs.prep_build_matrix.outputs.ref }}
-          name: ${{ steps.release_metadata.outputs.release_name }} (${{ needs.prep_build_matrix.outputs.ref }})
+          name: ${{ steps.release_metadata.outputs.release_name }}
           body_path: ${{ runner.temp }}/release-notes.md
           preserve_order: true
           overwrite_files: true
