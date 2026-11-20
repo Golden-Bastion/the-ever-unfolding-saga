@@ -93,11 +93,14 @@ src/
 │   └── seeding.rs           # content-to-world translation
 ├── events.rs                # event runtime
 ├── model.rs                 # shared game-state and entity models
+├── geography.rs             # renderer-neutral macro-geography coordinates and deterministic sample keys
 ├── spatial.rs               # renderer-neutral local-map model and deterministic generation
 ├── persistence.rs           # save/load and migrations
 ├── input.rs                 # frontend-neutral semantic interaction events
 └── rng.rs                   # deterministic/random generation helpers
 ```
+
+The geography module owns signed global/region coordinate conversion and deterministic coordinate-derived seeds. It remains independent of Bevy and local-map tile coordinates; terrain fields and physical feature generation build on this contract.
 
 The exact module list may evolve, but new modules should represent meaningful responsibilities rather than arbitrary slices of large files.
 

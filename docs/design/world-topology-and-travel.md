@@ -161,6 +161,19 @@ The intended regional/world map is a geography-informed route graph, not a gener
 - **Conservative migration:** old worlds without geography metadata retain their existing region/location identities and graph. Migration must assign a stable compatible representation without arbitrarily rearranging or invalidating established content.
 - **Derived map presentation:** the eventual illustrated world/region map is generated from the actual terrain, location visuals, and route data. It must not invent a separate generic landscape or maintain its own competing geography.
 
+### Selected macro-geography coordinate contract
+
+The initial macro-geography implementation uses a hierarchical signed coordinate model:
+
+- Each region occupies one fixed **256 × 256 macro-sample chunk**.
+- `RegionCoordinate` identifies a chunk in signed region coordinates. The origin is `(0, 0)`; negative coordinates support expansion in every direction.
+- `MacroCoordinate` identifies a sample in one shared global lattice. Conversion uses Euclidean division/remainder so negative coordinates partition consistently.
+- A region-local sample `(x, y)` maps to global sample `(region.x * 256 + x, region.y * 256 + y)`, with checked arithmetic and local indices in `0..256`.
+- Coordinate-derived sample seeds depend only on world seed, geography ruleset version, and signed global coordinate. Generation order, runtime entity IDs, and display names are excluded.
+- Geography ruleset version `1` identifies this initial coordinate/sampling contract. Legacy saves default to ruleset `0` and unassigned region coordinates until the explicit compatibility embedding migration.
+
+This stage establishes coordinates and deterministic sample keys; it does not yet generate elevation, climate, biomes, coastlines, watersheds, rivers, mountains, underground strata, or location footprints. Region coordinates are gameplay data, not World Map presentation positions. Macro samples are also distinct from local-map tiles; no fixed conversion between those resolutions is implied.
+
 ### Architectural boundary
 
 World topology owns region/location identity and route edges. A future macro-geography layer owns the continuous terrain model and location placement/footprints. Local-map generation derives playable local environments from those anchors. Travel validates and uses the corresponding physical connections. Map rendering only visualizes these systems; visual layout coordinates are not authoritative world data.
