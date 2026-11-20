@@ -14,11 +14,13 @@ These notes cover the complete v0.52.x development line through its final packag
 
 - The project owner confirms that manual desktop and Android landscape verification of the integrated spatial-first gameplay flow (#421) and spatial presentation/player animation (#446) is complete. No manual-playtest blocker remains; owner-performed runtime verification complements rather than replaces automated regression coverage.
 
-### v0.52.70: Role-specific spatial actor visuals
+### v0.52.70: Role-specific spatial actor visuals and dedicated artwork
 
 - Added separate mod-resolvable world-actor asset candidates for NPCs, hostile encounters, and remains. NPC and hostile visuals fall back to the full-body player sprite before the legacy character icon; corpses and defeated encounters share the remains visual fallback.
 - Centralized actor sprite sizing, role tint, ground-contact offset, projection, and depth placement for persistent interactables and spatial encounters without changing renderer-neutral world data or saved maps.
-- Added regression coverage for role-specific asset candidate order, fallback sharing, and visual distinctions. Dedicated base-game actor artwork and per-character appearance variation remain future asset work.
+- Added original transparent pixel-art base-game sprites for a neutral traveller (`actors/npc.png`, 32×48), an armed hostile marauder (`actors/hostile.png`, 32×48), and searchable remains (`actors/corpse.png`, 48×32). The art follows the existing dark-fantasy palette and three-quarter character presentation.
+- Extended regression coverage to decode all three actor assets, verify their source dimensions, and confirm each has real transparent and opaque pixels. Recorded generation provenance and content licensing in the spatial asset guide.
+- Per-character appearance variation remains future asset work.
 - Bumped Rust and Android version metadata to 0.52.70.
 
 ### World-topology compatibility audit
