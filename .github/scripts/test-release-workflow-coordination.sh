@@ -24,6 +24,10 @@ build_line="$(grep -n '^  build:' "$ci_workflow" | head -n1 | cut -d: -f1)"
 
 require "$ci_workflow" 'needs: prep_build_matrix' \
     "draft release preparation must depend on tag/matrix validation"
+require "$ci_workflow" 'bash .github/scripts/extract-release-notes.sh RELEASE-NOTES.md "$version" "$release_notes"' \
+    "release metadata must come from the manually maintained RELEASE-NOTES.md"
+! grep -Fq 'extract-release-notes.sh CHANGELOG.md' "$ci_workflow" \
+    || fail "CI/CD must not extract release descriptions from CHANGELOG.md"
 require "$ci_workflow" 'gh release create "$TAG_NAME" --draft' \
     "the draft release must be created before platform builds finish"
 require "$ci_workflow" 'needs: [prep_build_matrix, prepare_release]' \

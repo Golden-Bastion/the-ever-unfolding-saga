@@ -27,7 +27,8 @@ Use these sources according to their responsibilities:
 - `docs/architecture.md`: architectural boundaries, responsibilities, and design constraints.
 - `docs/design-principles.md`: game identity and high-level design decisions.
 - `docs/development-process.md`: contribution and development workflow.
-- `CHANGELOG.md`: record of completed project changes.
+- `CHANGELOG.md`: record of completed project changes in the current development line.
+- `RELEASE-NOTES.md`: manually authored, concise, player-facing summary for the next GitHub Release. Never derive the release description by extracting a section from `CHANGELOG.md`.
 - Relevant documents under `docs/`: detailed design and implementation context.
 
 Do not assume an old issue, conversation, or plan overrides the current repository state.
@@ -156,6 +157,7 @@ After completing work:
 - Do not mark partially implemented goals as complete.
 - Update relevant design or architecture documentation when implementation changes affect documented behaviour or boundaries.
 - Update `CHANGELOG.md` according to the project's existing conventions.
+- Maintain `RELEASE-NOTES.md` separately as the concise, manually authored GitHub Release title and description. Its version heading must match the tag exactly; do not copy the full development changelog into it.
 - Use Semantic Versioning.
 - Increment the version when the scope of the work warrants it; do not bump it mechanically for every commit.
 

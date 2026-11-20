@@ -235,7 +235,7 @@ jobs:
             exit 1
           fi
 
-      - name: Extract release metadata from CHANGELOG.md
+      - name: Read manually maintained release notes from RELEASE-NOTES.md
         id: release_metadata
         shell: bash
         env:
@@ -244,7 +244,7 @@ jobs:
           set -euo pipefail
           version="${RELEASE_TAG#v}"
           release_notes="${RUNNER_TEMP}/release-notes.md"
-          bash .github/scripts/extract-release-notes.sh CHANGELOG.md "$version" "$release_notes"
+          bash .github/scripts/extract-release-notes.sh RELEASE-NOTES.md "$version" "$release_notes"
 
       - name: Create or refresh draft GitHub Release
         shell: bash
