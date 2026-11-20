@@ -1,8 +1,8 @@
 use super::{
-    fast_travel_to, find_known_travel_path, has_reciprocal_location_connection, travel_to,
+    fast_travel_to, find_known_travel_path, has_location_travel_route, travel_to,
     MEDITATION_TARGETS,
 };
-use crate::model::{GameState, Location};
+use crate::model::{GameState, Location, RouteDirection, WorldRoute};
 use crate::spatial::{GridPosition, LocalMap, Terrain};
 
 #[test]
@@ -67,19 +67,24 @@ fn travel_requires_reciprocal_world_graph_connections() {
     let initial_turn = game.character.turn;
     let initial_time = game.world.time_points;
     let initial_history = game.world.history.len();
-    assert!(!has_reciprocal_location_connection(&game, destination_id));
+    assert!(!has_location_travel_route(&game, destination_id, None));
     assert!(travel_to(&mut game, destination_id).is_err());
     assert_eq!(game.character.location_id, source_id);
     assert_eq!(game.character.turn, initial_turn);
     assert_eq!(game.world.time_points, initial_time);
     assert_eq!(game.world.history.len(), initial_history);
 
-    game.world
-        .location_by_id_mut(destination_id)
-        .unwrap()
-        .exits
-        .push(source_id);
-    assert!(has_reciprocal_location_connection(&game, destination_id));
+    assert!(game.world.add_route(WorldRoute::new(
+        "route.test.valid",
+        source_id,
+        destination_id,
+        RouteDirection::Bidirectional,
+    )));
+    assert!(has_location_travel_route(
+        &game,
+        destination_id,
+        Some("route.test.valid")
+    ));
     travel_to(&mut game, destination_id).unwrap();
     assert_eq!(game.character.location_id, destination_id);
     assert_eq!(game.character.turn, initial_turn + 1);
@@ -88,7 +93,7 @@ fn travel_requires_reciprocal_world_graph_connections() {
 fn fast_travel_fixture(
     dangerous_middle: bool,
     destination_known: bool,
-    reciprocal_first_route: bool,
+    bidirectional_first_route: bool,
 ) -> (GameState, u64, u64) {
     let mut game = crate::model::create_new_state(
         "Fast Travel Test",
@@ -96,6 +101,10 @@ fn fast_travel_fixture(
         "Ash".into(),
         "Wanderer".into(),
     );
+    game.world.routes.clear();
+    for location in &mut game.world.locations {
+        location.exits.clear();
+    }
     game.campaign_content
         .as_mut()
         .expect("campaign content should be loaded")
@@ -118,7 +127,7 @@ fn fast_travel_fixture(
         region_id: source.region_id,
         dangerous: dangerous_middle,
         corpse_ids: Vec::new(),
-        exits: if reciprocal_first_route {
+        exits: if bidirectional_first_route {
             vec![source_id, destination_id]
         } else {
             vec![destination_id]
@@ -139,6 +148,7 @@ fn fast_travel_fixture(
         .location_by_id_mut(source_id)
         .expect("starting location should still exist")
         .exits = vec![middle_id];
+    game.world.migrate_legacy_exits();
 
     game.world.local_maps.push(known_map(middle_id));
     if destination_known {
@@ -214,10 +224,17 @@ fn fast_travel_rejects_unvisited_destinations_without_changing_world_state() {
 }
 
 #[test]
-fn fast_travel_cannot_use_one_way_connections() {
-    let (game, _, destination_id) = fast_travel_fixture(false, true, false);
+fn fast_travel_follows_one_way_routes_only_in_the_allowed_direction() {
+    let (mut game, middle_id, destination_id) = fast_travel_fixture(false, true, false);
+    let source_id = game.character.location_id;
 
-    assert!(find_known_travel_path(&game, destination_id).is_none());
+    assert_eq!(
+        find_known_travel_path(&game, destination_id),
+        Some(vec![middle_id, destination_id])
+    );
+    game.character.location_id = middle_id;
+    assert!(!has_location_travel_route(&game, source_id, None));
+    assert!(travel_to(&mut game, source_id).is_err());
 }
 
 #[test]

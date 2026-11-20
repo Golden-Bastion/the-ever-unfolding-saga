@@ -138,7 +138,7 @@ fn save_list_metadata_exposes_character_world_and_format_details() {
     assert_eq!(metadata.mod_dependency_count, 1);
     assert_eq!(
         metadata.details_line(),
-        "Level 4 | The Cinder March | Day 12 | Format v4 | 1 mod"
+        "Level 4 | The Cinder March | Day 12 | Format v5 | 1 mod"
     );
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }
@@ -156,7 +156,10 @@ fn save_metadata_details_line_pluralizes_multiple_mod_dependencies() {
 
     assert_eq!(
         metadata.details_line(),
-        "Level 1 | The Cinder March | Day 1 | Format v4 | 2 mods"
+        format!(
+            "Level 1 | The Cinder March | Day 1 | Format v{} | 2 mods",
+            SAVE_FILE_VERSION
+        )
     );
 }
 
@@ -426,5 +429,130 @@ fn invalid_gzip_is_reported_as_invalid_data() {
 
     let err = load_game(&path).expect_err("invalid gzip should fail");
     assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+    fs::remove_dir_all(&dir).expect("temporary directory should be removed");
+}
+
+#[test]
+fn version_four_save_migrates_legacy_edges_and_passages_without_allocating_ids() {
+    let dir = temp_dir();
+    let path = dir.join("version-four-route-migration.json");
+    let mut state = create_new_state(
+        "Legacy Route World",
+        WorldMode::New,
+        "Legacy Warden".to_string(),
+        "Ash Walker".to_string(),
+    );
+    let source_id = state.character.location_id;
+    let destination_id = state
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id != source_id)
+        .expect("world should contain another location")
+        .id;
+    state.world.routes.clear();
+    for location in &mut state.world.locations {
+        location.exits.clear();
+    }
+    state
+        .world
+        .location_by_id_mut(source_id)
+        .unwrap()
+        .exits
+        .push(destination_id);
+
+    let map = crate::spatial::generate_local_map(
+        992,
+        format!("location.{source_id}"),
+        crate::spatial::LocalMapConfig::default(),
+    );
+    let mut map = map;
+    map.exits.push(crate::spatial::MapExit {
+        id: format!("location.{source_id}.exit.{destination_id}"),
+        route_id: None,
+        position: crate::spatial::GridPosition {
+            x: map.width - 1,
+            y: 1,
+        },
+        target_location_id: destination_id,
+    });
+    state.world.local_maps.push(map.clone());
+    state
+        .world
+        .record_history(7, "A legacy route was travelled.");
+    let expected_next_id = state.world.next_id;
+    let expected_history = state.world.history.clone();
+
+    let payload = SaveFile {
+        save_file_version: 4,
+        game: &state,
+        runtime_generated_events: Vec::new(),
+        mod_dependencies: Vec::new(),
+    };
+    let mut json: serde_json::Value =
+        serde_json::to_value(payload).expect("legacy save should serialize");
+    let world = json["game"]["world"]
+        .as_object_mut()
+        .expect("world should be an object");
+    world.remove("routes");
+    let locations = world
+        .get_mut("locations")
+        .and_then(serde_json::Value::as_array_mut)
+        .expect("legacy locations should be an array");
+    let source_index = state
+        .world
+        .locations
+        .iter()
+        .position(|location| location.id == source_id)
+        .unwrap();
+    locations[source_index]["exits"] = serde_json::json!([destination_id]);
+    let target_index = state
+        .world
+        .locations
+        .iter()
+        .position(|location| location.id == destination_id)
+        .unwrap();
+    locations[target_index]["exits"] = serde_json::json!([]);
+    let legacy_exit = &mut world["local_maps"][0]["exits"][0];
+    legacy_exit
+        .as_object_mut()
+        .expect("legacy map passage should be an object")
+        .remove("route_id");
+
+    fs::write(
+        &path,
+        serde_json::to_vec(&json).expect("legacy JSON should serialize"),
+    )
+    .expect("version-four save should be written");
+
+    let loaded = load_game(&path).expect("version-four save should migrate");
+    assert_eq!(loaded.world.next_id, expected_next_id);
+    assert_eq!(loaded.world.history.len(), expected_history.len());
+    assert_eq!(loaded.world.history[0].text, expected_history[0].text);
+    assert_eq!(loaded.world.routes.len(), 1);
+    let route = &loaded.world.routes[0];
+    assert_eq!(
+        route.id,
+        format!(
+            "route.compat.legacy.{}.{}",
+            source_id.min(destination_id),
+            source_id.max(destination_id)
+        )
+    );
+    assert!(route.allows_travel(source_id, destination_id));
+    assert!(!route.allows_travel(destination_id, source_id));
+    assert_eq!(loaded.world.local_maps[0].exits[0].id, map.exits[0].id);
+    assert_eq!(
+        loaded.world.local_maps[0].exits[0].position,
+        map.exits[0].position
+    );
+    assert_eq!(
+        loaded.world.local_maps[0].exits[0].route_id.as_deref(),
+        Some(route.id.as_str())
+    );
+
+    let migrated_again = crate::persistence::normalize_loaded_game(loaded.clone(), 4);
+    assert_eq!(migrated_again.world.routes, loaded.world.routes);
+    assert_eq!(migrated_again.world.next_id, expected_next_id);
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }

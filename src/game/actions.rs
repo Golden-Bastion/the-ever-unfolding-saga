@@ -18,19 +18,24 @@ const MEDITATION_TARGETS: [(u32, &str); 8] = [
     (0, "Deep Night"),
 ];
 
-/// Return whether the active location and destination are joined by a
-/// reciprocal world-graph connection. All travel presentations use this
-/// shared rule; local-map exits are not an independent source of topology.
-pub(crate) fn has_reciprocal_location_connection(state: &GameState, target_id: EntityId) -> bool {
-    let Some(current_location) = state.world.location_by_id(state.character.location_id) else {
+/// Return whether the active location has a route that permits travel to
+/// the destination. When a physical passage supplies a route ID, validate
+/// that exact route rather than accepting another parallel connection.
+pub(crate) fn has_location_travel_route(
+    state: &GameState,
+    target_id: EntityId,
+    route_id: Option<&str>,
+) -> bool {
+    let source_id = state.character.location_id;
+    if state.world.location_by_id(source_id).is_none()
+        || state.world.location_by_id(target_id).is_none()
+    {
         return false;
-    };
-    let Some(target_location) = state.world.location_by_id(target_id) else {
-        return false;
-    };
-
-    current_location.exits.contains(&target_id)
-        && target_location.exits.contains(&current_location.id)
+    }
+    route_id.map_or_else(
+        || state.world.can_travel_between(source_id, target_id),
+        |id| state.world.can_travel_via_route(id, source_id, target_id),
+    )
 }
 
 /// Whether the campaign has established this location as visited.
@@ -78,9 +83,9 @@ pub(crate) fn has_visited_location(state: &GameState, location_id: EntityId) -> 
     })
 }
 
-/// Find a shortest route to a previously visited location using only reciprocal
-/// connections between visited locations. Persistent local maps are authoritative;
-/// retained character-lineage travel history supports saves predating map persistence.
+/// Find a shortest directed route to a previously visited location using only
+/// permitted connections between visited locations. Persistent local maps are
+/// authoritative; retained lineage history supports saves predating map persistence.
 /// The returned IDs are ordered hops and exclude the current location.
 pub(crate) fn find_known_travel_path(
     state: &GameState,
@@ -96,19 +101,16 @@ pub(crate) fn find_known_travel_path(
     let mut previous = HashMap::<EntityId, EntityId>::new();
 
     while let Some(source_id) = queue.pop_front() {
-        let source = state.world.location_by_id(source_id)?;
-        let mut exits = source.exits.clone();
-        exits.sort_unstable();
-        exits.dedup();
+        state.world.location_by_id(source_id)?;
+        let mut exits = state
+            .world
+            .routes_from(source_id)
+            .map(|(route, destination_id)| (route.id.as_str(), destination_id))
+            .collect::<Vec<_>>();
+        exits.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(right.0)));
 
-        for next_id in exits {
-            if visited.contains(&next_id)
-                || !has_visited_location(state, next_id)
-                || !state
-                    .world
-                    .location_by_id(next_id)
-                    .is_some_and(|next| next.exits.contains(&source_id))
-            {
+        for (_, next_id) in exits {
+            if visited.contains(&next_id) || !has_visited_location(state, next_id) {
                 continue;
             }
 
@@ -131,7 +133,7 @@ pub(crate) fn find_known_travel_path(
     None
 }
 
-/// Fast travel skips local movement but follows the known reciprocal route
+/// Fast travel skips local movement but follows the known directed route
 /// network and applies the normal travel action for every hop. A death or active
 /// threat at an intermediate arrival interrupts the journey at that location.
 pub(crate) fn fast_travel_to(
@@ -162,14 +164,28 @@ pub(crate) fn fast_travel_to(
     Ok(traveled)
 }
 
+pub(crate) fn travel_via_route(
+    state: &mut GameState,
+    target_id: EntityId,
+    route_id: &str,
+) -> std::io::Result<()> {
+    if !has_location_travel_route(state, target_id, Some(route_id)) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Travel requires the selected route to connect the current location and destination.",
+        ));
+    }
+    travel_to(state, target_id)
+}
+
 pub(crate) fn travel_to(
     state: &mut GameState,
     target_id: crate::model::EntityId,
 ) -> std::io::Result<()> {
-    if !has_reciprocal_location_connection(state, target_id) {
+    if !has_location_travel_route(state, target_id, None) {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "Travel requires a reciprocal world-graph connection.",
+            "Travel requires a world route that permits travel to the destination.",
         ));
     }
 

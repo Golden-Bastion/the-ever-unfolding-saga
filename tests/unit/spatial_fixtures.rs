@@ -174,6 +174,7 @@ fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
     assert!(map.set_terrain(edge, Terrain::Floor));
     map.exits.push(MapExit {
         id: "location.10.exit.20".into(),
+        route_id: Some("route.fixture.one".into()),
         position: edge,
         target_location_id: 20,
     });
@@ -200,12 +201,17 @@ fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
     assert!(duplicate_passage.set_terrain(second_edge, Terrain::Floor));
     duplicate_passage.exits.push(MapExit {
         id: "location.10.exit.20.duplicate".into(),
+        route_id: Some("route.fixture.two".into()),
         position: second_edge,
         target_location_id: 20,
     });
+    validate_local_map(&duplicate_passage)
+        .expect("distinct route identities may share a destination");
+
+    duplicate_passage.exits[1].route_id = Some("route.fixture.one".into());
     assert!(validate_local_map(&duplicate_passage)
         .unwrap_err()
-        .contains("passage destinations"));
+        .contains("passage route identities"));
 
     let mut duplicate_actor = map.clone();
     let second_actor_cell = (1..map.height - 1)

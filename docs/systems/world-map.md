@@ -8,17 +8,17 @@ The first version intentionally avoids representing geographical terrain. It vis
 
 - The current location is always visible and marked as the current position.
 - Locations with established persistent local maps are shown as explored.
-- Direct exits from the current or an explored location are shown as frontier locations; those locations are not marked explored until their own local map has been established.
-- Connections are drawn only when the corresponding source location's authoritative `exits` list contains the destination. Reciprocal connections are identified separately from one-way connections.
+- Direct routes from the current or an explored location are shown as frontier locations; those locations are not marked explored until their own local map has been established.
+- Connections are derived from authoritative `World.routes` records. Each route has a stable identity, two canonical location endpoints, and explicit bidirectional or one-way direction; separate routes may connect the same pair of locations. `Location.exits` is only a transient adjacency projection and is not saved.
 - The map does not reveal unrelated unvisited locations or pretend that map nodes have geographical distance, direction, terrain, or scale.
 - The current region and current location are shown explicitly above the graph. Region names are also attached to their location nodes.
 - Locations with established local maps are previously visited places. These are the only destinations eligible for fast travel.
-- The map marks a visited destination as fast-travelable only when a shortest path exists from the current location using reciprocal world-graph connections whose intermediate locations have also been visited.
+- The map marks a visited destination as fast-travelable only when a shortest directed path exists from the current location using routes that permit travel in that direction and whose intermediate locations have also been visited.
 - Fast travel executes the normal travel action for every route hop. Each hop advances the world clock and turn, records history, synchronizes quests, and runs arrival events.
 - A death, active threat, or consequential arrival event interrupts a multi-hop journey at that stop. The player resumes ordinary spatial play there; fast travel never skips over an encounter or event.
 - Visible but unvisited frontier locations cannot be selected for fast travel. They must be reached through ordinary movement and physical passages in spatial gameplay.
 - Choosing a fast-travelable map node is the fast-travel action; there is no separate destination-only Travel screen.
-- Physical passage use remains the normal travel path inside spatial gameplay. It continues to validate the immediate reciprocal connection and enters the destination's local map without invoking fast travel.
+- Physical passage use remains the normal travel path inside spatial gameplay. It validates the passage's exact route ID and direction before entering the destination's local map; it does not invoke fast travel.
 
 ## Tracked quest destination marker
 
@@ -30,7 +30,7 @@ The map resolves the first incomplete objective for the tracked quest and marks 
 - `DiscoverEvidence` resolves the stable evidence ID through authored spatial discoveries, then finds the world location containing that discovery.
 - `AcquireItem` and `DefeatEnemy` use the quest's explicitly assigned target location.
 
-The marker advances when the current objective becomes complete. If the objective has no incomplete step or its destination cannot be resolved, no marker is shown. A known tracked destination may be added as a visible map node even beyond the ordinary exploration frontier, but tracking does not mark it explored, invent route connections, or make it eligible for fast travel. Existing world exits and visited-route rules remain authoritative.
+The marker advances when the current objective becomes complete. If the objective has no incomplete step or its destination cannot be resolved, no marker is shown. A known tracked destination may be added as a visible map node even beyond the ordinary exploration frontier, but tracking does not mark it explored, invent route connections, or make it eligible for fast travel. Existing route records and visited-route rules remain authoritative.
 
 Visibility and visit eligibility primarily use `World.local_maps`: establishing a persistent local map records a durable visit. For saves created before that persistence existed, the map also recognizes retained travel-history entries written by the active character or a recorded predecessor in the same inheritance line. This compatibility fallback can only recover visits still present in the bounded history; once an old travel entry has been trimmed, it cannot reconstruct that visit. New visits continue to be recorded through persistent local maps. This is an interim discovery rule, not the final definition of cartography or fog of war.
 
@@ -51,7 +51,7 @@ The current screen remains an interim topological route graph. The eventual geog
 
 Keep the current division between:
 
-1. **World data:** stable region/location identities, local-map persistence, and authoritative route edges.
+1. **World data:** stable region/location identities, local-map persistence, and authoritative route records with stable IDs and explicit direction.
 2. **World-map view:** a renderer-neutral summary of visible locations, their region context, exploration state, and route endpoints.
 3. **Presentation:** temporary graph layout, line routing, visual states, and controls.
 4. **Travel:** ordinary movement and physical-passage transitions remain authoritative in spatial gameplay; fast travel finds a path through previously visited locations and invokes the normal travel action for each hop.

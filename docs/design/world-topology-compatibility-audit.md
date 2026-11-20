@@ -1,5 +1,8 @@
 # World Topology Compatibility Audit
 
+> **Baseline note:** implementation observations below describe the pre-route v0.52.70 state. The v0.53.0 route-record implementation and its remaining boundaries are recorded in [Implementation follow-up](#implementation-follow-up--v0530) at the end of this document.
+
+
 > Audit snapshot: `main` at `ea200cda3d8dfe3fe44d4c1ea52b3c47af722caa` (v0.52.70), 20 November 2026. This document records the current implementation before v0.53.x world-topology changes. It supplements, and does not replace, the settled [World Topology, Local Exploration, and Hybrid Travel](world-topology-and-travel.md) design.
 
 ## Purpose and limits
@@ -116,12 +119,12 @@ A topology migration must preserve at least:
 
 The sequence in the approved topology design remains appropriate. These substeps make its compatibility prerequisites explicit:
 
-1. **Settle identity and legacy-world policy.** Define stable region, location, and route keys; define how worlds without generation metadata/geography will be represented. Do not assign identity from display names or rerun the old generator.
+1. **Finalize geographic identity and legacy embedding.** Define stable coordinate-backed region/location keys and how worlds without generation metadata/geography receive their persisted compatibility embedding. Existing runtime IDs and route identities remain stable; do not assign geographic identity from display names or rerun the old generator.
 2. **Version the generation contract.** Add a versioned ruleset/key contract before using coordinates to derive generated terrain or locations. Keep the current finite-generator behavior for existing saved worlds.
 3. **Introduce regional coordinate/geography primitives.** Establish signed coordinate conventions, region extent/resolution, shared-boundary sampling, and deterministic test oracles before implementing a large terrain field.
-4. **Anchor locations and routes.** Add authored/generated location placement constraints and stable route endpoints; define how route edges map to local `MapExit` records.
+4. **Anchor locations and connect routes.** Add authored/generated location placement constraints and define how existing stable route endpoints map to geographic connection points and local `MapExit` records.
 5. **Implement frontier materialization.** Ensure a frontier region and its connecting route are created once, before presenting the route as usable. Generate only what is required to resolve that frontier.
-6. **Reconcile saved local passages safely.** Specify how new/changed route metadata updates existing maps without shifting old passage identity or discarding local modifications.
+6. **Extend geographic passage reconciliation.** Define terrain-aware connection-point placement for the existing stable routes and local passages while preserving established passage identities, positions, and local modifications.
 7. **Integrate known-route fast travel and persistence.** Reuse the existing travel action and interruption semantics. Add conservative migrations and inheritance coverage.
 8. **Replace interim map geography only after authoritative geography exists.** Current graph layout remains presentation-only until it can be derived from actual world data.
 
@@ -139,12 +142,11 @@ The migration contract is:
 
 This resolves whether legacy worlds should be embedded or left behind. The exact embedding algorithm, coordinate schema, and deterministic compatibility-seed derivation still need to be designed and tested before the save migration is implemented. In particular, geography scale and route geometry must be chosen so the embedding can satisfy the existing graph without pretending that old route layouts were authored against terrain that did not yet exist.
 
-## Decisions still required before persistent schema work
+## Design decisions still open for coordinate-backed topology
 
-- **Stable route model:** Should a route be a separate persistent record with its own ID/endpoints, or a stable-ID-bearing edge owned by the world graph? The model must support reciprocal routes now and make intentional one-way routes explicit rather than accidental.
-- **Authored placement contract:** Which placement/footprint/connection-point constraints belong on `RegionContent` and `LocationContent`, and how are authored IDs retained in saved runtime entities when display names change?
+- **Authored placement contract:** Which placement, footprint, and connection-point constraints belong on `RegionContent` and `LocationContent`, and how should authored IDs be retained in saved runtime entities when display names change?
 - **Geography scale:** What are region dimensions and macro-geography sampling resolution? The design deliberately leaves universal local tile sizes and continuous global terrain implementation details open.
-- **Passage migration policy:** When a route is added/changed after a map has been explored, should migration add a passage to unused space, use a stable authored connection point, or require an explicit map revision? Existing passage positions/state must not silently shift.
+- **Geographic route-to-passage contract:** The v0.53 route layer now gives each passage a stable route ID and reconciles newly added routes into unused edge positions without moving established passages. The later geography layer still needs to define how route endpoints and physical connection points conform to terrain and regional boundaries.
 
 ## Focused validation required by later implementation stages
 
@@ -162,8 +164,20 @@ This resolves whether legacy worlds should be embedded or left behind. The exact
 - `src/model.rs` — `World`, `Region`, `Location`, `WorldGenerationMetadata`, numeric ID allocation, new-world and inherited-world creation.
 - `src/procedural.rs` — finite world generation and authored-location slot mapping.
 - `src/content/definitions.rs` and `src/content/seeding.rs` — authored region/location IDs and content-to-runtime seeding.
-- `src/game/actions.rs` — reciprocal graph validation, visited-location rules, fast-travel pathfinding, and per-hop travel behavior.
+- `src/game/actions.rs` — route-direction validation, visited-location rules, fast-travel pathfinding, and per-hop travel behavior.
 - `src/spatial.rs` — local-map generation, generator version, map exits, and stable map-local structures.
 - `src/bevy_spatial.rs` — lazy map creation, current runtime-derived map keys, graph-to-passage synchronization, and map persistence.
 - `src/persistence.rs` — save version, serde deserialization, and current legacy normalization.
 - `docs/systems/world-map.md` — interim topological map and presentation-only layout contract.
+
+## Implementation follow-up — v0.53.0
+
+The first route-identity layer was implemented after this audit was merged.
+
+- `World.routes` now stores persistent `WorldRoute` records with stable IDs, canonical endpoint ordering, and explicit bidirectional/A-to-B/B-to-A direction. Multiple route IDs may join the same endpoint pair.
+- `Location.exits` is a transient, non-persisted adjacency projection rebuilt from the route records. New save data stores routes rather than a second copy of the graph.
+- Save format v5 migrates version-4 and earlier adjacency data deterministically to `route.compat.legacy.{lower_id}.{higher_id}` IDs. Direction is inferred from the original outgoing adjacency, and the migration does not allocate entity IDs or change `next_id`.
+- Existing local-map passages receive a matching route ID while preserving their existing passage ID and position. New and additional routes are appended through idempotent reconciliation; saved terrain and established passage geometry are not regenerated or moved.
+- Travel, known-route fast-travel traversal, World Map route views, procedural generation, authored seeding, and World Lab route editing now use persistent route records. Physical passage interactions validate the passage's specific route ID.
+
+This layer intentionally does not yet define route type/profile, terrain constraints, macro-geographic route geometry, distance, travel cost, or route discovery state. Those remain dependent on the coordinate-backed world topology design and are not implied by this implementation.

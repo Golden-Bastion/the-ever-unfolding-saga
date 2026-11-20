@@ -256,17 +256,25 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
         .strip_prefix("location.")
         .and_then(|id| id.parse::<u64>().ok());
     let mut exit_ids = HashSet::new();
-    let mut exit_destinations = HashSet::new();
+    let mut route_ids = HashSet::new();
+    let mut legacy_destinations = HashSet::new();
     for exit in &map.exits {
         if exit.id.trim().is_empty() || !exit_ids.insert(exit.id.as_str()) {
             return Err("passage IDs must be non-empty and unique".to_string());
         }
-        if exit.target_location_id == 0
-            || source_location_id == Some(exit.target_location_id)
-            || !exit_destinations.insert(exit.target_location_id)
-        {
+        if exit.target_location_id == 0 || source_location_id == Some(exit.target_location_id) {
             return Err(
-                "passage destinations must be non-zero, unique, and different from the source location"
+                "passage destinations must be non-zero and different from the source location"
+                    .to_string(),
+            );
+        }
+        if let Some(route_id) = exit.route_id.as_deref() {
+            if route_id.trim().is_empty() || !route_ids.insert(route_id) {
+                return Err("passage route identities must be non-empty and unique".to_string());
+            }
+        } else if !legacy_destinations.insert(exit.target_location_id) {
+            return Err(
+                "legacy passages without route identities must have unique destinations"
                     .to_string(),
             );
         }
