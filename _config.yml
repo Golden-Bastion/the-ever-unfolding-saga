@@ -1,7 +1,7 @@
-title: "The Ashen Chronicle"
-description: "A dark-fantasy RPG where your choices outlive your character and the world remembers."
-url: "https://right-ward.github.io"
-baseurl: "/ashen_chronicle"
+title: "The Ever-Unfolding Saga"
+description: "A graphics-first, character-centred dark fantasy RPG about exploration, relationships, and adventures in a persistent world."
+url: "https://golden-bastion.github.io"
+baseurl: "/the-ever-unfolding-saga"
 lang: "en"
 markdown: kramdown
 permalink: /blog/:year/:month/:day/:title/
@@ -18,7 +18,7 @@ header_pages:
 style: dark
 listen_for_clients_preferred_style: true
 disable_google_fonts: true
-footer: '© right-ward · <a href="https://github.com/right-ward">GitHub</a> · <a href="https://right-ward.github.io/ashen_chronicle/feed.xml">Atom feed</a>'
+footer: '© Golden Bastion · <a href="https://github.com/Golden-Bastion">GitHub</a> · <a href="https://golden-bastion.github.io/the-ever-unfolding-saga/feed.xml">Atom feed</a>'
 
 feed:
   posts_limit: 20
