@@ -29,7 +29,7 @@ Use these sources according to their responsibilities:
 - `docs/development-process.md`: contribution and development workflow.
 - `CHANGELOG.md`: record of completed project changes in the current development line.
 - `CHANGELOG-HISTORY.md`: detailed archive of completed work from older development lines and releases.
-- `RELEASE-NOTES.md`: manually authored, concise, player-facing summary for the next GitHub Release. Never derive the release description by extracting a section from `CHANGELOG.md`.
+- `RELEASE-NOTES.md`: manually authored, concise, player-facing summary for the release being prepared or most recently published. Before creating a new release tag, its version heading must match that tag. Never derive the release description by extracting a section from `CHANGELOG.md`.
 - Relevant documents under `docs/`: detailed design and implementation context.
 
 Do not assume an old issue, conversation, or plan overrides the current repository state.
