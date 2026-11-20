@@ -4,7 +4,12 @@ This file records completed work in the current unreleased development line and 
 
 ## Unreleased — v0.53.x
 
-### CI/CD workflow cleanup reliability\n\n- Extracted workflow-run cleanup into a reusable Bash script with safe trigger validation, dry-run/manual modes, and bounded exponential-backoff retries for GitHub API failures.\n- Isolated failures per workflow and per deletion so transient API errors do not abort unrelated cleanup; preserve the current CI/CD run, newest completed companion runs, and all active runs.\n- Run cleanup after successful pushes to `main` as well as version-tag pushes.\n
+### CI/CD workflow cleanup reliability
+
+- Extracted workflow-run cleanup into a reusable Bash script with safe trigger validation, dry-run/manual modes, and bounded exponential-backoff retries for GitHub API failures.
+- Isolated failures per workflow and per deletion so transient API errors do not abort unrelated cleanup; preserve the current CI/CD run, newest completed companion runs, and all active runs.
+- Run cleanup after successful pushes to `main` as well as version-tag pushes.
+
 
 ## v0.52.70 — Storage, UI, and spatial-gameplay foundations
 
