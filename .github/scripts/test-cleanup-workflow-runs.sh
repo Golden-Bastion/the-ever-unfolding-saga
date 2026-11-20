@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "\${BASH_SOURCE[0]}")/../.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 script="$repo_root/.github/scripts/cleanup-workflow-runs.sh"
 test_dir="$(mktemp -d)"
 trap 'rm -rf "$test_dir"' EXIT
@@ -19,12 +19,12 @@ cat > "$test_dir/bin/gh" <<'MOCK_GH'
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "\${1:-}" == "repo" && "\${2:-}" == "view" ]]; then
+if [[ "${1:-}" == "repo" && "${2:-}" == "view" ]]; then
     echo "example/repo"
     exit 0
 fi
 
-[[ "\${1:-}" == "api" ]] || {
+[[ "${1:-}" == "api" ]] || {
     echo "Unexpected gh command: $*" >&2
     exit 2
 }
@@ -70,8 +70,8 @@ if [[ "$args" == *"/actions/workflows/4/runs?per_page=100"* ]]; then
 fi
 
 if [[ "$args" == *"--method DELETE"* ]]; then
-    run_path="\${!#}"
-    run_id="\${run_path##*/}"
+    run_path="${!#}"
+    run_id="${run_path##*/}"
     echo "$run_id" >> "$ATTEMPT_LOG"
 
     if [[ "$run_id" == "102" && ! -f "$RETRY_MARKER" ]]; then
