@@ -59,6 +59,15 @@ if run_extractor "$test_dir/missing-title.md" "0.53.0" "$test_dir/missing-title-
     fail "a missing codename was accepted"
 fi
 
+cat > "$test_dir/placeholder.md" <<'EOF'
+# v0.53.0 — Release Codename
+
+Release body.
+EOF
+if run_extractor "$test_dir/placeholder.md" "0.53.0" "$test_dir/placeholder-notes.md"; then
+    fail "a placeholder release codename was accepted"
+fi
+
 cat > "$test_dir/empty-body.md" <<'EOF'
 # v0.53.0 — The Ashen Threshold
 
