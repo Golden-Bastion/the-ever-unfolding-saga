@@ -451,13 +451,24 @@ fn world_lab_session_uses_real_world_graph_and_reproducible_actor_ids() {
         .location_by_id(scenario.location_id)
         .expect("selected location should exist in the scenario graph");
     assert_eq!(map.location_id, format!("location.{}", source.id));
-    assert_eq!(
-        map.exits
-            .iter()
-            .map(|exit| exit.target_location_id)
-            .collect::<Vec<_>>(),
-        source.exits
-    );
+    let expected_routes = scenario
+        .world
+        .routes_from(source.id)
+        .map(|(route, destination_id)| (route.id.clone(), destination_id))
+        .collect::<Vec<_>>();
+    let actual_routes = map
+        .exits
+        .iter()
+        .map(|exit| {
+            (
+                exit.route_id
+                    .clone()
+                    .expect("world-backed passages retain their route identity"),
+                exit.target_location_id,
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual_routes, expected_routes);
     assert!(!scenario.actors.is_empty());
     assert!(map.interactables.iter().all(|placement| scenario
         .actors
