@@ -107,7 +107,7 @@ for workflow_name in "${workflow_names[@]}"; do
 
     # Retain the current CI/CD run, or the newest run of each companion workflow.
     keep_run_id="$current_run_id"
-    if [[ "$workflow_name" != "CI/CD" ]]; then
+    if [[ "$workflow_name" != "CI/CD" || -z "$keep_run_id" ]]; then
         for run in "${runs[@]}"; do
             IFS=$'\t' read -r candidate_id candidate_status <<<"$run"
             if [[ "$candidate_status" != completed ]]; then
