@@ -397,7 +397,7 @@ jobs:
           version="${RELEASE_TAG#v}"
           release_notes="${RUNNER_TEMP}/release-notes.md"
 
-          awk -v heading="## v$version" '
+          awk -v version="$version" -v heading="## v$version" '
             $0 == heading || index($0, heading " ") == 1 {
               found = 1
               next
