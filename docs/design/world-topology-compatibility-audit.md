@@ -119,10 +119,10 @@ A topology migration must preserve at least:
 
 The sequence in the approved topology design remains appropriate. These substeps make its compatibility prerequisites explicit:
 
-1. **Settle identity and legacy-world policy.** Define stable region, location, and route keys; define how worlds without generation metadata/geography will be represented. Do not assign identity from display names or rerun the old generator.
+1. **Finalize geographic identity and legacy embedding.** Define stable coordinate-backed region/location keys and how worlds without generation metadata/geography receive their persisted compatibility embedding. Existing runtime IDs and route identities remain stable; do not assign geographic identity from display names or rerun the old generator.
 2. **Version the generation contract.** Add a versioned ruleset/key contract before using coordinates to derive generated terrain or locations. Keep the current finite-generator behavior for existing saved worlds.
 3. **Introduce regional coordinate/geography primitives.** Establish signed coordinate conventions, region extent/resolution, shared-boundary sampling, and deterministic test oracles before implementing a large terrain field.
-4. **Anchor locations and routes.** Add authored/generated location placement constraints and stable route endpoints; define how route edges map to local `MapExit` records.
+4. **Anchor locations and connect routes.** Add authored/generated location placement constraints and define how existing stable route endpoints map to geographic connection points and local `MapExit` records.
 5. **Implement frontier materialization.** Ensure a frontier region and its connecting route are created once, before presenting the route as usable. Generate only what is required to resolve that frontier.
 6. **Reconcile saved local passages safely.** Specify how new/changed route metadata updates existing maps without shifting old passage identity or discarding local modifications.
 7. **Integrate known-route fast travel and persistence.** Reuse the existing travel action and interruption semantics. Add conservative migrations and inheritance coverage.
@@ -142,12 +142,11 @@ The migration contract is:
 
 This resolves whether legacy worlds should be embedded or left behind. The exact embedding algorithm, coordinate schema, and deterministic compatibility-seed derivation still need to be designed and tested before the save migration is implemented. In particular, geography scale and route geometry must be chosen so the embedding can satisfy the existing graph without pretending that old route layouts were authored against terrain that did not yet exist.
 
-## Decisions still required before persistent schema work
+## Design decisions still open for coordinate-backed topology
 
-- **Stable route model:** Should a route be a separate persistent record with its own ID/endpoints, or a stable-ID-bearing edge owned by the world graph? The model must support reciprocal routes now and make intentional one-way routes explicit rather than accidental.
-- **Authored placement contract:** Which placement/footprint/connection-point constraints belong on `RegionContent` and `LocationContent`, and how are authored IDs retained in saved runtime entities when display names change?
+- **Authored placement contract:** Which placement, footprint, and connection-point constraints belong on `RegionContent` and `LocationContent`, and how should authored IDs be retained in saved runtime entities when display names change?
 - **Geography scale:** What are region dimensions and macro-geography sampling resolution? The design deliberately leaves universal local tile sizes and continuous global terrain implementation details open.
-- **Passage migration policy:** When a route is added/changed after a map has been explored, should migration add a passage to unused space, use a stable authored connection point, or require an explicit map revision? Existing passage positions/state must not silently shift.
+- **Geographic route-to-passage contract:** The v0.53 route layer now gives each passage a stable route ID and reconciles newly added routes into unused edge positions without moving established passages. The later geography layer still needs to define how route endpoints and physical connection points conform to terrain and regional boundaries.
 
 ## Focused validation required by later implementation stages
 
@@ -165,7 +164,7 @@ This resolves whether legacy worlds should be embedded or left behind. The exact
 - `src/model.rs` — `World`, `Region`, `Location`, `WorldGenerationMetadata`, numeric ID allocation, new-world and inherited-world creation.
 - `src/procedural.rs` — finite world generation and authored-location slot mapping.
 - `src/content/definitions.rs` and `src/content/seeding.rs` — authored region/location IDs and content-to-runtime seeding.
-- `src/game/actions.rs` — reciprocal graph validation, visited-location rules, fast-travel pathfinding, and per-hop travel behavior.
+- `src/game/actions.rs` — route-direction validation, visited-location rules, fast-travel pathfinding, and per-hop travel behavior.
 - `src/spatial.rs` — local-map generation, generator version, map exits, and stable map-local structures.
 - `src/bevy_spatial.rs` — lazy map creation, current runtime-derived map keys, graph-to-passage synchronization, and map persistence.
 - `src/persistence.rs` — save version, serde deserialization, and current legacy normalization.

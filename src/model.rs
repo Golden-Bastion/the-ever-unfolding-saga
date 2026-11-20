@@ -590,22 +590,56 @@ impl World {
             }
         }
 
-        for ((a, b), (a_to_b, b_to_a)) in pairs {
-            if self.has_route_between(a, b) {
+        for ((a, b), (legacy_a_to_b, legacy_b_to_a)) in pairs {
+            let (mut existing_a_to_b, mut existing_b_to_a) = (false, false);
+            for route in self.routes.iter().filter(|route| route.connects(a, b)) {
+                existing_a_to_b |= route.allows_travel(a, b);
+                existing_b_to_a |= route.allows_travel(b, a);
+            }
+
+            let missing_a_to_b = legacy_a_to_b && !existing_a_to_b;
+            let missing_b_to_a = legacy_b_to_a && !existing_b_to_a;
+            if !missing_a_to_b && !missing_b_to_a {
                 continue;
             }
-            let direction = match (a_to_b, b_to_a) {
+
+            let base_route_id = format!("route.compat.legacy.{a}.{b}");
+            if let Some(route) = self
+                .routes
+                .iter_mut()
+                .find(|route| route.id == base_route_id && route.connects(a, b))
+            {
+                let a_to_b = route.allows_travel(a, b) || missing_a_to_b;
+                let b_to_a = route.allows_travel(b, a) || missing_b_to_a;
+                route.direction = match (a_to_b, b_to_a) {
+                    (true, true) => RouteDirection::Bidirectional,
+                    (true, false) => RouteDirection::AtoB,
+                    (false, true) => RouteDirection::BtoA,
+                    (false, false) => continue,
+                };
+                continue;
+            }
+
+            let route_id = if self.routes.iter().any(|route| route.id == base_route_id) {
+                let mut suffix = 1_u32;
+                loop {
+                    let candidate = format!("{base_route_id}.{suffix}");
+                    if self.routes.iter().all(|route| route.id != candidate) {
+                        break candidate;
+                    }
+                    suffix += 1;
+                }
+            } else {
+                base_route_id
+            };
+            let direction = match (missing_a_to_b, missing_b_to_a) {
                 (true, true) => RouteDirection::Bidirectional,
                 (true, false) => RouteDirection::AtoB,
                 (false, true) => RouteDirection::BtoA,
                 (false, false) => continue,
             };
-            self.routes.push(WorldRoute::new(
-                format!("route.compat.legacy.{a}.{b}"),
-                a,
-                b,
-                direction,
-            ));
+            self.routes
+                .push(WorldRoute::new(route_id, a, b, direction));
         }
         self.routes.sort_by(|left, right| left.id.cmp(&right.id));
         self.rebuild_location_exit_cache();

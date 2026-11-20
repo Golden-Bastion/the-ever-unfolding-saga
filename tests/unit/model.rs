@@ -235,6 +235,61 @@ fn world_routes_canonicalize_endpoint_order_and_reverse_direction() {
 }
 
 #[test]
+fn legacy_route_migration_preserves_missing_directions_and_is_idempotent() {
+    let mut world = World::new("Legacy Route Migration", WorldMode::New);
+    world.locations = vec![
+        Location {
+            id: 10,
+            name: "First".into(),
+            description: String::new(),
+            region_id: 1,
+            dangerous: false,
+            corpse_ids: Vec::new(),
+            exits: Vec::new(),
+            spatial_layout: None,
+        },
+        Location {
+            id: 20,
+            name: "Second".into(),
+            description: String::new(),
+            region_id: 1,
+            dangerous: false,
+            corpse_ids: Vec::new(),
+            exits: Vec::new(),
+            spatial_layout: None,
+        },
+    ];
+    assert!(world.add_route(WorldRoute::new(
+        "route.content.forward",
+        10,
+        20,
+        RouteDirection::AtoB,
+    )));
+    world
+        .location_by_id_mut(20)
+        .unwrap()
+        .exits
+        .push(10);
+    let expected_next_id = world.next_id;
+
+    world.migrate_legacy_exits();
+
+    let compatibility_route = world
+        .route_by_id("route.compat.legacy.10.20")
+        .expect("the missing legacy direction should receive a compatibility route");
+    assert_eq!(compatibility_route.direction, RouteDirection::BtoA);
+    assert!(world.can_travel_between(10, 20));
+    assert!(world.can_travel_between(20, 10));
+    assert_eq!(world.next_id, expected_next_id);
+    let migrated_routes = world.routes.clone();
+
+    world.migrate_legacy_exits();
+
+    assert_eq!(world.routes, migrated_routes);
+    assert_eq!(world.next_id, expected_next_id);
+}
+
+#[test]
 fn parallel_world_routes_keep_distinct_identity_and_update_the_derived_exit_cache() {
     let mut state = create_new_state(
         "Parallel Routes",
