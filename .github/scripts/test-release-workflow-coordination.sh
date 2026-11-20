@@ -28,6 +28,8 @@ require "$ci_workflow" 'gh release create "$TAG_NAME" \' \
     "the release must be created before platform builds finish"
 require "$ci_workflow" '--draft \' \
     "the early release must remain a draft"
+require "$ci_workflow" 'needs: [prep_build_matrix, prepare_release]' \
+    "desktop builds must wait until the draft release has been prepared"
 require "$ci_workflow" 'needs: [prep_build_matrix, build, prepare_release]' \
     "final publication must wait for both desktop builds and draft creation"
 require "$ci_workflow" 'teus-$TAG_NAME-android-x86_64.apk' \
