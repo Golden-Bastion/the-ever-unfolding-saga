@@ -34,6 +34,11 @@ fi
 args="$*"
 
 if [[ "$args" == *"/git/ref/tags/v0.53.0"* ]]; then
+    echo '{"object":{"type":"tag","sha":"3333333333333333333333333333333333333333"}}'
+    exit 0
+fi
+
+if [[ "$args" == *"/git/tags/3333333333333333333333333333333333333333"* ]]; then
     echo '{"object":{"type":"commit","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}'
     exit 0
 fi
