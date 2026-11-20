@@ -1,5 +1,5 @@
 use super::*;
-use crate::spatial::generate_local_map;
+use crate::spatial::{configure_map_exits, generate_local_map};
 
 #[test]
 fn spatial_hud_condition_summary_has_a_clear_empty_state() {
