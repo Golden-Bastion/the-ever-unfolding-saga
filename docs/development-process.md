@@ -43,7 +43,11 @@ For a named release, add one optional, single-line `**Codename:** Name` field im
 After publication, retain that most recent release section in `CHANGELOG.md`. When a newer release supersedes it, move older release sections into `CHANGELOG-HISTORY.md` while preserving their headings and entries. Do not archive unreleased work or the current release notes before publication. Update `ROADMAP.md` separately to show the current development line and remaining priorities.
 
 
-## GitHub Actions run cleanup\n\nThe `Cleanup workflow runs` workflow invokes `.github/scripts/cleanup-workflow-runs.sh` after every completed CI/CD run. The script performs cleanup only after a successful push to `main` or a version tag; other events exit without deleting anything. It retains the triggering CI/CD run, the newest completed run for each companion workflow, and all queued or in-progress runs. GitHub API requests use bounded exponential-backoff retries, and deletion failures are isolated so one transient error does not prevent cleanup of other runs. The script supports `--dry-run` for review and `--force` for intentional manual execution. Manual use requires `gh`, `jq`, `GH_TOKEN` with Actions write permission, and `GITHUB_REPOSITORY=owner/repository`.\n\n## Cross-platform release coordination
+## GitHub Actions run cleanup
+
+The `Cleanup workflow runs` workflow invokes `.github/scripts/cleanup-workflow-runs.sh` after every completed CI/CD run. The script performs cleanup only after a successful push to `main` or a version tag; other events exit without deleting anything. It retains the triggering CI/CD run, the newest completed run for each companion workflow, and all queued or in-progress runs. GitHub API requests use bounded exponential-backoff retries, and deletion failures are isolated so one transient error does not prevent cleanup of other runs. The script supports `--dry-run` for review and `--force` for intentional manual execution. Manual use requires `gh`, `jq`, `GH_TOKEN` with Actions write permission, and `GITHUB_REPOSITORY=owner/repository`.
+
+## Cross-platform release coordination
 
 Tag-triggered desktop and Android workflows run independently. The CI/CD workflow therefore creates the GitHub Release as a draft immediately after validating the tag and extracting its title/body from `CHANGELOG.md`, before the desktop build matrix starts. The Android workflow keeps its signed APKs as normal workflow artifacts, then uploads them to that draft release with replacement enabled so a retry does not create duplicate assets.
 
