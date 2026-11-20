@@ -102,6 +102,38 @@ api() {
     done
 }
 
+tag_ref="$(api "repos/$repository/git/ref/tags/$release_tag")" || {
+    echo "Unable to resolve release tag $release_tag; nothing was deleted." >&2
+    exit 1
+}
+object_type="$(jq -r '.object.type // empty' <<<"$tag_ref")"
+object_sha="$(jq -r '.object.sha // empty' <<<"$tag_ref")"
+
+for _ in 1 2 3 4 5; do
+    case "$object_type" in
+        commit) break ;;
+        tag)
+            tag_object="$(api "repos/$repository/git/tags/$object_sha")" || {
+                echo "Unable to resolve annotated tag $release_tag; nothing was deleted." >&2
+                exit 1
+            }
+            object_type="$(jq -r '.object.type // empty' <<<"$tag_object")"
+            object_sha="$(jq -r '.object.sha // empty' <<<"$tag_object")"
+            ;;
+        *)
+            echo "Release tag $release_tag does not resolve to a commit. Nothing was deleted." >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [[ "$object_type" != "commit" || ! "$object_sha" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "Could not resolve release tag $release_tag to a commit. Nothing was deleted." >&2
+    exit 1
+fi
+release_sha="$object_sha"
+echo "Release commit: $release_sha"
+
 workflow_names=("CI/CD" "Android APK" "PR Checks" "License check")
 declare -A workflow_ids run_pages keep_ids
 
@@ -143,13 +175,13 @@ for workflow_name in "${workflow_names[@]}"; do
 
     case "$workflow_name" in
         "CI/CD"|"Android APK")
-            keep_id="$(jq -r --arg tag "$release_tag" '
+            keep_id="$(jq -r --arg sha "$release_sha" '
                 [.[] | .workflow_runs[]?
-                    | select(.head_branch == $tag and .status == "completed" and .conclusion == "success")]
+                    | select(.head_sha == $sha and .status == "completed" and .conclusion == "success")]
                 | sort_by(.created_at) | last | .id // empty
             ' <<<"$pages")"
             if [[ -z "$keep_id" ]]; then
-                echo "No successful completed $workflow_name run was found for $release_tag. Nothing was deleted." >&2
+                echo "No successful completed $workflow_name run was found for release commit $release_sha. Nothing was deleted." >&2
                 exit 1
             fi
             ;;
