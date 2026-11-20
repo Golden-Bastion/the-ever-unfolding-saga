@@ -103,6 +103,8 @@ bash "$script" --release-tag v0.53.0 > "$test_dir/dry-run.log"
 grep -Fq 'Mode: DRY RUN' "$test_dir/dry-run.log" || fail "dry run is not the default"
 grep -Fq 'Would delete completed run 102.' "$test_dir/dry-run.log" || fail "older CI/CD run was not selected"
 grep -Fq 'Keeping active run 103' "$test_dir/dry-run.log" || fail "active workflow run was not retained"
+grep -Fq '4 workflow runs would be deleted; no runs were deleted.' "$test_dir/dry-run.log" \
+    || fail "dry-run summary did not count all planned deletions"
 [[ ! -f "$DELETE_LOG" ]] || fail "dry run deleted a workflow run"
 
 bash "$script" --release-tag v0.53.0 --apply > "$test_dir/apply.log"
