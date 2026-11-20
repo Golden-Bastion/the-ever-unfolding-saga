@@ -24,10 +24,8 @@ build_line="$(grep -n '^  build:' "$ci_workflow" | head -n1 | cut -d: -f1)"
 
 require "$ci_workflow" 'needs: prep_build_matrix' \
     "draft release preparation must depend on tag/matrix validation"
-require "$ci_workflow" 'gh release create "$TAG_NAME" \' \
-    "the release must be created before platform builds finish"
-require "$ci_workflow" '--draft \' \
-    "the early release must remain a draft"
+require "$ci_workflow" 'gh release create "$TAG_NAME" --draft' \
+    "the draft release must be created before platform builds finish"
 require "$ci_workflow" 'needs: [prep_build_matrix, prepare_release]' \
     "desktop builds must wait until the draft release has been prepared"
 require "$ci_workflow" 'needs: [prep_build_matrix, build, prepare_release]' \
@@ -45,7 +43,7 @@ require "$android_workflow" 'retention-days: 7' \
     "Android workflow artifacts must retain their independent recovery window"
 require "$android_workflow" 'for attempt in {1..120}; do' \
     "Android publishing must allow the draft release initialization window"
-require "$android_workflow" 'gh release upload "$TAG_NAME" dist/*.apk --clobber' \
+require "$android_workflow" 'gh release upload "$TAG_NAME" dist/*.apk --clobber --repo "$GITHUB_REPOSITORY"' \
     "Android uploads must safely replace existing release assets on retry"
 
 echo "Release workflow coordination checks passed."
