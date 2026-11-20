@@ -182,12 +182,13 @@ fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
                 width as usize * height as usize * 4,
                 "{reference} should decode to 8-bit RGBA pixels"
             );
+            let pixels = rgba.as_chunks::<4>().0;
             assert!(
-                rgba.chunks_exact(4).any(|pixel| pixel[3] == 0),
+                pixels.iter().any(|pixel| pixel[3] == 0),
                 "{reference} should contain transparent background pixels"
             );
             assert!(
-                rgba.chunks_exact(4).any(|pixel| pixel[3] == 255),
+                pixels.iter().any(|pixel| pixel[3] == 255),
                 "{reference} should contain opaque sprite pixels"
             );
         }
