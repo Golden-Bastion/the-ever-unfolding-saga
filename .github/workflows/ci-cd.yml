@@ -461,7 +461,7 @@ jobs:
         uses: softprops/action-gh-release@v3.0.2
         with:
           tag_name: ${{ needs.prep_build_matrix.outputs.ref }}
-          name: ${{ steps.release_metadata.outputs.release_name }} (v${{ needs.prep_build_matrix.outputs.ref }})
+          name: ${{ steps.release_metadata.outputs.release_name }} (${{ needs.prep_build_matrix.outputs.ref }})
           body_path: ${{ runner.temp }}/release-notes.md
           preserve_order: true
           overwrite_files: true
