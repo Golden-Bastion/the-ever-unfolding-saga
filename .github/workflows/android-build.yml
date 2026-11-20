@@ -552,17 +552,33 @@ jobs:
         run: |
           set -euo pipefail
 
+          release_available=false
           for attempt in {1..120}; do
             if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              gh release upload "$TAG_NAME" dist/*.apk --clobber --repo "$GITHUB_REPOSITORY"
+              release_available=true
               break
             fi
             echo "Release $TAG_NAME is not available yet; retrying ($attempt/120)."
             sleep 5
           done
 
-          if ! gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if [[ "$release_available" != "true" ]]; then
             echo "Timed out waiting for draft GitHub Release $TAG_NAME after 10 minutes."
+            exit 1
+          fi
+
+          uploaded=false
+          for attempt in {1..3}; do
+            if gh release upload "$TAG_NAME" dist/*.apk --clobber --repo "$GITHUB_REPOSITORY"; then
+              uploaded=true
+              break
+            fi
+            echo "APK upload failed; retrying ($attempt/3)."
+            sleep 10
+          done
+
+          if [[ "$uploaded" != "true" ]]; then
+            echo "Could not upload the Android APK assets to release $TAG_NAME."
             exit 1
           fi
 
