@@ -1141,6 +1141,38 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
 }
 
 #[test]
+fn route_reconciliation_distributes_new_passages_round_robin_by_compass_side() {
+    let mut map = generate_local_map(820, "location.10", LocalMapConfig::default());
+    map.props.clear();
+    map.points_of_interest.clear();
+    let routes = (0..6)
+        .map(|slot| MapRouteDestination {
+            route_id: format!("route.slot.{slot:02}"),
+            target_location_id: 20 + slot,
+        })
+        .collect::<Vec<_>>();
+
+    configure_map_routes(&mut map, &routes);
+
+    let sides = map
+        .exits
+        .iter()
+        .map(|exit| {
+            if exit.position.x == map.width - 1 {
+                "east"
+            } else if exit.position.x == 0 {
+                "west"
+            } else if exit.position.y == 0 {
+                "north"
+            } else {
+                "south"
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(sides, vec!["east", "west", "north", "south", "east", "west"]);
+}
+
+#[test]
 fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
     let mut map = generate_local_map(819, "location.10", LocalMapConfig::default());
     let position = GridPosition {
