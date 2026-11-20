@@ -917,6 +917,18 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
     };
     let first_position = find_placement(&map, &exit)
         .expect("at least one east-edge passage should have a clear route");
+
+    let mut self_link_map = map.clone();
+    assert!(!self_link_map.place_map_exit(
+        MapExit {
+            id: "location.10.exit.self".into(),
+            route_id: None,
+            position: first_position,
+            target_location_id: 10,
+        },
+        &[10],
+    ));
+
     let exit = MapExit {
         position: first_position,
         ..exit
