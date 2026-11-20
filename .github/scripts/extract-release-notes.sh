@@ -34,7 +34,8 @@ if [[ "$heading" != "$expected_prefix"* ]]; then
 fi
 
 release_title="${heading:2}"
-if [[ -z "${release_title#v$version — }" ]]; then
+release_codename="${release_title#v$version — }"
+if [[ ! "$release_codename" =~ [^[:space:]] ]]; then
     echo "The release title must include a non-empty codename after the version." >&2
     exit 1
 fi
