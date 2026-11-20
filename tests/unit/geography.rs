@@ -20,8 +20,18 @@ fn region_local_samples_map_to_global_coordinates() {
 fn global_coordinates_partition_correctly_on_positive_and_negative_axes() {
     let cases: [(MacroCoordinate, RegionCoordinate, u16, u16); 6] = [
         (MacroCoordinate::new(0, 0), RegionCoordinate::ORIGIN, 0, 0),
-        (MacroCoordinate::new(255, 255), RegionCoordinate::ORIGIN, 255, 255),
-        (MacroCoordinate::new(256, 0), RegionCoordinate::new(1, 0), 0, 0),
+        (
+            MacroCoordinate::new(255, 255),
+            RegionCoordinate::ORIGIN,
+            255,
+            255,
+        ),
+        (
+            MacroCoordinate::new(256, 0),
+            RegionCoordinate::new(1, 0),
+            0,
+            0,
+        ),
         (
             MacroCoordinate::new(-1, -1),
             RegionCoordinate::new(-1, -1),
@@ -120,11 +130,7 @@ fn coordinate_seed_changes_with_world_ruleset_or_global_position() {
     );
     assert_ne!(
         baseline,
-        coordinate_seed(
-            42,
-            GEOGRAPHY_RULESET_VERSION,
-            MacroCoordinate::new(-6, 19)
-        )
+        coordinate_seed(42, GEOGRAPHY_RULESET_VERSION, MacroCoordinate::new(-6, 19))
     );
 }
 

@@ -613,13 +613,11 @@ fn version_five_save_defaults_unembedded_geography_fields() {
     .expect("version-five save should be written");
 
     let loaded = load_game(&path).expect("version-five save should remain loadable");
-    assert!(
-        loaded
-            .world
-            .regions
-            .iter()
-            .all(|region| region.coordinate.is_none())
-    );
+    assert!(loaded
+        .world
+        .regions
+        .iter()
+        .all(|region| region.coordinate.is_none()));
     assert_eq!(
         loaded.world.generation.unwrap().geography_ruleset_version,
         0,

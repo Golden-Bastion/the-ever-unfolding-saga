@@ -52,8 +52,14 @@ impl RegionCoordinate {
 
         let resolution = i64::from(REGION_SAMPLE_RESOLUTION);
         Some(MacroCoordinate {
-            x: self.x.checked_mul(resolution)?.checked_add(i64::from(local_x))?,
-            y: self.y.checked_mul(resolution)?.checked_add(i64::from(local_y))?,
+            x: self
+                .x
+                .checked_mul(resolution)?
+                .checked_add(i64::from(local_x))?,
+            y: self
+                .y
+                .checked_mul(resolution)?
+                .checked_add(i64::from(local_y))?,
             stratum: self.stratum,
         })
     }
@@ -108,11 +114,7 @@ impl MacroCoordinate {
 /// signed global sample coordinate including stratum. It does not depend on
 /// generation order, runtime entity IDs, or mutable display names. This is a
 /// deterministic non-cryptographic mixer, not a security primitive.
-pub fn coordinate_seed(
-    world_seed: u64,
-    ruleset_version: u32,
-    coordinate: MacroCoordinate,
-) -> u64 {
+pub fn coordinate_seed(world_seed: u64, ruleset_version: u32, coordinate: MacroCoordinate) -> u64 {
     let mut value = mix64(world_seed ^ 0x6D61_6372_6F5F_6765);
     value = mix64(value ^ u64::from(ruleset_version).wrapping_mul(0x9E37_79B9_7F4A_7C15));
     value = mix64(value ^ (coordinate.x as u64).wrapping_mul(0xBF58_476D_1CE4_E5B9));
