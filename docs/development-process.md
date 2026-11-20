@@ -34,6 +34,6 @@ This document records ongoing engineering and documentation practices. It is not
 - Do not describe a planned feature as implemented or a source-level test as proof of device-level behavior.
 - Keep third-party asset and audio provenance and license terms traceable in project documentation.
 
-## Changelog rotation
+## Changelog and release-note rotation
 
-When a development line or milestone is finalized, move its complete section from CHANGELOG.md into CHANGELOG-HISTORY.md, retaining its heading and entries. Start a fresh current section in CHANGELOG.md for the next line. Do not move an unfinished milestone out of the active changelog merely because a patch release occurred. Update the roadmap separately to remove completed work and show the next priorities.
+Keep an `Unreleased` section for the current development line and retain the most recent published release section in `CHANGELOG.md`. The release workflow extracts the section whose heading exactly matches `## vMAJOR.MINOR.PATCH` and uses its contents as the GitHub Release body. Keep that exact section in place until its tag-triggered release has been published. When a newer release supersedes it, move older release sections into `CHANGELOG-HISTORY.md` while preserving their headings and entries. Do not archive unreleased work or the current release notes before publication. Update `ROADMAP.md` separately to show the current development line and remaining priorities.
