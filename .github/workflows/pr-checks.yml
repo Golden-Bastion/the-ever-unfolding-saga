@@ -11,6 +11,7 @@ on:
       - 'Cargo.lock'
       - 'data/**'
       - 'CHANGELOG.md'
+      - 'RELEASE-NOTES.md'
       - '.github/scripts/**'
       - 'docs/development-process.md'
 
@@ -122,7 +123,7 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
 
-      - name: Test changelog release metadata extraction
+      - name: Test release notes and workflow cleanup scripts
         shell: bash
         run: |
           bash .github/scripts/test-extract-release-notes.sh
