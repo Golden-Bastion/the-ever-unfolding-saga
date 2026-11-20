@@ -107,9 +107,7 @@ pub(crate) fn find_known_travel_path(
             .routes_from(source_id)
             .map(|(route, destination_id)| (route.id.as_str(), destination_id))
             .collect::<Vec<_>>();
-        exits.sort_by(|left, right| {
-            left.1.cmp(&right.1).then_with(|| left.0.cmp(right.0))
-        });
+        exits.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(right.0)));
 
         for (_, next_id) in exits {
             if visited.contains(&next_id) || !has_visited_location(state, next_id) {

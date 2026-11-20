@@ -95,8 +95,7 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         })
         .collect();
 
-    let mut route_directions =
-        std::collections::BTreeMap::<(u64, u64), (bool, bool)>::new();
+    let mut route_directions = std::collections::BTreeMap::<(u64, u64), (bool, bool)>::new();
     for source in &state.world.locations {
         if source.id != current.id && !is_explored(source.id) {
             continue;

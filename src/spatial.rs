@@ -1864,7 +1864,6 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
     }
 }
 
-
 /// Route passages around the authored chamber so extra graph connections do
 /// not punch arbitrary holes through its walls or remove its furniture.
 fn carve_shrine_chamber_exit_corridor(map: &mut LocalMap, exit: GridPosition, side: usize) -> bool {

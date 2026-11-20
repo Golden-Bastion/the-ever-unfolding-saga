@@ -285,5 +285,10 @@ fn parallel_world_routes_keep_distinct_identity_and_update_the_derived_exit_cach
 
     assert!(state.world.remove_route("route.test.trail"));
     assert!(state.world.routes.is_empty());
-    assert!(state.world.location_by_id(source_id).unwrap().exits.is_empty());
+    assert!(state
+        .world
+        .location_by_id(source_id)
+        .unwrap()
+        .exits
+        .is_empty());
 }

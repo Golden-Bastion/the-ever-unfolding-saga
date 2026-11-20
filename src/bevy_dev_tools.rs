@@ -24,8 +24,8 @@ use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
 use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_routes, ensure_spatial_entity_placements,
     generate_local_map_with_layout, DoorState, GridEdge, GridPosition, LocalMap, LocalMapConfig,
-    MapExit, MapRouteDestination, PointOfInterest, SpatialDiscoveryDefinition, SpatialDoor, SpatialEntityKind,
-    SpatialEntityPlacement, SpatialPropKind, SpatialRoom, Terrain,
+    MapExit, MapRouteDestination, PointOfInterest, SpatialDiscoveryDefinition, SpatialDoor,
+    SpatialEntityKind, SpatialEntityPlacement, SpatialPropKind, SpatialRoom, Terrain,
 };
 #[cfg(not(target_os = "android"))]
 use crate::spatial_fixtures::load_spatial_fixture;
@@ -548,9 +548,10 @@ fn restore_world_lab_scenario(map: &LocalMap) -> Option<WorldLabScenario> {
         .map(|location| location.id)
         .filter(|id| *id != location_id)
         .collect::<Vec<_>>();
-    scenario.world.routes.retain(|route| {
-        route.location_a_id != location_id && route.location_b_id != location_id
-    });
+    scenario
+        .world
+        .routes
+        .retain(|route| route.location_a_id != location_id && route.location_b_id != location_id);
     for exit in map
         .exits
         .iter()
@@ -1236,11 +1237,7 @@ fn cycle_world_lab_selected_value(state: &mut DeveloperToolsState) {
     }
 }
 
-fn link_world_lab_locations(
-    state: &mut DeveloperToolsState,
-    target_id: u64,
-    route_id: &str,
-) {
+fn link_world_lab_locations(state: &mut DeveloperToolsState, target_id: u64, route_id: &str) {
     let Some(scenario) = state.world_lab_scenario.as_mut() else {
         return;
     };
@@ -1255,11 +1252,7 @@ fn link_world_lab_locations(
     }
 }
 
-fn unlink_world_lab_route(
-    state: &mut DeveloperToolsState,
-    target_id: u64,
-    route_id: Option<&str>,
-) {
+fn unlink_world_lab_route(state: &mut DeveloperToolsState, target_id: u64, route_id: Option<&str>) {
     let Some(scenario) = state.world_lab_scenario.as_mut() else {
         return;
     };

@@ -262,9 +262,7 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
         if exit.id.trim().is_empty() || !exit_ids.insert(exit.id.as_str()) {
             return Err("passage IDs must be non-empty and unique".to_string());
         }
-        if exit.target_location_id == 0
-            || source_location_id == Some(exit.target_location_id)
-        {
+        if exit.target_location_id == 0 || source_location_id == Some(exit.target_location_id) {
             return Err(
                 "passage destinations must be non-zero and different from the source location"
                     .to_string(),

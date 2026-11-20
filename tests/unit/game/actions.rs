@@ -80,7 +80,11 @@ fn travel_requires_reciprocal_world_graph_connections() {
         destination_id,
         RouteDirection::Bidirectional,
     )));
-    assert!(has_location_travel_route(&game, destination_id, Some("route.test.valid")));
+    assert!(has_location_travel_route(
+        &game,
+        destination_id,
+        Some("route.test.valid")
+    ));
     travel_to(&mut game, destination_id).unwrap();
     assert_eq!(game.character.location_id, destination_id);
     assert_eq!(game.character.turn, initial_turn + 1);

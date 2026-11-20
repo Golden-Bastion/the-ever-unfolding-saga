@@ -291,9 +291,7 @@ fn normalize_loaded_game(mut game: GameState, save_file_version: u32) -> GameSta
             }
             let route_id = routes
                 .iter()
-                .filter(|route| {
-                    route.allows_travel(source_id, exit.target_location_id)
-                })
+                .filter(|route| route.allows_travel(source_id, exit.target_location_id))
                 .map(|route| route.id.as_str())
                 .min()
                 .map(str::to_string);

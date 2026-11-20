@@ -56,8 +56,7 @@ impl CampaignContent {
                     .map(|runtime| (location.id.as_str(), runtime.id))
             })
             .collect::<std::collections::HashMap<_, _>>();
-        let mut authored_edges =
-            std::collections::BTreeMap::<(u64, u64), (bool, bool)>::new();
+        let mut authored_edges = std::collections::BTreeMap::<(u64, u64), (bool, bool)>::new();
 
         for location in &self.world.locations {
             let Some(source_id) = authored_runtime_ids.get(location.id.as_str()).copied() else {

@@ -27,10 +27,9 @@ use crate::interaction_actions::{
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_routes, ensure_spatial_entity_placements,
-    generate_local_map_with_layout, ExplorationSession, GridPosition,
-    LocalMap, LocalMapConfig, MapExit, MapRouteDestination, SpatialDiscoveryDefinition,
-    SpatialEncounterStatus, SpatialEntityKind,
-    SpatialPropKind, Terrain,
+    generate_local_map_with_layout, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
+    MapExit, MapRouteDestination, SpatialDiscoveryDefinition, SpatialEncounterStatus,
+    SpatialEntityKind, SpatialPropKind, Terrain,
 };
 use crate::spatial_animation::{
     PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,
@@ -1617,7 +1616,12 @@ fn use_map_exit(
             map.exits
                 .iter()
                 .find(|exit| exit.id == exit_id && exit.target_location_id == target_location_id)
-                .map(|exit| (exit.route_id.clone(), exit_interaction_available(map, state.position, exit)))
+                .map(|exit| {
+                    (
+                        exit.route_id.clone(),
+                        exit_interaction_available(map, state.position, exit),
+                    )
+                })
         });
 
     let Some((route_id, passage_available)) = selected_passage else {
@@ -1751,11 +1755,7 @@ fn travel_to_location(
 
     let travel_result = lifecycle.session.as_mut().map(|session| {
         if let Some(route_id) = route_id {
-            crate::game::actions::travel_via_route(
-                &mut session.state,
-                target_location_id,
-                route_id,
-            )
+            crate::game::actions::travel_via_route(&mut session.state, target_location_id, route_id)
         } else {
             crate::game::actions::travel_to(&mut session.state, target_location_id)
         }

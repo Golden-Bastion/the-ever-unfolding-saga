@@ -1297,7 +1297,11 @@ fn physical_passage_rejects_a_stale_world_connection_without_traveling() {
         .unwrap()
         .state
         .world
-        .remove_route(exit.route_id.as_deref().expect("passage should identify its route"));
+        .remove_route(
+            exit.route_id
+                .as_deref()
+                .expect("passage should identify its route"),
+        );
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
 
     use_map_exit(
@@ -1344,7 +1348,11 @@ fn physical_passage_allows_a_one_way_route_in_its_permitted_direction() {
         .location_id;
     {
         let world = &mut lifecycle.session.as_mut().unwrap().state.world;
-        world.remove_route(exit.route_id.as_deref().expect("passage should identify its route"));
+        world.remove_route(
+            exit.route_id
+                .as_deref()
+                .expect("passage should identify its route"),
+        );
         assert!(world.add_route(crate::model::WorldRoute::new(
             "route.test.connected",
             source_location_id,
@@ -1372,7 +1380,6 @@ fn physical_passage_allows_a_one_way_route_in_its_permitted_direction() {
     assert_eq!(game.character.turn, before_turn + 1);
     assert_ne!(spatial.session.as_ref().unwrap().location_id, source_key);
 }
-
 
 #[test]
 fn physical_passage_generates_a_destination_map_on_first_arrival() {

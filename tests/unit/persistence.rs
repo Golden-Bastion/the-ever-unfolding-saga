@@ -467,11 +467,16 @@ fn version_four_save_migrates_legacy_edges_and_passages_without_allocating_ids()
     map.exits.push(crate::spatial::MapExit {
         id: format!("location.{source_id}.exit.{destination_id}"),
         route_id: None,
-        position: crate::spatial::GridPosition { x: map.width - 1, y: 1 },
+        position: crate::spatial::GridPosition {
+            x: map.width - 1,
+            y: 1,
+        },
         target_location_id: destination_id,
     });
     state.world.local_maps.push(map.clone());
-    state.world.record_history(7, "A legacy route was travelled.");
+    state
+        .world
+        .record_history(7, "A legacy route was travelled.");
     let expected_next_id = state.world.next_id;
     let expected_history = state.world.history.clone();
 
@@ -523,13 +528,17 @@ fn version_four_save_migrates_legacy_edges_and_passages_without_allocating_ids()
     assert_eq!(loaded.world.history[0].text, expected_history[0].text);
     assert_eq!(loaded.world.routes.len(), 1);
     let route = &loaded.world.routes[0];
-    assert_eq!(route.id, format!("route.compat.legacy.{}.{}", source_id.min(destination_id), source_id.max(destination_id)));
+    assert_eq!(
+        route.id,
+        format!(
+            "route.compat.legacy.{}.{}",
+            source_id.min(destination_id),
+            source_id.max(destination_id)
+        )
+    );
     assert!(route.allows_travel(source_id, destination_id));
     assert!(!route.allows_travel(destination_id, source_id));
-    assert_eq!(
-        loaded.world.local_maps[0].exits[0].id,
-        map.exits[0].id
-    );
+    assert_eq!(loaded.world.local_maps[0].exits[0].id, map.exits[0].id);
     assert_eq!(
         loaded.world.local_maps[0].exits[0].position,
         map.exits[0].position
@@ -539,10 +548,7 @@ fn version_four_save_migrates_legacy_edges_and_passages_without_allocating_ids()
         Some(route.id.as_str())
     );
 
-    let migrated_again = crate::persistence::normalize_loaded_game(
-        loaded.clone(),
-        4,
-    );
+    let migrated_again = crate::persistence::normalize_loaded_game(loaded.clone(), 4);
     assert_eq!(migrated_again.world.routes, loaded.world.routes);
     assert_eq!(migrated_again.world.next_id, expected_next_id);
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");

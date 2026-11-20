@@ -56,17 +56,16 @@ impl WorldRoute {
         second_location_id: EntityId,
         direction: RouteDirection,
     ) -> Self {
-        let (location_a_id, location_b_id, direction) =
-            if first_location_id <= second_location_id {
-                (first_location_id, second_location_id, direction)
-            } else {
-                let direction = match direction {
-                    RouteDirection::Bidirectional => RouteDirection::Bidirectional,
-                    RouteDirection::AtoB => RouteDirection::BtoA,
-                    RouteDirection::BtoA => RouteDirection::AtoB,
-                };
-                (second_location_id, first_location_id, direction)
+        let (location_a_id, location_b_id, direction) = if first_location_id <= second_location_id {
+            (first_location_id, second_location_id, direction)
+        } else {
+            let direction = match direction {
+                RouteDirection::Bidirectional => RouteDirection::Bidirectional,
+                RouteDirection::AtoB => RouteDirection::BtoA,
+                RouteDirection::BtoA => RouteDirection::AtoB,
             };
+            (second_location_id, first_location_id, direction)
+        };
         Self {
             id: id.into(),
             location_a_id,
@@ -77,8 +76,7 @@ impl WorldRoute {
 
     pub fn connects(&self, first_location_id: EntityId, second_location_id: EntityId) -> bool {
         (self.location_a_id == first_location_id && self.location_b_id == second_location_id)
-            || (self.location_a_id == second_location_id
-                && self.location_b_id == first_location_id)
+            || (self.location_a_id == second_location_id && self.location_b_id == first_location_id)
     }
 
     pub fn allows_travel(&self, source_id: EntityId, destination_id: EntityId) -> bool {
