@@ -41,3 +41,12 @@ Keep an `Unreleased` section for the current development line and keep the relea
 For a named release, add one optional, single-line `**Codename:** Name` field immediately below that version's heading. The release workflow extracts the matching version section, removes this metadata line from the release body, and sets the GitHub Release title to `vMAJOR.MINOR.PATCH — Name`. The codename is independent of any descriptive text already present in the version heading. If no codename field is present, the GitHub Release title falls back to the version tag; older changelog sections therefore remain valid without edits. Keep the release section's remaining contents as the release body.
 
 After publication, retain that most recent release section in `CHANGELOG.md`. When a newer release supersedes it, move older release sections into `CHANGELOG-HISTORY.md` while preserving their headings and entries. Do not archive unreleased work or the current release notes before publication. Update `ROADMAP.md` separately to show the current development line and remaining priorities.
+
+
+## Cross-platform release coordination
+
+Tag-triggered desktop and Android workflows run independently. The CI/CD workflow therefore creates the GitHub Release as a draft immediately after validating the tag and extracting its title/body from `CHANGELOG.md`, before the desktop build matrix starts. The Android workflow keeps its signed APKs as normal workflow artifacts, then uploads them to that draft release with replacement enabled so a retry does not create duplicate assets.
+
+The desktop release job uploads its five archives to the same draft, verifies that all five desktop archives and all three Android APKs are attached, and only then changes the release from draft to published. If either platform build or upload fails, the draft remains available for recovery and is not presented as a complete public release. Desktop and Android workflow artifacts remain independently available for their configured seven-day retention period; release assets are the durable cross-workflow hand-off.
+
+The optional itch.io publication continues to wait for and download the complete eight-asset set from the GitHub Release before publishing platform channels.

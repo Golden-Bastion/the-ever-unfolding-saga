@@ -124,7 +124,9 @@ jobs:
 
       - name: Test changelog release metadata extraction
         shell: bash
-        run: bash .github/scripts/test-extract-release-notes.sh
+        run: |
+          bash .github/scripts/test-extract-release-notes.sh
+          bash .github/scripts/test-release-workflow-coordination.sh
 
   test:
     name: Test
