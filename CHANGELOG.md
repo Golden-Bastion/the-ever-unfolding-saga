@@ -2,8 +2,8 @@
 
 ### Release and workflow maintenance
 
-- Added a manually maintained \`RELEASE-NOTES.md\` for concise, version-specific GitHub Release summaries. CI/CD validates its version heading and uses its title and body instead of extracting the large development changelog.
-- Removed automatic workflow-run cleanup from GitHub Actions. The standalone cleanup script now targets a specified release, previews deletions by default, requires \`--apply\` to delete, retries transient API errors, and preserves the selected release runs and active runs.
+- Added a manually maintained `RELEASE-NOTES.md` for concise, version-specific GitHub Release summaries. CI/CD validates its version heading and uses its title and body instead of extracting the large development changelog.
+- Removed automatic workflow-run cleanup from GitHub Actions. The standalone cleanup script now targets a specified release, previews deletions by default, requires `--apply` to delete, retries transient API errors, and preserves the selected release runs and active runs.
 
 
 ## v0.52.70 — Storage, UI, and spatial-gameplay foundations
