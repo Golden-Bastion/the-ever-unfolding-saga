@@ -10,7 +10,7 @@ This file records completed work in the current unreleased development line. Old
 - Added deterministic migration of legacy location adjacency into route records. IDs derive from saved endpoint IDs, one-way edges remain one-way, and the migration does not allocate runtime entity IDs or change `World.next_id`.
 - Bumped the save format to v5. Legacy local-map passages retain their original IDs and positions while receiving matching route IDs; new route connections are reconciled into existing maps without regenerating terrain or relocating established passages.
 - Linked physical passage interactions to their exact route identities, allowed distinct routes to share the same destination, and updated normal travel, fast-travel pathfinding, the interim World Map, campaign seeding, procedural generation, and World Lab route authoring to use route records.
-- Added regression coverage for legacy save migration, one-way travel, route-linked passages, multiple routes to one destination, and idempotent map reconciliation. Kept destination-only passage fixture coverage on the retained `configure_map_exits` compatibility helper.
+- Added regression coverage for legacy save migration, one-way travel, route-linked passages, multiple routes to one destination, and idempotent map reconciliation. Kept destination-only passage fixture coverage on the retained `configure_map_exits` compatibility helper, including maps with opaque content IDs. World Lab coverage compares stable route identities and destinations rather than the lossy legacy adjacency cache.
 - Bumped Rust and Android version metadata to 0.53.0.
 
 ### Release and workflow maintenance
