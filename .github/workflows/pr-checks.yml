@@ -127,6 +127,7 @@ jobs:
         run: |
           bash .github/scripts/test-extract-release-notes.sh
           bash .github/scripts/test-release-workflow-coordination.sh
+          bash .github/scripts/test-cleanup-workflow-runs.sh
 
   test:
     name: Test
