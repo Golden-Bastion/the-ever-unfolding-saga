@@ -1,6 +1,6 @@
 # Changelog
 
-This file records completed work in the current unreleased development line and release notes for the most recent published release. Older releases are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md), while unfinished work remains in [ROADMAP.md](ROADMAP.md).
+This file records completed work in the current unreleased development line and release notes for the current release. Older releases are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md), while unfinished work remains in [ROADMAP.md](ROADMAP.md).
 
 ## Unreleased — v0.53.x
 
@@ -30,6 +30,7 @@ These notes cover the complete v0.52.x development line through its final packag
 
 - Removed an empty step-level `env` declaration from the formatting-and-tests job so GitHub Actions can validate the workflow configuration.
 - Declared `prep_build_matrix` as a direct dependency of the release job so its selected source-ref output is available to the release steps.
+- Aligned the Android Gradle local-build fallback version code with the version-derived CI value for v0.52.70.
 
 ### v0.52.69: Character quest tracking and World Map destination marker
 
