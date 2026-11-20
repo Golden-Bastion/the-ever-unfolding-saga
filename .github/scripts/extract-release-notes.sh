@@ -35,8 +35,13 @@ fi
 
 release_title="${heading:2}"
 release_codename="${release_title#v$version — }"
-if [[ ! "$release_codename" =~ [^[:space:]] ]]; then
+if [[ ! "$release_codename" =~ [^[:space:]] || "$release_codename" == "Release Codename" ]]; then
     echo "The release title must include a non-empty codename after the version." >&2
+    exit 1
+fi
+
+if grep -Fq "Replace this template before creating the release tag." "$release_file"; then
+    echo "RELEASE-NOTES.md still contains template instructions." >&2
     exit 1
 fi
 
