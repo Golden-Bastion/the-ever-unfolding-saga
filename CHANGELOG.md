@@ -8,6 +8,8 @@ No unreleased changes have been recorded yet.
 
 ## v0.52.70 — Storage, UI, and spatial-gameplay foundations
 
+**Codename:** The Ashen Threshold
+
 These notes cover the complete v0.52.x development line through its final package version, v0.52.70. This line established the storage and mod-management foundation, rebuilt core UI surfaces, introduced spatial exploration and authoring tools, migrated in-session play to the spatial world, and began the retained-presentation architecture.
 
 ### Final owner verification
