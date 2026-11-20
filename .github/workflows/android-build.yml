@@ -552,17 +552,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          for attempt in {1..60}; do
+          for attempt in {1..120}; do
             if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
               gh release upload "$TAG_NAME" dist/*.apk --clobber --repo "$GITHUB_REPOSITORY"
               break
             fi
-            echo "Release $TAG_NAME is not available yet; retrying ($attempt/60)."
+            echo "Release $TAG_NAME is not available yet; retrying ($attempt/120)."
             sleep 5
           done
 
           if ! gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Timed out waiting for GitHub Release $TAG_NAME."
+            echo "Timed out waiting for draft GitHub Release $TAG_NAME after 10 minutes."
             exit 1
           fi
 
