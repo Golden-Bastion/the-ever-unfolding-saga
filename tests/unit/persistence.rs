@@ -573,19 +573,42 @@ fn version_five_save_defaults_unembedded_geography_fields() {
         runtime_generated_events: Vec::new(),
         mod_dependencies: Vec::new(),
     };
-    let mut json: serde_json::Value = serde_json::to_value(payload).expect("version-five payload should serialize");
-    let world = json["game"]["world"].as_object_mut().expect("world should be an object");
-    for region in world["regions"].as_array_mut().expect("regions should be an array") {
-        region.as_object_mut().expect("region should be an object").remove("coordinate");
+    let mut json: serde_json::Value =
+        serde_json::to_value(payload).expect("version-five payload should serialize");
+    let world = json["game"]["world"]
+        .as_object_mut()
+        .expect("world should be an object");
+    for region in world["regions"]
+        .as_array_mut()
+        .expect("regions should be an array")
+    {
+        region
+            .as_object_mut()
+            .expect("region should be an object")
+            .remove("coordinate");
     }
-    world["generation"].as_object_mut().expect("generation metadata should be an object")
+    world["generation"]
+        .as_object_mut()
+        .expect("generation metadata should be an object")
         .remove("geography_ruleset_version");
-    fs::write(&path, serde_json::to_vec(&json).expect("version-five save should serialize"))
-        .expect("version-five save should be written");
+    fs::write(
+        &path,
+        serde_json::to_vec(&json).expect("version-five save should serialize"),
+    )
+    .expect("version-five save should be written");
 
     let loaded = load_game(&path).expect("version-five save should remain loadable");
-    assert!(loaded.world.regions.iter().all(|region| region.coordinate.is_none()));
-    assert_eq!(loaded.world.generation.unwrap().geography_ruleset_version, 0,
-        "legacy worlds must remain explicitly unembedded until compatibility migration");
+    assert!(
+        loaded
+            .world
+            .regions
+            .iter()
+            .all(|region| region.coordinate.is_none())
+    );
+    assert_eq!(
+        loaded.world.generation.unwrap().geography_ruleset_version,
+        0,
+        "legacy worlds must remain explicitly unembedded until compatibility migration"
+    );
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }

@@ -2,9 +2,10 @@
 //!
 //! A region is a fixed 256 × 256 chunk in the global macro-sample lattice. Global
 //! sample coordinates are signed so expansion works in every direction from the
-//! world origin. This module defines coordinate and seed contracts only; terrain
-//! fields, interpolation, and physical feature generation are implemented by
-//! later geography stages.
+//! world origin. Vertical strata keep underground geography addressable without
+//! changing the shared horizontal coordinate system. This module defines
+//! coordinate and seed contracts only; terrain fields, interpolation, and
+//! physical feature generation are implemented by later geography stages.
 
 use serde::{Deserialize, Serialize};
 
@@ -14,17 +15,21 @@ pub const REGION_SAMPLE_RESOLUTION: u16 = 256;
 /// Version of the deterministic macro-geography coordinate/sampling contract.
 pub const GEOGRAPHY_RULESET_VERSION: u32 = 1;
 
-/// A signed coordinate identifying one region-sized chunk in the world.
+/// A signed coordinate identifying one region-sized chunk and vertical stratum.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct RegionCoordinate {
     pub x: i64,
     pub y: i64,
-    /// Vertical geography layer: zero is the surface; negative values identify underground strata.
+    /// Zero is the surface; negative values identify underground strata.
     pub stratum: i32,
 }
 
 impl RegionCoordinate {
-    pub const ORIGIN: Self = Self { x: 0, y: 0, stratum: 0 };
+    pub const ORIGIN: Self = Self {
+        x: 0,
+        y: 0,
+        stratum: 0,
+    };
 
     /// Construct a coordinate on the surface stratum.
     pub const fn new(x: i64, y: i64) -> Self {
@@ -38,12 +43,13 @@ impl RegionCoordinate {
 
     /// Convert a region-local sample position into the global sample lattice.
     ///
-    /// Returns `None` for local positions outside the 256 × 256 chunk or when
-    /// the global coordinate would overflow `i64`.
+    /// Returns no coordinate for local positions outside the 256 × 256 chunk
+    /// or when the global coordinate would overflow the signed coordinate type.
     pub fn global_sample(self, local_x: u16, local_y: u16) -> Option<MacroCoordinate> {
         if local_x >= REGION_SAMPLE_RESOLUTION || local_y >= REGION_SAMPLE_RESOLUTION {
             return None;
         }
+
         let resolution = i64::from(REGION_SAMPLE_RESOLUTION);
         Some(MacroCoordinate {
             x: self.x.checked_mul(resolution)?.checked_add(i64::from(local_x))?,
@@ -63,7 +69,11 @@ pub struct MacroCoordinate {
 }
 
 impl MacroCoordinate {
-    pub const ORIGIN: Self = Self { x: 0, y: 0, stratum: 0 };
+    pub const ORIGIN: Self = Self {
+        x: 0,
+        y: 0,
+        stratum: 0,
+    };
 
     /// Construct a coordinate on the surface stratum.
     pub const fn new(x: i64, y: i64) -> Self {
@@ -95,10 +105,14 @@ impl MacroCoordinate {
 /// Derive a stable, order-independent seed for a macro-geography sample.
 ///
 /// The seed depends only on the world seed, geography ruleset version, and
-/// signed global sample coordinate. It does not depend on generation order,
-/// runtime entity IDs, or mutable display names. This is a deterministic
-/// non-cryptographic mixer, not a security primitive.
-pub fn coordinate_seed(world_seed: u64, ruleset_version: u32, coordinate: MacroCoordinate) -> u64 {
+/// signed global sample coordinate including stratum. It does not depend on
+/// generation order, runtime entity IDs, or mutable display names. This is a
+/// deterministic non-cryptographic mixer, not a security primitive.
+pub fn coordinate_seed(
+    world_seed: u64,
+    ruleset_version: u32,
+    coordinate: MacroCoordinate,
+) -> u64 {
     let mut value = mix64(world_seed ^ 0x6D61_6372_6F5F_6765);
     value = mix64(value ^ u64::from(ruleset_version).wrapping_mul(0x9E37_79B9_7F4A_7C15));
     value = mix64(value ^ (coordinate.x as u64).wrapping_mul(0xBF58_476D_1CE4_E5B9));
