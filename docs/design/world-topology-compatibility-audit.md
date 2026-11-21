@@ -144,7 +144,7 @@ This resolves whether legacy worlds should be embedded or left behind. The exact
 
 ## Design decisions still open for coordinate-backed topology
 
-- **Authored placement contract:** Which placement, footprint, and connection-point constraints belong on `RegionContent` and `LocationContent`, and how should authored IDs be retained in saved runtime entities when display names change?
+- **Authored placement contract (partially resolved in v0.53.14):** `LocationContent` may provide an exact surface anchor and footprint radius, and persisted location-geography records retain authored content IDs as stable keys. Region-level placement constraints, environmental archetype constraints, and local-map connection-point requirements remain open.
 - **Geography scale (resolved 21 November 2026):** each region is a signed chunk of 256 × 256 macro samples. `RegionCoordinate` identifies chunks and `MacroCoordinate` identifies positions in the shared global sample lattice; both include a vertical stratum index, with zero for the surface and negative values for underground layers. This is separate from local-map tile dimensions; continuous terrain sampling/interpolation remains future implementation work.
 - **Geographic route-to-passage contract:** The v0.53 route layer now gives each passage a stable route ID and reconciles newly added routes into unused edge positions without moving established passages. The later geography layer still needs to define how route endpoints and physical connection points conform to terrain and regional boundaries.
 

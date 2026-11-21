@@ -141,19 +141,48 @@ fn location_anchors_are_surface_coordinates_owned_by_their_regions() {
 }
 
 #[test]
-fn generated_location_keys_are_independent_of_runtime_entity_ids() {
-    let mut world = legacy_world();
-    world.generation = Some(crate::model::WorldGenerationMetadata {
+fn generated_location_keys_and_anchors_do_not_depend_on_runtime_entity_ids() {
+    let mut original = legacy_world();
+    let mut rekeyed = legacy_world();
+    let metadata = crate::model::WorldGenerationMetadata {
         seed: 77,
         region_count: 2,
         location_count: 2,
         extra_edges: 0,
         geography_ruleset_version: crate::geography::GEOGRAPHY_RULESET_VERSION,
-    });
-    ensure_location_geography(&mut world, None);
+    };
+    original.generation = Some(metadata);
+    rekeyed.generation = Some(metadata);
 
-    assert_eq!(world.geography_seed, Some(77));
-    assert!(world
+    rekeyed.locations[0].id = 100;
+    rekeyed.locations[0].exits = vec![101];
+    rekeyed.locations[1].id = 101;
+    rekeyed.locations[1].exits = vec![100];
+    rekeyed.regions[0].location_ids = vec![101];
+    rekeyed.regions[1].location_ids = vec![100];
+    rekeyed.routes[0] = WorldRoute::new(
+        "route.legacy",
+        100,
+        101,
+        RouteDirection::Bidirectional,
+    );
+
+    ensure_location_geography(&mut original, None);
+    ensure_location_geography(&mut rekeyed, None);
+
+    assert_eq!(original.geography_seed, Some(77));
+    let original_anchors = original
+        .location_geography
+        .iter()
+        .map(|record| (record.stable_key.clone(), record.anchor))
+        .collect::<Vec<_>>();
+    let rekeyed_anchors = rekeyed
+        .location_geography
+        .iter()
+        .map(|record| (record.stable_key.clone(), record.anchor))
+        .collect::<Vec<_>>();
+    assert_eq!(original_anchors, rekeyed_anchors);
+    assert!(original
         .location_geography
         .iter()
         .all(|record| record.stable_key.starts_with("location.generated.")));
