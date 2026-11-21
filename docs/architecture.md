@@ -95,6 +95,7 @@ src/
 ├── model.rs                 # shared game-state and entity models
 ├── geography.rs             # renderer-neutral macro-geography coordinates and deterministic sample keys
 │   ├── terrain.rs           # deterministic surface elevation fields on the global macro lattice
+│   ├── coast.rs             # shoreline adjacency and direction masks derived from elevation
 │   └── climate.rs           # deterministic surface climate and biome classification
 ├── spatial.rs               # renderer-neutral local-map model and deterministic generation
 ├── persistence.rs           # save/load and migrations
