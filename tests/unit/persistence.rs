@@ -61,11 +61,9 @@ fn compressed_save_round_trips() {
     state
         .world
         .record_history(7, "The world has changed.".to_string());
-    state.world.set_waterbody_property(
-        "lake.12.34.abcd",
-        "name",
-        "Mirror Lake",
-    );
+    state
+        .world
+        .set_waterbody_property("lake.12.34.abcd", "name", "Mirror Lake");
     let mutated_description = state.world.locations[0].description.clone();
     let history_len = state.world.history.len();
 

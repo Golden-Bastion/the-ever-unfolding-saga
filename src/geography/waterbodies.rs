@@ -60,11 +60,7 @@ impl LakeSample {
 }
 
 /// Derive a stable lake ID from the world seed, ruleset, and basin outlet.
-pub fn lake_id(
-    world_seed: u64,
-    ruleset_version: u32,
-    outlet_cell: MacroCoordinate,
-) -> String {
+pub fn lake_id(world_seed: u64, ruleset_version: u32, outlet_cell: MacroCoordinate) -> String {
     let identity = coordinate_seed(world_seed, ruleset_version, outlet_cell);
     format!("lake.{}.{}.{identity:016x}", outlet_cell.x, outlet_cell.y)
 }
@@ -89,8 +85,8 @@ pub fn sample_surface(
         return None;
     }
 
-    let coarse_cell = watershed::sample_surface(world_seed, ruleset_version, coordinate)?
-        .coarse_cell();
+    let coarse_cell =
+        watershed::sample_surface(world_seed, ruleset_version, coordinate)?.coarse_cell();
     let coarse_terrain = terrain::sample_surface(world_seed, ruleset_version, coarse_cell)?;
     if !coarse_terrain.is_land() {
         return None;
@@ -110,9 +106,8 @@ pub fn sample_surface(
         return None;
     }
 
-    let filled_depth = i64::from(depression.depth_q16())
-        .saturating_mul(i64::from(precipitation))
-        / Q16_ONE;
+    let filled_depth =
+        i64::from(depression.depth_q16()).saturating_mul(i64::from(precipitation)) / Q16_ONE;
     let water_surface = i64::from(depression.floor_elevation_q16()) + filled_depth;
     let local_elevation = i64::from(coarse_terrain.elevation_q16());
     if local_elevation > water_surface {
@@ -126,8 +121,8 @@ pub fn sample_surface(
 
     Some(LakeSample {
         outlet_cell: depression.outlet_cell(),
-        water_surface_elevation_q16: water_surface
-            .clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+        water_surface_elevation_q16: water_surface.clamp(i64::from(i32::MIN), i64::from(i32::MAX))
+            as i32,
         depth_q16: depth,
         basin_cell_count: depression.basin_cell_count(),
         precipitation_potential_q16: precipitation,

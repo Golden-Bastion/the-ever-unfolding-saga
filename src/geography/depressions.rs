@@ -57,8 +57,14 @@ impl DepressionSample {
         if coordinate.stratum != 0 {
             return false;
         }
-        let basin_x = self.outlet_cell.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
-        let basin_y = self.outlet_cell.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
+        let basin_x = self
+            .outlet_cell
+            .x
+            .div_euclid(watershed::WATERSHED_CELL_SAMPLES);
+        let basin_y = self
+            .outlet_cell
+            .y
+            .div_euclid(watershed::WATERSHED_CELL_SAMPLES);
         let cell_x = coordinate.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
         let cell_y = coordinate.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
         let Some(offset_x) = cell_x

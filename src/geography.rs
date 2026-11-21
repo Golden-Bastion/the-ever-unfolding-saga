@@ -13,8 +13,8 @@ pub mod coast;
 pub mod depressions;
 pub mod rivers;
 pub mod terrain;
-pub mod watershed;
 pub mod waterbodies;
+pub mod watershed;
 
 /// Number of macro-geography samples along each side of a region chunk.
 pub const REGION_SAMPLE_RESOLUTION: u16 = 256;

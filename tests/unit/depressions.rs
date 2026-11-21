@@ -124,17 +124,10 @@ fn depression_samples_expose_only_the_connected_basin_footprint() {
     let depression = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, sink).unwrap();
 
     assert!(depression.contains_coarse_cell(sink));
-    assert!(depression.contains_coarse_cell(MacroCoordinate::new(
-        sink.x + 1,
-        sink.y + 1,
-    )));
+    assert!(depression.contains_coarse_cell(MacroCoordinate::new(sink.x + 1, sink.y + 1,)));
     assert!(!depression.contains_coarse_cell(MacroCoordinate::new(
         sink.x + watershed::WATERSHED_CELL_SAMPLES * 9,
         sink.y,
     )));
-    assert!(!depression.contains_coarse_cell(MacroCoordinate::in_stratum(
-        sink.x,
-        sink.y,
-        -1,
-    )));
+    assert!(!depression.contains_coarse_cell(MacroCoordinate::in_stratum(sink.x, sink.y, -1,)));
 }

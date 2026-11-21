@@ -363,7 +363,10 @@ fn waterbody_modifications_are_generic_deterministic_and_idempotent() {
     assert!(!world.set_waterbody_property("", "name", "Invalid"));
     assert!(!world.set_waterbody_property("lake.12.34.abcd", "", "Invalid"));
 
-    assert_eq!(world.waterbody_modifications[0].waterbody_id, "lake.12.34.abcd");
+    assert_eq!(
+        world.waterbody_modifications[0].waterbody_id,
+        "lake.12.34.abcd"
+    );
     assert_eq!(
         world
             .waterbody_modification("lake.12.34.abcd")
@@ -374,10 +377,16 @@ fn waterbody_modifications_are_generic_deterministic_and_idempotent() {
 
     let serialized = serde_json::to_value(&world).unwrap();
     let restored: World = serde_json::from_value(serialized.clone()).unwrap();
-    assert_eq!(restored.waterbody_modifications, world.waterbody_modifications);
+    assert_eq!(
+        restored.waterbody_modifications,
+        world.waterbody_modifications
+    );
 
     let mut legacy = serialized;
-    legacy.as_object_mut().unwrap().remove("waterbody_modifications");
+    legacy
+        .as_object_mut()
+        .unwrap()
+        .remove("waterbody_modifications");
     let restored: World = serde_json::from_value(legacy)
         .expect("worlds saved before waterbody changes should still load");
     assert!(restored.waterbody_modifications.is_empty());
