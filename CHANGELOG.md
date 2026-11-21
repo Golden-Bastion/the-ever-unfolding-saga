@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.15: Terrain-aware route planning and physical passage profiles
+
+- Added bounded deterministic A* route planning over the shared macro-geography lattice. Ocean terrain is impassable; elevation and mountain ridges contribute soft route costs.
+- Persisted canonical route paths, planning status, total cost, broad route profiles, and explicit crossing records. River crossings require a ford or bridge, lake crossings require a ferry, unresolved river estimates require survey, and mountain ridges are marked as pass candidates.
+- Generate route geography during location embedding and when adding routes to geography-backed worlds. Existing route plans are preserved; older saves default the optional route field and receive deterministic plans through the existing geography migration.
+- Connected route geography to local-map passages. New passages inherit route profiles and prefer the compass side indicated by the macro path. Existing passage IDs, positions, and saved map geometry remain unchanged; missing profiles are backfilled.
+- Kept cave-route generation deferred until explicit vertical entrances connect surface locations to underground strata. Frontier materialization also remains future work.
+- Added automated coverage for deterministic bounded paths, land/end-point invariants, route-heading reversal, persistence defaults, route-plan idempotence, passage direction, and compatibility-preserving profile backfill.
+
 ### v0.53.14: Geography-backed locations and route corridor assessment
 
 - Added persisted geography seeds, ruleset/embedding versions, and stable macro-geographic anchors/footprints for world locations.
