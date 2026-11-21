@@ -3,7 +3,7 @@
 //! A region is a fixed 256 × 256 chunk in the global macro-sample lattice. Global
 //! sample coordinates are signed so expansion works in every direction from the
 //! world origin. Vertical strata keep underground geography addressable without
-//! changing the shared horizontal coordinate system. Terrain, coast, and climate
+//! changing the shared horizontal coordinate system. Terrain, coast, climate, and watershed
 //! submodules build deterministic surface environment fields on this contract.
 
 use serde::{Deserialize, Serialize};
