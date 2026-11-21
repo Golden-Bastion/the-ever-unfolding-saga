@@ -150,3 +150,128 @@ fn underground_strata_keep_horizontal_coordinates_and_change_sample_keys() {
         coordinate_seed(42, GEOGRAPHY_RULESET_VERSION, surface)
     );
 }
+
+
+#[test]
+fn surface_elevation_is_deterministic_for_seed_ruleset_and_coordinate() {
+    let coordinate = MacroCoordinate::new(-1_337, 2_048);
+    let first = terrain::sample_surface(42, GEOGRAPHY_RULESET_VERSION, coordinate)
+        .expect("surface coordinates should be sampled");
+    let repeated = terrain::sample_surface(42, GEOGRAPHY_RULESET_VERSION, coordinate)
+        .expect("surface coordinates should be sampled");
+
+    assert_eq!(first, repeated);
+    assert_eq!(first.elevation_q16(), repeated.elevation_q16());
+    assert!((-65_536..=65_536).contains(&first.elevation_q16()));
+}
+
+#[test]
+fn surface_elevation_changes_with_world_seed_and_ruleset() {
+    let coordinate = MacroCoordinate::new(1_024, -2_048);
+    let baseline = terrain::sample_surface(42, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+
+    assert_ne!(
+        baseline,
+        terrain::sample_surface(43, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap()
+    );
+    assert_ne!(
+        baseline,
+        terrain::sample_surface(42, GEOGRAPHY_RULESET_VERSION + 1, coordinate).unwrap()
+    );
+}
+
+#[test]
+fn surface_sampler_rejects_underground_strata() {
+    assert!(terrain::sample_surface(
+        42,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::in_stratum(0, 0, -1)
+    )
+    .is_none());
+}
+
+#[test]
+fn continental_field_contains_both_land_and_ocean_samples() {
+    let mut land_samples = 0usize;
+    let mut ocean_samples = 0usize;
+
+    for y in (-4_096..4_096).step_by(256) {
+        for x in (-4_096..4_096).step_by(256) {
+            let sample = terrain::sample_surface(
+                7_321,
+                GEOGRAPHY_RULESET_VERSION,
+                MacroCoordinate::new(x, y),
+            )
+            .unwrap();
+            if sample.is_land() {
+                land_samples += 1;
+            } else {
+                ocean_samples += 1;
+            }
+        }
+    }
+
+    assert!(land_samples > 0, "the generated field should contain land");
+    assert!(ocean_samples > 0, "the generated field should contain ocean");
+    assert!(land_samples > 256, "land should occupy a meaningful area");
+    assert!(ocean_samples > 256, "ocean should occupy a meaningful area");
+}
+
+#[test]
+fn elevation_remains_smooth_across_positive_and_negative_region_boundaries() {
+    let east_edge = RegionCoordinate::new(0, 0)
+        .global_sample(255, 73)
+        .expect("east-edge sample should resolve");
+    let next_region = RegionCoordinate::new(1, 0)
+        .global_sample(0, 73)
+        .expect("next-region sample should resolve");
+    let west_edge = RegionCoordinate::new(-1, 0)
+        .global_sample(255, 73)
+        .expect("west-edge sample should resolve");
+    let origin_edge = RegionCoordinate::new(0, 0)
+        .global_sample(0, 73)
+        .expect("origin-edge sample should resolve");
+
+    let east_value = terrain::sample_surface(99, GEOGRAPHY_RULESET_VERSION, east_edge)
+        .unwrap()
+        .elevation_q16();
+    let next_value = terrain::sample_surface(99, GEOGRAPHY_RULESET_VERSION, next_region)
+        .unwrap()
+        .elevation_q16();
+    let west_value = terrain::sample_surface(99, GEOGRAPHY_RULESET_VERSION, west_edge)
+        .unwrap()
+        .elevation_q16();
+    let origin_value = terrain::sample_surface(99, GEOGRAPHY_RULESET_VERSION, origin_edge)
+        .unwrap()
+        .elevation_q16();
+
+    assert_eq!(east_edge.x + 1, next_region.x);
+    assert_eq!(west_edge.x + 1, origin_edge.x);
+    assert!((east_value - next_value).abs() < 4_096);
+    assert!((west_value - origin_value).abs() < 4_096);
+}
+
+#[test]
+fn terrain_samples_do_not_depend_on_region_sampling_order() {
+    let coordinates = [
+        MacroCoordinate::new(-256, -256),
+        MacroCoordinate::new(0, 0),
+        MacroCoordinate::new(256, 256),
+        MacroCoordinate::new(4_096, -2_048),
+    ];
+    let forward = coordinates
+        .iter()
+        .map(|coordinate| {
+            terrain::sample_surface(123, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
+    let reverse = coordinates
+        .iter()
+        .rev()
+        .map(|coordinate| {
+            terrain::sample_surface(123, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
+}

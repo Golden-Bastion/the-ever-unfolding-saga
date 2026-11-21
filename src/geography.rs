@@ -3,11 +3,12 @@
 //! A region is a fixed 256 × 256 chunk in the global macro-sample lattice. Global
 //! sample coordinates are signed so expansion works in every direction from the
 //! world origin. Vertical strata keep underground geography addressable without
-//! changing the shared horizontal coordinate system. This module defines
-//! coordinate and seed contracts only; terrain fields, interpolation, and
-//! physical feature generation are implemented by later geography stages.
+//! changing the shared horizontal coordinate system. The terrain submodule
+//! builds deterministic surface elevation fields on this coordinate contract.
 
 use serde::{Deserialize, Serialize};
+
+pub mod terrain;
 
 /// Number of macro-geography samples along each side of a region chunk.
 pub const REGION_SAMPLE_RESOLUTION: u16 = 256;

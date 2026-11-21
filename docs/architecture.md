@@ -94,13 +94,14 @@ src/
 ├── events.rs                # event runtime
 ├── model.rs                 # shared game-state and entity models
 ├── geography.rs             # renderer-neutral macro-geography coordinates and deterministic sample keys
+│   └── terrain.rs           # deterministic surface elevation fields on the global macro lattice
 ├── spatial.rs               # renderer-neutral local-map model and deterministic generation
 ├── persistence.rs           # save/load and migrations
 ├── input.rs                 # frontend-neutral semantic interaction events
 └── rng.rs                   # deterministic/random generation helpers
 ```
 
-The geography module owns signed global/region coordinate conversion and deterministic coordinate-derived seeds. It remains independent of Bevy and local-map tile coordinates; terrain fields and physical feature generation build on this contract.
+The geography module owns signed global/region coordinate conversion, deterministic coordinate-derived seeds, and renderer-independent terrain fields. Surface elevation is sampled from the shared global lattice using deterministic fixed-point noise; climate, hydrology, physical features, and location/route constraints build on this contract.
 
 The exact module list may evolve, but new modules should represent meaningful responsibilities rather than arbitrary slices of large files.
 

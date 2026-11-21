@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines the shared coordinate and deterministic sampling contract for the persistent world. It is renderer-independent and does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic terrain fields. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
@@ -12,7 +12,16 @@ Implemented in v0.53.1:
 - Region-local to global conversion uses checked multiplication and addition and rejects local indices outside the chunk.
 - Global to region-local conversion uses Euclidean division and remainder. This is essential for negative coordinates: global sample `-1` belongs to region `-1`, local sample `255`, not region `0`.
 - `coordinate_seed` derives a deterministic seed from the world seed, geography ruleset version, and global sample coordinate including stratum. It does not depend on traversal/generation order, runtime IDs, or names.
-- `GEOGRAPHY_RULESET_VERSION` currently identifies the initial coordinate/sampling contract as version `1`.
+- `GEOGRAPHY_RULESET_VERSION` identifies the deterministic coordinate and terrain sampling contract as version `1`.
+
+Implemented in v0.53.2:
+
+- `terrain::sample_surface` produces a deterministic signed Q16 elevation sample from the world seed, ruleset version, and global surface coordinate.
+- Three value-noise scales combine broad continental structure with regional and smaller-scale variation. The broad field forms connected continents; the smaller fields shape irregular coasts, peninsulas, bays, and islands.
+- Positive elevation is land; zero or negative elevation is ocean. This initial land mask is a derived threshold, not yet an explicit coastline or hydrology model.
+- Noise interpolation uses integer fixed-point arithmetic. The land/ocean decision therefore does not rely on platform-specific floating-point rounding.
+- The sampler is stateless and coordinate-based. Sampling order, chunk visitation order, runtime IDs, and display names cannot affect results.
+- The surface sampler rejects nonzero strata until underground terrain has its own generation model.
 
 ## Persistence contract
 
@@ -20,9 +29,16 @@ Each saved `Region` may carry an optional chunk coordinate. Newly generated regi
 
 Existing saves deserialize without region coordinates. Their geography ruleset defaults to `0`, meaning "not embedded/migrated"; normal loading does not invent coordinates or reinterpret established topology. A dedicated migration must later place legacy regions and locations deterministically, persist migration provenance, and preserve runtime IDs, routes, history, and saved local maps.
 
-## Boundaries
+## Boundaries and remaining work
 
-This module does not currently generate elevation, landmasses, oceans, coastlines, climate, biomes, watersheds, rivers, mountain ranges, lakes, underground strata, location footprints, or physical routes. Those systems must derive from the same global coordinate lattice and versioned world seed.
+The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
+
+- Explicit coast and shoreline information derived from neighboring elevation samples.
+- Climate, temperature, moisture, and biome classification.
+- Watersheds, drainage direction, rivers, lakes, and connected water systems.
+- Mountain ranges and other major terrain barriers.
+- A dedicated underground-strata generator for caves and underground networks.
+- Geography-aware location footprints, route constraints, and on-demand frontier integration.
 
 Macro-geography coordinates are not:
 
