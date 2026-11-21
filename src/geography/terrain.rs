@@ -60,7 +60,7 @@ impl SurfaceTerrainSample {
     /// A mountain barrier is difficult terrain, not an absolute prohibition
     /// on crossing. Roads, trails, and passes may still cross it.
     pub const fn is_mountain_barrier(self) -> bool {
-        self.mountain_ridge_strength_q16 >= 42_000
+        self.mountain_ridge_strength_q16 >= mountains::MOUNTAIN_BARRIER_THRESHOLD_Q16
     }
 }
 
