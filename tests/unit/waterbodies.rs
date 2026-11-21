@@ -5,6 +5,12 @@ fn find_lake_cell(seed: u64) -> Option<MacroCoordinate> {
     for coarse_y in (-40..=-1).rev() {
         for coarse_x in (-40..=-1).rev() {
             let coordinate = watershed::cell_center(coarse_x, coarse_y)?;
+            let elevation = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+            if !elevation.is_land()
+                || watershed::downstream_cell(seed, GEOGRAPHY_RULESET_VERSION, coarse_x, coarse_y, elevation.elevation_q16()).is_some()
+            {
+                continue;
+            }
             if sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate).is_some() {
                 return Some(coordinate);
             }
@@ -27,8 +33,8 @@ fn lake_sampling_is_deterministic_and_uses_stable_basin_identity() {
     assert!(first.precipitation_potential_q16() > 0);
 
     let nearby = MacroCoordinate::new(
-        coordinate.x + watershed::WATERSHED_CELL_SAMPLES - 1,
-        coordinate.y,
+        coordinate.x + 1,
+        coordinate.y + 1,
     );
     if let Some(adjacent) = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, nearby) {
         assert_eq!(first.id(seed, GEOGRAPHY_RULESET_VERSION), adjacent.id(seed, GEOGRAPHY_RULESET_VERSION));
