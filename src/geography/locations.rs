@@ -312,8 +312,12 @@ fn choose_anchor(
         let score = land_bonus + footprint_bonus + i64::from(sample.elevation_q16())
             - i64::from(sample.mountain_ridge_strength_q16() / 4);
 
-        if best.is_none_or(|(best_score, _)| score > best_score) {
-            best = Some((score, coordinate));
+        match best {
+            None => best = Some((score, coordinate)),
+            Some((best_score, _)) if score > best_score => {
+                best = Some((score, coordinate));
+            }
+            Some(_) => {}
         }
     }
 
