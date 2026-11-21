@@ -146,7 +146,6 @@ fn compatibility_seed(world: &World) -> u64 {
     }
 
     feed(&mut hash, world.id);
-    feed(&mut hash, world.next_id);
 
     let mut regions = world
         .regions
