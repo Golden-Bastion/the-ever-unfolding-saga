@@ -732,10 +732,27 @@ fn mountain_ranges_preserve_legacy_ruleset_elevation() {
 
 #[test]
 fn mountain_field_is_continuous_across_region_chunk_boundaries() {
-    let left = RegionCoordinate::new(-1, 0).global_sample(255, 91).unwrap();
-    let right = RegionCoordinate::new(0, 0).global_sample(0, 91).unwrap();
-    let first = mountains::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, left).unwrap();
-    let second = mountains::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, right).unwrap();
-    assert_eq!(left.x + 1, right.x);
-    assert!((first.uplift_q16() - second.uplift_q16()).abs() < 2_048);
+    let mut found_land_pair = false;
+    for y in (-8_192..8_192).step_by(64) {
+        let left = RegionCoordinate::new(-1, 0).global_sample(255, y.rem_euclid(256) as u16).unwrap();
+        let right = RegionCoordinate::new(0, 0).global_sample(0, y.rem_euclid(256) as u16).unwrap();
+        let left = MacroCoordinate::new(left.x, y);
+        let right = MacroCoordinate::new(right.x, y);
+        let left_base =
+            terrain::base_surface_elevation_q16(8_201, GEOGRAPHY_RULESET_VERSION, left).unwrap();
+        let right_base =
+            terrain::base_surface_elevation_q16(8_201, GEOGRAPHY_RULESET_VERSION, right).unwrap();
+        if left_base <= 0 || right_base <= 0 {
+            continue;
+        }
+
+        let first = mountains::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, left).unwrap();
+        let second = mountains::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, right).unwrap();
+        assert_eq!(left.x + 1, right.x);
+        assert!((first.ridge_strength_q16() as i32 - second.ridge_strength_q16() as i32).abs() < 4_096);
+        assert!((first.uplift_q16() - second.uplift_q16()).abs() < 2_048);
+        found_land_pair = true;
+        break;
+    }
+    assert!(found_land_pair, "expected adjacent land samples across the region boundary");
 }
