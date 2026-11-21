@@ -1131,6 +1131,9 @@ fn route_reconciliation_uses_profile_and_preferred_side_for_new_passages() {
     let mut map = generate_local_map(818, "location.10", LocalMapConfig::default());
     map.props.clear();
     map.points_of_interest.clear();
+    for x in 1..map.width - 1 {
+        assert!(map.set_terrain(GridPosition { x, y: 1 }, Terrain::Floor));
+    }
     configure_map_routes(
         &mut map,
         &[MapRouteDestination {
@@ -1158,6 +1161,13 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
         x: map.width - 1,
         y: 2,
     };
+    assert!(map.set_terrain(
+        GridPosition {
+            x: map.width - 2,
+            y: position.y,
+        },
+        Terrain::Floor,
+    ));
     let existing = MapExit {
         id: "location.10.route.route.east".into(),
         route_id: Some("route.east".into()),

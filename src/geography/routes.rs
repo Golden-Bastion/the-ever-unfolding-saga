@@ -389,7 +389,9 @@ pub fn plan_route(
             }
 
             let movement_cost = if step_x == 0 || step_y == 0 { 100_u64 } else { 141_u64 };
-            let slope_cost = u64::from(current_terrain.elevation_q16().abs_diff(next_terrain.elevation_q16())) / 128;
+            let elevation_delta =
+                current_terrain.elevation_q16().abs_diff(next_terrain.elevation_q16());
+            let slope_cost = u64::from(elevation_delta) / 128;
             let ridge_cost = u64::from(
                 midpoint_terrain.mountain_ridge_strength_q16()
                     .saturating_add(next_terrain.mountain_ridge_strength_q16()),
