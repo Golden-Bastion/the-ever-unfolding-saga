@@ -450,8 +450,14 @@ fn shoreline_masks_identify_opposite_terrain_in_each_direction() {
 
     assert!(first_shore.is_shoreline());
     assert!(second_shore.is_shoreline());
-    assert_ne!(first_shore.is_coastal_land(), second_shore.is_coastal_land());
-    assert_ne!(first_shore.is_coastal_water(), second_shore.is_coastal_water());
+    assert_ne!(
+        first_shore.is_coastal_land(),
+        second_shore.is_coastal_land()
+    );
+    assert_ne!(
+        first_shore.is_coastal_water(),
+        second_shore.is_coastal_water()
+    );
 }
 
 #[test]
