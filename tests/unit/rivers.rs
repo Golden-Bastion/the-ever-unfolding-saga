@@ -8,9 +8,7 @@ fn river_sampling_is_deterministic_and_bounded() {
     let repeated = sample_surface(8_211, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
 
     assert_eq!(first, repeated);
-    assert!(
-        usize::from(first.accumulation().contributing_cells()) <= MAX_CONTRIBUTING_CELLS
-    );
+    assert!(usize::from(first.accumulation().contributing_cells()) <= MAX_CONTRIBUTING_CELLS);
     assert!(
         !first.is_channel()
             || first.accumulation().contributing_cells() >= MIN_RIVER_CONTRIBUTING_CELLS
@@ -27,8 +25,8 @@ fn upstream_cells_are_included_in_their_downstream_accumulation() {
             let Some(coordinate) = watershed::cell_center(coarse_x, coarse_y) else {
                 continue;
             };
-            let sample = watershed::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
-                .unwrap();
+            let sample =
+                watershed::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
             let Some(downstream) = sample.coarse_downstream() else {
                 continue;
             };
@@ -52,31 +50,30 @@ fn upstream_cells_are_included_in_their_downstream_accumulation() {
         }
     }
 
-    assert!(verified, "expected a land watershed cell with a downstream link");
+    assert!(
+        verified,
+        "expected a land watershed cell with a downstream link"
+    );
 }
 
 #[test]
 fn river_sampler_rejects_underground_strata() {
-    assert!(
-        sample_surface(
-            8_211,
-            GEOGRAPHY_RULESET_VERSION,
-            MacroCoordinate::in_stratum(0, 0, -1),
-        )
-        .is_none()
-    );
+    assert!(sample_surface(
+        8_211,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::in_stratum(0, 0, -1),
+    )
+    .is_none());
 }
 
 #[test]
 fn river_sampler_rejects_unrepresentable_coarse_cell_centers() {
-    assert!(
-        sample_surface(
-            8_211,
-            GEOGRAPHY_RULESET_VERSION,
-            MacroCoordinate::new(i64::MAX, 0),
-        )
-        .is_none()
-    );
+    assert!(sample_surface(
+        8_211,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::new(i64::MAX, 0),
+    )
+    .is_none());
 }
 
 #[test]
