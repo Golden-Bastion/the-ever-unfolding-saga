@@ -212,19 +212,30 @@ pub(crate) fn discover_available_interactions(
     }
 
     for exit in &map.exits {
-        if !crate::game::actions::has_location_travel_route(
-            game,
-            exit.target_location_id,
-            exit.route_id.as_deref(),
-        ) || !map_exit_interaction_available(map, position, exit)
+        let pending_frontier = exit.frontier.is_some() && exit.target_location_id == 0;
+        if (!pending_frontier
+            && !crate::game::actions::has_location_travel_route(
+                game,
+                exit.target_location_id,
+                exit.route_id.as_deref(),
+            ))
+            || !map_exit_interaction_available(map, position, exit)
         {
             continue;
         }
-        let label = game
-            .world
-            .location_by_id(exit.target_location_id)
-            .map(|location| format!("Enter: {}", location.name))
-            .unwrap_or_else(|| "Use passage".to_string());
+        let label = if pending_frontier {
+            let direction = exit
+                .frontier
+                .as_ref()
+                .map(|frontier| frontier.direction.label())
+                .unwrap_or("unknown");
+            format!("Explore {direction} frontier")
+        } else {
+            game.world
+                .location_by_id(exit.target_location_id)
+                .map(|location| format!("Enter: {}", location.name))
+                .unwrap_or_else(|| "Use passage".to_string())
+        };
         let item = AvailableInteraction {
             action: InteractionActionKind::Enter,
             target: InteractionTarget::Passage {

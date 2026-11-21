@@ -868,6 +868,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
         id: "location.10.exit.20".into(),
         route_id: None,
         route_profile: None,
+        frontier: None,
         position: GridPosition {
             x: map.width - 1,
             y: 1,
@@ -925,6 +926,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
             id: "location.10.exit.self".into(),
             route_id: None,
             route_profile: None,
+            frontier: None,
             position: first_position,
             target_location_id: 10,
         },
@@ -1109,6 +1111,7 @@ fn map_exit_profile_defaults_when_loading_an_older_saved_passage() {
         id: "location.10.exit.20".into(),
         route_id: None,
         route_profile: None,
+        frontier: None,
         position: GridPosition {
             x: map.width - 1,
             y: 2,
@@ -1117,6 +1120,7 @@ fn map_exit_profile_defaults_when_loading_an_older_saved_passage() {
     };
     let mut value = serde_json::to_value(exit).unwrap();
     value.as_object_mut().unwrap().remove("route_profile");
+    value.as_object_mut().unwrap().remove("frontier");
     let loaded: MapExit = serde_json::from_value(value).unwrap();
     assert!(loaded.route_profile.is_none());
     map.exits.push(loaded);
@@ -1143,6 +1147,7 @@ fn route_reconciliation_uses_profile_and_preferred_side_for_new_passages() {
             target_location_id: 20,
             profile: Some(RouteProfile::MountainPass),
             preferred_side: Some(MapExitSide::North),
+            frontier_id: None,
         }],
     );
 
@@ -1172,6 +1177,7 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
         id: "location.10.route.route.east".into(),
         route_id: Some("route.east".into()),
         route_profile: None,
+        frontier: None,
         position,
         target_location_id: 20,
     };
@@ -1184,6 +1190,7 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
             target_location_id: 20,
             profile: Some(RouteProfile::RiverCrossing),
             preferred_side: Some(MapExitSide::North),
+            frontier_id: None,
         }],
     );
 
@@ -1204,12 +1211,14 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
             target_location_id: 20,
             profile: None,
             preferred_side: None,
+            frontier_id: None,
         },
         MapRouteDestination {
             route_id: "route.path.beta".into(),
             target_location_id: 20,
             profile: None,
             preferred_side: None,
+            frontier_id: None,
         },
     ];
 
@@ -1231,6 +1240,7 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
         target_location_id: 21,
         profile: None,
         preferred_side: None,
+        frontier_id: None,
     });
     configure_map_routes(&mut map, &expanded_routes);
     assert_eq!(map.exits.len(), 3);
@@ -1252,6 +1262,7 @@ fn route_reconciliation_distributes_new_passages_round_robin_by_compass_side() {
             target_location_id: 20 + slot,
             profile: None,
             preferred_side: None,
+            frontier_id: None,
         })
         .collect::<Vec<_>>();
 
@@ -1290,6 +1301,7 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
         id: "location.10.exit.20".into(),
         route_id: None,
         route_profile: None,
+        frontier: None,
         position,
         target_location_id: 20,
     });
@@ -1301,6 +1313,7 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
             target_location_id: 20,
             profile: None,
             preferred_side: None,
+            frontier_id: None,
         }],
     );
 
@@ -1308,4 +1321,63 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
     assert_eq!(map.exits[0].id, "location.10.exit.20");
     assert_eq!(map.exits[0].position, position);
     assert_eq!(map.exits[0].route_id.as_deref(), Some("route.migrated.20"));
+}
+
+#[test]
+fn pending_frontier_passages_are_idempotent_and_upgrade_in_place() {
+    let mut map = generate_local_map(2_731, "location.10", LocalMapConfig::default());
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.interactables.clear();
+    map.encounters.clear();
+    let frontier = FrontierTarget {
+        id: "frontier.fixture.east".into(),
+        target_region: crate::geography::RegionCoordinate::new(1, 0),
+        direction: FrontierDirection::East,
+    };
+
+    configure_map_frontiers(&mut map, std::slice::from_ref(&frontier));
+    assert_eq!(map.exits.len(), 1);
+    let pending = map.exits[0].clone();
+    assert_eq!(pending.target_location_id, 0);
+    assert_eq!(pending.route_id, None);
+    assert_eq!(pending.frontier, Some(frontier.clone()));
+
+    configure_map_frontiers(&mut map, std::slice::from_ref(&frontier));
+    assert_eq!(map.exits, vec![pending.clone()]);
+
+    configure_map_routes(
+        &mut map,
+        &[MapRouteDestination {
+            route_id: "route.frontier.fixture.east".into(),
+            target_location_id: 44,
+            profile: Some(RouteProfile::Trail),
+            preferred_side: Some(MapExitSide::East),
+            frontier_id: Some(frontier.id.clone()),
+        }],
+    );
+
+    assert_eq!(map.exits.len(), 1);
+    assert_eq!(map.exits[0].id, pending.id);
+    assert_eq!(map.exits[0].position, pending.position);
+    assert_eq!(map.exits[0].target_location_id, 44);
+    assert_eq!(
+        map.exits[0].route_id.as_deref(),
+        Some("route.frontier.fixture.east")
+    );
+    assert_eq!(map.exits[0].route_profile, Some(RouteProfile::Trail));
+    assert_eq!(map.exits[0].frontier, None);
+
+    let established = map.exits.clone();
+    configure_map_routes(
+        &mut map,
+        &[MapRouteDestination {
+            route_id: "route.frontier.fixture.east".into(),
+            target_location_id: 44,
+            profile: Some(RouteProfile::Trail),
+            preferred_side: Some(MapExitSide::East),
+            frontier_id: Some(frontier.id),
+        }],
+    );
+    assert_eq!(map.exits, established);
 }

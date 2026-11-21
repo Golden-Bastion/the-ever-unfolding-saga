@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, and bounded terrain-aware route planning. It does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, bounded terrain-aware route planning, and on-demand frontier materialization. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
@@ -128,6 +128,15 @@ Implemented in v0.53.15:
 - Cave routes remain unsupported until explicit vertical entrances connect surface locations to underground strata. This planner does not invent shafts or infer physical depth from stratum numbers.
 - Automated tests cover deterministic land paths, endpoint and land invariants, route-heading reversal, old-save defaults, route-plan persistence, passage-side preference, profile backfilling, and preservation of established passage positions.
 
+Implemented in v0.53.16:
+
+- `frontier_targets_for_location` exposes up to four cardinal frontier invitations from a surface location without creating world entities. Stable target keys derive from the source location's persisted geography key and exact source/target region coordinates; generation order, display names, and runtime ID allocation do not affect geography identity.
+- `materialize_frontier` validates the persisted frontier target, selects deterministic candidate anchors near the destination region edge, and requires the existing bounded A* planner to produce a valid land path before allocating world IDs.
+- A successful request creates or reuses only the adjacent region and one destination location, then persists a bidirectional `WorldRoute` with its canonical macro path and crossing profile. It does not recursively generate neighboring regions. Repeated requests return the same destination and route.
+- Local maps persist pending frontier passages as `MapExit` records with an explicit frontier marker and no destination/route yet. Interacting with one materializes the destination and upgrades that exact passage in place, preserving its map-local ID, position, and geometry. The destination's reciprocal passage is reconciled when its map is entered.
+- The optional pending-frontier marker defaults absent when reading older saves. Existing region coordinates, location anchors, routes, and established local maps are not regenerated or relocated. No save-format or geography-ruleset change was required.
+- Automated tests cover read-only candidate listing, stable identities, allocator-order-independent coordinates/paths, single-region expansion, repeat-use idempotence, invalid target rejection, pending interaction discovery, and passage upgrade.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -136,7 +145,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 ## Boundaries and remaining work
 
-The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, and route-aligned local-map passages are implemented. Remaining geography/topology work is explicit vertical cave entrances and inter-stratum connections, richer local-map connection-point integration, and idempotent on-demand frontier materialization.
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, and idempotent on-demand frontier materialization are implemented. Remaining geography/topology work is explicit vertical cave entrances and inter-stratum connections plus richer local-map connection-point integration.
 
 The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 

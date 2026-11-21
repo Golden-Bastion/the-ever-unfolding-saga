@@ -495,6 +495,7 @@ fn generate_world_lab_session(options: WorldLabOptions) -> (LocalMap, WorldLabSc
                 target_location_id,
                 profile,
                 preferred_side,
+                frontier_id: None,
             }
         })
         .collect::<Vec<_>>();
@@ -1315,6 +1316,7 @@ fn place_world_lab_passage(state: &mut DeveloperToolsState, spatial: &mut Spatia
                 id,
                 route_id: Some(route_id.clone()),
                 route_profile: None,
+                frontier: None,
                 position,
                 target_location_id: destination_id,
             },
