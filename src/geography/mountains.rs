@@ -12,6 +12,9 @@ const REGIONAL_CELL_SAMPLES: i64 = 4_096;
 const WARP_CELL_SAMPLES: i64 = 16_384;
 const WARP_DISTANCE_SAMPLES: i64 = 2_048;
 const RIDGE_THRESHOLD_Q16: i64 = 36_000;
+
+/// Ridge-strength threshold used by the shared surface-terrain barrier signal.
+pub const MOUNTAIN_BARRIER_THRESHOLD_Q16: u32 = 42_000;
 const MAX_UPLIFT_Q16: i64 = 31_457; // approximately 0.48 normalized elevation
 
 const RANGE_CHANNEL: u32 = 0x4D4F_554E;
@@ -39,7 +42,7 @@ impl MountainSample {
 
     /// Whether the sample is classified as part of a mountain range.
     pub const fn is_mountain(self) -> bool {
-        self.ridge_strength_q16 >= 42_000
+        self.ridge_strength_q16 >= MOUNTAIN_BARRIER_THRESHOLD_Q16
     }
 }
 
