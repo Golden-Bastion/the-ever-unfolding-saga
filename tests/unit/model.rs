@@ -353,7 +353,6 @@ fn parallel_world_routes_keep_distinct_identity_and_update_the_derived_exit_cach
         .is_empty());
 }
 
-
 #[test]
 fn waterbody_modifications_are_generic_deterministic_and_idempotent() {
     let mut world = World::new("Waterbody State", WorldMode::New);
@@ -366,7 +365,10 @@ fn waterbody_modifications_are_generic_deterministic_and_idempotent() {
 
     assert_eq!(world.waterbody_modifications[0].waterbody_id, "lake.12.34.abcd");
     assert_eq!(
-        world.waterbody_modification("lake.12.34.abcd").unwrap().properties["name"],
+        world
+            .waterbody_modification("lake.12.34.abcd")
+            .unwrap()
+            .properties["name"],
         "Mirror Lake"
     );
 
