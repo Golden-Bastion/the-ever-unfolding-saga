@@ -87,8 +87,8 @@ pub fn sample_surface(
 
     let coarse_cell =
         watershed::sample_surface(world_seed, ruleset_version, coordinate)?.coarse_cell();
-    let coarse_terrain = terrain::sample_surface(world_seed, ruleset_version, coarse_cell)?;
-    if !coarse_terrain.is_land() {
+    let local_terrain = terrain::sample_surface(world_seed, ruleset_version, coordinate)?;
+    if !local_terrain.is_land() {
         return None;
     }
 
