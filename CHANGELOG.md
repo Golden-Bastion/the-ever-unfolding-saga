@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.11: Deterministic mountain ranges
+
+- Added a deterministic, warped ridged-noise mountain field with broad connected belts and regional variation.
+- Integrated bounded mountain uplift into the shared surface elevation sampler, so climate, watersheds, rivers, and inland depressions consume the same terrain.
+- Kept generation fixed-point, stateless, renderer-independent, and region-order independent. Ocean and underground samples receive no uplift.
+- Advanced geography ruleset to version 2 while preserving exact ruleset 1 elevation behavior for existing worlds. No save migration or persisted mountain state was introduced.
+- Added automated coverage for deterministic mountain sampling, uplift integration, region-edge continuity, underground rejection, and legacy-ruleset compatibility.
+- Bumped Rust and Android version metadata to 0.53.11.
+
+
 ### v0.53.10: Surface-water connectivity
 
 - Added a renderer-independent hydrology sampler that identifies ocean, inland-lake, and river-channel cells using the existing geography layers.
