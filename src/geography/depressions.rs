@@ -243,6 +243,7 @@ fn basin_footprint(elevations: &[i32; WINDOW_CELL_COUNT], spill_level: i32) -> [
     footprint
 }
 
+#[cfg(test)]
 fn count_basin_cells(elevations: &[i32; WINDOW_CELL_COUNT], spill_level: i32) -> u16 {
     basin_footprint(elevations, spill_level)
         .iter()
