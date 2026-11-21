@@ -14,7 +14,8 @@ pub const MAX_CONTRIBUTING_CELLS: usize = 128;
 /// Minimum contributing coarse cells required to classify a river channel.
 pub const MIN_RIVER_CONTRIBUTING_CELLS: u16 = 8;
 
-/// Bounded estimate of the contributing land area and precipitation potential draining through one coarse cell.
+/// Bounded estimate of the contributing land area and precipitation potential
+/// draining through one coarse cell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FlowAccumulation {
     contributing_cells: u16,
@@ -49,7 +50,8 @@ impl FlowAccumulation {
     }
 }
 
-/// River-channel classification and its bounded contributing-area/precipitation estimate.
+/// River-channel classification and its bounded contributing-area and
+/// precipitation-potential estimates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RiverSample {
     coarse_cell: MacroCoordinate,
