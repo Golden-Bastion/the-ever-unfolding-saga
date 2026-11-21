@@ -299,6 +299,15 @@ fn surface_climate_is_deterministic_and_varies_across_coordinates() {
     )
     .unwrap();
     assert_ne!(first, distant);
+
+    assert_ne!(
+        first,
+        climate::sample_surface(43, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap()
+    );
+    assert_ne!(
+        first,
+        climate::sample_surface(42, GEOGRAPHY_RULESET_VERSION + 1, coordinate).unwrap()
+    );
 }
 
 #[test]
