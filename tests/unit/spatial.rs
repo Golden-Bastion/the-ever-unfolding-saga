@@ -1251,6 +1251,7 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
     map.exits.push(MapExit {
         id: "location.10.exit.20".into(),
         route_id: None,
+        route_profile: None,
         position,
         target_location_id: 20,
     });

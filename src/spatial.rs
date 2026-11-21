@@ -1800,6 +1800,8 @@ pub fn configure_map_exits(map: &mut LocalMap, target_location_ids: &[u64]) {
             // when the authoritative reconciliation sorts by stable route ID.
             route_id: format!("route.compat.target.{target_location_id:020}"),
             target_location_id,
+            profile: None,
+            preferred_side: None,
         })
         .collect::<Vec<_>>();
     configure_map_routes(map, &routes);
