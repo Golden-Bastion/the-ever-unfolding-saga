@@ -148,7 +148,9 @@ fn cave_passages_remain_continuous_across_region_boundaries() {
         for cell_y in -16..16 {
             let west_center = chamber_center(seed, 3, cell_y, -2);
             let east_center = chamber_center(seed, 4, cell_y, -2);
-            let y = (west_center.y + east_center.y) / 2;
+            let y = west_center.y
+                + (east_center.y - west_center.y) * (256 - west_center.x)
+                    / (east_center.x - west_center.x);
             let west = sample_underground(
                 seed,
                 GEOGRAPHY_RULESET_VERSION,
