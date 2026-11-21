@@ -65,8 +65,11 @@ fn inland_lakes_are_terminal_nodes_with_stable_outlet_identity() {
 #[test]
 fn river_channels_expose_a_deterministic_downstream_connection() {
     let seed = 8_211;
-    let river = (-16..=16)
-        .flat_map(|y| (-16..=16).map(move |x| (x, y)))
+    // Confirmed channels need at least eight contributing coarse cells. Search
+    // a continental-scale area so this test does not depend on a river
+    // happening to cross a small, arbitrary 33 × 33-cell window.
+    let river = (-64..=64)
+        .flat_map(|y| (-64..=64).map(move |x| (x, y)))
         .filter_map(|(x, y)| watershed::cell_center(x, y))
         .find_map(|coordinate| {
             let flow = rivers::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
