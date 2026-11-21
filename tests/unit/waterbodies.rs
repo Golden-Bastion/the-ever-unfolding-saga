@@ -38,6 +38,10 @@ fn lake_sampling_is_deterministic_and_uses_stable_basin_identity() {
     assert!(first.depth_q16() >= 0);
     assert!(first.basin_cell_count() >= MIN_LAKE_BASIN_CELLS);
     assert!(first.precipitation_potential_q16() > 0);
+    assert_eq!(
+        first.has_river_inflow(seed, GEOGRAPHY_RULESET_VERSION),
+        repeated.has_river_inflow(seed, GEOGRAPHY_RULESET_VERSION)
+    );
 
     let nearby = MacroCoordinate::new(coordinate.x + 1, coordinate.y + 1);
     if let Some(adjacent) = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, nearby) {
