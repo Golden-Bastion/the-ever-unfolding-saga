@@ -77,6 +77,13 @@ Implemented in v0.53.9:
 - Added optional world-level waterbody modification records keyed by stable generated IDs. Only explicit property changes are saved; generated lake geometry remains deterministic. The new field defaults empty when loading older saves, so the outer save format version does not change.
 - Automated tests cover deterministic lake identity and coverage, connected footprint membership, underground rejection, region ownership, modification persistence, and old-save defaults.
 
+Implemented in v0.53.10:
+
+- `hydrology::sample_surface` composes the existing terrain, lake, river, and watershed samplers into one surface-water view. It distinguishes ocean, inland lakes, and classified river channels while leaving ordinary non-channel land unclassified as water.
+- River samples expose their immediate downstream coarse cell and classify that destination as ocean, a specific lake outlet, another river channel, lower-threshold land, or a closed basin. Ocean and lake cells are terminal nodes; waterbody coverage takes precedence over a coincident river-channel estimate.
+- Connectivity reuses the existing strictly downhill coarse watershed graph and bounded river accumulation. It is a local topology contract, not a second routing simulation, physically calibrated discharge, seasonal water balance, or water transport simulation. Generated water geometry remains derived on demand and no save migration is introduced.
+- Automated tests cover deterministic river links, downhill destination invariants, terminal ocean/lake nodes, and underground rejection.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -87,7 +94,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
 
-- Physically calibrated discharge and connected water-system generation; lake coverage is an initial precipitation-scaled basin model, not a complete hydrology simulation.
+- Physically calibrated discharge, seasonal water balance, and simulated river/lake water transport; current connectivity exposes deterministic graph links rather than moving or balancing water.
 - Mountain ranges and other major terrain barriers.
 - A dedicated underground-strata generator for caves and underground networks.
 - Geography-aware location footprints, route constraints, and on-demand frontier integration.
