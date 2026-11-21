@@ -14,6 +14,11 @@ pub enum SurfaceWaterKind {
     Lake(waterbodies::LakeSample),
     /// A cell classified as part of a river channel.
     River(rivers::RiverSample),
+    /// A potentially channel-bearing cell whose bounded accumulation was truncated.
+    ///
+    /// The available lower bound has not reached the channel threshold, so the
+    /// cell must not be treated as confirmed river or ordinary dry land.
+    UnresolvedRiver(rivers::RiverSample),
 }
 
 /// The immediate destination of a river channel's drainage link.
@@ -27,6 +32,8 @@ pub enum FlowDestination {
     River { coarse_cell: MacroCoordinate },
     /// The drainage link continues over land below the current channel threshold.
     Land { coarse_cell: MacroCoordinate },
+    /// The destination's bounded accumulation is inconclusive below the channel threshold.
+    Inconclusive { coarse_cell: MacroCoordinate },
     /// The channel cell is a closed watershed sink with no downstream link.
     ClosedBasin,
 }
@@ -76,8 +83,8 @@ impl SurfaceWaterSample {
 /// Ocean and lake coverage take precedence over river-channel classification:
 /// a river terminating inside a lake is represented as a lake cell, while
 /// upstream river cells resolve their next link to that lake's stable outlet.
-/// Land without a classified river channel returns None. Underground strata
-/// are never interpreted as surface water.
+/// Ordinary land without a channel returns None; truncated below-threshold
+/// accumulation remains explicitly unresolved. Underground strata are excluded.
 pub fn sample_surface(
     world_seed: u64,
     ruleset_version: u32,
@@ -108,6 +115,14 @@ pub fn sample_surface(
 
     let river = rivers::sample_surface(world_seed, ruleset_version, coordinate)?;
     if !river.is_channel() {
+        if river.accumulation().is_truncated() {
+            return Some(SurfaceWaterSample {
+                coordinate,
+                kind: SurfaceWaterKind::UnresolvedRiver(river),
+                downstream_cell: None,
+                downstream: None,
+            });
+        }
         return None;
     }
 
@@ -145,6 +160,10 @@ fn classify_destination(
     let river = rivers::sample_surface(world_seed, ruleset_version, coordinate)?;
     if river.is_channel() {
         Some(FlowDestination::River {
+            coarse_cell: river.coarse_cell(),
+        })
+    } else if river.accumulation().is_truncated() {
+        Some(FlowDestination::Inconclusive {
             coarse_cell: river.coarse_cell(),
         })
     } else {
