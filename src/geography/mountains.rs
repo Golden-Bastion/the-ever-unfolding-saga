@@ -55,11 +55,8 @@ pub fn sample_surface(
     if coordinate.stratum != 0 {
         return None;
     }
-    let base_elevation = terrain::base_surface_elevation_q16(
-        world_seed,
-        ruleset_version,
-        coordinate,
-    )?;
+    let base_elevation =
+        terrain::base_surface_elevation_q16(world_seed, ruleset_version, coordinate)?;
     sample_with_base(world_seed, ruleset_version, coordinate, base_elevation)
 }
 
@@ -120,8 +117,8 @@ pub(crate) fn sample_with_base(
         REGIONAL_CELL_SAMPLES,
         REGIONAL_CHANNEL,
     );
-    let regional_factor = (Q16_ONE * 55 / 100 + (regional + Q16_ONE) * 45 / 200)
-        .clamp(Q16_ONE * 55 / 100, Q16_ONE);
+    let regional_factor =
+        (Q16_ONE * 55 / 100 + (regional + Q16_ONE) * 45 / 200).clamp(Q16_ONE * 55 / 100, Q16_ONE);
     let ridge_strength = ridge_core * ridge_core / Q16_ONE * regional_factor / Q16_ONE;
     let uplift = ridge_strength * ridge_strength / Q16_ONE * MAX_UPLIFT_Q16 / Q16_ONE;
 

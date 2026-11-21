@@ -62,12 +62,8 @@ pub fn sample_surface(
     }
 
     let base_elevation = base_surface_elevation_q16(world_seed, ruleset_version, coordinate)?;
-    let mountain = mountains::sample_with_base(
-        world_seed,
-        ruleset_version,
-        coordinate,
-        base_elevation,
-    )?;
+    let mountain =
+        mountains::sample_with_base(world_seed, ruleset_version, coordinate, base_elevation)?;
     Some(SurfaceTerrainSample {
         elevation_q16: (i64::from(base_elevation) + i64::from(mountain.uplift_q16()))
             .clamp(-Q16_ONE, Q16_ONE) as i32,
@@ -109,8 +105,7 @@ pub(crate) fn base_surface_elevation_q16(
     );
     // The broad field controls continent-scale landmasses. Regional and detail
     // fields break coastlines into peninsulas, bays, and smaller islands.
-    Some(((continental * 60 + regional * 27 + detail * 13) / 100)
-        .clamp(-Q16_ONE, Q16_ONE) as i32)
+    Some(((continental * 60 + regional * 27 + detail * 13) / 100).clamp(-Q16_ONE, Q16_ONE) as i32)
 }
 
 pub(crate) fn value_noise(

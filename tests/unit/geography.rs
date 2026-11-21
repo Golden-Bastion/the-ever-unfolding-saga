@@ -682,7 +682,6 @@ fn watershed_sampling_is_independent_of_region_chunk_ownership() {
     );
 }
 
-
 #[test]
 fn mountain_ranges_are_deterministic_and_change_surface_elevation() {
     let mut found_range = false;
@@ -698,14 +697,11 @@ fn mountain_ranges_are_deterministic_and_change_surface_elevation() {
             assert!(mountain.ridge_strength_q16() <= 65_536);
             assert!(mountain.uplift_q16() >= 0);
 
-            let base = terrain::base_surface_elevation_q16(
-                7_321,
-                GEOGRAPHY_RULESET_VERSION,
-                coordinate,
-            )
-            .unwrap();
-            let terrain = terrain::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, coordinate)
-                .unwrap();
+            let base =
+                terrain::base_surface_elevation_q16(7_321, GEOGRAPHY_RULESET_VERSION, coordinate)
+                    .unwrap();
+            let terrain =
+                terrain::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
             if base > 0 && mountain.is_mountain() {
                 found_range = true;
                 assert!(mountain.uplift_q16() > 0);
@@ -719,7 +715,10 @@ fn mountain_ranges_are_deterministic_and_change_surface_elevation() {
             }
         }
     }
-    assert!(found_range, "expected mountain ranges in the sampled continental field");
+    assert!(
+        found_range,
+        "expected mountain ranges in the sampled continental field"
+    );
     assert!(
         found_non_mountain_land,
         "mountain ranges must not cover all land"
@@ -733,7 +732,9 @@ fn mountain_ranges_preserve_legacy_ruleset_elevation() {
     let sampled = terrain::sample_surface(42, 1, coordinate).unwrap();
     assert_eq!(sampled.elevation_q16(), base);
     assert_eq!(
-        mountains::sample_surface(42, 1, coordinate).unwrap().uplift_q16(),
+        mountains::sample_surface(42, 1, coordinate)
+            .unwrap()
+            .uplift_q16(),
         0
     );
 }
@@ -741,7 +742,10 @@ fn mountain_ranges_preserve_legacy_ruleset_elevation() {
 #[test]
 fn mountain_field_is_continuous_across_region_chunk_boundaries() {
     let mut found_land_pair = false;
-    let left_x = RegionCoordinate::new(-1, 0).global_sample(255, 0).unwrap().x;
+    let left_x = RegionCoordinate::new(-1, 0)
+        .global_sample(255, 0)
+        .unwrap()
+        .x;
     let right_x = RegionCoordinate::new(0, 0).global_sample(0, 0).unwrap().x;
     for y in (-8_192..8_192).step_by(64) {
         let left = MacroCoordinate::new(left_x, y);
@@ -757,10 +761,15 @@ fn mountain_field_is_continuous_across_region_chunk_boundaries() {
         let first = mountains::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, left).unwrap();
         let second = mountains::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, right).unwrap();
         assert_eq!(left.x + 1, right.x);
-        assert!((first.ridge_strength_q16() as i32 - second.ridge_strength_q16() as i32).abs() < 4_096);
+        assert!(
+            (first.ridge_strength_q16() as i32 - second.ridge_strength_q16() as i32).abs() < 4_096
+        );
         assert!((first.uplift_q16() - second.uplift_q16()).abs() < 2_048);
         found_land_pair = true;
         break;
     }
-    assert!(found_land_pair, "expected adjacent land samples across the region boundary");
+    assert!(
+        found_land_pair,
+        "expected adjacent land samples across the region boundary"
+    );
 }
