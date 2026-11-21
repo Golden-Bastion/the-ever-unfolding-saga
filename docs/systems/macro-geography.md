@@ -120,7 +120,7 @@ Implemented in v0.53.12:
 
 Implemented in v0.53.15:
 
-- Replaced direct-line route creation with deterministic bounded A* over the shared macro lattice. The planner uses 32-sample steps, an eight-direction grid, a 4,096-node expansion cap, a 96-cell maximum endpoint distance, and a 128-point persisted path cap.
+- Replaced direct-line route creation with deterministic bounded A* over the shared macro lattice. The planner uses a 32-sample search grid with midpoint validation at 16-sample intervals, an eight-direction grid, a 4,096-node expansion cap, a 96-cell maximum endpoint distance, and a 256-point persisted path cap.
 - Ocean terrain is impassable for this overland planner. Elevation changes and mountain-ridge strength contribute soft movement costs, allowing routes to prefer lower, gentler corridors without treating every mountain as an absolute barrier.
 - Persisted route geography records the canonical endpoint-A-to-endpoint-B path, planning status, total cost, broad route profile, and detected physical crossings. River crossings identify a ford-or-bridge requirement, lake crossings identify a ferry requirement, and inconclusive river estimates require survey; mountain barriers are marked as pass candidates.
 - Route geography is generated when location geography is embedded and when new routes are added to an already-geography-backed world. Existing saved route plans are never silently regenerated. Older saves default the new route field to absent and receive plans through the existing geography migration.

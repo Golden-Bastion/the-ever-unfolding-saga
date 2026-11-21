@@ -287,7 +287,17 @@ pub fn plan_route(
         return RouteGeography::unavailable(RoutePlanningStatus::SearchLimit);
     }
     if goal == (0, 0) {
-        return planned_geography(world_seed, ruleset_version, vec![start, end], 0);
+        let Some(middle) = midpoint(start, end) else {
+            return RouteGeography::unavailable(RoutePlanningStatus::InvalidEndpoint);
+        };
+        let Some(middle_terrain) = terrain::sample_surface(world_seed, ruleset_version, middle)
+        else {
+            return RouteGeography::unavailable(RoutePlanningStatus::InvalidEndpoint);
+        };
+        if !middle_terrain.is_land() {
+            return RouteGeography::unavailable(RoutePlanningStatus::NoLandPath);
+        }
+        return planned_geography(world_seed, ruleset_version, vec![start, middle, end], 0);
     }
 
     let min_x = goal_x.min(0).saturating_sub(SEARCH_MARGIN_CELLS);

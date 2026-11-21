@@ -96,7 +96,7 @@ src/
 ├── geography.rs             # renderer-neutral macro-geography and persistent placement foundations
 │   ├── terrain.rs           # deterministic surface elevation fields on the global macro lattice
 │   ├── locations.rs         # persistent location anchors, footprints, and legacy embedding
-│   ├── routes.rs            # bounded physical-feature assessment for candidate route corridors
+│   ├── routes.rs            # bounded terrain-aware route planning and crossing profiles
 │   ├── underground.rs       # deterministic chamber nodes and reciprocal cave-network passages
 │   ├── mountains.rs         # deterministic mountain-ridge strength and terrain uplift
 │   ├── watershed.rs         # hierarchical coarse drainage links and local D8 sampling
