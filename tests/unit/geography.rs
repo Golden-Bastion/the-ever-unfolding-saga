@@ -367,27 +367,41 @@ fn climate_biomes_have_multiple_distinct_surface_environments() {
 
 #[test]
 fn coastal_biome_classification_remains_continuous_across_region_edges() {
-    let mut coastal_sample = None;
-    for x in [255, 256] {
-        for y in (-8_192..8_192).step_by(16) {
-            let coordinate = MacroCoordinate::new(x, y);
-            let terrain =
-                terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
-            if terrain.is_land()
-                && climate::sample_surface(55, GEOGRAPHY_RULESET_VERSION, coordinate)
-                    .is_some_and(|sample| sample.biome() == climate::Biome::Coast)
-            {
-                coastal_sample = Some(coordinate);
-                break;
+    // Search several chunk boundaries on both axes. A coastline is not
+    // guaranteed to intersect any one arbitrarily selected region edge.
+    for boundary in (-4_096..=4_096).step_by(256) {
+        for offset in (-8_192..8_192).step_by(16) {
+            let west = MacroCoordinate::new(boundary - 1, offset);
+            let east = MacroCoordinate::new(boundary, offset);
+            let north = MacroCoordinate::new(offset, boundary - 1);
+            let south = MacroCoordinate::new(offset, boundary);
+
+            for (first, second) in [(west, east), (north, south)] {
+                let first_terrain =
+                    terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, first).unwrap();
+                let second_terrain =
+                    terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, second).unwrap();
+
+                if first_terrain.is_land() != second_terrain.is_land() {
+                    let land_coordinate = if first_terrain.is_land() {
+                        first
+                    } else {
+                        second
+                    };
+                    let sample =
+                        climate::sample_surface(55, GEOGRAPHY_RULESET_VERSION, land_coordinate)
+                            .unwrap();
+
+                    assert_eq!(
+                        sample.biome(),
+                        climate::Biome::Coast,
+                        "land immediately beside ocean across a region edge must be coastal: {land_coordinate:?}"
+                    );
+                    return;
+                }
             }
-        }
-        if coastal_sample.is_some() {
-            break;
         }
     }
 
-    assert!(
-        coastal_sample.is_some(),
-        "expected to find a coastal sample at the region boundary"
-    );
+    panic!("expected the generated coastline to cross at least one searched region edge");
 }
