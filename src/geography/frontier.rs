@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{locations, routes, terrain, MacroCoordinate, RegionCoordinate};
+use super::{locations, routes, MacroCoordinate, RegionCoordinate};
 use crate::model::{
     Location, LocationGeographyRecord, Region, RouteDirection, World, WorldRoute,
 };
@@ -163,11 +163,12 @@ fn frontier_target_for_direction(
             (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
         });
     let id = format!(
-        "frontier.{key_hash:016x}.{}.{}.{}.{}",
+        "frontier.{key_hash:016x}.{}.{}.{}.{}.{}",
         source_region.x,
         source_region.y,
         direction.as_str(),
-        target_region.x.wrapping_add(target_region.y.rotate_left(7))
+        target_region.x,
+        target_region.y
     );
     Some(FrontierTarget {
         id,
@@ -197,9 +198,7 @@ pub fn materialize_frontier(
         .find(|record| record.location_id == source_location_id)
         .map(|record| record.anchor)
         .ok_or(FrontierMaterializationError::MissingSource)?;
-    let source_location = world
-        .location_by_id(source_location_id)
-        .cloned()
+    world.location_by_id(source_location_id)
         .ok_or(FrontierMaterializationError::MissingSource)?;
     let seed = world
         .geography_seed
