@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::content::{load_campaign_content, CampaignContent};
@@ -52,6 +53,18 @@ pub struct WorldRoute {
     /// Higher of the two endpoint location IDs.
     pub location_b_id: EntityId,
     pub direction: RouteDirection,
+}
+
+/// Persistent, user/world-authored changes associated with a generated waterbody.
+///
+/// Generated waterbody geometry and identity remain derived from geography.
+/// This record stores only explicit changes, with property names and values
+/// intentionally generic until gameplay systems define authoritative semantics.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct WaterbodyModification {
+    pub waterbody_id: String,
+    #[serde(default)]
+    pub properties: BTreeMap<String, String>,
 }
 
 impl WorldRoute {
@@ -150,6 +163,9 @@ pub struct World {
     /// Authoritative persistent connections between world locations.
     #[serde(default)]
     pub routes: Vec<WorldRoute>,
+    /// Explicit changes to deterministically generated lakes and other waterbodies.
+    #[serde(default)]
+    pub waterbody_modifications: Vec<WaterbodyModification>,
     pub history: Vec<HistoryEntry>,
     #[serde(default)]
     pub time_points: u32,
@@ -470,6 +486,7 @@ impl World {
             regions: Vec::new(),
             locations: Vec::new(),
             routes: Vec::new(),
+            waterbody_modifications: Vec::new(),
             history: Vec::new(),
             time_points: 3,
             day: 1,
@@ -477,6 +494,57 @@ impl World {
             event_cooldowns: Vec::new(),
             local_maps: Vec::new(),
         }
+    }
+
+    /// Set one generic persisted property on a generated waterbody.
+    ///
+    /// Returns false for empty identifiers/property names or when the value is
+    /// unchanged. Records are kept in stable waterbody-ID order.
+    pub fn set_waterbody_property(
+        &mut self,
+        waterbody_id: impl Into<String>,
+        property: impl Into<String>,
+        value: impl Into<String>,
+    ) -> bool {
+        let waterbody_id = waterbody_id.into();
+        let property = property.into();
+        let value = value.into();
+        if waterbody_id.trim().is_empty() || property.trim().is_empty() {
+            return false;
+        }
+
+        let index = match self
+            .waterbody_modifications
+            .iter()
+            .position(|record| record.waterbody_id == waterbody_id)
+        {
+            Some(index) => index,
+            None => {
+                self.waterbody_modifications.push(WaterbodyModification {
+                    waterbody_id: waterbody_id.clone(),
+                    properties: BTreeMap::new(),
+                });
+                self.waterbody_modifications
+                    .sort_by(|left, right| left.waterbody_id.cmp(&right.waterbody_id));
+                self.waterbody_modifications
+                    .iter()
+                    .position(|record| record.waterbody_id == waterbody_id)
+                    .expect("inserted waterbody modification should exist")
+            }
+        };
+
+        let record = &mut self.waterbody_modifications[index];
+        if record.properties.get(&property) == Some(&value) {
+            return false;
+        }
+        record.properties.insert(property, value);
+        true
+    }
+
+    pub fn waterbody_modification(&self, waterbody_id: &str) -> Option<&WaterbodyModification> {
+        self.waterbody_modifications
+            .iter()
+            .find(|record| record.waterbody_id == waterbody_id)
     }
 
     pub fn allocate_id(&mut self) -> EntityId {

@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.9: Deterministic inland lakes and waterbody state
+
+- Extended depression samples with a compact connected-basin footprint and deterministic coarse-cell membership checks.
+- Added inland-lake coverage derived from closed-basin geometry, basin-floor precipitation potential, and coarse-cell elevation. Water surfaces are bounded between basin floor and local spill saddle; this is a relative first-pass fill model, not calibrated hydrology.
+- Added stable lake IDs derived from world seed, geography ruleset, and basin outlet, plus an initial river-inflow indicator using the existing outlet river-channel estimate.
+- Added optional generic world-persisted waterbody modification records keyed by stable IDs. Generated geography remains derived on demand; old saves default to no modifications without a save-format version bump.
+- Added automated coverage for connected basin membership, deterministic lake sampling and identity, underground rejection, region ownership, modification round-trips, and backward-compatible defaults.
+- Kept the basin-count convenience helper test-only so strict Clippy checks do not flag production dead code.
+- Bumped Rust and Android version metadata to 0.53.9.
+
 ### v0.53.8: Precipitation-weighted river accumulation
 
 - Extended bounded reverse-watershed accumulation to sum each contributing coarse cell's deterministic climate precipitation-potential value alongside contributing area.

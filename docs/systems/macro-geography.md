@@ -68,6 +68,15 @@ Implemented in v0.53.8:
 - Each query retains the 128-contributor and 1,024-neighbor-candidate bounds. A truncated result explicitly makes both the contributing-cell count and weighted sum lower bounds.
 - The result is deterministic, fixed-point, renderer-independent, and derived on demand. It introduces no persisted hydrology state or save migration.
 
+Implemented in v0.53.9:
+
+- Extended the bounded depression result with a compact connected-footprint bitset and coarse-cell membership checks. Disconnected low terrain remains excluded.
+- Added `waterbodies::sample_surface` for deterministic inland-lake coverage. It combines closed-basin identity, connected footprint membership, basin-floor precipitation potential, and coarse-cell elevation to derive a water surface between the basin floor and local spill saddle.
+- Lakes use stable IDs derived from world seed, geography ruleset, and basin outlet. Every covered coarse cell in one basin resolves to the same identity; ocean, coastal water, unresolved traces, and underground strata are not inland lakes.
+- The first river relationship is an outlet inflow indicator based on the existing river-channel accumulation at the basin sink. Precipitation is only a relative fill proxy; this is not calibrated discharge, volume, evaporation, seasonal hydrology, or a connected water simulation.
+- Added optional world-level waterbody modification records keyed by stable generated IDs. Only explicit property changes are saved; generated lake geometry remains deterministic. The new field defaults empty when loading older saves, so the outer save format version does not change.
+- Automated tests cover deterministic lake identity and coverage, connected footprint membership, underground rejection, region ownership, modification persistence, and old-save defaults.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -78,7 +87,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
 
-- Persistent lake/waterbody placement, physically calibrated discharge, and connected water-system generation.
+- Physically calibrated discharge and connected water-system generation; lake coverage is an initial precipitation-scaled basin model, not a complete hydrology simulation.
 - Mountain ranges and other major terrain barriers.
 - A dedicated underground-strata generator for caves and underground networks.
 - Geography-aware location footprints, route constraints, and on-demand frontier integration.

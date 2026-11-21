@@ -116,3 +116,18 @@ fn a_flat_window_has_no_depression_depth_or_basin_footprint() {
     assert_eq!(spill, elevations[CENTER_INDEX]);
     assert_eq!(count_basin_cells(&elevations, spill), 0);
 }
+
+#[test]
+fn depression_samples_expose_only_the_connected_basin_footprint() {
+    let seed = 8_211;
+    let sink = find_negative_closed_sink(seed);
+    let depression = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, sink).unwrap();
+
+    assert!(depression.contains_coarse_cell(sink));
+    assert!(depression.contains_coarse_cell(MacroCoordinate::new(sink.x + 1, sink.y + 1,)));
+    assert!(!depression.contains_coarse_cell(MacroCoordinate::new(
+        sink.x + watershed::WATERSHED_CELL_SAMPLES * 9,
+        sink.y,
+    )));
+    assert!(!depression.contains_coarse_cell(MacroCoordinate::in_stratum(sink.x, sink.y, -1,)));
+}

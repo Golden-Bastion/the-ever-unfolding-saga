@@ -352,3 +352,42 @@ fn parallel_world_routes_keep_distinct_identity_and_update_the_derived_exit_cach
         .exits
         .is_empty());
 }
+
+#[test]
+fn waterbody_modifications_are_generic_deterministic_and_idempotent() {
+    let mut world = World::new("Waterbody State", WorldMode::New);
+    assert!(world.set_waterbody_property("lake.12.34.abcd", "name", "Mirror Lake"));
+    assert!(world.set_waterbody_property("lake.12.34.abcd", "water_level", "0.42"));
+    assert!(world.set_waterbody_property("lake.2.3.ef01", "discovered", "true"));
+    assert!(!world.set_waterbody_property("lake.12.34.abcd", "name", "Mirror Lake"));
+    assert!(!world.set_waterbody_property("", "name", "Invalid"));
+    assert!(!world.set_waterbody_property("lake.12.34.abcd", "", "Invalid"));
+
+    assert_eq!(
+        world.waterbody_modifications[0].waterbody_id,
+        "lake.12.34.abcd"
+    );
+    assert_eq!(
+        world
+            .waterbody_modification("lake.12.34.abcd")
+            .unwrap()
+            .properties["name"],
+        "Mirror Lake"
+    );
+
+    let serialized = serde_json::to_value(&world).unwrap();
+    let restored: World = serde_json::from_value(serialized.clone()).unwrap();
+    assert_eq!(
+        restored.waterbody_modifications,
+        world.waterbody_modifications
+    );
+
+    let mut legacy = serialized;
+    legacy
+        .as_object_mut()
+        .unwrap()
+        .remove("waterbody_modifications");
+    let restored: World = serde_json::from_value(legacy)
+        .expect("worlds saved before waterbody changes should still load");
+    assert!(restored.waterbody_modifications.is_empty());
+}

@@ -98,6 +98,7 @@ src/
 │   ├── watershed.rs         # hierarchical coarse drainage links and local D8 sampling
 │   ├── rivers.rs            # bounded contributing-area and precipitation-potential estimates for river channels
 │   ├── depressions.rs       # bounded closed-basin spill-level and footprint analysis
+│   ├── waterbodies.rs       # deterministic inland-lake coverage and stable identities
 │   ├── coast.rs             # shoreline adjacency and direction masks derived from elevation
 │   └── climate.rs           # deterministic surface climate and biome classification
 ├── spatial.rs               # renderer-neutral local-map model and deterministic generation
@@ -106,7 +107,7 @@ src/
 └── rng.rs                   # deterministic/random generation helpers
 ```
 
-The geography module owns signed global/region coordinate conversion, deterministic coordinate-derived seeds, and renderer-independent terrain fields. Surface elevation, shoreline adjacency, regional temperature and moisture, biome classification, hierarchical watershed drainage, contributing-area and precipitation-potential estimates for river channels, and bounded closed-basin depression analysis are sampled from the shared global lattice. Terrain and climate use deterministic fixed-point noise; coarse watershed links descend strictly by representative elevation, while local D8 directions remain within their coarse cell. The precipitation-potential sum is a relative index rather than physical discharge, and channel classification remains area-based. Hydrology remains renderer-independent and derives on demand without persistent generated state.
+The geography module owns signed global/region coordinate conversion, deterministic coordinate-derived seeds, and renderer-independent terrain fields. Surface elevation, shoreline adjacency, regional temperature and moisture, biome classification, hierarchical watershed drainage, contributing-area and precipitation-potential estimates for river channels, bounded closed-basin depression analysis, and deterministic inland-lake coverage are sampled from the shared global lattice. Terrain and climate use deterministic fixed-point noise; coarse watershed links descend strictly by representative elevation, while local D8 directions remain within their coarse cell. The precipitation-potential sum is a relative index rather than physical discharge, and channel classification remains area-based. Hydrology remains renderer-independent and derives on demand. Generated waterbody geometry is not saved; only explicit, stable-ID-keyed waterbody modifications are persisted in world state.
 
 The exact module list may evolve, but new modules should represent meaningful responsibilities rather than arbitrary slices of large files.
 
@@ -122,7 +123,7 @@ This keeps frontend orchestration separate from simulation rules without maintai
 
 The model represents the authoritative simulation state. Systems should mutate state through explicit functions belonging to the appropriate owner.
 
-World-level state includes persistent locations, factions, world history, event cooldowns, corpses, placed items, and other changes that survive character death.
+World-level state includes persistent locations, factions, world history, event cooldowns, corpses, placed items, explicit waterbody modifications, and other changes that survive character death.
 
 Character-level state includes attributes, experience, conditions, inventory, active quests, and other properties belonging to the current life.
 
