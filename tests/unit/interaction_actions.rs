@@ -383,6 +383,7 @@ fn discovery_requires_passages_to_match_authoritative_route_records() {
         id: "exit.one-way".into(),
         route_id: Some(route_id.into()),
         route_profile: None,
+        frontier: None,
         position: map.entry,
         target_location_id: destination_id,
     });
