@@ -75,8 +75,7 @@ fn river_channels_expose_a_deterministic_downstream_connection() {
                 .flat_map(|y| (-48..=48).map(move |x| (x, y)))
                 .filter_map(|(x, y)| watershed::cell_center(x, y))
                 .find_map(|coordinate| {
-                    let flow =
-                        rivers::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+                    let flow = rivers::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
                     if !flow.is_channel() {
                         return None;
                     }
