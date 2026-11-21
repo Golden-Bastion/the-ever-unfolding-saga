@@ -532,3 +532,94 @@ fn shoreline_sampling_is_independent_of_coordinate_visit_order() {
 
     assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
 }
+
+
+#[test]
+fn watershed_sampling_is_deterministic_and_rejects_underground() {
+    let coordinate = MacroCoordinate::new(-4_097, 8_193);
+    let first = watershed::sample_surface(1_337, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let repeated = watershed::sample_surface(1_337, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+
+    assert_eq!(first, repeated);
+    assert_eq!(first.coarse_cell().x.rem_euclid(watershed::WATERSHED_CELL_SAMPLES), watershed::WATERSHED_CELL_SAMPLES / 2);
+    assert_eq!(first.coarse_cell().y.rem_euclid(watershed::WATERSHED_CELL_SAMPLES), watershed::WATERSHED_CELL_SAMPLES / 2);
+    assert!(watershed::sample_surface(
+        1_337,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::in_stratum(coordinate.x, coordinate.y, -1),
+    ).is_none());
+    assert!(watershed::trace_to_outlet(
+        1_337,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::in_stratum(coordinate.x, coordinate.y, -1),
+    ).is_none());
+}
+
+#[test]
+fn watershed_coarse_links_are_strictly_downhill_and_region_independent() {
+    let coordinates = [
+        MacroCoordinate::new(-4_097, -1),
+        MacroCoordinate::new(-1, 4_095),
+        MacroCoordinate::new(4_095, 4_096),
+        MacroCoordinate::new(8_192, -8_193),
+    ];
+    let forward = coordinates.iter().map(|coordinate| {
+        watershed::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+    }).collect::<Vec<_>>();
+    let reverse = coordinates.iter().rev().map(|coordinate| {
+        watershed::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+    }).collect::<Vec<_>>();
+    assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
+
+    for sample in forward {
+        if let Some(downstream) = sample.coarse_downstream() {
+            let downstream_elevation = terrain::sample_surface(
+                8_201, GEOGRAPHY_RULESET_VERSION, downstream
+            ).unwrap().elevation_q16();
+            assert!(downstream_elevation < sample.elevation_q16());
+        }
+    }
+}
+
+#[test]
+fn watershed_local_d8_directions_stay_inside_their_coarse_cell() {
+    let mut found_direction = false;
+    for y in (-8_192..8_192).step_by(257) {
+        for x in (-8_192..8_192).step_by(257) {
+            let coordinate = MacroCoordinate::new(x, y);
+            let sample = watershed::sample_surface(
+                4_771, GEOGRAPHY_RULESET_VERSION, coordinate
+            ).unwrap();
+            if let Some(direction) = sample.local_direction() {
+                let (dx, dy) = direction.offset();
+                let neighbor = MacroCoordinate::new(x + dx, y + dy);
+                if neighbor.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES)
+                    != coordinate.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES)
+                    || neighbor.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES)
+                    != coordinate.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES)
+                {
+                    panic!("local D8 direction crossed a coarse watershed-cell boundary");
+                }
+                found_direction = true;
+                break;
+            }
+        }
+        if found_direction { break; }
+    }
+    assert!(found_direction, "expected at least one local downhill direction");
+}
+
+#[test]
+fn watershed_outlet_traces_are_bounded_and_deterministic() {
+    let coordinate = MacroCoordinate::new(-12_345, 6_789);
+    let first = watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let repeated = watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    assert_eq!(first, repeated);
+    assert!(usize::from(first.steps()) <= watershed::MAX_OUTLET_TRACE_STEPS);
+    if first.kind() == watershed::OutletKind::SearchLimit {
+        assert!(!first.is_terminal());
+        assert_eq!(usize::from(first.steps()), watershed::MAX_OUTLET_TRACE_STEPS);
+    } else {
+        assert!(first.is_terminal());
+    }
+}
