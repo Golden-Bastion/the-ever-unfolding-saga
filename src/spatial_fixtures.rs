@@ -283,7 +283,7 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
             if route_id.trim().is_empty() || !route_ids.insert(route_id) {
                 return Err("passage route identities must be non-empty and unique".to_string());
             }
-        } else if !legacy_destinations.insert(exit.target_location_id) {
+        } else if exit.frontier.is_none() && !legacy_destinations.insert(exit.target_location_id) {
             return Err(
                 "legacy passages without route identities must have unique destinations"
                     .to_string(),
