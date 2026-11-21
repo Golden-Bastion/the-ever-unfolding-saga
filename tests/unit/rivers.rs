@@ -67,13 +67,16 @@ fn river_sampler_rejects_underground_strata() {
 }
 
 #[test]
-fn river_sampler_rejects_unrepresentable_coarse_cell_centers() {
-    assert!(sample_surface(
-        8_211,
-        GEOGRAPHY_RULESET_VERSION,
-        MacroCoordinate::new(i64::MAX, 0),
-    )
-    .is_none());
+fn river_sampler_handles_extreme_signed_coordinates() {
+    for coordinate in [
+        MacroCoordinate::new(i64::MIN, i64::MIN),
+        MacroCoordinate::new(i64::MAX, i64::MAX),
+    ] {
+        assert!(
+            sample_surface(8_211, GEOGRAPHY_RULESET_VERSION, coordinate).is_some(),
+            "expected the outermost representable coordinates to map to valid coarse cells"
+        );
+    }
 }
 
 #[test]
