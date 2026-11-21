@@ -161,6 +161,8 @@ The intended regional/world map is a geography-informed route graph, not a gener
 - **Conservative migration:** old worlds without geography metadata retain their existing region/location identities and graph. Migration must assign a stable compatible representation without arbitrarily rearranging or invalidating established content.
 - **Derived map presentation:** the eventual illustrated world/region map is generated from the actual terrain, location visuals, and route data. It must not invent a separate generic landscape or maintain its own competing geography.
 
+Mountain ridge strength is exposed as a soft route-corridor resistance signal, not an absolute impassability flag. Route placement should prefer weaker corridors through a ridge belt where practical; these low-resistance crossings are candidates for mountain passes. The actual route type (trail, road, engineered pass, or another authored connection) determines what infrastructure or local-map passage is required. Water remains a separate crossing constraint: oceans, lakes, confirmed rivers, and unresolved river estimates must retain their distinct classifications. A route must not silently treat a water feature or an inconclusive river estimate as ordinary dry land.
+
 ### Selected macro-geography coordinate contract
 
 The initial macro-geography implementation uses a hierarchical signed coordinate model:

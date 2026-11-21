@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.12: Route-facing mountain barriers
+
+- Exposed mountain-ridge strength and a consistent mountain-barrier classification through the shared surface-terrain sample, avoiding duplicate mountain-field sampling by future route and location-placement systems.
+- Defined ridge strength as a soft crossing-resistance signal: lower-strength corridors can guide candidate mountain-pass placement, while actual crossing requirements remain the responsibility of route type and local-map connections.
+- Kept the change derived, deterministic, fixed-point, and backward-compatible with geography ruleset 1. No save-format or geography-ruleset change.
+- Clarified that physical discharge calibration and seasonal water balance are not required for the current geography milestone; seasonal rainfall/drought consequences are deferred to time-driven world simulation.
+- Added automated coverage for barrier-signal consistency, land-only mountain classification, underground rejection, and legacy-ruleset behavior.
+- Bumped Rust and Android version metadata to 0.53.12.
+
 ### v0.53.11: Deterministic mountain ranges
 
 - Added a deterministic, warped ridged-noise mountain field with broad connected belts and regional variation.

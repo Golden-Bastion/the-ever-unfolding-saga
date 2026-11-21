@@ -135,7 +135,22 @@ The architecture should support both stable/event-driven characters and entities
 
 When an entity moves, changes role, or otherwise evolves, dependent dialogue, quests, location references, and interactions must remain consistent. Roaming entities and complex AI will receive dedicated design work.
 
-### 5.5 Ecosystems and broader simulation
+### 5.5 Seasonal climate and weather
+
+Regional climate should eventually evolve over authoritative world time rather than remain only a static geography-generation field. The first implementation should use coarse, deterministic regional conditions and scheduled or aggregate updates, not continuous atmospheric or fluid simulation.
+
+The system should support:
+
+- Regional seasonal wet/dry patterns and rainfall variation.
+- Drought conditions after sustained periods of low precipitation.
+- Consequences for settlements through water availability and shortages.
+- Effects on crops and vegetation through planting, growth, yield, or recovery rules where those systems exist.
+- Travel consequences from broad weather conditions when they materially affect a route or journey.
+- Simple wet/dry responses in rivers and lakes where useful, without simulating water transport or physically calibrated discharge.
+
+Climate state should build on the existing geography fields and shared world-time/update contract. It should expose structured regional conditions for settlement, agriculture, vegetation, and travel systems to consume. The simulation must remain bounded for distant regions and preserve consequential state through save/load and inheritance. Individual raindrops, continuous fluid movement, and a detailed hydrology balance are explicitly outside this initial scope.
+
+### 5.6 Ecosystems and broader simulation
 
 Wildlife populations, predator-prey behavior, migration, settlement economies, autonomous faction conflicts, and similar systems may justify richer ongoing or aggregate simulation later.
 
