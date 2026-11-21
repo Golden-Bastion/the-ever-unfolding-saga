@@ -14,6 +14,10 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 **Delivered in v0.53.1:** established signed global macro-sample and region-chunk coordinates, fixed the region resolution at 256 × 256 samples, added deterministic coordinate-derived sample seeds and geography-ruleset metadata, and assigned stable coordinates to newly generated regions. Legacy worlds remain unembedded for the separately planned compatibility migration.
 
+**Delivered in v0.53.2:** added a deterministic fixed-point surface elevation field with continent-scale, regional, and detail noise, producing connected landmasses and smaller coastal/island variation on the shared global sample lattice.
+
+**Delivered in v0.53.3:** added deterministic regional temperature and moisture fields, elevation cooling, ocean-influenced moisture, precipitation potential, and renderer-independent surface biome classification. The initial catalogue covers ocean, coast, desert, grassland, temperate forest, taiga, tundra, and alpine environments.
+
 The v0.52.x development line is complete. The project owner has confirmed the integrated desktop/Android spatial-first gameplay verification and the separate spatial presentation/player-animation playtesting tracked by [#421](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/421) and [#446](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/446). The full delivered scope and final verification record are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md); the concise published summary and release assets are available in the [v0.52.70 GitHub Release](https://github.com/Golden-Bastion/the-ever-unfolding-saga/releases/tag/v0.52.70).
 
 The initial world-topology compatibility audit is complete in [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md). It records the current identity, generation, route, local-map, and save invariants, plus the owner-selected requirement to deterministically embed existing worlds through a one-time persisted migration. It does not change gameplay or save data.
