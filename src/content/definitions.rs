@@ -55,9 +55,23 @@ pub struct LocationContent {
     /// Optional built-in local-map layout identifier (for example, `shrine_chamber`).
     #[serde(default)]
     pub spatial_layout: Option<String>,
+    /// Optional macro-geographic anchor and footprint for authored placement.
+    #[serde(default)]
+    pub geography: Option<LocationGeographyContent>,
     /// Stable, authored discoveries placed on newly generated local maps.
     #[serde(default)]
     pub spatial_discoveries: Vec<SpatialDiscoveryContent>,
+}
+
+/// Optional authored macro-geographic placement for a location.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LocationGeographyContent {
+    /// Exact global surface coordinate; omitted for deterministic region placement.
+    #[serde(default)]
+    pub anchor: Option<crate::geography::MacroCoordinate>,
+    /// Macro-sample radius; defaults to four samples.
+    #[serde(default)]
+    pub footprint_radius_samples: Option<u16>,
 }
 
 /// An authored, examinable discovery in one location's local spatial map.

@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, and underground cave-network fields. It does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, and bounded route-corridor assessment. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
@@ -94,6 +94,14 @@ Implemented in v0.53.11:
 - Kept all calculations fixed-point, stateless, renderer-independent, and independent of region generation order. Ocean and underground samples receive no mountain uplift.
 - Advanced the geography ruleset to version 2. Existing worlds pinned to ruleset 1 retain their original elevation field; no save migration or persisted mountain state is introduced.
 
+Implemented in v0.53.14:
+
+- Added persisted location-geography records with stable authored/generated/compatibility keys, global macro anchors, and validated footprint radii. New locations receive deterministic anchors within their owning region chunk; authored content may optionally specify an exact surface anchor and footprint radius.
+- Added deterministic compatibility embedding for legacy regions without coordinates. Region ordering follows a stable breadth-first traversal of the saved route graph with stable ID tie-breaking. Existing coordinates are never moved.
+- Legacy worlds receive a persisted geography seed derived from saved world/region/location/route identities when no generation seed exists. Display names and content ordering are excluded. Geography ruleset and embedding versions are persisted separately from the save-format version.
+- Added a bounded candidate-corridor assessment that reports ocean, lake, river, unresolved-water, and mountain-ridge samples independently. It is diagnostic input for future route selection, not a pathfinder or permission to cross obstacles.
+- Automated tests cover stable compatibility embedding, identity/allocator preservation, deterministic location placement, authored anchors, bounded footprints, and route-corridor assessment.
+
 Implemented in v0.53.13:
 
 - Added `underground::sample_underground` for deterministic cave geography on negative strata. Surface and positive strata are rejected; each negative stratum has its own coordinate-derived network.
@@ -118,12 +126,9 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 ## Boundaries and remaining work
 
-The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, and bounded candidate-route corridor assessment are implemented. Remaining geography/topology work is terrain-aware route path selection, explicit route profiles and infrastructure requirements for water/cave crossings, local-map connection-point integration, and on-demand frontier materialization.
 
-- A dedicated underground-strata generator for caves and underground networks.
-- Geography-aware location footprints, route constraints, and on-demand frontier integration.
-
-The current geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
+The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 
 Macro-geography coordinates are not:
 

@@ -144,7 +144,7 @@ This resolves whether legacy worlds should be embedded or left behind. The exact
 
 ## Design decisions still open for coordinate-backed topology
 
-- **Authored placement contract:** Which placement, footprint, and connection-point constraints belong on `RegionContent` and `LocationContent`, and how should authored IDs be retained in saved runtime entities when display names change?
+- **Authored placement contract (partially resolved in v0.53.14):** `LocationContent` may provide an exact surface anchor and footprint radius, and persisted location-geography records retain authored content IDs as stable keys. Region-level placement constraints, environmental archetype constraints, and local-map connection-point requirements remain open.
 - **Geography scale (resolved 21 November 2026):** each region is a signed chunk of 256 × 256 macro samples. `RegionCoordinate` identifies chunks and `MacroCoordinate` identifies positions in the shared global sample lattice; both include a vertical stratum index, with zero for the surface and negative values for underground layers. This is separate from local-map tile dimensions; continuous terrain sampling/interpolation remains future implementation work.
 - **Geographic route-to-passage contract:** The v0.53 route layer now gives each passage a stable route ID and reconciles newly added routes into unused edge positions without moving established passages. The later geography layer still needs to define how route endpoints and physical connection points conform to terrain and regional boundaries.
 
@@ -192,4 +192,14 @@ The first coordinate-contract stage is implemented on the v0.53.x development li
 - Added stable coordinate-derived sample seeds keyed by world seed, geography ruleset version, and global sample coordinate. Sampling order and runtime entity allocation do not affect the result.
 - New generated worlds persist distinct coordinates for their initial regions. Direct authored seeding into an otherwise empty world anchors its first region at the origin.
 - Added optional region coordinates and a geography ruleset marker to persistent world data. Pre-geography saves deserialize with unassigned coordinates and ruleset version zero; the deterministic legacy-world embedding remains a separate migration stage.
-- The coordinate module defines no terrain fields or physical geography yet. Authored placement constraints, terrain sampling/interpolation, route-to-terrain validation, and legacy embedding remain outstanding.
+- Subsequent v0.53.x work added the continuous surface/underground geography fields, deterministic legacy embedding, persistent location anchors/footprints, and bounded route-corridor feature assessment. Terrain-aware route path selection, route profiles, and local-map connection-point integration remain outstanding.
+
+
+## Implementation follow-up — location geography and corridor assessment (v0.53.14)
+
+- Added world-persisted geography seed, ruleset/embedding versions, and location-geography records. These are defaulted for old saves; the outer save format does not change.
+- Legacy worlds without a geography seed receive a deterministic compatibility seed derived from saved world, region, location, and route identities. Names and mutable content are excluded. Existing generation seeds and assigned region coordinates are preserved.
+- Missing region coordinates are assigned in stable route-graph breadth-first order, with stable numeric-ID tie-breaking and collision avoidance. Existing coordinates are not moved.
+- Every location without a saved geography record receives a deterministic macro anchor within its owning region chunk and a footprint radius validated against surrounding land samples. Authored content may provide an exact surface anchor and footprint radius. Existing anchors always take precedence.
+- Added a bounded straight-line corridor assessment for route candidates. It exposes separate ocean, lake, river, unresolved-water, and mountain-ridge signals. This is not yet a route pathfinder and does not change authoritative route connectivity or travel permission.
+- The migration is idempotent and does not allocate entity IDs or mutate route records, history, or saved local maps.
