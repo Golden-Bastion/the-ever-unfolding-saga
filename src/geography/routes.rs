@@ -275,7 +275,11 @@ pub fn plan_route(
     };
     let goal = (goal_x, goal_y);
 
-    if goal_x.abs().max(goal_y.abs()) > MAX_ROUTE_GRID_DISTANCE {
+    if goal_x
+        .unsigned_abs()
+        .max(goal_y.unsigned_abs())
+        > MAX_ROUTE_GRID_DISTANCE as u32
+    {
         return RouteGeography::unavailable(RoutePlanningStatus::SearchLimit);
     }
     if goal == (0, 0) {
@@ -571,7 +575,7 @@ fn classify_profile(crossings: &[RouteCrossing]) -> RouteProfile {
             RouteCrossingKind::Lake | RouteCrossingKind::Ocean
         )
     });
-    let kinds = usize::from(has_mountain) + usize::from(has_river) + usize::from(has_water);
+    let kinds = has_mountain as usize + has_river as usize + has_water as usize;
     if kinds > 1 {
         RouteProfile::Mixed
     } else if has_water {

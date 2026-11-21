@@ -1103,6 +1103,61 @@ fn terrain_editor_cannot_turn_a_room_cell_into_a_wall() {
 }
 
 #[test]
+fn route_reconciliation_uses_profile_and_preferred_side_for_new_passages() {
+    use crate::geography::routes::RouteProfile;
+    use crate::spatial::MapExitSide;
+
+    let mut map = generate_local_map(818, "location.10", LocalMapConfig::default());
+    configure_map_routes(
+        &mut map,
+        &[MapRouteDestination {
+            route_id: "route.northbound".into(),
+            target_location_id: 20,
+            profile: Some(RouteProfile::MountainPass),
+            preferred_side: Some(MapExitSide::North),
+        }],
+    );
+
+    assert_eq!(map.exits.len(), 1);
+    assert_eq!(map.exits[0].route_profile, Some(RouteProfile::MountainPass));
+    assert_eq!(map.exits[0].position.y, 0);
+}
+
+#[test]
+fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
+    use crate::geography::routes::RouteProfile;
+    use crate::spatial::MapExitSide;
+
+    let mut map = generate_local_map(819, "location.10", LocalMapConfig::default());
+    let position = GridPosition {
+        x: map.width - 1,
+        y: 2,
+    };
+    let existing = MapExit {
+        id: "location.10.route.route.east".into(),
+        route_id: Some("route.east".into()),
+        route_profile: None,
+        position,
+        target_location_id: 20,
+    };
+    assert!(map.place_map_exit(existing, &[20]));
+
+    configure_map_routes(
+        &mut map,
+        &[MapRouteDestination {
+            route_id: "route.east".into(),
+            target_location_id: 20,
+            profile: Some(RouteProfile::RiverCrossing),
+            preferred_side: Some(MapExitSide::North),
+        }],
+    );
+
+    assert_eq!(map.exits.len(), 1);
+    assert_eq!(map.exits[0].position, position);
+    assert_eq!(map.exits[0].route_profile, Some(RouteProfile::RiverCrossing));
+}
+
+#[test]
 fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_idempotently() {
     let mut map = generate_local_map(818, "location.10", LocalMapConfig::default());
     let routes = vec![

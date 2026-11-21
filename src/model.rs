@@ -595,6 +595,9 @@ impl World {
         self.routes.push(route);
         self.routes.sort_by(|left, right| left.id.cmp(&right.id));
         self.rebuild_location_exit_cache();
+        if self.geography_seed.is_some() {
+            crate::geography::routes::ensure_world_route_geography(self);
+        }
         true
     }
 
