@@ -443,3 +443,51 @@ fn nearby_interior_doors_offer_state_appropriate_contextual_actions() {
         .iter()
         .any(|item| item.action == InteractionActionKind::TryLockedDoor));
 }
+
+#[test]
+fn nearby_pending_frontier_passage_offers_exploration_without_a_world_route() {
+    let game = crate::model::create_new_state(
+        "Frontier Interaction Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let mut map = crate::spatial::generate_local_map(
+        91,
+        format!("location.{}", game.character.location_id),
+        crate::spatial::LocalMapConfig::default(),
+    );
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.interactables.clear();
+    map.encounters.clear();
+    let frontier = crate::geography::frontier::FrontierTarget {
+        id: "frontier.interaction.east".into(),
+        target_region: crate::geography::RegionCoordinate::new(1, 0),
+        direction: crate::geography::frontier::FrontierDirection::East,
+    };
+    map.exits.push(MapExit {
+        id: "location.frontier.interaction.east".into(),
+        route_id: None,
+        route_profile: None,
+        frontier: Some(frontier),
+        position: map.entry,
+        target_location_id: 0,
+    });
+    let player = (
+        f32::from(map.entry.x) + 0.5,
+        f32::from(map.entry.y) + 0.5,
+    );
+
+    let available = discover_available_interactions(&map, &game, player);
+    assert_eq!(available.len(), 1);
+    assert_eq!(available[0].action, InteractionActionKind::Enter);
+    assert_eq!(available[0].label, "Explore eastern frontier");
+    assert_eq!(
+        available[0].target,
+        InteractionTarget::Passage {
+            id: "location.frontier.interaction.east".into(),
+            destination_id: 0,
+        }
+    );
+}
