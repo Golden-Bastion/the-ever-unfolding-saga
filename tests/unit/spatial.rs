@@ -1146,6 +1146,7 @@ fn route_reconciliation_uses_profile_and_preferred_side_for_new_passages() {
             target_location_id: 20,
             profile: Some(RouteProfile::MountainPass),
             preferred_side: Some(MapExitSide::North),
+            frontier_id: None,
         }],
     );
 
@@ -1209,12 +1210,14 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
             target_location_id: 20,
             profile: None,
             preferred_side: None,
+            frontier_id: None,
         },
         MapRouteDestination {
             route_id: "route.path.beta".into(),
             target_location_id: 20,
             profile: None,
             preferred_side: None,
+            frontier_id: None,
         },
     ];
 
@@ -1236,6 +1239,7 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
         target_location_id: 21,
         profile: None,
         preferred_side: None,
+        frontier_id: None,
     });
     configure_map_routes(&mut map, &expanded_routes);
     assert_eq!(map.exits.len(), 3);
@@ -1257,6 +1261,7 @@ fn route_reconciliation_distributes_new_passages_round_robin_by_compass_side() {
             target_location_id: 20 + slot,
             profile: None,
             preferred_side: None,
+            frontier_id: None,
         })
         .collect::<Vec<_>>();
 
@@ -1307,6 +1312,7 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
             target_location_id: 20,
             profile: None,
             preferred_side: None,
+            frontier_id: None,
         }],
     );
 
