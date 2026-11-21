@@ -16,7 +16,9 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 **Delivered in v0.53.2:** added a deterministic fixed-point surface elevation field with continent-scale, regional, and detail noise, producing connected landmasses and smaller coastal/island variation on the shared global sample lattice.
 
-**Delivered in v0.53.3:** added deterministic regional temperature and moisture fields, elevation cooling, ocean-influenced moisture, precipitation potential, and renderer-independent surface biome classification. The initial catalogue covers ocean, coast, desert, grassland, temperate forest, taiga, tundra, and alpine environments.\n\n**Delivered in v0.53.4:** added explicit, direction-aware shoreline samples for both land and water, derived from neighboring global elevation samples and shared by climate biome classification.
+**Delivered in v0.53.3:** added deterministic regional temperature and moisture fields, elevation cooling, ocean-influenced moisture, precipitation potential, and renderer-independent surface biome classification. The initial catalogue covers ocean, coast, desert, grassland, temperate forest, taiga, tundra, and alpine environments.
+
+**Delivered in v0.53.4:** added explicit, direction-aware shoreline samples for both land and water, derived from neighboring global elevation samples and shared by climate biome classification.
 
 The v0.52.x development line is complete. The project owner has confirmed the integrated desktop/Android spatial-first gameplay verification and the separate spatial presentation/player-animation playtesting tracked by [#421](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/421) and [#446](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/446). The full delivered scope and final verification record are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md); the concise published summary and release assets are available in the [v0.52.70 GitHub Release](https://github.com/Golden-Bastion/the-ever-unfolding-saga/releases/tag/v0.52.70).
 
