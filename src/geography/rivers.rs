@@ -1,11 +1,11 @@
 //! Deterministic, renderer-independent river-channel extraction.
 //!
 //! Flow accumulation walks the reverse coarse watershed graph. Each query
-//! examines at most MAX_CONTRIBUTING_CELLS accepted cells; it never scans the
-//! unbounded world or stores generated hydrology state. Accumulation is a
-//! contributing-area count, not a simulated water volume.
+//! examines at most MAX_CONTRIBUTING_CELLS accepted cells and sums their
+//! climate-derived precipitation potential. The sum is a relative index, not
+//! physical discharge or water volume; no generated hydrology state is stored.
 
-use super::{terrain, watershed, MacroCoordinate};
+use super::{climate, terrain, watershed, MacroCoordinate};
 use std::collections::{BTreeSet, VecDeque};
 
 /// Hard upper bound on coarse cells included in one accumulation query.
@@ -14,10 +14,12 @@ pub const MAX_CONTRIBUTING_CELLS: usize = 128;
 /// Minimum contributing coarse cells required to classify a river channel.
 pub const MIN_RIVER_CONTRIBUTING_CELLS: u16 = 8;
 
-/// Bounded estimate of the land area draining through one coarse cell.
+/// Bounded estimate of the contributing land area and precipitation potential
+/// draining through one coarse cell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FlowAccumulation {
     contributing_cells: u16,
+    precipitation_potential_sum_q16: u64,
     truncated: bool,
 }
 
@@ -28,8 +30,17 @@ impl FlowAccumulation {
         self.contributing_cells
     }
 
+    /// Sum of the contributors' precipitation-potential samples.
+    ///
+    /// This unsigned Q16 × coarse-cell index is useful for comparing relative
+    /// wetness across drainage areas. It is not a physical discharge value.
+    /// When the query is truncated, this sum is also a lower bound.
+    pub const fn precipitation_potential_sum_q16(self) -> u64 {
+        self.precipitation_potential_sum_q16
+    }
+
     /// Whether additional contributors were found beyond the work bound.
-    /// When true, contributing_cells is a lower bound.
+    /// When true, both contributing_cells and the precipitation sum are lower bounds.
     pub const fn is_truncated(self) -> bool {
         self.truncated
     }
@@ -39,7 +50,8 @@ impl FlowAccumulation {
     }
 }
 
-/// River-channel classification and its contributing-area estimate.
+/// River-channel classification and its bounded contributing-area and
+/// precipitation-potential estimates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RiverSample {
     coarse_cell: MacroCoordinate,
@@ -80,10 +92,18 @@ pub fn sample_surface(
     let accumulation = if watershed_sample.is_ocean() {
         FlowAccumulation {
             contributing_cells: 0,
+            precipitation_potential_sum_q16: 0,
             truncated: false,
         }
     } else {
-        accumulate_upstream(world_seed, ruleset_version, coarse_cell)
+        let start_precipitation_q16 =
+            climate::sample_surface(world_seed, ruleset_version, coarse_cell)?.precipitation_q16();
+        accumulate_upstream(
+            world_seed,
+            ruleset_version,
+            coarse_cell,
+            start_precipitation_q16,
+        )?
     };
 
     Some(RiverSample {
@@ -96,7 +116,8 @@ fn accumulate_upstream(
     world_seed: u64,
     ruleset_version: u32,
     start: MacroCoordinate,
-) -> FlowAccumulation {
+    start_precipitation_q16: u32,
+) -> Option<FlowAccumulation> {
     let start_key = (
         start.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
         start.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
@@ -105,6 +126,7 @@ fn accumulate_upstream(
     let mut accepted = BTreeSet::from([start_key]);
     let mut examined = BTreeSet::new();
     let mut contributing_cells = 1usize;
+    let mut precipitation_potential_sum_q16 = u64::from(start_precipitation_q16);
     let mut truncated = false;
 
     while let Some(downstream) = pending.pop_front() {
@@ -143,8 +165,13 @@ fn accumulate_upstream(
                 break;
             }
 
+            let candidate_precipitation_q16 =
+                climate::sample_surface(world_seed, ruleset_version, candidate)?
+                    .precipitation_q16();
             accepted.insert(candidate_key);
             contributing_cells += 1;
+            precipitation_potential_sum_q16 = precipitation_potential_sum_q16
+                .saturating_add(u64::from(candidate_precipitation_q16));
             pending.push_back(candidate);
         }
 
@@ -153,10 +180,11 @@ fn accumulate_upstream(
         }
     }
 
-    FlowAccumulation {
+    Some(FlowAccumulation {
         contributing_cells: contributing_cells as u16,
+        precipitation_potential_sum_q16,
         truncated,
-    }
+    })
 }
 
 fn drains_into(
