@@ -623,7 +623,7 @@ fn version_five_save_receives_compatibility_geography_embedding() {
         "geography_embedding_version",
         "location_geography",
     ] {
-        world.as_object_mut().unwrap().remove(field);
+        world.remove(field);
     }
     fs::write(
         &path,
