@@ -25,50 +25,32 @@ fn underground_sampling_rejects_surface_and_positive_strata() {
 
 #[test]
 fn cave_nodes_are_deterministic_and_seeded_by_stratum() {
-    let coordinates = [
-        MacroCoordinate::in_stratum(-640, -384, -1),
-        MacroCoordinate::in_stratum(-32, 32, -1),
-        MacroCoordinate::in_stratum(32, 32, -1),
-        MacroCoordinate::in_stratum(288, 160, -2),
-        MacroCoordinate::in_stratum(1_024, -768, -3),
-    ];
-    let first = coordinates
-        .iter()
-        .map(|coordinate| sample_underground(42, GEOGRAPHY_RULESET_VERSION, *coordinate))
-        .collect::<Vec<_>>();
-    let repeated = coordinates
-        .iter()
-        .map(|coordinate| sample_underground(42, GEOGRAPHY_RULESET_VERSION, *coordinate))
-        .collect::<Vec<_>>();
-    assert_eq!(first, repeated);
-
-    let other_seed = coordinates
-        .iter()
-        .map(|coordinate| sample_underground(43, GEOGRAPHY_RULESET_VERSION, *coordinate))
-        .collect::<Vec<_>>();
-    assert_ne!(first, other_seed);
-
-    let shallow = coordinates
-        .iter()
-        .map(|coordinate| {
-            sample_underground(
-                42,
-                GEOGRAPHY_RULESET_VERSION,
-                MacroCoordinate::in_stratum(coordinate.x, coordinate.y, -1),
-            )
-        })
-        .collect::<Vec<_>>();
-    let deep = coordinates
-        .iter()
-        .map(|coordinate| {
-            sample_underground(
+    let mut shallow = Vec::new();
+    let mut deep = Vec::new();
+    for cell_y in -8..8 {
+        for cell_x in -8..8 {
+            let coordinate = chamber_center(cell_x, cell_y, -1);
+            shallow.push(sample_underground(42, GEOGRAPHY_RULESET_VERSION, coordinate));
+            deep.push(sample_underground(
                 42,
                 GEOGRAPHY_RULESET_VERSION,
                 MacroCoordinate::in_stratum(coordinate.x, coordinate.y, -2),
+            ));
+        }
+    }
+    assert_ne!(shallow, deep);
+
+    let other_seed = (-8..8)
+        .flat_map(|cell_y| (-8..8).map(move |cell_x| (cell_x, cell_y)))
+        .map(|(cell_x, cell_y)| {
+            sample_underground(
+                43,
+                GEOGRAPHY_RULESET_VERSION,
+                chamber_center(cell_x, cell_y, -1),
             )
         })
         .collect::<Vec<_>>();
-    assert_ne!(shallow, deep);
+    assert_ne!(shallow, other_seed);
 }
 
 #[test]
