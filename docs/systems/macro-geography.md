@@ -9,6 +9,9 @@ Implemented in v0.53.1:
 - `RegionCoordinate` identifies a fixed 256 × 256 region chunk using signed `i64` chunk coordinates.
 - `MacroCoordinate` identifies a sample in one shared signed global lattice and carries its vertical stratum.
 - Stratum `0` is the surface; negative stratum indices identify underground layers. Surface and underground samples may share horizontal coordinates without sharing sample seeds.
+- `underground::sample_underground` samples negative strata independently. It generates jittered chamber nodes on a 64-sample global lattice and reciprocal cardinal links where both neighboring chambers exist and the shared deterministic edge is open. Chamber-to-chamber passages follow the segment between stable node centers, so networks remain coherent across region boundaries.
+- Underground samples distinguish solid rock, chambers, and passages. Open samples expose their stable chamber-center coordinate and connected-neighbor mask. A query inspects one node and at most four neighbors; it does not scan the world or persist generated cave geometry.
+- Stratum numbers are layer identifiers, not calibrated physical depths. The initial model modestly increases chamber frequency on deeper layers but does not yet model rock composition, geological formation, underground water, or vertical shafts between strata.
 - Region-local to global conversion uses checked multiplication and addition and rejects local indices outside the chunk.
 - Global to region-local conversion uses Euclidean division and remainder. This is essential for negative coordinates: global sample `-1` belongs to region `-1`, local sample `255`, not region `0`.
 - `coordinate_seed` derives a deterministic seed from the world seed, geography ruleset version, and global sample coordinate including stratum. It does not depend on traversal/generation order, runtime IDs, or names.
