@@ -153,21 +153,11 @@ fn frontier_has_land_approach(
     else {
         return false;
     };
-    let Some(stable_key) = world
-        .location_geography
-        .iter()
-        .find(|record| record.location_id == source_location_id)
-        .map(|record| record.stable_key.as_str())
-    else {
-        return false;
-    };
-
     locations::frontier_anchor_candidates(
         seed,
         world.geography_ruleset_version,
         frontier.target_region,
         &frontier.location_key(),
-        stable_key,
         frontier.direction,
         FRONTIER_ANCHOR_CANDIDATES,
     )
