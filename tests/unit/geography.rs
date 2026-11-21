@@ -533,7 +533,6 @@ fn shoreline_sampling_is_independent_of_coordinate_visit_order() {
     assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
 }
 
-
 #[test]
 fn watershed_sampling_is_deterministic_and_rejects_underground() {
     let coordinate = MacroCoordinate::new(-4_097, 8_193);
@@ -542,23 +541,31 @@ fn watershed_sampling_is_deterministic_and_rejects_underground() {
 
     assert_eq!(first, repeated);
     assert_eq!(
-        first.coarse_cell().x.rem_euclid(watershed::WATERSHED_CELL_SAMPLES),
+        first
+            .coarse_cell()
+            .x
+            .rem_euclid(watershed::WATERSHED_CELL_SAMPLES),
         watershed::WATERSHED_CELL_SAMPLES / 2
     );
     assert_eq!(
-        first.coarse_cell().y.rem_euclid(watershed::WATERSHED_CELL_SAMPLES),
+        first
+            .coarse_cell()
+            .y
+            .rem_euclid(watershed::WATERSHED_CELL_SAMPLES),
         watershed::WATERSHED_CELL_SAMPLES / 2
     );
     assert!(watershed::sample_surface(
         1_337,
         GEOGRAPHY_RULESET_VERSION,
         MacroCoordinate::in_stratum(coordinate.x, coordinate.y, -1),
-    ).is_none());
+    )
+    .is_none());
     assert!(watershed::trace_to_outlet(
         1_337,
         GEOGRAPHY_RULESET_VERSION,
         MacroCoordinate::in_stratum(coordinate.x, coordinate.y, -1),
-    ).is_none());
+    )
+    .is_none());
 }
 
 #[test]
@@ -586,9 +593,10 @@ fn watershed_coarse_links_are_strictly_downhill_and_region_independent() {
 
     for sample in forward {
         if let Some(downstream) = sample.coarse_downstream() {
-            let downstream_elevation = terrain::sample_surface(
-                8_201, GEOGRAPHY_RULESET_VERSION, downstream
-            ).unwrap().elevation_q16();
+            let downstream_elevation =
+                terrain::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, downstream)
+                    .unwrap()
+                    .elevation_q16();
             assert!(downstream_elevation < sample.elevation_q16());
         }
     }
@@ -608,7 +616,7 @@ fn watershed_local_d8_directions_stay_inside_their_coarse_cell() {
                 if neighbor.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES)
                     != coordinate.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES)
                     || neighbor.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES)
-                    != coordinate.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES)
+                        != coordinate.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES)
                 {
                     panic!("local D8 direction crossed a coarse watershed-cell boundary");
                 }
@@ -616,38 +624,40 @@ fn watershed_local_d8_directions_stay_inside_their_coarse_cell() {
                 break;
             }
         }
-        if found_direction { break; }
+        if found_direction {
+            break;
+        }
     }
-    assert!(found_direction, "expected at least one local downhill direction");
+    assert!(
+        found_direction,
+        "expected at least one local downhill direction"
+    );
 }
 
 #[test]
 fn watershed_outlet_traces_are_bounded_and_deterministic() {
     let coordinate = MacroCoordinate::new(-12_345, 6_789);
-    let first =
-        watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
-    let repeated =
-        watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let first = watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let repeated = watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
     assert_eq!(first, repeated);
     assert!(usize::from(first.steps()) <= watershed::MAX_OUTLET_TRACE_STEPS);
     if first.kind() == watershed::OutletKind::SearchLimit {
         assert!(!first.is_terminal());
-        assert_eq!(usize::from(first.steps()), watershed::MAX_OUTLET_TRACE_STEPS);
+        assert_eq!(
+            usize::from(first.steps()),
+            watershed::MAX_OUTLET_TRACE_STEPS
+        );
     } else {
         assert!(first.is_terminal());
     }
 }
 
-
 #[test]
 fn watershed_outlet_kinds_match_their_terminal_cells() {
     let coordinate = MacroCoordinate::new(31_337, -18_721);
     let outlet = watershed::trace_to_outlet(5_119, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
-    let sample = watershed::sample_surface(
-        5_119,
-        GEOGRAPHY_RULESET_VERSION,
-        outlet.coordinate(),
-    ).unwrap();
+    let sample =
+        watershed::sample_surface(5_119, GEOGRAPHY_RULESET_VERSION, outlet.coordinate()).unwrap();
 
     match outlet.kind() {
         watershed::OutletKind::Ocean => assert!(sample.is_ocean()),

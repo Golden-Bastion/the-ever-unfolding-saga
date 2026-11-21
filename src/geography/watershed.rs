@@ -156,14 +156,20 @@ pub fn sample_surface(
     let coarse_cell = cell_center(coarse_x, coarse_y)?;
     let elevation = terrain::sample_surface(world_seed, ruleset_version, coarse_cell)?;
     let coarse_downstream = if elevation.is_land() {
-        downstream_cell(world_seed, ruleset_version, coarse_x, coarse_y, elevation.elevation_q16())
+        downstream_cell(
+            world_seed,
+            ruleset_version,
+            coarse_x,
+            coarse_y,
+            elevation.elevation_q16(),
+        )
     } else {
         None
     };
 
     let mut local_direction = None;
-    let mut lowest_elevation = terrain::sample_surface(world_seed, ruleset_version, coordinate)?
-        .elevation_q16();
+    let mut lowest_elevation =
+        terrain::sample_surface(world_seed, ruleset_version, coordinate)?.elevation_q16();
 
     for (dx, dy, direction) in NEIGHBORS {
         let Some(x) = coordinate.x.checked_add(dx) else {
@@ -294,9 +300,7 @@ fn downstream_cell(
         }
 
         let is_better = match lowest.as_ref() {
-            Some((best, best_y, best_x, _)) => {
-                (candidate, y, x) < (*best, *best_y, *best_x)
-            }
+            Some((best, best_y, best_x, _)) => (candidate, y, x) < (*best, *best_y, *best_x),
             None => true,
         };
         if is_better {
