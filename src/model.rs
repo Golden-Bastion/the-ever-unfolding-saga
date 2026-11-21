@@ -158,7 +158,9 @@ pub struct LocationGeographyRecord {
     #[serde(default = "default_location_footprint_radius")]
     pub footprint_radius_samples: u16,
 }
-fn default_location_footprint_radius() -> u16 { 4 }
+fn default_location_footprint_radius() -> u16 {
+    4
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct World {

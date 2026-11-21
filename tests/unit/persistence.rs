@@ -584,7 +584,7 @@ fn version_four_save_migrates_legacy_edges_and_passages_without_allocating_ids()
 }
 
 #[test]
-fn version_five_save_defaults_unembedded_geography_fields() {
+fn version_five_save_receives_compatibility_geography_embedding() {
     let dir = temp_dir();
     let path = dir.join("version-five-geography-defaults.json");
     let state = create_new_state(
@@ -617,6 +617,14 @@ fn version_five_save_defaults_unembedded_geography_fields() {
         .as_object_mut()
         .expect("generation metadata should be an object")
         .remove("geography_ruleset_version");
+    for field in [
+        "geography_seed",
+        "geography_ruleset_version",
+        "geography_embedding_version",
+        "location_geography",
+    ] {
+        world.as_object_mut().unwrap().remove(field);
+    }
     fs::write(
         &path,
         serde_json::to_vec(&json).expect("version-five save should serialize"),
@@ -628,11 +636,26 @@ fn version_five_save_defaults_unembedded_geography_fields() {
         .world
         .regions
         .iter()
-        .all(|region| region.coordinate.is_none()));
+        .all(|region| region.coordinate.is_some()));
+    assert_eq!(
+        loaded.world.geography_seed,
+        Some(state.world.generation.unwrap().seed)
+    );
+    assert_eq!(
+        loaded.world.geography_ruleset_version,
+        crate::geography::GEOGRAPHY_RULESET_VERSION
+    );
     assert_eq!(
         loaded.world.generation.unwrap().geography_ruleset_version,
-        0,
-        "legacy worlds must remain explicitly unembedded until compatibility migration"
+        crate::geography::GEOGRAPHY_RULESET_VERSION
+    );
+    assert_eq!(
+        loaded.world.location_geography.len(),
+        loaded.world.locations.len()
+    );
+    assert_eq!(
+        loaded.world.geography_embedding_version,
+        crate::geography::locations::LOCATION_GEOGRAPHY_EMBEDDING_VERSION
     );
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }

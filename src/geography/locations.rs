@@ -34,6 +34,11 @@ pub fn ensure_location_geography(world: &mut World, content: Option<&CampaignCon
             .unwrap_or(GEOGRAPHY_RULESET_VERSION)
     };
     world.geography_ruleset_version = ruleset;
+    if let Some(generation) = world.generation.as_mut() {
+        if generation.geography_ruleset_version == 0 {
+            generation.geography_ruleset_version = ruleset;
+        }
+    }
 
     embed_missing_region_coordinates(world);
 
