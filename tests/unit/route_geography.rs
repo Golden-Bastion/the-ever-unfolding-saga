@@ -1,4 +1,4 @@
-use crate::geography::routes::{assess_corridor, MAX_CORRIDOR_SAMPLES};
+use crate::geography::routes::{assess_corridor, assess_world_route, MAX_CORRIDOR_SAMPLES};
 use crate::geography::{MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
 
 #[test]
