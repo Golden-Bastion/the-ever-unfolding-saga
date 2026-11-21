@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.16: Deterministic on-demand frontier materialization
+
+- Added stable cardinal frontier target identities derived from a source location's persisted geography key and adjacent region coordinates. Listing or displaying a frontier does not generate a region or location.
+- Added deterministic, edge-biased land-anchor candidates for adjacent regions. Frontier materialization requires the bounded terrain-aware route planner to find a valid land path before changing world state.
+- Materializing a frontier creates or reuses only its adjacent region and one destination location, then persists the canonical bidirectional world route and planned macro path. No neighboring regions are generated recursively.
+- Added persisted pending frontier passage markers to local maps. The player can use a pending passage to materialize its destination; the same passage ID and position are then upgraded in place to the new authoritative route. Existing passages and local-map geometry remain unchanged.
+- Repeated materialization reuses stable region/location/route records and does not depend on runtime allocator position. Older saves default the optional frontier passage field; no save-format or geography-ruleset bump is required.
+- Added automated coverage for read-only frontier listing, deterministic identity, allocator-order independence, bounded materialization/idempotence, invalid frontier rejection, pending passage interactions, in-place passage upgrade, and legacy field defaults.
+
 ### v0.53.15: Terrain-aware route planning and physical passage profiles
 
 - Added bounded deterministic A* route planning over the shared macro-geography lattice. Ocean terrain is impassable; elevation and mountain ridges contribute soft route costs.
