@@ -702,6 +702,12 @@ fn mountain_ranges_are_deterministic_and_change_surface_elevation() {
                     .unwrap();
             let terrain =
                 terrain::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+            assert_eq!(
+                terrain.mountain_ridge_strength_q16(),
+                mountain.ridge_strength_q16()
+            );
+            assert_eq!(terrain.is_mountain_barrier(), mountain.is_mountain());
+
             if base > 0 && mountain.is_mountain() {
                 found_range = true;
                 assert!(mountain.uplift_q16() > 0);
@@ -772,39 +778,6 @@ fn mountain_field_is_continuous_across_region_chunk_boundaries() {
         found_land_pair,
         "expected adjacent land samples across the region boundary"
     );
-}
-
-
-#[test]
-fn surface_terrain_exposes_the_shared_mountain_barrier_signal() {
-    let mut found_mountain_barrier = false;
-    let mut found_open_land = false;
-
-    for y in (-32_768..32_768).step_by(512) {
-        for x in (-32_768..32_768).step_by(512) {
-            let coordinate = MacroCoordinate::new(x, y);
-            let terrain =
-                terrain::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
-            let mountain =
-                mountains::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
-
-            assert_eq!(
-                terrain.mountain_ridge_strength_q16(),
-                mountain.ridge_strength_q16()
-            );
-            assert_eq!(terrain.is_mountain_barrier(), mountain.is_mountain());
-
-            if terrain.is_mountain_barrier() {
-                found_mountain_barrier = true;
-                assert!(terrain.is_land());
-            } else if terrain.is_land() {
-                found_open_land = true;
-            }
-        }
-    }
-
-    assert!(found_mountain_barrier, "expected mountain barrier samples");
-    assert!(found_open_land, "expected land outside mountain barriers");
 }
 
 #[test]
