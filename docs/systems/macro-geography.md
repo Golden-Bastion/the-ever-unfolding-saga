@@ -23,13 +23,6 @@ Implemented in v0.53.2:
 - The sampler is stateless and coordinate-based. Sampling order, chunk visitation order, runtime IDs, and display names cannot affect results.
 - The surface sampler rejects nonzero strata until underground terrain has its own generation model.
 
-Implemented in v0.53.11:
-
-- Added a deterministic, warped ridged-noise mountain field on the shared global macro lattice. Broad ridge belts receive regional variation and bounded positive uplift on land.
-- Integrated mountain uplift into the authoritative surface elevation sampler, so climate cooling, watershed routing, river accumulation, and depression analysis consume the same mountain-shaped terrain.
-- Kept all calculations fixed-point, stateless, renderer-independent, and independent of region generation order. Ocean and underground samples receive no mountain uplift.
-- Advanced the geography ruleset to version 2. Existing worlds pinned to ruleset 1 retain their original elevation field; no save migration or persisted mountain state is introduced.
-
 Implemented in v0.53.3:
 
 - `climate::sample_surface` combines broad and regional deterministic temperature and moisture fields on the same global lattice.
@@ -90,6 +83,13 @@ Implemented in v0.53.10:
 - River samples expose their immediate downstream coarse cell and classify that destination as ocean, a specific lake outlet, another river channel, lower-threshold land, an inconclusive truncated estimate, or a closed basin. Truncated below-threshold accumulation is explicitly unresolved, not classified as dry land. Ocean and lake cells are terminal nodes; waterbody coverage takes precedence over a coincident river-channel estimate.
 - Connectivity reuses the existing strictly downhill coarse watershed graph and bounded river accumulation. It is a local topology contract, not a second routing simulation, physically calibrated discharge, seasonal water balance, or water transport simulation. Generated water geometry remains derived on demand and no save migration is introduced.
 - Automated tests cover deterministic river links, downhill destination invariants, terminal ocean/lake nodes, and underground rejection.
+
+Implemented in v0.53.11:
+
+- Added a deterministic, warped ridged-noise mountain field on the shared global macro lattice. Broad ridge belts receive regional variation and bounded positive uplift on land.
+- Integrated mountain uplift into the authoritative surface elevation sampler, so climate cooling, watershed routing, river accumulation, and depression analysis consume the same mountain-shaped terrain.
+- Kept all calculations fixed-point, stateless, renderer-independent, and independent of region generation order. Ocean and underground samples receive no mountain uplift.
+- Advanced the geography ruleset to version 2. Existing worlds pinned to ruleset 1 retain their original elevation field; no save migration or persisted mountain state is introduced.
 
 ## Persistence contract
 
