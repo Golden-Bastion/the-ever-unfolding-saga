@@ -247,35 +247,7 @@ fn lies_on_open_passage(dx: i64, dy: i64, connections: u8) -> bool {
             && dx.unsigned_abs() <= half_length)
 }
 
+
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn surface_and_nonnegative_strata_are_not_underground() {
-        for stratum in [0, 1, i32::MAX] {
-            assert!(sample_underground(
-                42,
-                2,
-                MacroCoordinate::in_stratum(0, 0, stratum)
-            )
-            .is_none());
-        }
-    }
-
-    #[test]
-    fn depth_layers_are_independent_and_depth_arithmetic_is_safe() {
-        let shallow = MacroCoordinate::in_stratum(32, 32, -1);
-        let deep = MacroCoordinate::in_stratum(32, 32, -2);
-        assert_ne!(
-            sample_underground(42, 2, shallow),
-            sample_underground(42, 2, deep)
-        );
-        assert!(sample_underground(
-            42,
-            2,
-            MacroCoordinate::in_stratum(0, 0, i32::MIN)
-        )
-        .is_some());
-    }
-}
+#[path = "../../tests/unit/underground.rs"]
+mod tests;
