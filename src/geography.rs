@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod climate;
 pub mod coast;
+pub mod rivers;
 pub mod terrain;
 pub mod watershed;
 
