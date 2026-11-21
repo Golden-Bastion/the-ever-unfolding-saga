@@ -1361,7 +1361,10 @@ fn pending_frontier_passages_are_idempotent_and_upgrade_in_place() {
     assert_eq!(map.exits[0].id, pending.id);
     assert_eq!(map.exits[0].position, pending.position);
     assert_eq!(map.exits[0].target_location_id, 44);
-    assert_eq!(map.exits[0].route_id.as_deref(), Some("route.frontier.fixture.east"));
+    assert_eq!(
+        map.exits[0].route_id.as_deref(),
+        Some("route.frontier.fixture.east")
+    );
     assert_eq!(map.exits[0].route_profile, Some(RouteProfile::Trail));
     assert_eq!(map.exits[0].frontier, None);
 

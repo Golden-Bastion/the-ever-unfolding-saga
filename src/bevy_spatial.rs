@@ -28,10 +28,11 @@ use crate::interaction_actions::{
 };
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
-    apply_authored_spatial_discoveries, configure_map_frontiers, configure_map_routes, ensure_spatial_entity_placements,
-    generate_local_map_with_layout, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
-    MapExit, MapRouteDestination, SpatialDiscoveryDefinition, SpatialEncounterStatus,
-    SpatialEntityKind, SpatialPropKind, Terrain,
+    apply_authored_spatial_discoveries, configure_map_frontiers, configure_map_routes,
+    ensure_spatial_entity_placements, generate_local_map_with_layout, ExplorationSession,
+    GridPosition, LocalMap, LocalMapConfig, MapExit, MapRouteDestination,
+    SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind,
+    Terrain,
 };
 use crate::spatial_animation::{
     PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,
@@ -611,7 +612,11 @@ pub(crate) fn enter(
                 target_location_id,
                 profile,
                 preferred_side,
-                frontier_id: route.id.strip_prefix("route.").filter(|id| id.starts_with("frontier.")).map(str::to_string),
+                frontier_id: route
+                    .id
+                    .strip_prefix("route.")
+                    .filter(|id| id.starts_with("frontier."))
+                    .map(str::to_string),
             }
         })
         .collect::<Vec<_>>();
@@ -1640,11 +1645,13 @@ fn use_map_exit(
             map.exits
                 .iter()
                 .find(|exit| exit.id == exit_id && exit.target_location_id == target_location_id)
-                .map(|exit| (
-                    exit.route_id.clone(),
-                    exit.frontier.clone(),
-                    exit_interaction_available(map, state.position, exit),
-                ))
+                .map(|exit| {
+                    (
+                        exit.route_id.clone(),
+                        exit.frontier.clone(),
+                        exit_interaction_available(map, state.position, exit),
+                    )
+                })
         });
 
     let Some((route_id, frontier_target, passage_available)) = selected_passage else {
@@ -1673,7 +1680,9 @@ fn use_map_exit(
             )
         });
         let Some(Ok(materialized)) = materialized else {
-            state.message = Some("No traversable land connection could be found beyond this frontier.".to_string());
+            state.message = Some(
+                "No traversable land connection could be found beyond this frontier.".to_string(),
+            );
             state.dirty = true;
             return;
         };

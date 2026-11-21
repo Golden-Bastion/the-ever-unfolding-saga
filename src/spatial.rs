@@ -603,7 +603,10 @@ impl LocalMap {
             || source_id.is_none()
             || self.exits.iter().any(|existing| {
                 existing.id == exit.id
-                    || existing.frontier.as_ref().is_some_and(|value| value.id == frontier.id)
+                    || existing
+                        .frontier
+                        .as_ref()
+                        .is_some_and(|value| value.id == frontier.id)
             })
             || !self.map_exit_placement_is_valid(exit.position, None)
         {
@@ -1856,7 +1859,9 @@ pub fn configure_map_frontiers(map: &mut LocalMap, frontiers: &[FrontierTarget])
 
     for frontier in frontiers {
         if map.exits.iter().any(|exit| {
-            exit.frontier.as_ref().is_some_and(|existing| existing.id == frontier.id)
+            exit.frontier
+                .as_ref()
+                .is_some_and(|existing| existing.id == frontier.id)
         }) {
             continue;
         }
@@ -1895,7 +1900,10 @@ fn frontier_edge_positions(map: &LocalMap, side: MapExitSide) -> Vec<GridPositio
                 .collect()
         }
         MapExitSide::East => (1..map.height.saturating_sub(1))
-            .map(|y| GridPosition { x: map.width.saturating_sub(1), y })
+            .map(|y| GridPosition {
+                x: map.width.saturating_sub(1),
+                y,
+            })
             .collect(),
         MapExitSide::South => {
             let start = authored_gate_barrier_x(map)
@@ -1904,7 +1912,10 @@ fn frontier_edge_positions(map: &LocalMap, side: MapExitSide) -> Vec<GridPositio
                 .max(1)
                 .min(map.width.saturating_sub(1));
             (start..map.width.saturating_sub(1))
-                .map(|x| GridPosition { x, y: map.height.saturating_sub(1) })
+                .map(|x| GridPosition {
+                    x,
+                    y: map.height.saturating_sub(1),
+                })
                 .collect()
         }
         MapExitSide::West => (1..map.height.saturating_sub(1))
@@ -1938,7 +1949,9 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
     for route in routes {
         if let Some(frontier_id) = route.frontier_id.as_deref() {
             if let Some(frontier_passage) = map.exits.iter_mut().find(|exit| {
-                exit.frontier.as_ref().is_some_and(|frontier| frontier.id == frontier_id)
+                exit.frontier
+                    .as_ref()
+                    .is_some_and(|frontier| frontier.id == frontier_id)
             }) {
                 frontier_passage.route_id = Some(route.route_id.clone());
                 frontier_passage.route_profile = route.profile;

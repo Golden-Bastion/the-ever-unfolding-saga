@@ -273,7 +273,9 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
             if !frontier_ids.insert(frontier.id.as_str()) {
                 return Err("frontier passage identities must be non-empty and unique".to_string());
             }
-        } else if exit.target_location_id == 0 || source_location_id == Some(exit.target_location_id) {
+        } else if exit.target_location_id == 0
+            || source_location_id == Some(exit.target_location_id)
+        {
             return Err(
                 "passage destinations must be non-zero and different from the source location"
                     .to_string(),

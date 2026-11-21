@@ -342,11 +342,7 @@ pub(super) fn frontier_anchor_candidates(
 
     let mut candidates = Vec::<(i64, MacroCoordinate)>::new();
     for index in 0..CANDIDATE_COUNT {
-        let random = coordinate_seed(
-            seed ^ key_hash,
-            ruleset.wrapping_add(index as u32),
-            origin,
-        );
+        let random = coordinate_seed(seed ^ key_hash, ruleset.wrapping_add(index as u32), origin);
         let edge = EDGE_INSET + (random as u16 % EDGE_SPAN);
         let tangent = (random >> 32) as u16 & 0xff;
         let (local_x, local_y) = match direction {
@@ -365,16 +361,15 @@ pub(super) fn frontier_anchor_candidates(
             continue;
         }
 
-        let footprint = validated_footprint_radius(
-            seed,
-            ruleset,
-            coordinate,
-            DEFAULT_FOOTPRINT_RADIUS_SAMPLES,
-        );
-        let score = (1_i64 << 40)
-            + i64::from(sample.elevation_q16())
+        let footprint =
+            validated_footprint_radius(seed, ruleset, coordinate, DEFAULT_FOOTPRINT_RADIUS_SAMPLES);
+        let score = (1_i64 << 40) + i64::from(sample.elevation_q16())
             - i64::from(sample.mountain_ridge_strength_q16() / 4)
-            + if footprint == DEFAULT_FOOTPRINT_RADIUS_SAMPLES { 1_i64 << 20 } else { 0 };
+            + if footprint == DEFAULT_FOOTPRINT_RADIUS_SAMPLES {
+                1_i64 << 20
+            } else {
+                0
+            };
         candidates.push((score, coordinate));
     }
 

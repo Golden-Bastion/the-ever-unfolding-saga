@@ -224,7 +224,11 @@ pub(crate) fn discover_available_interactions(
             continue;
         }
         let label = if pending_frontier {
-            let direction = exit.frontier.as_ref().map(|frontier| frontier.direction.label()).unwrap_or("unknown");
+            let direction = exit
+                .frontier
+                .as_ref()
+                .map(|frontier| frontier.direction.label())
+                .unwrap_or("unknown");
             format!("Explore {direction} frontier")
         } else {
             game.world

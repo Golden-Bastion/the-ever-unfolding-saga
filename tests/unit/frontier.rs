@@ -4,12 +4,8 @@ use crate::geography::frontier::{
 };
 use crate::geography::locations::frontier_anchor_candidates;
 use crate::geography::routes::{plan_route, RoutePlanningStatus};
-use crate::geography::{
-    terrain, MacroCoordinate, RegionCoordinate, GEOGRAPHY_RULESET_VERSION,
-};
-use crate::model::{
-    Location, LocationGeographyRecord, Region, World, WorldMode,
-};
+use crate::geography::{terrain, MacroCoordinate, RegionCoordinate, GEOGRAPHY_RULESET_VERSION};
+use crate::model::{Location, LocationGeographyRecord, Region, World, WorldMode};
 
 fn world_with_source(seed: u64, next_id: u64, source_y: i64) -> World {
     let mut world = World::new("Frontier Test", WorldMode::New);
@@ -42,7 +38,11 @@ fn world_with_source(seed: u64, next_id: u64, source_y: i64) -> World {
     world
 }
 
-fn land_connection_fixture() -> (World, crate::geography::frontier::FrontierTarget, MacroCoordinate) {
+fn land_connection_fixture() -> (
+    World,
+    crate::geography::frontier::FrontierTarget,
+    MacroCoordinate,
+) {
     for seed in 1..=32_u64 {
         for source_y in (0..256_i64).step_by(8) {
             let source = MacroCoordinate::new(248, source_y);
@@ -86,7 +86,9 @@ fn frontier_listing_is_deterministic_and_does_not_materialize_world_state() {
     let second = frontier_targets_for_location(&world, 3);
 
     assert_eq!(first, second);
-    assert!(first.iter().any(|frontier| frontier.direction == FrontierDirection::East));
+    assert!(first
+        .iter()
+        .any(|frontier| frontier.direction == FrontierDirection::East));
     assert!(first.iter().all(|frontier| {
         frontier.direction != FrontierDirection::East
             || frontier.direction.adjacent_region(RegionCoordinate::ORIGIN)
@@ -144,7 +146,9 @@ fn materializing_a_frontier_creates_one_adjacent_region_and_is_idempotent() {
     assert_eq!(world.next_id, original_next_id + 2);
 
     let remaining = frontier_targets_for_location(&world, 3);
-    assert!(!remaining.iter().any(|candidate| candidate.id == frontier.id));
+    assert!(!remaining
+        .iter()
+        .any(|candidate| candidate.id == frontier.id));
 }
 
 #[test]
@@ -173,16 +177,34 @@ fn frontier_identity_and_geography_do_not_depend_on_runtime_allocator_position()
     assert_eq!(second_result.region_id, 200);
     assert_ne!(first_result.location_id, second_result.location_id);
     assert_eq!(
-        first.location_geography.iter().find(|record| record.location_id == first_result.location_id).unwrap().anchor,
+        first
+            .location_geography
+            .iter()
+            .find(|record| record.location_id == first_result.location_id)
+            .unwrap()
+            .anchor,
         expected_anchor
     );
     assert_eq!(
-        first.location_geography.iter().find(|record| record.location_id == first_result.location_id).unwrap().anchor,
-        second.location_geography.iter().find(|record| record.location_id == second_result.location_id).unwrap().anchor
+        first
+            .location_geography
+            .iter()
+            .find(|record| record.location_id == first_result.location_id)
+            .unwrap()
+            .anchor,
+        second
+            .location_geography
+            .iter()
+            .find(|record| record.location_id == second_result.location_id)
+            .unwrap()
+            .anchor
     );
     assert_eq!(
         first.route_by_id(&first_result.route_id).unwrap().geography,
-        second.route_by_id(&second_result.route_id).unwrap().geography
+        second
+            .route_by_id(&second_result.route_id)
+            .unwrap()
+            .geography
     );
 }
 

@@ -474,10 +474,7 @@ fn nearby_pending_frontier_passage_offers_exploration_without_a_world_route() {
         position: map.entry,
         target_location_id: 0,
     });
-    let player = (
-        f32::from(map.entry.x) + 0.5,
-        f32::from(map.entry.y) + 0.5,
-    );
+    let player = (f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
 
     let available = discover_available_interactions(&map, &game, player);
     assert_eq!(available.len(), 1);
