@@ -280,3 +280,128 @@ fn terrain_samples_do_not_depend_on_region_sampling_order() {
 
     assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
 }
+#[test]
+fn surface_climate_is_deterministic_and_varies_across_coordinates() {
+    let coordinate = MacroCoordinate::new(-1_337, 2_048);
+    let first = climate::sample_surface(42, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let repeated = climate::sample_surface(42, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    assert_eq!(first, repeated);
+    assert!((-65_536..=65_536).contains(&first.temperature_q16()));
+    assert!(first.moisture_q16() <= 65_536);
+    assert!(first.precipitation_q16() <= 65_536);
+
+    let distant = climate::sample_surface(
+        42,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::new(8_192, -6_144),
+    )
+    .unwrap();
+    assert_ne!(first, distant);
+
+    assert_ne!(
+        first,
+        climate::sample_surface(43, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap()
+    );
+    assert_ne!(
+        first,
+        climate::sample_surface(42, GEOGRAPHY_RULESET_VERSION + 1, coordinate).unwrap()
+    );
+}
+
+#[test]
+fn climate_sampler_rejects_underground_strata() {
+    assert!(climate::sample_surface(
+        42,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::in_stratum(0, 0, -2),
+    )
+    .is_none());
+}
+
+#[test]
+fn climate_sampling_is_independent_of_region_order_and_negative_coordinates() {
+    let coordinates = [
+        MacroCoordinate::new(-257, -1),
+        MacroCoordinate::new(-256, 255),
+        MacroCoordinate::new(255, 256),
+        MacroCoordinate::new(256, -257),
+    ];
+    let forward = coordinates
+        .iter()
+        .map(|coordinate| {
+            climate::sample_surface(731, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
+    let reverse = coordinates
+        .iter()
+        .rev()
+        .map(|coordinate| {
+            climate::sample_surface(731, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
+}
+
+#[test]
+fn climate_biomes_have_multiple_distinct_surface_environments() {
+    use std::collections::HashSet;
+
+    let mut biomes = HashSet::new();
+    for y in (-16_384..16_384).step_by(1_024) {
+        for x in (-16_384..16_384).step_by(1_024) {
+            let sample = climate::sample_surface(
+                7_321,
+                GEOGRAPHY_RULESET_VERSION,
+                MacroCoordinate::new(x, y),
+            )
+            .unwrap();
+            biomes.insert(sample.biome());
+        }
+    }
+
+    assert!(
+        biomes.len() >= 4,
+        "expected varied environments, got {biomes:?}"
+    );
+}
+
+#[test]
+fn coastal_biome_classification_remains_continuous_across_region_edges() {
+    // Search several chunk boundaries on both axes. A coastline is not
+    // guaranteed to intersect any one arbitrarily selected region edge.
+    for boundary in (-4_096..=4_096).step_by(256) {
+        for offset in (-8_192..8_192).step_by(16) {
+            let west = MacroCoordinate::new(boundary - 1, offset);
+            let east = MacroCoordinate::new(boundary, offset);
+            let north = MacroCoordinate::new(offset, boundary - 1);
+            let south = MacroCoordinate::new(offset, boundary);
+
+            for (first, second) in [(west, east), (north, south)] {
+                let first_terrain =
+                    terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, first).unwrap();
+                let second_terrain =
+                    terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, second).unwrap();
+
+                if first_terrain.is_land() != second_terrain.is_land() {
+                    let land_coordinate = if first_terrain.is_land() {
+                        first
+                    } else {
+                        second
+                    };
+                    let sample =
+                        climate::sample_surface(55, GEOGRAPHY_RULESET_VERSION, land_coordinate)
+                            .unwrap();
+
+                    assert_eq!(
+                        sample.biome(),
+                        climate::Biome::Coast,
+                        "land immediately beside ocean across a region edge must be coastal: {land_coordinate:?}"
+                    );
+                    return;
+                }
+            }
+        }
+    }
+
+    panic!("expected the generated coastline to cross at least one searched region edge");
+}
