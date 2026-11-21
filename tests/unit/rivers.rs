@@ -10,6 +10,10 @@ fn river_sampling_is_deterministic_and_bounded() {
     assert_eq!(first, repeated);
     assert!(usize::from(first.accumulation().contributing_cells()) <= MAX_CONTRIBUTING_CELLS);
     assert!(
+        first.accumulation().precipitation_potential_sum_q16()
+            <= (MAX_CONTRIBUTING_CELLS as u64) * (1 << 16)
+    );
+    assert!(
         !first.is_channel()
             || first.accumulation().contributing_cells() >= MIN_RIVER_CONTRIBUTING_CELLS
     );
@@ -41,6 +45,23 @@ fn upstream_cells_are_included_in_their_downstream_accumulation() {
             let downstream_flow =
                 sample_surface(seed, GEOGRAPHY_RULESET_VERSION, downstream).unwrap();
             assert!(downstream_flow.accumulation().contributing_cells() >= 2);
+
+            let upstream_precipitation = u64::from(
+                climate::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                    .unwrap()
+                    .precipitation_q16(),
+            );
+            let downstream_precipitation = u64::from(
+                climate::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, downstream)
+                    .unwrap()
+                    .precipitation_q16(),
+            );
+            assert!(
+                downstream_flow
+                    .accumulation()
+                    .precipitation_potential_sum_q16()
+                    >= upstream_precipitation + downstream_precipitation
+            );
             verified = true;
             break;
         }
@@ -85,6 +106,7 @@ fn river_channel_threshold_uses_contributing_area() {
         coarse_cell: MacroCoordinate::ORIGIN,
         accumulation: FlowAccumulation {
             contributing_cells: MIN_RIVER_CONTRIBUTING_CELLS - 1,
+            precipitation_potential_sum_q16: 0,
             truncated: false,
         },
     };
@@ -92,6 +114,7 @@ fn river_channel_threshold_uses_contributing_area() {
         coarse_cell: MacroCoordinate::ORIGIN,
         accumulation: FlowAccumulation {
             contributing_cells: MIN_RIVER_CONTRIBUTING_CELLS,
+            precipitation_potential_sum_q16: 0,
             truncated: false,
         },
     };
@@ -106,6 +129,7 @@ fn truncated_accumulation_is_explicit_and_preserves_confirmed_channels() {
         coarse_cell: MacroCoordinate::ORIGIN,
         accumulation: FlowAccumulation {
             contributing_cells: MAX_CONTRIBUTING_CELLS as u16,
+            precipitation_potential_sum_q16: (MAX_CONTRIBUTING_CELLS as u64) * (1 << 16),
             truncated: true,
         },
     };
