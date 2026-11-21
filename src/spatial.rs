@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
 
+use crate::geography::frontier::{FrontierDirection, FrontierTarget};
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
@@ -217,6 +218,10 @@ pub struct MapExit {
     /// Physical route classification captured when the passage is reconciled.
     #[serde(default)]
     pub route_profile: Option<RouteProfile>,
+    /// Present while this passage points to an unmaterialized adjacent region.
+    /// The numeric destination remains zero until a real world location exists.
+    #[serde(default)]
+    pub frontier: Option<FrontierTarget>,
     pub position: GridPosition,
     pub target_location_id: u64,
 }
@@ -236,6 +241,8 @@ pub struct MapRouteDestination {
     pub target_location_id: u64,
     pub profile: Option<RouteProfile>,
     pub preferred_side: Option<MapExitSide>,
+    /// Matches and upgrades an unresolved frontier passage instead of adding another one.
+    pub frontier_id: Option<String>,
 }
 
 /// Persistent local-map state. Once generated, the stored terrain is the source
@@ -556,7 +563,8 @@ impl LocalMap {
     /// the renderer-neutral map model from inventing world identities.
     pub fn place_map_exit(&mut self, exit: MapExit, valid_target_location_ids: &[u64]) -> bool {
         let source_id = self.location_entity_id();
-        if exit.id.trim().is_empty()
+        if exit.frontier.is_some()
+            || exit.id.trim().is_empty()
             || exit.target_location_id == 0
             || source_id.is_some_and(|source_id| exit.target_location_id == source_id)
             || !valid_target_location_ids.contains(&exit.target_location_id)
@@ -575,6 +583,35 @@ impl LocalMap {
 
         let side =
             map_exit_side(self, exit.position).expect("validated passage position is on an edge");
+        carve_exit_corridor(self, exit.position, side);
+        self.exits.push(exit);
+        true
+    }
+
+    /// Add an unresolved frontier passage. It is not a world connection yet:
+    /// the destination is zero and the stable frontier key is resolved only
+    /// when the player physically uses this exit.
+    pub fn place_frontier_exit(&mut self, exit: MapExit) -> bool {
+        let Some(frontier) = exit.frontier.as_ref() else {
+            return false;
+        };
+        let source_id = self.location_entity_id();
+        if frontier.id.trim().is_empty()
+            || exit.id.trim().is_empty()
+            || exit.target_location_id != 0
+            || exit.route_id.is_some()
+            || source_id.is_none()
+            || self.exits.iter().any(|existing| {
+                existing.id == exit.id
+                    || existing.frontier.as_ref().is_some_and(|value| value.id == frontier.id)
+            })
+            || !self.map_exit_placement_is_valid(exit.position, None)
+        {
+            return false;
+        }
+        let Some(side) = map_exit_side(self, exit.position) else {
+            return false;
+        };
         carve_exit_corridor(self, exit.position, side);
         self.exits.push(exit);
         true
@@ -1802,9 +1839,78 @@ pub fn configure_map_exits(map: &mut LocalMap, target_location_ids: &[u64]) {
             target_location_id,
             profile: None,
             preferred_side: None,
+            frontier_id: None,
         })
         .collect::<Vec<_>>();
     configure_map_routes(map, &routes);
+}
+
+/// Add pending physical passages for deterministic adjacent frontiers.
+///
+/// These passages are not world graph edges. They only become connected routes
+/// after the player reaches and uses one of them.
+pub fn configure_map_frontiers(map: &mut LocalMap, frontiers: &[FrontierTarget]) {
+    let mut frontiers = frontiers.to_vec();
+    frontiers.sort_by(|left, right| left.id.cmp(&right.id));
+    frontiers.dedup_by(|left, right| left.id == right.id);
+
+    for frontier in frontiers {
+        if map.exits.iter().any(|exit| {
+            exit.frontier.as_ref().is_some_and(|existing| existing.id == frontier.id)
+        }) {
+            continue;
+        }
+        let side = match frontier.direction {
+            FrontierDirection::North => MapExitSide::North,
+            FrontierDirection::East => MapExitSide::East,
+            FrontierDirection::South => MapExitSide::South,
+            FrontierDirection::West => MapExitSide::West,
+        };
+        for position in frontier_edge_positions(map, side) {
+            let exit = MapExit {
+                id: format!("{}.{}", map.location_id, frontier.id),
+                route_id: None,
+                route_profile: None,
+                frontier: Some(frontier.clone()),
+                position,
+                target_location_id: 0,
+            };
+            if map.place_frontier_exit(exit) {
+                break;
+            }
+        }
+    }
+}
+
+fn frontier_edge_positions(map: &LocalMap, side: MapExitSide) -> Vec<GridPosition> {
+    match side {
+        MapExitSide::North => {
+            let start = authored_gate_barrier_x(map)
+                .map(|barrier_x| barrier_x.saturating_add(1))
+                .unwrap_or(1)
+                .max(1)
+                .min(map.width.saturating_sub(1));
+            (start..map.width.saturating_sub(1))
+                .map(|x| GridPosition { x, y: 0 })
+                .collect()
+        }
+        MapExitSide::East => (1..map.height.saturating_sub(1))
+            .map(|y| GridPosition { x: map.width.saturating_sub(1), y })
+            .collect(),
+        MapExitSide::South => {
+            let start = authored_gate_barrier_x(map)
+                .map(|barrier_x| barrier_x.saturating_add(1))
+                .unwrap_or(1)
+                .max(1)
+                .min(map.width.saturating_sub(1));
+            (start..map.width.saturating_sub(1))
+                .map(|x| GridPosition { x, y: map.height.saturating_sub(1) })
+                .collect()
+        }
+        MapExitSide::West => (1..map.height.saturating_sub(1))
+            .map(|y| GridPosition { x: 0, y })
+            .collect(),
+    }
 }
 
 /// Reconcile authoritative world routes into an established local map.
@@ -1830,6 +1936,18 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
     valid_targets.dedup();
 
     for route in routes {
+        if let Some(frontier_id) = route.frontier_id.as_deref() {
+            if let Some(frontier_passage) = map.exits.iter_mut().find(|exit| {
+                exit.frontier.as_ref().is_some_and(|frontier| frontier.id == frontier_id)
+            }) {
+                frontier_passage.route_id = Some(route.route_id.clone());
+                frontier_passage.route_profile = route.profile;
+                frontier_passage.frontier = None;
+                frontier_passage.target_location_id = route.target_location_id;
+                continue;
+            }
+        }
+
         if let Some(existing_passage) = map
             .exits
             .iter_mut()
@@ -1902,6 +2020,7 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
                 id: passage_id.clone(),
                 route_id: Some(route.route_id.clone()),
                 route_profile: route.profile,
+                frontier: None,
                 position,
                 target_location_id: route.target_location_id,
             };
