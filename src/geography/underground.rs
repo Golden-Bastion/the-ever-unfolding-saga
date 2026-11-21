@@ -99,7 +99,13 @@ pub fn sample_underground(
         cell_y,
         coordinate.stratum,
     )?;
-    if !node_exists(world_seed, ruleset_version, cell_x, cell_y, coordinate.stratum) {
+    if !node_exists(
+        world_seed,
+        ruleset_version,
+        cell_x,
+        cell_y,
+        coordinate.stratum,
+    ) {
         return Some(solid_sample());
     }
 
@@ -115,8 +121,7 @@ pub fn sample_underground(
 
     let kind = if dx.unsigned_abs() <= CHAMBER_RADIUS_SAMPLES as u64
         && dy.unsigned_abs() <= CHAMBER_RADIUS_SAMPLES as u64
-        && (dx * dx + dy * dy)
-            <= CHAMBER_RADIUS_SAMPLES * CHAMBER_RADIUS_SAMPLES
+        && (dx * dx + dy * dy) <= CHAMBER_RADIUS_SAMPLES * CHAMBER_RADIUS_SAMPLES
     {
         UndergroundKind::Chamber
     } else if lies_on_open_passage(
@@ -149,8 +154,12 @@ fn solid_sample() -> UndergroundSample {
 
 fn cell_center(cell_x: i64, cell_y: i64, stratum: i32) -> Option<MacroCoordinate> {
     Some(MacroCoordinate::in_stratum(
-        cell_x.checked_mul(NETWORK_CELL_SAMPLES)?.checked_add(HALF_CELL)?,
-        cell_y.checked_mul(NETWORK_CELL_SAMPLES)?.checked_add(HALF_CELL)?,
+        cell_x
+            .checked_mul(NETWORK_CELL_SAMPLES)?
+            .checked_add(HALF_CELL)?,
+        cell_y
+            .checked_mul(NETWORK_CELL_SAMPLES)?
+            .checked_add(HALF_CELL)?,
         stratum,
     ))
 }
@@ -164,12 +173,10 @@ fn node_center(
 ) -> Option<MacroCoordinate> {
     let base = cell_center(cell_x, cell_y, stratum)?;
     let key = MacroCoordinate::in_stratum(cell_x, cell_y, stratum);
-    let jitter_x = (coordinate_seed(world_seed, ruleset_version ^ JITTER_X_CHANNEL, key) % 13)
-        as i64
-        - 6;
-    let jitter_y = (coordinate_seed(world_seed, ruleset_version ^ JITTER_Y_CHANNEL, key) % 13)
-        as i64
-        - 6;
+    let jitter_x =
+        (coordinate_seed(world_seed, ruleset_version ^ JITTER_X_CHANNEL, key) % 13) as i64 - 6;
+    let jitter_y =
+        (coordinate_seed(world_seed, ruleset_version ^ JITTER_Y_CHANNEL, key) % 13) as i64 - 6;
     Some(MacroCoordinate::in_stratum(
         base.x.checked_add(jitter_x)?,
         base.y.checked_add(jitter_y)?,
@@ -204,29 +211,14 @@ fn connection_mask(
         (0, 1, direction::SOUTH),
         (-1, 0, direction::WEST),
     ] {
-        let (Some(neighbor_x), Some(neighbor_y)) =
-            (cell_x.checked_add(dx), cell_y.checked_add(dy))
+        let (Some(neighbor_x), Some(neighbor_y)) = (cell_x.checked_add(dx), cell_y.checked_add(dy))
         else {
             continue;
         };
-        if !node_exists(
-            world_seed,
-            ruleset_version,
-            neighbor_x,
-            neighbor_y,
-            stratum,
-        ) {
+        if !node_exists(world_seed, ruleset_version, neighbor_x, neighbor_y, stratum) {
             continue;
         }
-        if edge_is_open(
-            world_seed,
-            ruleset_version,
-            cell_x,
-            cell_y,
-            dx,
-            dy,
-            stratum,
-        ) {
+        if edge_is_open(world_seed, ruleset_version, cell_x, cell_y, dx, dy, stratum) {
             mask |= bit;
         }
     }
@@ -259,8 +251,7 @@ fn edge_is_open(
         (cell_x, y, SOUTH_EDGE_CHANNEL)
     };
     let edge_key = MacroCoordinate::in_stratum(edge_x, edge_y, stratum);
-    coordinate_seed(world_seed, ruleset_version ^ channel, edge_key) % 100
-        < EDGE_OPEN_PERCENT
+    coordinate_seed(world_seed, ruleset_version ^ channel, edge_key) % 100 < EDGE_OPEN_PERCENT
 }
 
 fn lies_on_open_passage(
@@ -280,8 +271,7 @@ fn lies_on_open_passage(
         if connections & bit == 0 {
             continue;
         }
-        let (Some(neighbor_x), Some(neighbor_y)) =
-            (cell_x.checked_add(dx), cell_y.checked_add(dy))
+        let (Some(neighbor_x), Some(neighbor_y)) = (cell_x.checked_add(dx), cell_y.checked_add(dy))
         else {
             continue;
         };
@@ -338,7 +328,6 @@ fn point_near_segment(
     let cross = px * vy - py * vx;
     cross * cross <= i128::from(half_width * half_width) * length_squared
 }
-
 
 #[cfg(test)]
 #[path = "../../tests/unit/underground.rs"]

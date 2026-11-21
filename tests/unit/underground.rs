@@ -1,22 +1,8 @@
 use super::*;
-use crate::geography::{
-    MacroCoordinate, RegionCoordinate, GEOGRAPHY_RULESET_VERSION,
-};
+use crate::geography::{MacroCoordinate, RegionCoordinate, GEOGRAPHY_RULESET_VERSION};
 
-fn chamber_center(
-    seed: u64,
-    cell_x: i64,
-    cell_y: i64,
-    stratum: i32,
-) -> MacroCoordinate {
-    node_center(
-        seed,
-        GEOGRAPHY_RULESET_VERSION,
-        cell_x,
-        cell_y,
-        stratum,
-    )
-    .unwrap()
+fn chamber_center(seed: u64, cell_x: i64, cell_y: i64, stratum: i32) -> MacroCoordinate {
+    node_center(seed, GEOGRAPHY_RULESET_VERSION, cell_x, cell_y, stratum).unwrap()
 }
 
 #[test]
@@ -38,7 +24,11 @@ fn cave_nodes_are_deterministic_and_seeded_by_stratum() {
     for cell_y in -8..8 {
         for cell_x in -8..8 {
             let coordinate = chamber_center(42, cell_x, cell_y, -1);
-            shallow.push(sample_underground(42, GEOGRAPHY_RULESET_VERSION, coordinate));
+            shallow.push(sample_underground(
+                42,
+                GEOGRAPHY_RULESET_VERSION,
+                coordinate,
+            ));
             deep.push(sample_underground(
                 42,
                 GEOGRAPHY_RULESET_VERSION,
@@ -113,8 +103,7 @@ fn connected_chambers_share_reciprocal_passages() {
                 }
 
                 let neighbor = chamber_center(seed, cell_x + 1, cell_y, -1);
-                let second =
-                    sample_underground(seed, GEOGRAPHY_RULESET_VERSION, neighbor).unwrap();
+                let second = sample_underground(seed, GEOGRAPHY_RULESET_VERSION, neighbor).unwrap();
                 assert_eq!(second.kind(), UndergroundKind::Chamber);
                 assert_ne!(second.connections() & direction::WEST, 0);
                 assert_eq!(
