@@ -26,6 +26,8 @@ pub mod direction {
 
 const HALF_CELL: i64 = NETWORK_CELL_SAMPLES / 2;
 const NODE_CHANNEL: u32 = 0x4341_5645;
+const JITTER_X_CHANNEL: u32 = 0x4341_5658;
+const JITTER_Y_CHANNEL: u32 = 0x4341_5659;
 const EAST_EDGE_CHANNEL: u32 = 0x4341_5645 ^ 0x4541_5354;
 const SOUTH_EDGE_CHANNEL: u32 = 0x4341_5645 ^ 0x534F_5554;
 const EDGE_OPEN_PERCENT: u64 = 68;
@@ -90,7 +92,13 @@ pub fn sample_underground(
 
     let cell_x = coordinate.x.div_euclid(NETWORK_CELL_SAMPLES);
     let cell_y = coordinate.y.div_euclid(NETWORK_CELL_SAMPLES);
-    let center = cell_center(cell_x, cell_y, coordinate.stratum)?;
+    let center = node_center(
+        world_seed,
+        ruleset_version,
+        cell_x,
+        cell_y,
+        coordinate.stratum,
+    )?;
     if !node_exists(world_seed, ruleset_version, cell_x, cell_y, coordinate.stratum) {
         return Some(solid_sample());
     }
@@ -111,7 +119,14 @@ pub fn sample_underground(
             <= CHAMBER_RADIUS_SAMPLES * CHAMBER_RADIUS_SAMPLES
     {
         UndergroundKind::Chamber
-    } else if lies_on_open_passage(dx, dy, connections) {
+    } else if lies_on_open_passage(
+        world_seed,
+        ruleset_version,
+        cell_x,
+        cell_y,
+        coordinate,
+        connections,
+    ) {
         UndergroundKind::Passage
     } else {
         return Some(solid_sample());
@@ -136,6 +151,28 @@ fn cell_center(cell_x: i64, cell_y: i64, stratum: i32) -> Option<MacroCoordinate
     Some(MacroCoordinate::in_stratum(
         cell_x.checked_mul(NETWORK_CELL_SAMPLES)?.checked_add(HALF_CELL)?,
         cell_y.checked_mul(NETWORK_CELL_SAMPLES)?.checked_add(HALF_CELL)?,
+        stratum,
+    ))
+}
+
+fn node_center(
+    world_seed: u64,
+    ruleset_version: u32,
+    cell_x: i64,
+    cell_y: i64,
+    stratum: i32,
+) -> Option<MacroCoordinate> {
+    let base = cell_center(cell_x, cell_y, stratum)?;
+    let key = MacroCoordinate::in_stratum(cell_x, cell_y, stratum);
+    let jitter_x = (coordinate_seed(world_seed, ruleset_version ^ JITTER_X_CHANNEL, key) % 13)
+        as i64
+        - 6;
+    let jitter_y = (coordinate_seed(world_seed, ruleset_version ^ JITTER_Y_CHANNEL, key) % 13)
+        as i64
+        - 6;
+    Some(MacroCoordinate::in_stratum(
+        base.x.checked_add(jitter_x)?,
+        base.y.checked_add(jitter_y)?,
         stratum,
     ))
 }
@@ -226,25 +263,80 @@ fn edge_is_open(
         < EDGE_OPEN_PERCENT
 }
 
-fn lies_on_open_passage(dx: i64, dy: i64, connections: u8) -> bool {
-    let half_width = PASSAGE_HALF_WIDTH_SAMPLES as u64;
-    let half_length = HALF_CELL as u64;
-    (connections & direction::NORTH != 0
-        && dx.unsigned_abs() <= half_width
-        && dy < 0
-        && dy.unsigned_abs() <= half_length)
-        || (connections & direction::EAST != 0
-            && dy.unsigned_abs() <= half_width
-            && dx > 0
-            && dx.unsigned_abs() <= half_length)
-        || (connections & direction::SOUTH != 0
-            && dx.unsigned_abs() <= half_width
-            && dy > 0
-            && dy.unsigned_abs() <= half_length)
-        || (connections & direction::WEST != 0
-            && dy.unsigned_abs() <= half_width
-            && dx < 0
-            && dx.unsigned_abs() <= half_length)
+fn lies_on_open_passage(
+    world_seed: u64,
+    ruleset_version: u32,
+    cell_x: i64,
+    cell_y: i64,
+    coordinate: MacroCoordinate,
+    connections: u8,
+) -> bool {
+    for (dx, dy, bit) in [
+        (0_i64, -1_i64, direction::NORTH),
+        (1, 0, direction::EAST),
+        (0, 1, direction::SOUTH),
+        (-1, 0, direction::WEST),
+    ] {
+        if connections & bit == 0 {
+            continue;
+        }
+        let (Some(neighbor_x), Some(neighbor_y)) =
+            (cell_x.checked_add(dx), cell_y.checked_add(dy))
+        else {
+            continue;
+        };
+        let Some(neighbor_center) = node_center(
+            world_seed,
+            ruleset_version,
+            neighbor_x,
+            neighbor_y,
+            coordinate.stratum,
+        ) else {
+            continue;
+        };
+        let Some(center) = node_center(
+            world_seed,
+            ruleset_version,
+            cell_x,
+            cell_y,
+            coordinate.stratum,
+        ) else {
+            continue;
+        };
+        if point_near_segment(
+            coordinate,
+            center,
+            neighbor_center,
+            PASSAGE_HALF_WIDTH_SAMPLES,
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
+fn point_near_segment(
+    point: MacroCoordinate,
+    start: MacroCoordinate,
+    end: MacroCoordinate,
+    half_width: i64,
+) -> bool {
+    let (px, py, vx, vy) = (
+        i128::from(point.x) - i128::from(start.x),
+        i128::from(point.y) - i128::from(start.y),
+        i128::from(end.x) - i128::from(start.x),
+        i128::from(end.y) - i128::from(start.y),
+    );
+    let length_squared = vx * vx + vy * vy;
+    if length_squared == 0 {
+        return false;
+    }
+    let projection = px * vx + py * vy;
+    if projection < 0 || projection > length_squared {
+        return false;
+    }
+    let cross = px * vy - py * vx;
+    cross * cross <= i128::from(half_width * half_width) * length_squared
 }
 
 
