@@ -1336,7 +1336,7 @@ fn pending_frontier_passages_are_idempotent_and_upgrade_in_place() {
         direction: FrontierDirection::East,
     };
 
-    configure_map_frontiers(&mut map, &[frontier.clone()]);
+    configure_map_frontiers(&mut map, std::slice::from_ref(&frontier));
     assert_eq!(map.exits.len(), 1);
     let pending = map.exits[0].clone();
     assert_eq!(pending.target_location_id, 0);
