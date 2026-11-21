@@ -281,7 +281,6 @@ fn terrain_samples_do_not_depend_on_region_sampling_order() {
     assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
 }
 
-
 #[test]
 fn surface_climate_is_deterministic_and_varies_across_coordinates() {
     let coordinate = MacroCoordinate::new(-1_337, 2_048);
@@ -361,7 +360,10 @@ fn climate_biomes_have_multiple_distinct_surface_environments() {
         }
     }
 
-    assert!(biomes.len() >= 4, "expected varied environments, got {biomes:?}");
+    assert!(
+        biomes.len() >= 4,
+        "expected varied environments, got {biomes:?}"
+    );
 }
 
 #[test]
@@ -370,8 +372,8 @@ fn coastal_biome_classification_remains_continuous_across_region_edges() {
     for x in [255, 256] {
         for y in (-8_192..8_192).step_by(16) {
             let coordinate = MacroCoordinate::new(x, y);
-            let terrain = terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, coordinate)
-                .unwrap();
+            let terrain =
+                terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
             if terrain.is_land()
                 && climate::sample_surface(55, GEOGRAPHY_RULESET_VERSION, coordinate)
                     .is_some_and(|sample| sample.biome() == climate::Biome::Coast)

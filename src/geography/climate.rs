@@ -102,8 +102,7 @@ pub fn sample_surface(
         TEMPERATURE_REGIONAL_CELL,
         TEMPERATURE_REGIONAL_CHANNEL,
     );
-    let base_temperature =
-        (temperature_broad * 70 + temperature_regional * 30) / 100;
+    let base_temperature = (temperature_broad * 70 + temperature_regional * 30) / 100;
     let temperature = apply_elevation_cooling(base_temperature, terrain.elevation_q16());
 
     let moisture_broad = terrain::value_noise(
@@ -126,14 +125,8 @@ pub fn sample_surface(
     let moisture = apply_ocean_moisture(base_moisture, ocean_influence);
 
     let precipitation = precipitation_potential(moisture, temperature);
-    let coast = terrain.is_land()
-        && has_adjacent_ocean(world_seed, ruleset_version, coordinate);
-    let biome = classify_biome(
-        terrain.elevation_q16(),
-        temperature,
-        moisture,
-        coast,
-    );
+    let coast = terrain.is_land() && has_adjacent_ocean(world_seed, ruleset_version, coordinate);
+    let biome = classify_biome(terrain.elevation_q16(), temperature, moisture, coast);
 
     Some(ClimateSample {
         temperature_q16: temperature as i32,
@@ -177,15 +170,16 @@ fn classify_biome(elevation: i32, temperature: i64, moisture: i64, coast: bool) 
     }
 }
 
-fn has_adjacent_ocean(
-    world_seed: u64,
-    ruleset_version: u32,
-    coordinate: MacroCoordinate,
-) -> bool {
+fn has_adjacent_ocean(world_seed: u64, ruleset_version: u32, coordinate: MacroCoordinate) -> bool {
     for (dx, dy) in [
-        (-1, -1), (0, -1), (1, -1),
-        (-1, 0),             (1, 0),
-        (-1, 1),  (0, 1),  (1, 1),
+        (-1, -1),
+        (0, -1),
+        (1, -1),
+        (-1, 0),
+        (1, 0),
+        (-1, 1),
+        (0, 1),
+        (1, 1),
     ] {
         let Some(x) = coordinate.x.checked_add(dx) else {
             continue;
@@ -235,7 +229,6 @@ fn ocean_moisture_influence(
     influence
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,10 +254,16 @@ mod tests {
         assert_eq!(classify_biome(0, 0, 0, false), Biome::Ocean);
         assert_eq!(classify_biome(1, 0, 0, true), Biome::Coast);
         assert_eq!(classify_biome(50_000, 0, 0, false), Biome::Alpine);
-        assert_eq!(classify_biome(10_000, -40_000, 30_000, false), Biome::Tundra);
+        assert_eq!(
+            classify_biome(10_000, -40_000, 30_000, false),
+            Biome::Tundra
+        );
         assert_eq!(classify_biome(10_000, -20_000, 30_000, false), Biome::Taiga);
         assert_eq!(classify_biome(10_000, 20_000, 10_000, false), Biome::Desert);
-        assert_eq!(classify_biome(10_000, 0, 50_000, false), Biome::TemperateForest);
+        assert_eq!(
+            classify_biome(10_000, 0, 50_000, false),
+            Biome::TemperateForest
+        );
         assert_eq!(classify_biome(10_000, 0, 20_000, false), Biome::Grassland);
     }
 
