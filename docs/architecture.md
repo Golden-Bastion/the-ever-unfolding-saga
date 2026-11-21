@@ -96,6 +96,7 @@ src/
 ├── geography.rs             # renderer-neutral macro-geography coordinates and deterministic sample keys
 │   ├── terrain.rs           # deterministic surface elevation fields on the global macro lattice
 │   ├── watershed.rs         # hierarchical coarse drainage links and local D8 sampling
+│   ├── rivers.rs            # bounded upstream contributing-area estimates and river-channel classification
 │   ├── coast.rs             # shoreline adjacency and direction masks derived from elevation
 │   └── climate.rs           # deterministic surface climate and biome classification
 ├── spatial.rs               # renderer-neutral local-map model and deterministic generation
@@ -104,7 +105,7 @@ src/
 └── rng.rs                   # deterministic/random generation helpers
 ```
 
-The geography module owns signed global/region coordinate conversion, deterministic coordinate-derived seeds, and renderer-independent terrain fields. Surface elevation, shoreline adjacency, regional temperature and moisture, biome classification, and hierarchical watershed drainage are sampled from the shared global lattice. Terrain and climate use deterministic fixed-point noise; coarse watershed links descend strictly by representative elevation, while local D8 directions remain within their coarse cell. Hydrology remains renderer-independent and derives on demand without persistent generated state.
+The geography module owns signed global/region coordinate conversion, deterministic coordinate-derived seeds, and renderer-independent terrain fields. Surface elevation, shoreline adjacency, regional temperature and moisture, biome classification, and hierarchical watershed drainage, contributing-area estimates, and river-channel classification are sampled from the shared global lattice. Terrain and climate use deterministic fixed-point noise; coarse watershed links descend strictly by representative elevation, while local D8 directions remain within their coarse cell. Hydrology remains renderer-independent and derives on demand without persistent generated state.
 
 The exact module list may evolve, but new modules should represent meaningful responsibilities rather than arbitrary slices of large files.
 

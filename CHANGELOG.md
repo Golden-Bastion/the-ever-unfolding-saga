@@ -4,6 +4,14 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.6: Bounded river-channel extraction
+
+- Added deterministic reverse traversal of the coarse watershed graph to estimate contributing area for each queried drainage cell.
+- Capped each query at 128 contributing coarse cells and exposed truncation explicitly; truncated results are lower bounds rather than fabricated complete basin totals.
+- Classified confirmed river channels at eight contributing coarse cells, while keeping below-threshold truncated results inconclusive.
+- Kept hydrology renderer-independent, on-demand, and free of persisted state or save-format changes. Added automated coverage for determinism, bounds, classification thresholds, truncation, negative coordinates, region ownership, and underground rejection.
+- Bumped Rust and Android version metadata to 0.53.6.
+
 ### v0.53.5: Hierarchical watershed foundation
 
 - Added deterministic coarse drainage cells on a 4,096-sample global lattice, with downstream links to the lowest strictly lower neighboring cell and stable signed-coordinate tie-breaking.

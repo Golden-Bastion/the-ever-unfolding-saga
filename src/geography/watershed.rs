@@ -13,7 +13,7 @@ pub const WATERSHED_CELL_SAMPLES: i64 = 4_096;
 /// Maximum number of coarse links followed by one outlet trace.
 pub const MAX_OUTLET_TRACE_STEPS: usize = 128;
 
-const NEIGHBORS: [(i64, i64, DrainageDirection); 8] = [
+pub(crate) const NEIGHBORS: [(i64, i64, DrainageDirection); 8] = [
     (0, -1, DrainageDirection::North),
     (1, -1, DrainageDirection::NorthEast),
     (1, 0, DrainageDirection::East),
@@ -260,7 +260,7 @@ pub fn trace_to_outlet(
     None
 }
 
-fn cell_center(coarse_x: i64, coarse_y: i64) -> Option<MacroCoordinate> {
+pub(crate) fn cell_center(coarse_x: i64, coarse_y: i64) -> Option<MacroCoordinate> {
     let half_cell = WATERSHED_CELL_SAMPLES / 2;
     Some(MacroCoordinate::new(
         coarse_x
@@ -272,7 +272,7 @@ fn cell_center(coarse_x: i64, coarse_y: i64) -> Option<MacroCoordinate> {
     ))
 }
 
-fn downstream_cell(
+pub(crate) fn downstream_cell(
     world_seed: u64,
     ruleset_version: u32,
     coarse_x: i64,
