@@ -69,3 +69,19 @@ fn lake_identity_is_independent_of_region_chunk_ownership() {
             .id(seed, GEOGRAPHY_RULESET_VERSION)
     );
 }
+
+
+#[test]
+fn ocean_cells_are_not_classified_as_inland_lakes() {
+    let seed = 8_211;
+    let ocean = (-16_384..16_384)
+        .step_by(256)
+        .flat_map(|y| (-16_384..16_384).step_by(256).map(move |x| MacroCoordinate::new(x, y)))
+        .find(|coordinate| {
+            terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate)
+                .is_some_and(|sample| !sample.is_land())
+        })
+        .expect("expected ocean terrain in the deterministic search area");
+
+    assert!(sample_surface(seed, GEOGRAPHY_RULESET_VERSION, ocean).is_none());
+}
