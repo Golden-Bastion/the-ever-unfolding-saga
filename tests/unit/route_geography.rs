@@ -95,8 +95,8 @@ fn terrain_aware_route_planning_is_deterministic_and_stays_on_land() {
 
     let seed = 9_317;
     let mut endpoints = None;
-    'search: for y in (-256..=256).step_by(ROUTE_GRID_SPACING as usize) {
-        for x in (-256..=256).step_by(ROUTE_GRID_SPACING as usize) {
+    'search: for y in (-2_048..=2_048).step_by(ROUTE_GRID_SPACING as usize) {
+        for x in (-2_048..=2_048).step_by(ROUTE_GRID_SPACING as usize) {
             let start = MacroCoordinate::new(x, y);
             let end = MacroCoordinate::new(x + ROUTE_GRID_SPACING, y);
             let start_land = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, start)

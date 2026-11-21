@@ -40,6 +40,7 @@ impl RouteCorridorAssessment {
 
 /// Broad semantic classification attached to a route and its local-map exits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
 pub enum RouteProfile {
     #[default]
     Unavailable,
@@ -53,6 +54,7 @@ pub enum RouteProfile {
 
 /// Result of trying to construct a land-based route between two surface anchors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
 pub enum RoutePlanningStatus {
     #[default]
     MissingEndpoint,
@@ -65,6 +67,7 @@ pub enum RoutePlanningStatus {
 
 /// Physical features a planned route encounters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RouteCrossingKind {
     MountainPass,
     River,
@@ -75,6 +78,7 @@ pub enum RouteCrossingKind {
 
 /// Infrastructure or follow-up required before treating a crossing as traversable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RouteInfrastructure {
     None,
     FordOrBridge,

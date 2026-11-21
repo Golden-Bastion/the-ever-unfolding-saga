@@ -1108,6 +1108,8 @@ fn route_reconciliation_uses_profile_and_preferred_side_for_new_passages() {
     use crate::spatial::MapExitSide;
 
     let mut map = generate_local_map(818, "location.10", LocalMapConfig::default());
+    map.props.clear();
+    map.points_of_interest.clear();
     configure_map_routes(
         &mut map,
         &[MapRouteDestination {
@@ -1129,6 +1131,8 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
     use crate::spatial::MapExitSide;
 
     let mut map = generate_local_map(819, "location.10", LocalMapConfig::default());
+    map.props.clear();
+    map.points_of_interest.clear();
     let position = GridPosition {
         x: map.width - 1,
         y: 2,
