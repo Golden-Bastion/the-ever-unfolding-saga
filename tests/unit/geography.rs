@@ -151,7 +151,6 @@ fn underground_strata_keep_horizontal_coordinates_and_change_sample_keys() {
     );
 }
 
-
 #[test]
 fn surface_elevation_is_deterministic_for_seed_ruleset_and_coordinate() {
     let coordinate = MacroCoordinate::new(-1_337, 2_048);
@@ -212,9 +211,15 @@ fn continental_field_contains_both_land_and_ocean_samples() {
     }
 
     assert!(land_samples > 0, "the generated field should contain land");
-    assert!(ocean_samples > 0, "the generated field should contain ocean");
+    assert!(
+        ocean_samples > 0,
+        "the generated field should contain ocean"
+    );
     assert!(land_samples > 1_024, "land should occupy a meaningful area");
-    assert!(ocean_samples > 1_024, "ocean should occupy a meaningful area");
+    assert!(
+        ocean_samples > 1_024,
+        "ocean should occupy a meaningful area"
+    );
 }
 
 #[test]
