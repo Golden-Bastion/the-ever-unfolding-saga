@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.53.x: world topology and spatial-world expansion
 
-**Repository version at this roadmap revision: 0.53.5.**
+**Repository version at this roadmap revision: 0.53.6.**
 
 **Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
 
@@ -22,13 +22,15 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 **Delivered in v0.53.5:** added a hierarchical watershed foundation with coarse downstream links, local within-cell D8 drainage, and bounded tracing to ocean or closed inland outlets.
 
+**Delivered in v0.53.6:** added deterministic, bounded upstream contributing-area estimates and river-channel classification on the coarse watershed network. Queries inspect at most 128 contributing cells and explicitly report truncated estimates.
+
 The v0.52.x development line is complete. The project owner has confirmed the integrated desktop/Android spatial-first gameplay verification and the separate spatial presentation/player-animation playtesting tracked by [#421](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/421) and [#446](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/446). The full delivered scope and final verification record are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md); the concise published summary and release assets are available in the [v0.52.70 GitHub Release](https://github.com/Golden-Bastion/the-ever-unfolding-saga/releases/tag/v0.52.70).
 
 The initial world-topology compatibility audit is complete in [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md). It records the current identity, generation, route, local-map, and save invariants, plus the owner-selected requirement to deterministically embed existing worlds through a one-time persisted migration. It does not change gameplay or save data.
 
 ### Remaining work
 
-1. **Generate continuous continental macro-geography.** In progress: added a deterministic fixed-point surface elevation field with continent-scale, regional, and detail noise, producing connected landmasses and smaller coastal/island variation on the shared global sample lattice. Remaining: river-channel extraction and flow accumulation, lake/depression resolution, mountain ranges, connected water systems, and underground generation. Neighboring chunks must remain coherent regardless of generation order.
+1. **Generate continuous continental macro-geography.** In progress: added a deterministic fixed-point surface elevation field with continent-scale, regional, and detail noise, producing connected landmasses and smaller coastal/island variation on the shared global sample lattice. Remaining: lake/depression resolution, mountain ranges, connected water systems, and underground generation. Neighboring chunks must remain coherent regardless of generation order.
 2. **Embed existing saved worlds.** Implement the one-time persisted compatibility placement and seed migration, preserving region/location IDs, `next_id`, routes, history, authored content, and saved local maps.
 3. **Anchor authored and generated locations to physical geography.** Define stable placement/footprint and environmental constraints; make route edges correspond to plausible terrain connections and local-map passages without moving established placements.
 4. **Expand frontier regions on demand** without generating the entire world or rerolling established geography, routes, local maps, or discoveries.
@@ -39,7 +41,7 @@ The initial world-topology compatibility audit is complete in [world-topology co
 9. **Continue incremental pixel-art production** against the approved visual standard as new visual needs emerge. The dedicated NPC, hostile, and remains sprites are included in v0.52.70; [#484](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/484) remains open only for the owner's desktop/Android runtime-scale review of those new assets. Broader asset coverage remains ongoing alongside topology implementation.
 10. **Extend modular character appearance into animated spatial actors.** Build on the existing stable-ID character-part catalogue and dialogue portrait compositor to assemble the player, NPCs, hostiles, and relevant corpse/aftermath visuals from independently authored anatomy, clothing, equipment, and condition layers. Keep all layers aligned to shared directional animation frames; support pose-aware limb/equipment variants, deterministic selection, mod overrides, and cached composition rather than excessive per-layer render entities. Include state-driven bruises, wounds, bloodied/torn clothing, damaged equipment, and gore/aftermath layers, while leaving injury outcomes and persistent blood/corpse lifecycle authoritative in gameplay/combat systems. Preserve whole-sprite fallbacks and profile desktop/Android memory and rendering costs. Track implementation in [#491](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/491).
 
-The compatibility audit, persistent route-identity layer, coordinate contract, surface-elevation field, initial climate/biome layer, explicit shoreline data, and hierarchical watershed foundation are complete. Continue the remaining macro-geography features before legacy embedding and geography-backed location placement. Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [macro-geography system](docs/systems/macro-geography.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
+The compatibility audit, persistent route-identity layer, coordinate contract, surface-elevation field, initial climate/biome layer, explicit shoreline data, hierarchical watershed foundation, and bounded river-channel extraction are complete. Continue the remaining macro-geography features before legacy embedding and geography-backed location placement. Design references: [world topology and hybrid travel](docs/design/world-topology-and-travel.md), [macro-geography system](docs/systems/macro-geography.md), [spatial gameplay](docs/design/spatial-gameplay.md), [audio system](docs/design/audio-system.md), and [pixel-art direction](docs/design/pixel-art-direction.md).
 
 ## Following milestone — v0.54.x: world content, simulation, character lives, and action combat
 
