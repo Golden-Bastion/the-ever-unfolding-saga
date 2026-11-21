@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::content::CampaignContent;
+use crate::geography::frontier::FrontierDirection;
 use crate::geography::{
     coordinate_seed, terrain, MacroCoordinate, RegionCoordinate, GEOGRAPHY_RULESET_VERSION,
 };
@@ -315,7 +316,84 @@ fn choose_anchor(
     best.map(|(_, coordinate)| coordinate).unwrap_or(origin)
 }
 
-fn validated_footprint_radius(
+/// Produce deterministic land-anchor candidates close to the edge through
+/// which a frontier location will be entered. Route planning later rejects
+/// candidates with no continuous land connection to the source.
+pub(super) fn frontier_anchor_candidates(
+    seed: u64,
+    ruleset: u32,
+    region: RegionCoordinate,
+    stable_key: &str,
+    direction: FrontierDirection,
+    limit: usize,
+) -> Vec<MacroCoordinate> {
+    const CANDIDATE_COUNT: u64 = 256;
+    const EDGE_INSET: u16 = 8;
+    const EDGE_SPAN: u16 = 64;
+
+    let Some(origin) = region.global_sample(0, 0) else {
+        return Vec::new();
+    };
+    let key_hash = stable_key
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
+        });
+
+    let mut candidates = Vec::<(i64, MacroCoordinate)>::new();
+    for index in 0..CANDIDATE_COUNT {
+        let random = coordinate_seed(
+            seed ^ key_hash,
+            ruleset.wrapping_add(index as u32),
+            origin,
+        );
+        let edge = EDGE_INSET + (random as u16 % EDGE_SPAN);
+        let tangent = (random >> 32) as u16 & 0xff;
+        let (local_x, local_y) = match direction {
+            FrontierDirection::North => (tangent, 256 - edge),
+            FrontierDirection::East => (edge, tangent),
+            FrontierDirection::South => (tangent, edge),
+            FrontierDirection::West => (256 - edge, tangent),
+        };
+        let Some(coordinate) = region.global_sample(local_x, local_y) else {
+            continue;
+        };
+        let Some(sample) = terrain::sample_surface(seed, ruleset, coordinate) else {
+            continue;
+        };
+        if !sample.is_land() {
+            continue;
+        }
+
+        let footprint = validated_footprint_radius(
+            seed,
+            ruleset,
+            coordinate,
+            DEFAULT_FOOTPRINT_RADIUS_SAMPLES,
+        );
+        let score = (1_i64 << 40)
+            + i64::from(sample.elevation_q16())
+            - i64::from(sample.mountain_ridge_strength_q16() / 4)
+            + if footprint == DEFAULT_FOOTPRINT_RADIUS_SAMPLES { 1_i64 << 20 } else { 0 };
+        candidates.push((score, coordinate));
+    }
+
+    candidates.sort_by(|left, right| {
+        right
+            .0
+            .cmp(&left.0)
+            .then_with(|| left.1.x.cmp(&right.1.x))
+            .then_with(|| left.1.y.cmp(&right.1.y))
+    });
+    candidates.dedup_by_key(|(_, coordinate)| *coordinate);
+    candidates
+        .into_iter()
+        .take(limit)
+        .map(|(_, coordinate)| coordinate)
+        .collect()
+}
+
+pub(super) fn validated_footprint_radius(
     seed: u64,
     ruleset: u32,
     anchor: MacroCoordinate,
