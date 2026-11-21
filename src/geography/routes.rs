@@ -74,7 +74,7 @@ pub fn assess_corridor(
     let required = if distance == 0 {
         0
     } else {
-        (distance + SAMPLE_SPACING as u128 - 1) / SAMPLE_SPACING as u128
+        distance.div_ceil(SAMPLE_SPACING as u128)
     };
     let steps = required.min((MAX_CORRIDOR_SAMPLES - 1) as u128) as usize;
     let mut result = RouteCorridorAssessment {
