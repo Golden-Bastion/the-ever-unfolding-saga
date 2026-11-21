@@ -45,6 +45,7 @@ fn world_route_assessment_uses_persisted_location_anchors() {
         extra_edges: 0,
         geography_ruleset_version: GEOGRAPHY_RULESET_VERSION,
     });
+    world.geography_seed = Some(88);
     world.regions.push(Region {
         id: 2,
         name: "Test".into(),
@@ -80,6 +81,9 @@ fn world_route_assessment_uses_persisted_location_anchors() {
         4,
         RouteDirection::Bidirectional,
     ));
+    assert!(world
+        .route_by_id("route.test")
+        .is_some_and(|route| route.geography.is_none()));
     ensure_location_geography(&mut world, None);
 
     assert!(assess_world_route(&world, "route.test").is_some());
