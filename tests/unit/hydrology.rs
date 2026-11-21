@@ -97,7 +97,9 @@ fn river_channels_expose_a_deterministic_downstream_connection() {
                     .expect("lake destination must be covered by an inland lake");
                 assert_eq!(lake.outlet_cell(), outlet_cell);
             }
-            FlowDestination::River { coarse_cell } | FlowDestination::Land { coarse_cell } => {
+            FlowDestination::River { coarse_cell }
+            | FlowDestination::Land { coarse_cell }
+            | FlowDestination::Inconclusive { coarse_cell } => {
                 assert_eq!(coarse_cell, next);
             }
             FlowDestination::ClosedBasin => {
@@ -108,6 +110,7 @@ fn river_channels_expose_a_deterministic_downstream_connection() {
         assert_eq!(river.downstream(), Some(FlowDestination::ClosedBasin));
     }
 }
+
 #[test]
 fn surface_hydrology_rejects_underground_strata() {
     assert!(sample_surface(
