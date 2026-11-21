@@ -38,7 +38,7 @@ impl LakeSample {
         self.water_surface_elevation_q16
     }
 
-    /// Water depth above the local coarse-cell terrain, in signed Q16.
+    /// Water depth above the local terrain sample, in signed Q16.
     pub const fn depth_q16(self) -> i32 {
         self.depth_q16
     }
