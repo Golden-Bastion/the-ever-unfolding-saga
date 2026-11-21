@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines renderer-independent world coordinates and deterministic terrain, mountain ranges, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, and closed-basin depression fields. It does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, and closed-basin depression fields. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
@@ -91,6 +91,13 @@ Implemented in v0.53.11:
 - Kept all calculations fixed-point, stateless, renderer-independent, and independent of region generation order. Ocean and underground samples receive no mountain uplift.
 - Advanced the geography ruleset to version 2. Existing worlds pinned to ruleset 1 retain their original elevation field; no save migration or persisted mountain state is introduced.
 
+Implemented in v0.53.12:
+
+- Extended the shared surface-terrain sample with the mountain-ridge strength already used to generate elevation. Route and location-placement systems can now inspect the barrier signal without separately resampling the mountain field.
+- Exposed a consistent mountain-barrier classification while retaining the underlying Q16 strength. The signal is a soft crossing-resistance hint, not a rule that makes every mountain cell impassable; route selection can seek weaker corridors through a ridge belt as candidate passes.
+- Kept the field deterministic, fixed-point, renderer-independent, and unchanged for ruleset 1. This is derived data only and introduces no save migration or geography-ruleset increment.
+- Water barriers remain represented by the existing surface-water sampler: oceans, lakes, rivers, and unresolved river estimates are distinct and must not be collapsed into ordinary land during route planning.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -101,11 +108,10 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
 
-- Physically calibrated discharge, seasonal water balance, and simulated river/lake water transport; current connectivity exposes deterministic graph links rather than moving or balancing water.
-- Additional major terrain barriers and physically calibrated hydrology.
 - A dedicated underground-strata generator for caves and underground networks.
 - Geography-aware location footprints, route constraints, and on-demand frontier integration.
 
+The current geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 Macro-geography coordinates are not:
 
 - Local-map tile coordinates.
