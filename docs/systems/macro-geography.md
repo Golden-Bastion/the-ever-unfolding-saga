@@ -63,7 +63,7 @@ Implemented in v0.53.7:
 
 Implemented in v0.53.8:
 
-`rivers::sample_surface` now sums the climate precipitation-potential value for each accepted upstream coarse cell, alongside its contributing-area count.
+- `rivers::sample_surface` now sums the climate precipitation-potential value for each accepted upstream coarse cell, alongside its contributing-area count.
 - The unsigned Q16 × coarse-cell sum is a relative wetness/contributing-flow index, not a physical discharge or water-volume measurement. The existing river-channel threshold remains area-based until flow thresholds can be calibrated against a more complete water model.
 - Each query retains the 128-contributor and 1,024-neighbor-candidate bounds. A truncated result explicitly makes both the contributing-cell count and weighted sum lower bounds.
 - The result is deterministic, fixed-point, renderer-independent, and derived on demand. It introduces no persisted hydrology state or save migration.
