@@ -125,9 +125,14 @@ pub fn sample_surface(
     let moisture = apply_ocean_moisture(base_moisture, ocean_influence);
 
     let precipitation = precipitation_potential(moisture, temperature);
-    let coast = coast::sample_surface(world_seed, ruleset_version, coordinate)
+    let is_coastal_land = coast::sample_surface(world_seed, ruleset_version, coordinate)
         .is_some_and(|sample| sample.is_coastal_land());
-    let biome = classify_biome(terrain.elevation_q16(), temperature, moisture, coast);
+    let biome = classify_biome(
+        terrain.elevation_q16(),
+        temperature,
+        moisture,
+        is_coastal_land,
+    );
 
     Some(ClimateSample {
         temperature_q16: temperature as i32,
@@ -202,6 +207,7 @@ fn ocean_moisture_influence(
     }
     influence
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
