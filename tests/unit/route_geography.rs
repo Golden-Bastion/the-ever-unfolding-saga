@@ -84,6 +84,28 @@ fn world_route_assessment_uses_persisted_location_anchors() {
 
     assert!(assess_world_route(&world, "route.test").is_some());
     assert!(assess_world_route(&world, "missing").is_none());
+
+    let original_plan = world
+        .route_by_id("route.test")
+        .and_then(|route| route.geography.clone())
+        .expect("location embedding should plan established routes");
+    crate::geography::locations::ensure_location_geography(&mut world, None);
+    assert_eq!(
+        world
+            .route_by_id("route.test")
+            .and_then(|route| route.geography.clone()),
+        Some(original_plan)
+    );
+
+    assert!(world.add_route(WorldRoute::new(
+        "route.parallel",
+        3,
+        4,
+        RouteDirection::Bidirectional,
+    )));
+    assert!(world
+        .route_by_id("route.parallel")
+        .is_some_and(|route| route.geography.is_some()));
 }
 
 #[test]
