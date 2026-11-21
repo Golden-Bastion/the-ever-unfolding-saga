@@ -3,12 +3,20 @@ use crate::geography::{
     MacroCoordinate, RegionCoordinate, GEOGRAPHY_RULESET_VERSION,
 };
 
-fn chamber_center(cell_x: i64, cell_y: i64, stratum: i32) -> MacroCoordinate {
-    MacroCoordinate::in_stratum(
-        cell_x * NETWORK_CELL_SAMPLES + NETWORK_CELL_SAMPLES / 2,
-        cell_y * NETWORK_CELL_SAMPLES + NETWORK_CELL_SAMPLES / 2,
+fn chamber_center(
+    seed: u64,
+    cell_x: i64,
+    cell_y: i64,
+    stratum: i32,
+) -> MacroCoordinate {
+    node_center(
+        seed,
+        GEOGRAPHY_RULESET_VERSION,
+        cell_x,
+        cell_y,
         stratum,
     )
+    .unwrap()
 }
 
 #[test]
@@ -29,7 +37,7 @@ fn cave_nodes_are_deterministic_and_seeded_by_stratum() {
     let mut deep = Vec::new();
     for cell_y in -8..8 {
         for cell_x in -8..8 {
-            let coordinate = chamber_center(cell_x, cell_y, -1);
+            let coordinate = chamber_center(42, cell_x, cell_y, -1);
             shallow.push(sample_underground(42, GEOGRAPHY_RULESET_VERSION, coordinate));
             deep.push(sample_underground(
                 42,
@@ -46,7 +54,7 @@ fn cave_nodes_are_deterministic_and_seeded_by_stratum() {
             sample_underground(
                 43,
                 GEOGRAPHY_RULESET_VERSION,
-                chamber_center(cell_x, cell_y, -1),
+                chamber_center(43, cell_x, cell_y, -1),
             )
         })
         .collect::<Vec<_>>();
@@ -62,7 +70,7 @@ fn underground_field_contains_both_solid_rock_and_cave_space() {
             let sample = sample_underground(
                 7_321,
                 GEOGRAPHY_RULESET_VERSION,
-                chamber_center(cell_x, cell_y, -1),
+                chamber_center(7_321, cell_x, cell_y, -1),
             )
             .unwrap();
             match sample.kind() {
@@ -82,7 +90,7 @@ fn connected_chambers_share_reciprocal_passages() {
     'search: for seed in 1..=32 {
         for cell_y in -12..12 {
             for cell_x in -12..12 {
-                let center = chamber_center(cell_x, cell_y, -1);
+                let center = chamber_center(seed, cell_x, cell_y, -1);
                 let Some(first) = sample_underground(seed, GEOGRAPHY_RULESET_VERSION, center)
                 else {
                     continue;
@@ -93,7 +101,7 @@ fn connected_chambers_share_reciprocal_passages() {
                     continue;
                 }
 
-                let neighbor = chamber_center(cell_x + 1, cell_y, -1);
+                let neighbor = chamber_center(seed, cell_x + 1, cell_y, -1);
                 let second =
                     sample_underground(seed, GEOGRAPHY_RULESET_VERSION, neighbor).unwrap();
                 assert_eq!(second.kind(), UndergroundKind::Chamber);
@@ -106,15 +114,14 @@ fn connected_chambers_share_reciprocal_passages() {
                 assert_eq!(second.network_cell(), Some(neighbor));
 
                 let passage = MacroCoordinate::in_stratum(
-                    center.x + NETWORK_CELL_SAMPLES / 2,
-                    center.y,
+                    (center.x + neighbor.x) / 2,
+                    (center.y + neighbor.y) / 2,
                     -1,
                 );
                 let crossing =
                     sample_underground(seed, GEOGRAPHY_RULESET_VERSION, passage).unwrap();
                 assert_eq!(crossing.kind(), UndergroundKind::Passage);
                 assert!(crossing.is_open());
-                assert_eq!(crossing.connections() & direction::EAST, 0);
                 found_connection = true;
                 break 'search;
             }
@@ -128,7 +135,9 @@ fn cave_passages_remain_continuous_across_region_boundaries() {
     let mut found_crossing = false;
     for seed in 1..=32 {
         for cell_y in -16..16 {
-            let y = cell_y * NETWORK_CELL_SAMPLES + NETWORK_CELL_SAMPLES / 2;
+            let west_center = chamber_center(seed, 3, cell_y, -2);
+            let east_center = chamber_center(seed, 4, cell_y, -2);
+            let y = (west_center.y + east_center.y) / 2;
             let west = sample_underground(
                 seed,
                 GEOGRAPHY_RULESET_VERSION,
