@@ -38,8 +38,8 @@ pub enum Biome {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ClimateSample {
     temperature_q16: i32,
-    moisture_q16: u16,
-    precipitation_q16: u16,
+    moisture_q16: u32,
+    precipitation_q16: u32,
     biome: Biome,
 }
 
@@ -48,11 +48,11 @@ impl ClimateSample {
         self.temperature_q16
     }
 
-    pub const fn moisture_q16(self) -> u16 {
+    pub const fn moisture_q16(self) -> u32 {
         self.moisture_q16
     }
 
-    pub const fn precipitation_q16(self) -> u16 {
+    pub const fn precipitation_q16(self) -> u32 {
         self.precipitation_q16
     }
 
@@ -137,8 +137,8 @@ pub fn sample_surface(
 
     Some(ClimateSample {
         temperature_q16: temperature as i32,
-        moisture_q16: moisture as u16,
-        precipitation_q16: precipitation as u16,
+        moisture_q16: moisture as u32,
+        precipitation_q16: precipitation as u32,
         biome,
     })
 }
@@ -233,4 +233,48 @@ fn ocean_moisture_influence(
         }
     }
     influence
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn elevation_reduces_temperature_without_affecting_ocean_level_samples() {
+        let base = 20_000;
+        assert!(apply_elevation_cooling(base, 40_000) < apply_elevation_cooling(base, 0));
+        assert_eq!(apply_elevation_cooling(base, -20_000), base);
+    }
+
+    #[test]
+    fn nearby_ocean_increases_moisture_without_exceeding_q16_range() {
+        let base = Q16_ONE / 3;
+        let influenced = apply_ocean_moisture(base, Q16_ONE / 2);
+        assert!(influenced > base);
+        assert!(influenced <= Q16_ONE);
+        assert_eq!(apply_ocean_moisture(Q16_ONE, Q16_ONE), Q16_ONE);
+    }
+
+    #[test]
+    fn biome_thresholds_are_explicit_and_non_tropical() {
+        assert_eq!(classify_biome(0, 0, 0, false), Biome::Ocean);
+        assert_eq!(classify_biome(1, 0, 0, true), Biome::Coast);
+        assert_eq!(classify_biome(50_000, 0, 0, false), Biome::Alpine);
+        assert_eq!(classify_biome(10_000, -40_000, 30_000, false), Biome::Tundra);
+        assert_eq!(classify_biome(10_000, -20_000, 30_000, false), Biome::Taiga);
+        assert_eq!(classify_biome(10_000, 20_000, 10_000, false), Biome::Desert);
+        assert_eq!(classify_biome(10_000, 0, 50_000, false), Biome::TemperateForest);
+        assert_eq!(classify_biome(10_000, 0, 20_000, false), Biome::Grassland);
+    }
+
+    #[test]
+    fn precipitation_potential_stays_within_q16_range() {
+        for moisture in [0, Q16_ONE / 2, Q16_ONE] {
+            for temperature in [-Q16_ONE, 0, Q16_ONE] {
+                let precipitation = precipitation_potential(moisture, temperature);
+                assert!((0..=Q16_ONE).contains(&precipitation));
+            }
+        }
+    }
 }
