@@ -1189,7 +1189,10 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
 
     assert_eq!(map.exits.len(), 1);
     assert_eq!(map.exits[0].position, position);
-    assert_eq!(map.exits[0].route_profile, Some(RouteProfile::RiverCrossing));
+    assert_eq!(
+        map.exits[0].route_profile,
+        Some(RouteProfile::RiverCrossing)
+    );
 }
 
 #[test]

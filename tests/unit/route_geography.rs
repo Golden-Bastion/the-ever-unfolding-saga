@@ -152,7 +152,9 @@ fn terrain_aware_route_planning_is_deterministic_and_stays_on_land() {
 
 #[test]
 fn route_geography_heading_is_reversed_at_the_destination() {
-    use crate::geography::routes::{RouteGeography, RouteHeading, RoutePlanningStatus, RouteProfile};
+    use crate::geography::routes::{
+        RouteGeography, RouteHeading, RoutePlanningStatus, RouteProfile,
+    };
 
     let route = RouteGeography {
         status: RoutePlanningStatus::Planned,

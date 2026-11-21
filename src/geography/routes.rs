@@ -280,11 +280,7 @@ pub fn plan_route(
     };
     let goal = (goal_x, goal_y);
 
-    if goal_x
-        .unsigned_abs()
-        .max(goal_y.unsigned_abs())
-        > MAX_ROUTE_GRID_DISTANCE as u32
-    {
+    if goal_x.unsigned_abs().max(goal_y.unsigned_abs()) > MAX_ROUTE_GRID_DISTANCE as u32 {
         return RouteGeography::unavailable(RoutePlanningStatus::SearchLimit);
     }
     if goal == (0, 0) {
@@ -299,8 +295,11 @@ pub fn plan_route(
             return RouteGeography::unavailable(RoutePlanningStatus::NoLandPathInSearchWindow);
         }
         let movement_cost = if dx == 0 || dy == 0 { 100_u64 } else { 141_u64 };
-        let slope_cost =
-            u64::from(start_terrain.elevation_q16().abs_diff(end_terrain.elevation_q16())) / 128;
+        let slope_cost = u64::from(
+            start_terrain
+                .elevation_q16()
+                .abs_diff(end_terrain.elevation_q16()),
+        ) / 128;
         let ridge_cost = u64::from(
             middle_terrain
                 .mountain_ridge_strength_q16()
@@ -331,9 +330,14 @@ pub fn plan_route(
     open.push(Reverse((heuristic((0, 0), goal), 0_u64, 0_i32, 0_i32)));
 
     let neighbors = [
-        (-1, -1), (0, -1), (1, -1),
-        (-1, 0),             (1, 0),
-        (-1, 1),  (0, 1),  (1, 1),
+        (-1, -1),
+        (0, -1),
+        (1, -1),
+        (-1, 0),
+        (1, 0),
+        (-1, 1),
+        (0, 1),
+        (1, 1),
     ];
     let mut expanded = 0_usize;
     let mut reached = false;
@@ -383,9 +387,7 @@ pub fn plan_route(
                 continue;
             }
 
-            let Some(current_coordinate) =
-                route_node_coordinate(start, end, goal, current)
-            else {
+            let Some(current_coordinate) = route_node_coordinate(start, end, goal, current) else {
                 continue;
             };
             let Some(next_coordinate) = route_node_coordinate(start, end, goal, next) else {
@@ -403,12 +405,18 @@ pub fn plan_route(
                 continue;
             }
 
-            let movement_cost = if step_x == 0 || step_y == 0 { 100_u64 } else { 141_u64 };
-            let elevation_delta =
-                current_terrain.elevation_q16().abs_diff(next_terrain.elevation_q16());
+            let movement_cost = if step_x == 0 || step_y == 0 {
+                100_u64
+            } else {
+                141_u64
+            };
+            let elevation_delta = current_terrain
+                .elevation_q16()
+                .abs_diff(next_terrain.elevation_q16());
             let slope_cost = u64::from(elevation_delta) / 128;
             let ridge_cost = u64::from(
-                midpoint_terrain.mountain_ridge_strength_q16()
+                midpoint_terrain
+                    .mountain_ridge_strength_q16()
                     .saturating_add(next_terrain.mountain_ridge_strength_q16()),
             ) / 128;
             let next_cost = current_cost
@@ -508,7 +516,10 @@ pub fn ensure_world_route_geography(world: &mut World) -> usize {
 fn midpoint(start: MacroCoordinate, end: MacroCoordinate) -> Option<MacroCoordinate> {
     let x = (i128::from(start.x) + i128::from(end.x)) / 2;
     let y = (i128::from(start.y) + i128::from(end.y)) / 2;
-    Some(MacroCoordinate::new(i64::try_from(x).ok()?, i64::try_from(y).ok()?))
+    Some(MacroCoordinate::new(
+        i64::try_from(x).ok()?,
+        i64::try_from(y).ok()?,
+    ))
 }
 
 fn nearest_grid_offset(delta: i128) -> Option<i32> {
@@ -537,7 +548,10 @@ fn route_node_coordinate(
     }
     let x = i128::from(start.x) + i128::from(node.0) * i128::from(ROUTE_GRID_SPACING);
     let y = i128::from(start.y) + i128::from(node.1) * i128::from(ROUTE_GRID_SPACING);
-    Some(MacroCoordinate::new(i64::try_from(x).ok()?, i64::try_from(y).ok()?))
+    Some(MacroCoordinate::new(
+        i64::try_from(x).ok()?,
+        i64::try_from(y).ok()?,
+    ))
 }
 
 fn heuristic(from: (i32, i32), to: (i32, i32)) -> u64 {
@@ -572,7 +586,8 @@ fn classify_crossings(
 ) -> Vec<RouteCrossing> {
     let mut crossings = Vec::new();
     for (index, coordinate) in path.iter().enumerate() {
-        let Some(surface) = terrain::sample_surface(world_seed, ruleset_version, *coordinate) else {
+        let Some(surface) = terrain::sample_surface(world_seed, ruleset_version, *coordinate)
+        else {
             continue;
         };
         if surface.is_mountain_barrier() {
@@ -589,16 +604,16 @@ fn classify_crossings(
         if path.len() > 3 && index % 2 != 0 && index + 1 != path.len() {
             continue;
         }
-        let Some(water) = hydrology::sample_surface(world_seed, ruleset_version, *coordinate) else {
+        let Some(water) = hydrology::sample_surface(world_seed, ruleset_version, *coordinate)
+        else {
             continue;
         };
         let (kind, infrastructure) = match water.kind() {
             SurfaceWaterKind::Ocean => (RouteCrossingKind::Ocean, RouteInfrastructure::Ferry),
             SurfaceWaterKind::Lake(_) => (RouteCrossingKind::Lake, RouteInfrastructure::Ferry),
-            SurfaceWaterKind::River(_) => (
-                RouteCrossingKind::River,
-                RouteInfrastructure::FordOrBridge,
-            ),
+            SurfaceWaterKind::River(_) => {
+                (RouteCrossingKind::River, RouteInfrastructure::FordOrBridge)
+            }
             SurfaceWaterKind::UnresolvedRiver(_) => (
                 RouteCrossingKind::UnresolvedWater,
                 RouteInfrastructure::Survey,
