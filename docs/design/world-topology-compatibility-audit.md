@@ -192,7 +192,7 @@ The first coordinate-contract stage is implemented on the v0.53.x development li
 - Added stable coordinate-derived sample seeds keyed by world seed, geography ruleset version, and global sample coordinate. Sampling order and runtime entity allocation do not affect the result.
 - New generated worlds persist distinct coordinates for their initial regions. Direct authored seeding into an otherwise empty world anchors its first region at the origin.
 - Added optional region coordinates and a geography ruleset marker to persistent world data. Pre-geography saves deserialize with unassigned coordinates and ruleset version zero; the deterministic legacy-world embedding remains a separate migration stage.
-- The coordinate module defines no terrain fields or physical geography yet. Authored placement constraints, terrain sampling/interpolation, route-to-terrain validation, and legacy embedding remain outstanding.
+- Subsequent v0.53.x work added the continuous surface/underground geography fields, deterministic legacy embedding, persistent location anchors/footprints, and bounded route-corridor feature assessment. Terrain-aware route path selection, route profiles, and local-map connection-point integration remain outstanding.
 
 
 ## Implementation follow-up — location geography and corridor assessment (v0.53.14)

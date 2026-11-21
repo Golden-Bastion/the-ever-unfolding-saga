@@ -126,12 +126,9 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 ## Boundaries and remaining work
 
-The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, and bounded candidate-route corridor assessment are implemented. Remaining geography/topology work is terrain-aware route path selection, explicit route profiles and infrastructure requirements for water/cave crossings, local-map connection-point integration, and on-demand frontier materialization.
 
-- A dedicated underground-strata generator for caves and underground networks.
-- Geography-aware location footprints, route constraints, and on-demand frontier integration.
-
-The current geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
+The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 
 Macro-geography coordinates are not:
 
