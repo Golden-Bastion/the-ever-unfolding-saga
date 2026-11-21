@@ -61,8 +61,18 @@ impl DepressionSample {
         let basin_y = self.outlet_cell.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
         let cell_x = coordinate.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
         let cell_y = coordinate.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
-        let Some(offset_x) = cell_x.checked_sub(basin_x).and_then(|value| value.checked_add(DEPRESSION_SEARCH_RADIUS_CELLS)) else { return false; };
-        let Some(offset_y) = cell_y.checked_sub(basin_y).and_then(|value| value.checked_add(DEPRESSION_SEARCH_RADIUS_CELLS)) else { return false; };
+        let Some(offset_x) = cell_x
+            .checked_sub(basin_x)
+            .and_then(|value| value.checked_add(DEPRESSION_SEARCH_RADIUS_CELLS))
+        else {
+            return false;
+        };
+        let Some(offset_y) = cell_y
+            .checked_sub(basin_y)
+            .and_then(|value| value.checked_add(DEPRESSION_SEARCH_RADIUS_CELLS))
+        else {
+            return false;
+        };
         if !(0..WINDOW_SIDE as i64).contains(&offset_x)
             || !(0..WINDOW_SIDE as i64).contains(&offset_y)
         {
