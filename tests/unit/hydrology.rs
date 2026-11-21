@@ -5,7 +5,8 @@ fn find_lake_cell(seed: u64) -> Option<MacroCoordinate> {
     for coarse_y in (-40..=-1).rev() {
         for coarse_x in (-40..=-1).rev() {
             let coordinate = watershed::cell_center(coarse_x, coarse_y)?;
-            let elevation = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+            let elevation =
+                terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
             if !elevation.is_land()
                 || watershed::downstream_cell(
                     seed,
@@ -13,7 +14,8 @@ fn find_lake_cell(seed: u64) -> Option<MacroCoordinate> {
                     coarse_x,
                     coarse_y,
                     elevation.elevation_q16(),
-                ).is_some()
+                )
+                .is_some()
             {
                 continue;
             }
@@ -61,7 +63,9 @@ fn inland_lakes_are_terminal_nodes_with_stable_outlet_identity() {
 fn river_channels_expose_a_deterministic_downstream_connection() {
     let seed = 8_211;
     let river = (-16..=16)
-        .flat_map(|y| (-16..=16).map(move |x| (x, y)))
+        .flat_map(|y| {
+            (-16..=16).map(move |x| (x, y))
+        })
         .filter_map(|(x, y)| watershed::cell_center(x, y))
         .find_map(|coordinate| {
             let flow = rivers::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
@@ -83,7 +87,9 @@ fn river_channels_expose_a_deterministic_downstream_connection() {
                 .unwrap()
                 .elevation_q16();
         let next_elevation =
-            terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next).unwrap().elevation_q16();
+            terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next)
+                .unwrap()
+                .elevation_q16();
         assert!(next_elevation < current_elevation);
 
         match river.downstream().unwrap() {
