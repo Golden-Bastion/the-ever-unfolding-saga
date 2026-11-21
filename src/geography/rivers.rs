@@ -88,12 +88,12 @@ fn accumulate_upstream(
             downstream.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
         );
         for (dx, dy, _) in watershed::NEIGHBORS {
-            let candidate_x = downstream_x.checked_add(dx)?;
-            let candidate_y = downstream_y.checked_add(dy)?;
+            let Some(candidate_x) = downstream_x.checked_add(dx) else { continue; };
+            let Some(candidate_y) = downstream_y.checked_add(dy) else { continue; };
             let key = (candidate_x, candidate_y);
             if accepted.contains(&key) || !examined.insert(key) { continue; }
-            let candidate = watershed::cell_center(candidate_x, candidate_y)?;
-            let elevation = terrain::sample_surface(world_seed, ruleset_version, candidate)?;
+            let Some(candidate) = watershed::cell_center(candidate_x, candidate_y) else { continue; };
+            let Some(elevation) = terrain::sample_surface(world_seed, ruleset_version, candidate) else { continue; };
             if !elevation.is_land() { continue; }
             let drains_here = watershed::downstream_cell(
                 world_seed, ruleset_version, candidate_x, candidate_y, elevation.elevation_q16()
