@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
 
+use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
 pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 5;
@@ -213,8 +214,19 @@ pub struct MapExit {
     /// Authoritative world-route identity. Missing only on pre-route saves.
     #[serde(default)]
     pub route_id: Option<String>,
+    /// Physical route classification captured when the passage is reconciled.
+    #[serde(default)]
+    pub route_profile: Option<RouteProfile>,
     pub position: GridPosition,
     pub target_location_id: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MapExitSide {
+    North,
+    East,
+    South,
+    West,
 }
 
 /// A route from this local map to a destination in the persistent world graph.
@@ -222,6 +234,8 @@ pub struct MapExit {
 pub struct MapRouteDestination {
     pub route_id: String,
     pub target_location_id: u64,
+    pub profile: Option<RouteProfile>,
+    pub preferred_side: Option<MapExitSide>,
 }
 
 /// Persistent local-map state. Once generated, the stored terrain is the source
@@ -1814,11 +1828,14 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
     valid_targets.dedup();
 
     for route in routes {
-        if map
+        if let Some(existing_passage) = map
             .exits
-            .iter()
-            .any(|exit| exit.route_id.as_deref() == Some(route.route_id.as_str()))
+            .iter_mut()
+            .find(|exit| exit.route_id.as_deref() == Some(route.route_id.as_str()))
         {
+            if existing_passage.route_profile.is_none() {
+                existing_passage.route_profile = route.profile;
+            }
             continue;
         }
 
@@ -1826,6 +1843,9 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
             exit.route_id.is_none() && exit.target_location_id == route.target_location_id
         }) {
             legacy_passage.route_id = Some(route.route_id);
+            if legacy_passage.route_profile.is_none() {
+                legacy_passage.route_profile = route.profile;
+            }
             continue;
         }
 
@@ -1854,7 +1874,13 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
                 y: map.height.saturating_sub(1),
             })
             .collect::<Vec<_>>();
-        let compass_sides = [&east, &west, &north, &south];
+        let compass_sides = match route.preferred_side {
+            Some(MapExitSide::North) => [&north, &east, &west, &south],
+            Some(MapExitSide::East) => [&east, &north, &south, &west],
+            Some(MapExitSide::South) => [&south, &east, &west, &north],
+            Some(MapExitSide::West) => [&west, &north, &south, &east],
+            None => [&east, &west, &north, &south],
+        };
         let max_slots = compass_sides
             .iter()
             .map(|positions| positions.len())
@@ -1873,6 +1899,7 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
             let exit = MapExit {
                 id: passage_id.clone(),
                 route_id: Some(route.route_id.clone()),
+                route_profile: route.profile,
                 position,
                 target_location_id: route.target_location_id,
             };

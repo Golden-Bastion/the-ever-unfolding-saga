@@ -867,6 +867,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
     let exit = MapExit {
         id: "location.10.exit.20".into(),
         route_id: None,
+        route_profile: None,
         position: GridPosition {
             x: map.width - 1,
             y: 1,
@@ -923,6 +924,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
         MapExit {
             id: "location.10.exit.self".into(),
             route_id: None,
+            route_profile: None,
             position: first_position,
             target_location_id: 10,
         },
@@ -1107,10 +1109,14 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
         MapRouteDestination {
             route_id: "route.path.alpha".into(),
             target_location_id: 20,
+            profile: None,
+            preferred_side: None,
         },
         MapRouteDestination {
             route_id: "route.path.beta".into(),
             target_location_id: 20,
+            profile: None,
+            preferred_side: None,
         },
     ];
 
@@ -1130,6 +1136,8 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
     expanded_routes.push(MapRouteDestination {
         route_id: "route.path.gamma".into(),
         target_location_id: 21,
+        profile: None,
+        preferred_side: None,
     });
     configure_map_routes(&mut map, &expanded_routes);
     assert_eq!(map.exits.len(), 3);
@@ -1149,6 +1157,8 @@ fn route_reconciliation_distributes_new_passages_round_robin_by_compass_side() {
         .map(|slot| MapRouteDestination {
             route_id: format!("route.slot.{slot:02}"),
             target_location_id: 20 + slot,
+            profile: None,
+            preferred_side: None,
         })
         .collect::<Vec<_>>();
 
@@ -1195,6 +1205,8 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
         &[MapRouteDestination {
             route_id: "route.migrated.20".into(),
             target_location_id: 20,
+            profile: None,
+            preferred_side: None,
         }],
     );
 

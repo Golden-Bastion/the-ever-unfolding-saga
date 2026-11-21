@@ -53,6 +53,9 @@ pub struct WorldRoute {
     /// Higher of the two endpoint location IDs.
     pub location_b_id: EntityId,
     pub direction: RouteDirection,
+    /// Derived once from endpoint geography and persisted with the route.
+    #[serde(default)]
+    pub geography: Option<crate::geography::routes::RouteGeography>,
 }
 
 /// Persistent, user/world-authored changes associated with a generated waterbody.
@@ -89,6 +92,7 @@ impl WorldRoute {
             location_a_id,
             location_b_id,
             direction,
+            geography: None,
         }
     }
 
