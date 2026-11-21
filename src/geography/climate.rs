@@ -254,7 +254,7 @@ mod tests {
     }
 
     #[test]
-    fn biome_thresholds_are_explicit_and_non_tropical() {
+    fn biome_thresholds_are_explicit() {
         assert_eq!(classify_biome(0, 0, 0, false), Biome::Ocean);
         assert_eq!(classify_biome(1, 0, 0, true), Biome::Coast);
         assert_eq!(classify_biome(50_000, 0, 0, false), Biome::Alpine);
