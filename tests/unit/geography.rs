@@ -681,3 +681,61 @@ fn watershed_sampling_is_independent_of_region_chunk_ownership() {
         watershed::sample_surface(1_701, GEOGRAPHY_RULESET_VERSION, reconstructed),
     );
 }
+
+
+#[test]
+fn mountain_ranges_are_deterministic_and_change_surface_elevation() {
+    let mut found_range = false;
+    let mut found_non_mountain = false;
+    for y in (-32_768..32_768).step_by(512) {
+        for x in (-32_768..32_768).step_by(512) {
+            let coordinate = MacroCoordinate::new(x, y);
+            let mountain = mountains::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, coordinate)
+                .unwrap();
+            let repeated = mountains::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, coordinate)
+                .unwrap();
+            assert_eq!(mountain, repeated);
+            assert!(mountain.ridge_strength_q16() <= 65_536);
+            assert!(mountain.uplift_q16() >= 0);
+
+            let terrain = terrain::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, coordinate)
+                .unwrap();
+            if mountain.is_mountain() {
+                found_range = true;
+                let base = terrain::base_surface_elevation_q16(
+                    7_321,
+                    GEOGRAPHY_RULESET_VERSION,
+                    coordinate,
+                )
+                .unwrap();
+                assert!(terrain.elevation_q16() > base);
+            } else {
+                found_non_mountain = true;
+            }
+        }
+    }
+    assert!(found_range, "expected mountain ranges in the sampled continental field");
+    assert!(found_non_mountain, "mountain ranges must not cover all land");
+}
+
+#[test]
+fn mountain_ranges_preserve_legacy_ruleset_elevation() {
+    let coordinate = MacroCoordinate::new(-1_337, 2_048);
+    let base = terrain::base_surface_elevation_q16(42, 1, coordinate).unwrap();
+    let sampled = terrain::sample_surface(42, 1, coordinate).unwrap();
+    assert_eq!(sampled.elevation_q16(), base);
+    assert_eq!(
+        mountains::sample_surface(42, 1, coordinate).unwrap().uplift_q16(),
+        0
+    );
+}
+
+#[test]
+fn mountain_field_is_continuous_across_region_chunk_boundaries() {
+    let left = RegionCoordinate::new(-1, 0).global_sample(255, 91).unwrap();
+    let right = RegionCoordinate::new(0, 0).global_sample(0, 91).unwrap();
+    let first = mountains::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, left).unwrap();
+    let second = mountains::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, right).unwrap();
+    assert_eq!(left.x + 1, right.x);
+    assert!((first.uplift_q16() - second.uplift_q16()).abs() < 2_048);
+}
