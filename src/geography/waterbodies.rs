@@ -19,7 +19,6 @@ pub struct LakeSample {
     depth_q16: i32,
     basin_cell_count: u16,
     precipitation_potential_q16: u32,
-    river_inflow: bool,
 }
 
 impl LakeSample {
@@ -53,9 +52,13 @@ impl LakeSample {
         self.precipitation_potential_q16
     }
 
-    /// Whether the basin's outlet receives a classified river channel.
-    pub const fn has_river_inflow(self) -> bool {
-        self.river_inflow
+    /// Whether the basin outlet receives a classified river channel.
+    ///
+    /// This bounded accumulation query is evaluated only when requested,
+    /// rather than repeated for every covered lake sample.
+    pub fn has_river_inflow(self, world_seed: u64, ruleset_version: u32) -> bool {
+        rivers::sample_surface(world_seed, ruleset_version, self.outlet_cell)
+            .is_some_and(|sample| sample.is_channel())
     }
 }
 
@@ -115,10 +118,6 @@ pub fn sample_surface(
     }
 
     let depth = (water_surface - local_elevation).clamp(0, i64::from(i32::MAX)) as i32;
-    let river_inflow =
-        rivers::sample_surface(world_seed, ruleset_version, depression.outlet_cell())
-            .is_some_and(|sample| sample.is_channel());
-
     Some(LakeSample {
         outlet_cell: depression.outlet_cell(),
         water_surface_elevation_q16: water_surface.clamp(i64::from(i32::MIN), i64::from(i32::MAX))
@@ -126,6 +125,5 @@ pub fn sample_surface(
         depth_q16: depth,
         basin_cell_count: depression.basin_cell_count(),
         precipitation_potential_q16: precipitation,
-        river_inflow,
     })
 }
