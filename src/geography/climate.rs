@@ -212,12 +212,7 @@ fn ocean_moisture_influence(
     ];
     let mut influence = 0;
     for (distance, strength) in PROBES {
-        for (dx, dy) in [
-            (distance, 0),
-            (-distance, 0),
-            (0, distance),
-            (0, -distance),
-        ] {
+        for (dx, dy) in [(distance, 0), (-distance, 0), (0, distance), (0, -distance)] {
             let Some(x) = coordinate.x.checked_add(dx) else {
                 continue;
             };
@@ -262,14 +257,8 @@ mod tests {
             classify_biome(10_000, -40_000, 30_000, false),
             Biome::Tundra
         );
-        assert_eq!(
-            classify_biome(10_000, -20_000, 30_000, false),
-            Biome::Taiga
-        );
-        assert_eq!(
-            classify_biome(10_000, 20_000, 10_000, false),
-            Biome::Desert
-        );
+        assert_eq!(classify_biome(10_000, -20_000, 30_000, false), Biome::Taiga);
+        assert_eq!(classify_biome(10_000, 20_000, 10_000, false), Biome::Desert);
         assert_eq!(
             classify_biome(10_000, 0, 50_000, false),
             Biome::TemperateForest
