@@ -73,12 +73,12 @@ impl WatershedSample {
         self.elevation_q16
     }
 
-    /// The next lower coarse cell, or None for ocean cells and local sinks.
+    /// The next lower coarse cell, or None for ocean cells and coarse-cell sinks.
     pub const fn coarse_downstream(self) -> Option<MacroCoordinate> {
         self.coarse_downstream
     }
 
-    /// The steepest lower immediate neighbor inside this coarse cell.
+    /// The lowest immediate neighbor that is lower and inside this coarse cell.
     ///
     /// None means no lower same-cell neighbor exists. The coarse downstream
     /// link remains available separately, so local minima do not erase the
@@ -92,7 +92,7 @@ impl WatershedSample {
     }
 
     pub const fn is_local_sink(self) -> bool {
-        self.local_direction.is_none()
+        !self.is_ocean() && self.local_direction.is_none()
     }
 }
 
@@ -293,14 +293,14 @@ fn downstream_cell(
             continue;
         }
 
-        let candidate_key = (candidate, y, x, coordinate);
-        if lowest
-            .as_ref()
-            .is_none_or(|(best, best_y, best_x, _)| {
+        let is_better = match lowest.as_ref() {
+            Some((best, best_y, best_x, _)) => {
                 (candidate, y, x) < (*best, *best_y, *best_x)
-            })
-        {
-            lowest = Some(candidate_key);
+            }
+            None => true,
+        };
+        if is_better {
+            lowest = Some((candidate, y, x, coordinate));
         }
     }
 
