@@ -133,7 +133,54 @@ pub fn frontier_targets_for_location(world: &World, source_location_id: u64) -> 
                     == Some(frontier.target_region)
             })
         })
+        .filter(|frontier| frontier_has_land_approach(world, source_location_id, frontier))
         .collect()
+}
+
+fn frontier_has_land_approach(
+    world: &World,
+    source_location_id: u64,
+    frontier: &FrontierTarget,
+) -> bool {
+    let Some(seed) = world.geography_seed else {
+        return false;
+    };
+    let Some(source_anchor) = world
+        .location_geography
+        .iter()
+        .find(|record| record.location_id == source_location_id)
+        .map(|record| record.anchor)
+    else {
+        return false;
+    };
+    let Some(stable_key) = world
+        .location_geography
+        .iter()
+        .find(|record| record.location_id == source_location_id)
+        .map(|record| record.stable_key.as_str())
+    else {
+        return false;
+    };
+
+    locations::frontier_anchor_candidates(
+        seed,
+        world.geography_ruleset_version,
+        frontier.target_region,
+        &frontier.location_key(),
+        stable_key,
+        frontier.direction,
+        FRONTIER_ANCHOR_CANDIDATES,
+    )
+    .into_iter()
+    .any(|candidate| {
+        routes::plan_route(
+            seed,
+            world.geography_ruleset_version,
+            source_anchor,
+            candidate,
+        )
+        .status == routes::RoutePlanningStatus::Planned
+    })
 }
 
 fn frontier_target_for_direction(
