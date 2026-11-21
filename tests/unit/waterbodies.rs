@@ -5,9 +5,16 @@ fn find_lake_cell(seed: u64) -> Option<MacroCoordinate> {
     for coarse_y in (-40..=-1).rev() {
         for coarse_x in (-40..=-1).rev() {
             let coordinate = watershed::cell_center(coarse_x, coarse_y)?;
-            let elevation = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+            let elevation =
+                terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
             if !elevation.is_land()
-                || watershed::downstream_cell(seed, GEOGRAPHY_RULESET_VERSION, coarse_x, coarse_y, elevation.elevation_q16()).is_some()
+                || watershed::downstream_cell(
+                    seed,
+                    GEOGRAPHY_RULESET_VERSION,
+                    coarse_x,
+                    coarse_y,
+                    elevation.elevation_q16(),
+                ).is_some()
             {
                 continue;
             }
@@ -32,12 +39,12 @@ fn lake_sampling_is_deterministic_and_uses_stable_basin_identity() {
     assert!(first.basin_cell_count() >= MIN_LAKE_BASIN_CELLS);
     assert!(first.precipitation_potential_q16() > 0);
 
-    let nearby = MacroCoordinate::new(
-        coordinate.x + 1,
-        coordinate.y + 1,
-    );
+    let nearby = MacroCoordinate::new(coordinate.x + 1, coordinate.y + 1);
     if let Some(adjacent) = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, nearby) {
-        assert_eq!(first.id(seed, GEOGRAPHY_RULESET_VERSION), adjacent.id(seed, GEOGRAPHY_RULESET_VERSION));
+        assert_eq!(
+            first.id(seed, GEOGRAPHY_RULESET_VERSION),
+            adjacent.id(seed, GEOGRAPHY_RULESET_VERSION)
+        );
     }
 }
 
@@ -76,7 +83,9 @@ fn ocean_cells_are_not_classified_as_inland_lakes() {
     let seed = 8_211;
     let ocean = (-16_384..16_384)
         .step_by(256)
-        .flat_map(|y| (-16_384..16_384).step_by(256).map(move |x| MacroCoordinate::new(x, y)))
+        .flat_map(|y| {
+            (-16_384..16_384).step_by(256).map(move |x| MacroCoordinate::new(x, y))
+        })
         .find(|coordinate| {
             terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate)
                 .is_some_and(|sample| !sample.is_land())
