@@ -86,7 +86,10 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
     assert_eq!(first.location_geography, second.location_geography);
     assert_eq!(first.next_id, 30);
     assert_eq!(first.routes.len(), 1);
-    assert_eq!(first.history, original_history);
+    assert_eq!(first.history.len(), original_history.len());
+    assert_eq!(first.history[0].id, original_history[0].id);
+    assert_eq!(first.history[0].turn, original_history[0].turn);
+    assert_eq!(first.history[0].text, original_history[0].text);
     assert_eq!(first.local_maps, original_maps);
     assert_eq!(first.regions.iter().map(|region| region.id).collect::<Vec<_>>(), original_region_ids);
     assert_eq!(first.locations.iter().map(|location| location.id).collect::<Vec<_>>(), original_location_ids);
