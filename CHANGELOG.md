@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.5: Hierarchical watershed foundation
+
+- Added deterministic coarse drainage cells on a 4,096-sample global lattice, with downstream links to the lowest strictly lower neighboring cell and stable signed-coordinate tie-breaking.
+- Added local D8 drainage direction within each coarse cell, keeping local minima distinct from the larger drainage network.
+- Added bounded coarse-network outlet tracing that distinguishes ocean outlets, closed inland basins, and explicit search-limit continuations.
+- Kept watershed sampling renderer-independent, on-demand, fixed-point-terrain-backed, and independent of region visitation order. No save-format or persistence changes.
+- Added automated coverage for deterministic drainage, downhill coarse links, local direction constraints, outlet classification, negative coordinates, region boundaries, and underground rejection.
+- Bumped Rust and Android version metadata to 0.53.5.
+
 ### v0.53.4: Explicit shoreline data
 
 - Added a deterministic shoreline sampler exposing opposite-terrain adjacency for both land and water samples.
