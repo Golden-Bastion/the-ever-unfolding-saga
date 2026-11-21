@@ -61,7 +61,7 @@ pub enum RoutePlanningStatus {
     Planned,
     InvalidEndpoint,
     UnsupportedStratum,
-    NoLandPath,
+    NoLandPathInSearchWindow,
     SearchLimit,
 }
 
@@ -296,7 +296,7 @@ pub fn plan_route(
             return RouteGeography::unavailable(RoutePlanningStatus::InvalidEndpoint);
         };
         if !middle_terrain.is_land() {
-            return RouteGeography::unavailable(RoutePlanningStatus::NoLandPath);
+            return RouteGeography::unavailable(RoutePlanningStatus::NoLandPathInSearchWindow);
         }
         let movement_cost = if dx == 0 || dy == 0 { 100_u64 } else { 141_u64 };
         let slope_cost =
@@ -431,7 +431,7 @@ pub fn plan_route(
         return RouteGeography::unavailable(if expanded >= MAX_ROUTE_SEARCH_NODES {
             RoutePlanningStatus::SearchLimit
         } else {
-            RoutePlanningStatus::NoLandPath
+            RoutePlanningStatus::NoLandPathInSearchWindow
         });
     }
 
@@ -439,7 +439,7 @@ pub fn plan_route(
     let mut cursor = goal;
     while cursor != (0, 0) {
         let Some(parent) = previous.get(&cursor).copied() else {
-            return RouteGeography::unavailable(RoutePlanningStatus::NoLandPath);
+            return RouteGeography::unavailable(RoutePlanningStatus::NoLandPathInSearchWindow);
         };
         nodes.push(parent);
         cursor = parent;
