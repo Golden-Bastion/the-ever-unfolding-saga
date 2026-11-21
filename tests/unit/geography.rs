@@ -428,37 +428,35 @@ fn shoreline_sampling_is_deterministic_and_rejects_underground_strata() {
 
 #[test]
 fn shoreline_masks_identify_opposite_terrain_in_each_direction() {
-    use coast::direction;
+    let mut found_boundary = None;
+    for y in [-4_096, -2_048, -1_024, -256, 0, 256, 1_024, 2_048, 4_096] {
+        for x in (-8_192..8_192).step_by(8) {
+            let first = MacroCoordinate::new(x, y);
+            let second = MacroCoordinate::new(x + 1, y);
+            let first_terrain =
+                terrain::sample_surface(1_903, GEOGRAPHY_RULESET_VERSION, first).unwrap();
+            let second_terrain =
+                terrain::sample_surface(1_903, GEOGRAPHY_RULESET_VERSION, second).unwrap();
 
-    let mut found_land_coast = false;
-    let mut found_water_coast = false;
-    for y in (-16_384..16_384).step_by(8) {
-        for x in (-16_384..16_384).step_by(8) {
-            let coordinate = MacroCoordinate::new(x, y);
-            let terrain = terrain::sample_surface(1_903, GEOGRAPHY_RULESET_VERSION, coordinate)
-                .unwrap();
-            let shoreline = coast::sample_surface(1_903, GEOGRAPHY_RULESET_VERSION, coordinate)
-                .unwrap();
-
-            if terrain.is_land() && shoreline.is_coastal_land() {
-                found_land_coast = true;
-            }
-            if !terrain.is_land() && shoreline.is_coastal_water() {
-                found_water_coast = true;
-            }
-            if found_land_coast && found_water_coast {
+            if first_terrain.is_land() != second_terrain.is_land() {
+                found_boundary = Some((first, second));
                 break;
             }
         }
-        if found_land_coast && found_water_coast {
+        if found_boundary.is_some() {
             break;
         }
     }
 
-    assert!(found_land_coast, "expected a land-side shoreline sample");
-    assert!(found_water_coast, "expected a water-side shoreline sample");
-}
+    let (first, second) = found_boundary.expect("expected an adjacent land/ocean pair");
+    let first_shore = coast::sample_surface(1_903, GEOGRAPHY_RULESET_VERSION, first).unwrap();
+    let second_shore = coast::sample_surface(1_903, GEOGRAPHY_RULESET_VERSION, second).unwrap();
 
+    assert!(first_shore.is_shoreline());
+    assert!(second_shore.is_shoreline());
+    assert_ne!(first_shore.is_coastal_land(), second_shore.is_coastal_land());
+    assert_ne!(first_shore.is_coastal_water(), second_shore.is_coastal_water());
+}
 #[test]
 fn shoreline_data_is_continuous_across_region_chunk_boundaries() {
     use coast::direction;
