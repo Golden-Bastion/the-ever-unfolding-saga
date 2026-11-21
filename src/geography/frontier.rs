@@ -185,8 +185,6 @@ pub fn materialize_frontier(
     source_location_id: u64,
     frontier: &FrontierTarget,
 ) -> Result<FrontierMaterialization, FrontierMaterializationError> {
-    locations::ensure_location_geography(world, None);
-
     let expected = frontier_target_for_direction(world, source_location_id, frontier.direction)
         .ok_or(FrontierMaterializationError::MissingGeography)?;
     if expected != *frontier {
