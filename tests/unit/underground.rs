@@ -46,6 +46,17 @@ fn cave_nodes_are_deterministic_and_seeded_by_stratum() {
             ));
         }
     }
+    let repeated = (-8..8)
+        .flat_map(|cell_y| (-8..8).map(move |cell_x| (cell_x, cell_y)))
+        .map(|(cell_x, cell_y)| {
+            sample_underground(
+                42,
+                GEOGRAPHY_RULESET_VERSION,
+                chamber_center(42, cell_x, cell_y, -1),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(shallow, repeated);
     assert_ne!(shallow, deep);
 
     let other_seed = (-8..8)
