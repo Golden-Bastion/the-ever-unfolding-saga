@@ -4,6 +4,13 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.2: Continuous surface elevation foundation
+
+- Added a renderer-independent surface elevation sampler on the shared global macro-coordinate lattice.
+- Generated continent-scale landmasses with regional and fine-scale variation for bays, peninsulas, and smaller islands. Elevation uses fixed-point interpolation so land/ocean classification does not depend on platform floating-point behavior.
+- Sampling is deterministic from world seed, geography ruleset version, global coordinates, and independent noise channels. Negative coordinates and region boundaries use the same global field.
+- Kept underground strata explicitly outside the surface sampler; underground generation, explicit coast/watershed data, climate/biomes, rivers, mountains, lakes, terrain-backed locations, and legacy-world embedding remain future work.
+
 ### v0.53.1: Macro-geography coordinate foundation
 
 - Added renderer-independent signed region-chunk and global macro-sample coordinate types. Regions occupy 256 × 256 macro samples, with checked coordinate conversion and correct Euclidean partitioning for negative coordinates.
