@@ -8,6 +8,7 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod climate;
 pub mod terrain;
 
 /// Number of macro-geography samples along each side of a region chunk.
