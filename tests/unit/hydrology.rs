@@ -1,12 +1,11 @@
 use super::*;
-use crate::geography::{GEOGRAPHY_RULESET_VERSION, MacroCoordinate};
+use crate::geography::{MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
 
 fn find_lake_cell(seed: u64) -> Option<MacroCoordinate> {
     for coarse_y in (-40..=-1).rev() {
         for coarse_x in (-40..=-1).rev() {
             let coordinate = watershed::cell_center(coarse_x, coarse_y)?;
-            let elevation =
-                terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+            let elevation = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
             if !elevation.is_land()
                 || watershed::downstream_cell(
                     seed,
@@ -32,7 +31,11 @@ fn ocean_samples_are_terminal_surface_water() {
     let seed = 8_211;
     let ocean = (-16_384..16_384)
         .step_by(256)
-        .flat_map(|y| (-16_384..16_384).step_by(256).map(move |x| MacroCoordinate::new(x, y)))
+        .flat_map(|y| {
+            (-16_384..16_384)
+                .step_by(256)
+                .map(move |x| MacroCoordinate::new(x, y))
+        })
         .find(|coordinate| {
             terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate)
                 .is_some_and(|sample| !sample.is_land())
@@ -63,9 +66,7 @@ fn inland_lakes_are_terminal_nodes_with_stable_outlet_identity() {
 fn river_channels_expose_a_deterministic_downstream_connection() {
     let seed = 8_211;
     let river = (-16..=16)
-        .flat_map(|y| {
-            (-16..=16).map(move |x| (x, y))
-        })
+        .flat_map(|y| (-16..=16).map(move |x| (x, y)))
         .filter_map(|(x, y)| watershed::cell_center(x, y))
         .find_map(|coordinate| {
             let flow = rivers::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
@@ -86,18 +87,19 @@ fn river_channels_expose_a_deterministic_downstream_connection() {
             terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, river.coordinate())
                 .unwrap()
                 .elevation_q16();
-        let next_elevation =
-            terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next)
-                .unwrap()
-                .elevation_q16();
+        let next_elevation = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next)
+            .unwrap()
+            .elevation_q16();
         assert!(next_elevation < current_elevation);
 
         match river.downstream().unwrap() {
-            FlowDestination::Ocean => assert!(
-                !terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next)
-                    .unwrap()
-                    .is_land()
-            ),
+            FlowDestination::Ocean => {
+                assert!(
+                    !terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next)
+                        .unwrap()
+                        .is_land()
+                )
+            }
             FlowDestination::Lake { outlet_cell } => {
                 let lake = waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next)
                     .expect("lake destination must be covered by an inland lake");
