@@ -95,6 +95,7 @@ src/
 ├── model.rs                 # shared game-state and entity models
 ├── geography.rs             # renderer-neutral macro-geography coordinates and deterministic sample keys
 │   ├── terrain.rs           # deterministic surface elevation fields on the global macro lattice
+│   ├── coast.rs             # shoreline adjacency and direction masks derived from elevation
 │   └── climate.rs           # deterministic surface climate and biome classification
 ├── spatial.rs               # renderer-neutral local-map model and deterministic generation
 ├── persistence.rs           # save/load and migrations
@@ -102,7 +103,7 @@ src/
 └── rng.rs                   # deterministic/random generation helpers
 ```
 
-The geography module owns signed global/region coordinate conversion, deterministic coordinate-derived seeds, and renderer-independent terrain fields. Surface elevation, regional temperature and moisture, and biome classification are sampled from the shared global lattice using deterministic fixed-point noise. Climate consumes terrain elevation and nearby ocean samples; hydrology, physical features, and location/route constraints build on these foundations.
+The geography module owns signed global/region coordinate conversion, deterministic coordinate-derived seeds, and renderer-independent terrain fields. Surface elevation, shoreline adjacency, regional temperature and moisture, and biome classification are sampled from the shared global lattice using deterministic fixed-point noise. Shorelines are derived from neighboring elevation samples and shared by climate classification; hydrology, physical features, and location/route constraints build on these foundations.
 
 The exact module list may evolve, but new modules should represent meaningful responsibilities rather than arbitrary slices of large files.
 

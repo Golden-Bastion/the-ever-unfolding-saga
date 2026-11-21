@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.4: Explicit shoreline data
+
+- Added a deterministic shoreline sampler exposing opposite-terrain adjacency for both land and water samples.
+- Added an eight-direction mask for shoreline orientation, derived from neighboring global elevation samples and consistent across region chunk boundaries.
+- Reused the shared shoreline sampler for coastal biome classification instead of duplicating neighbor checks.
+- Added automated coverage for land/water shoreline classification, direction masks, deterministic sampling, negative coordinates, region-boundary continuity, and underground rejection.
+- Bumped Rust and Android version metadata to 0.53.4.
+
+
 ### v0.53.3: Surface climate and biome generation
 
 - Added deterministic regional temperature and moisture fields on the shared global macro-coordinate lattice. Elevation cools high ground, and nearby ocean samples contribute bounded maritime moisture influence.
