@@ -61,6 +61,11 @@ fn compressed_save_round_trips() {
     state
         .world
         .record_history(7, "The world has changed.".to_string());
+    state.world.set_waterbody_property(
+        "lake.12.34.abcd",
+        "name",
+        "Mirror Lake",
+    );
     let mutated_description = state.world.locations[0].description.clone();
     let history_len = state.world.history.len();
 
@@ -98,6 +103,14 @@ fn compressed_save_round_trips() {
     assert_ne!(loaded.world.locations[0].description, original_description);
     assert_eq!(loaded.world.locations[0].exits, original_exits);
     assert_eq!(loaded.world.history.len(), history_len);
+    assert_eq!(
+        loaded
+            .world
+            .waterbody_modification("lake.12.34.abcd")
+            .unwrap()
+            .properties["name"],
+        "Mirror Lake"
+    );
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }
 
