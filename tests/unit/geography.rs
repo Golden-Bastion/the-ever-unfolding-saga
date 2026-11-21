@@ -405,3 +405,129 @@ fn coastal_biome_classification_remains_continuous_across_region_edges() {
 
     panic!("expected the generated coastline to cross at least one searched region edge");
 }
+
+
+#[test]
+fn shoreline_sampling_is_deterministic_and_rejects_underground_strata() {
+    let coordinate = MacroCoordinate::new(-513, 1_025);
+    let first = coast::sample_surface(82, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let repeated = coast::sample_surface(82, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+
+    assert_eq!(first, repeated);
+    assert_eq!(
+        first.is_shoreline(),
+        first.opposite_terrain_mask() != 0
+    );
+    assert!(coast::sample_surface(
+        82,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::in_stratum(coordinate.x, coordinate.y, -1),
+    )
+    .is_none());
+}
+
+#[test]
+fn shoreline_masks_identify_opposite_terrain_in_each_direction() {
+    use coast::direction;
+
+    let mut found_land_coast = false;
+    let mut found_water_coast = false;
+    for y in (-16_384..16_384).step_by(8) {
+        for x in (-16_384..16_384).step_by(8) {
+            let coordinate = MacroCoordinate::new(x, y);
+            let terrain = terrain::sample_surface(1_903, GEOGRAPHY_RULESET_VERSION, coordinate)
+                .unwrap();
+            let shoreline = coast::sample_surface(1_903, GEOGRAPHY_RULESET_VERSION, coordinate)
+                .unwrap();
+
+            if terrain.is_land() && shoreline.is_coastal_land() {
+                found_land_coast = true;
+            }
+            if !terrain.is_land() && shoreline.is_coastal_water() {
+                found_water_coast = true;
+            }
+            if found_land_coast && found_water_coast {
+                break;
+            }
+        }
+        if found_land_coast && found_water_coast {
+            break;
+        }
+    }
+
+    assert!(found_land_coast, "expected a land-side shoreline sample");
+    assert!(found_water_coast, "expected a water-side shoreline sample");
+}
+
+#[test]
+fn shoreline_data_is_continuous_across_region_chunk_boundaries() {
+    use coast::direction;
+
+    for boundary in (-4_096..=4_096).step_by(256) {
+        for offset in (-8_192..8_192).step_by(16) {
+            let pairs = [
+                (
+                    MacroCoordinate::new(boundary - 1, offset),
+                    MacroCoordinate::new(boundary, offset),
+                    direction::EAST,
+                    direction::WEST,
+                ),
+                (
+                    MacroCoordinate::new(offset, boundary - 1),
+                    MacroCoordinate::new(offset, boundary),
+                    direction::SOUTH,
+                    direction::NORTH,
+                ),
+            ];
+
+            for (first, second, first_direction, second_direction) in pairs {
+                let first_terrain =
+                    terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, first).unwrap();
+                let second_terrain =
+                    terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, second).unwrap();
+
+                if first_terrain.is_land() == second_terrain.is_land() {
+                    continue;
+                }
+
+                let first_shore =
+                    coast::sample_surface(55, GEOGRAPHY_RULESET_VERSION, first).unwrap();
+                let second_shore =
+                    coast::sample_surface(55, GEOGRAPHY_RULESET_VERSION, second).unwrap();
+
+                assert!(first_shore.is_shoreline());
+                assert!(second_shore.is_shoreline());
+                assert!(first_shore.has_opposite_neighbor(first_direction));
+                assert!(second_shore.has_opposite_neighbor(second_direction));
+                return;
+            }
+        }
+    }
+
+    panic!("expected a coastline to cross one of the searched region boundaries");
+}
+
+#[test]
+fn shoreline_sampling_is_independent_of_coordinate_visit_order() {
+    let coordinates = [
+        MacroCoordinate::new(-257, -1),
+        MacroCoordinate::new(-256, 255),
+        MacroCoordinate::new(255, 256),
+        MacroCoordinate::new(256, -257),
+    ];
+    let forward = coordinates
+        .iter()
+        .map(|coordinate| {
+            coast::sample_surface(731, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
+    let reverse = coordinates
+        .iter()
+        .rev()
+        .map(|coordinate| {
+            coast::sample_surface(731, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
+}
