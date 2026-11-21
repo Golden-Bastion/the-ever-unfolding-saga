@@ -185,7 +185,7 @@ fn node_exists(
     stratum: i32,
 ) -> bool {
     let depth = stratum.unsigned_abs().min(8) as u64;
-    let threshold = 52 + depth;
+    let threshold = 60 + depth;
     let key = MacroCoordinate::in_stratum(cell_x, cell_y, stratum);
     coordinate_seed(world_seed, ruleset_version ^ NODE_CHANNEL, key) % 100 < threshold
 }
