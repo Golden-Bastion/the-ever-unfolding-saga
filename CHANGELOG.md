@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.14: Geography-backed locations and route corridor assessment
+
+- Added persisted geography seeds, ruleset/embedding versions, and stable macro-geographic anchors/footprints for world locations.
+- Added deterministic compatibility embedding for legacy regions without coordinates. Placement order follows saved route-graph structure with stable ID tie-breaking; existing coordinates and all established world identities remain unchanged.
+- Derived a compatibility geography seed from saved immutable identities when a legacy world has no generation seed. The migration preserves IDs, next_id, routes, history, and saved local maps and is idempotent.
+- Added optional authored exact surface anchors and footprint radii. Generated anchors are deterministic within their owning region and authored placement can preserve deliberate geography.
+- Added bounded candidate-route corridor assessment with distinct ocean, lake, river, unresolved-water, and mountain-ridge signals. This is a terrain diagnostic, not a pathfinder or travel authorization.
+- Added automated tests for embedding, deterministic placement, authored anchors, bounded footprints, and corridor assessment. No save-format or geography-ruleset bump was required.
+
 ### v0.53.13: Deterministic underground cave networks
 
 - Added renderer-independent underground sampling for negative geography strata, with independent deterministic layers and modestly increasing chamber frequency at greater stratum indices.

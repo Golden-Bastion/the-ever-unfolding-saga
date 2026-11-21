@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.53.x: world topology and spatial-world expansion
 
-**Repository version at this roadmap revision: 0.53.13.**
+**Repository version at this roadmap revision: 0.53.14.**
 
 **Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
 
@@ -38,15 +38,17 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 **Delivered in v0.53.13:** added deterministic underground cave-network sampling on negative geography strata. Sparse chamber nodes expose stable coordinate identities and reciprocal cardinal passage links; samples distinguish solid rock, chambers, and passages. Queries are local and bounded, use the shared signed global lattice, and remain continuous across region boundaries. Generated cave geometry is derived and requires no save migration.
 
+**Delivered in v0.53.14:** integrated macro-geography with persistent location anchors and footprints, deterministic legacy-world embedding, and bounded physical corridor assessment. Existing region coordinates remain unchanged; legacy regions without coordinates are embedded using saved route-graph structure and stable IDs. Legacy geography seeds derive from immutable saved identities when no generation seed exists. New location anchors are deterministic within their owning region and authored content may specify exact anchors/footprint radii. Candidate route corridors expose distinct water and mountain-resistance signals without changing graph connectivity or authorizing crossings.
+
 The v0.52.x development line is complete. The project owner has confirmed the integrated desktop/Android spatial-first gameplay verification and the separate spatial presentation/player-animation playtesting tracked by [#421](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/421) and [#446](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/446). The full delivered scope and final verification record are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md); the concise published summary and release assets are available in the [v0.52.70 GitHub Release](https://github.com/Golden-Bastion/the-ever-unfolding-saga/releases/tag/v0.52.70).
 
 The initial world-topology compatibility audit is complete in [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md). It records the current identity, generation, route, local-map, and save invariants, plus the owner-selected requirement to deterministically embed existing worlds through a one-time persisted migration. It does not change gameplay or save data.
 
 ### Remaining work
 
-1. **Generate continuous continental macro-geography.** In progress: added deterministic continental elevation, climate/biomes, shorelines, watersheds, relative river-channel estimates, inland lakes, connected surface-water classification, mountain ranges and route-facing mountain-barrier signals, plus underground cave chambers and reciprocal passage networks on negative strata. Remaining: geography integration with location footprints and physical route constraints. Physical discharge calibration and seasonal water balance are not required; seasonal rainfall/drought and their gameplay consequences belong to the time-driven world-simulation work. Neighboring chunks must remain coherent regardless of generation order.
-2. **Embed existing saved worlds.** Implement the one-time persisted compatibility placement and seed migration, preserving region/location IDs, `next_id`, routes, history, authored content, and saved local maps.
-3. **Anchor authored and generated locations to physical geography.** Define stable placement/footprint and environmental constraints; make route edges correspond to plausible terrain connections and local-map passages without moving established placements.
+1. **Complete geography-backed route planning and frontier integration.** The continuous macro-geography fields, legacy embedding, location anchors/footprints, and bounded corridor assessments are in place. Remaining: terrain-aware route path selection, explicit route profiles/infrastructure for water and cave crossings, route-to-local-passage geometry, and idempotent on-demand frontier materialization. Physical discharge calibration and seasonal water balance are not required; seasonal rainfall/drought and their gameplay consequences belong to time-driven world simulation. Neighboring chunks must remain coherent regardless of generation order.
+2. **Preserve the established-world compatibility contract.** Legacy region embedding and location anchors are now persisted without changing IDs, next_id, routes, history, authored content, or saved local maps. Continue covering this contract as route and frontier systems are added.
+3. **Anchor authored and generated locations to physical geography.** Stable macro anchors and footprints now exist, with optional authored exact anchors. Further environmental archetype constraints and local-map connection-point integration remain outstanding.
 4. **Expand frontier regions on demand** without generating the entire world or rerolling established geography, routes, local maps, or discoveries.
 5. **Keep physical travel and known-route fast travel complementary,** including travel time, encounter/event interruption, and conservative migration of older worlds.
 6. **Make exploration and local maps available consistently across supported location types** while preserving direct location-level actions where spatial traversal is unnecessary.

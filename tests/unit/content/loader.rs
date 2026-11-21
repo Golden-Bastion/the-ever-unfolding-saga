@@ -270,6 +270,7 @@ fn mod_events_can_reference_definitions_from_other_mods() {
         scene_art: None,
         scene_image: None,
         spatial_layout: None,
+        geography: None,
         spatial_discoveries: Vec::new(),
     });
     definitions_mod.factions.push(FactionContent {

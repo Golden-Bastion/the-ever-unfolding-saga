@@ -97,7 +97,7 @@ Save format v5 migrates pre-route location adjacency deterministically. The migr
 
 Existing local-map passages are assigned the first matching route ID in stable lexical order without changing their passage ID or grid position. When additional routes exist between the same locations, reconciliation appends distinct passages. Reconciliation never clears established exits or regenerates saved map geometry; repeated reconciliation is idempotent.
 
-Route records currently establish identity and connectivity only. Route profiles/types, macro-terrain constraints, physical route geometry between locations, discovery state, and travel costs remain future topology work.
+Route records establish identity and graph connectivity. The geography layer now stores stable location anchors and footprints and exposes a bounded direct-corridor assessment for candidate routes. The assessment distinguishes ocean, lakes, confirmed rivers, unresolved river estimates, and mountain-ridge resistance. It is not a pathfinder and does not itself authorize a crossing. Route profiles/types, terrain-aware path selection, infrastructure requirements, discovery state, and travel costs remain future topology work.
 
 ## System boundaries
 
