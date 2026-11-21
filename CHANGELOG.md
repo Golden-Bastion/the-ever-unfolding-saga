@@ -7,7 +7,7 @@ This file records completed work in the current unreleased development line. Old
 ### v0.53.13: Deterministic underground cave networks
 
 - Added renderer-independent underground sampling for negative geography strata, with independent deterministic layers and modestly increasing chamber frequency at greater stratum indices.
-- Generated sparse chamber nodes on a shared 64-sample global lattice. Neighboring nodes connect through reciprocal cardinal passages only when both chambers exist and their deterministic shared edge is open.
+- Generated deterministically jittered chamber nodes on a shared 64-sample global lattice. Neighboring nodes connect through reciprocal cardinal passages only when both chambers exist and their deterministic shared edge is open.
 - Exposed solid rock, chamber, and passage classifications, stable chamber-center coordinates, and connected-neighbor masks for future route and local-map integration.
 - Kept each query bounded to one node and at most four neighbors, with checked coordinate arithmetic and correct negative-coordinate behavior. No world-sized searches, mutable generation caches, persisted generated geometry, or save migration.
 - Added automated coverage for deterministic sampling, independent strata, cave/solid distribution, reciprocal passages, region-boundary continuity, negative coordinates, and extreme-coordinate safety.
