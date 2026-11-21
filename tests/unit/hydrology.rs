@@ -64,22 +64,27 @@ fn inland_lakes_are_terminal_nodes_with_stable_outlet_identity() {
 
 #[test]
 fn river_channels_expose_a_deterministic_downstream_connection() {
-    let seed = 8_211;
-    // Confirmed channels need at least eight contributing coarse cells. Search
-    // a continental-scale area so this test does not depend on a river
-    // happening to cross a small, arbitrary 33 × 33-cell window.
-    let river = (-64..=64)
-        .flat_map(|y| (-64..=64).map(move |x| (x, y)))
-        .filter_map(|(x, y)| watershed::cell_center(x, y))
-        .find_map(|coordinate| {
-            let flow = rivers::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
-            if !flow.is_channel() {
-                return None;
-            }
-            sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
-                .filter(|sample| matches!(sample.kind(), SurfaceWaterKind::River(_)))
+    // Mountain uplift legitimately changes drainage topology, so a seed that
+    // contained a channel before ruleset 2 is not guaranteed to retain one.
+    // Search a small, fixed seed set over a continental-scale area instead of
+    // coupling this connectivity test to one particular river's location.
+    let (seed, river) = [8_211, 42, 1_701, 7_321, 12_345, 1, 2, 3]
+        .into_iter()
+        .find_map(|seed| {
+            (-48..=48)
+                .flat_map(|y| (-48..=48).map(move |x| (x, y)))
+                .filter_map(|(x, y)| watershed::cell_center(x, y))
+                .find_map(|coordinate| {
+                    let flow = rivers::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+                    if !flow.is_channel() {
+                        return None;
+                    }
+                    sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                        .filter(|sample| matches!(sample.kind(), SurfaceWaterKind::River(_)))
+                        .map(|sample| (seed, sample))
+                })
         })
-        .expect("expected a classified river channel in the deterministic search area");
+        .expect("expected a classified river channel in the deterministic seed set");
 
     let repeated = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, river.coordinate()).unwrap();
     assert_eq!(river, repeated);

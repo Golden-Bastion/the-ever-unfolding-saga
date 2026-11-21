@@ -6,7 +6,7 @@
 //! chunk boundaries cannot alter the result. Fixed-point interpolation avoids
 //! platform-dependent floating-point decisions in the generated land mask.
 
-use super::{coordinate_seed, MacroCoordinate};
+use super::{coordinate_seed, mountains, MacroCoordinate};
 
 const Q16_ONE: i64 = 1 << 16;
 const CONTINENTAL_CELL_SAMPLES: i64 = 8_192;
@@ -61,6 +61,27 @@ pub fn sample_surface(
         return None;
     }
 
+    let base_elevation = base_surface_elevation_q16(world_seed, ruleset_version, coordinate)?;
+    let mountain =
+        mountains::sample_with_base(world_seed, ruleset_version, coordinate, base_elevation)?;
+    Some(SurfaceTerrainSample {
+        elevation_q16: (i64::from(base_elevation) + i64::from(mountain.uplift_q16()))
+            .clamp(-Q16_ONE, Q16_ONE) as i32,
+    })
+}
+
+/// Evaluate the original continental/regional/detail elevation field.
+///
+/// Kept separate so the mountain sampler can use the unmodified land mask and
+/// ruleset 1 can preserve its exact historical elevation values.
+pub(crate) fn base_surface_elevation_q16(
+    world_seed: u64,
+    ruleset_version: u32,
+    coordinate: MacroCoordinate,
+) -> Option<i32> {
+    if coordinate.stratum != 0 {
+        return None;
+    }
     let continental = value_noise(
         world_seed,
         ruleset_version,
@@ -82,14 +103,9 @@ pub fn sample_surface(
         DETAIL_CELL_SAMPLES,
         DETAIL_CHANNEL,
     );
-
     // The broad field controls continent-scale landmasses. Regional and detail
-    // fields break coastlines into peninsulas, bays, and smaller islands without
-    // making neighboring samples independent.
-    let elevation = (continental * 60 + regional * 27 + detail * 13) / 100;
-    Some(SurfaceTerrainSample {
-        elevation_q16: elevation.clamp(-Q16_ONE, Q16_ONE) as i32,
-    })
+    // fields break coastlines into peninsulas, bays, and smaller islands.
+    Some(((continental * 60 + regional * 27 + detail * 13) / 100).clamp(-Q16_ONE, Q16_ONE) as i32)
 }
 
 pub(crate) fn value_noise(

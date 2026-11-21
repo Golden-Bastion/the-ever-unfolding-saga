@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.53.x: world topology and spatial-world expansion
 
-**Repository version at this roadmap revision: 0.53.10.**
+**Repository version at this roadmap revision: 0.53.11.**
 
 **Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
 
@@ -32,13 +32,15 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 **Delivered in v0.53.10:** added a renderer-independent surface-water sampler that composes ocean, inland-lake, and river-channel classification. River samples expose their immediate downstream cell and classify the destination as ocean, lake, river, lower-threshold land, an inconclusive truncated estimate, or a closed basin, reusing the existing downhill watershed graph rather than introducing a second routing simulation.
 
+**Delivered in v0.53.11:** added deterministic, warped ridged mountain belts whose bounded uplift contributes to the shared surface elevation field. Climate and watershed systems therefore sample the same mountain-shaped terrain. Geography ruleset 2 enables this field while ruleset 1 preserves the original elevation contract.
+
 The v0.52.x development line is complete. The project owner has confirmed the integrated desktop/Android spatial-first gameplay verification and the separate spatial presentation/player-animation playtesting tracked by [#421](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/421) and [#446](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/446). The full delivered scope and final verification record are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md); the concise published summary and release assets are available in the [v0.52.70 GitHub Release](https://github.com/Golden-Bastion/the-ever-unfolding-saga/releases/tag/v0.52.70).
 
 The initial world-topology compatibility audit is complete in [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md). It records the current identity, generation, route, local-map, and save invariants, plus the owner-selected requirement to deterministically embed existing worlds through a one-time persisted migration. It does not change gameplay or save data.
 
 ### Remaining work
 
-1. **Generate continuous continental macro-geography.** In progress: added a deterministic fixed-point surface elevation field with continent-scale, regional, and detail noise, producing connected landmasses and smaller coastal/island variation on the shared global sample lattice. Remaining: physically calibrated discharge and seasonal water balance, mountain ranges, and underground generation. Neighboring chunks must remain coherent regardless of generation order.
+1. **Generate continuous continental macro-geography.** In progress: added a deterministic fixed-point surface elevation field with continent-scale, regional, and detail noise, producing connected landmasses and smaller coastal/island variation on the shared global sample lattice. Remaining: physically calibrated discharge and seasonal water balance, additional major terrain barriers, and underground generation. Neighboring chunks must remain coherent regardless of generation order.
 2. **Embed existing saved worlds.** Implement the one-time persisted compatibility placement and seed migration, preserving region/location IDs, `next_id`, routes, history, authored content, and saved local maps.
 3. **Anchor authored and generated locations to physical geography.** Define stable placement/footprint and environmental constraints; make route edges correspond to plausible terrain connections and local-map passages without moving established placements.
 4. **Expand frontier regions on demand** without generating the entire world or rerolling established geography, routes, local maps, or discoveries.

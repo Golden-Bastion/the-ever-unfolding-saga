@@ -95,6 +95,7 @@ src/
 ├── model.rs                 # shared game-state and entity models
 ├── geography.rs             # renderer-neutral macro-geography coordinates and deterministic sample keys
 │   ├── terrain.rs           # deterministic surface elevation fields on the global macro lattice
+│   ├── mountains.rs         # deterministic mountain-ridge strength and terrain uplift
 │   ├── watershed.rs         # hierarchical coarse drainage links and local D8 sampling
 │   ├── rivers.rs            # bounded contributing-area and precipitation-potential estimates for river channels
 │   ├── depressions.rs       # bounded closed-basin spill-level and footprint analysis

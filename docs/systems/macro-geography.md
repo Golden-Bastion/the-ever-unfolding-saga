@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines renderer-independent world coordinates and deterministic terrain, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, and closed-basin depression fields. It does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic terrain, mountain ranges, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, and closed-basin depression fields. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
@@ -12,7 +12,7 @@ Implemented in v0.53.1:
 - Region-local to global conversion uses checked multiplication and addition and rejects local indices outside the chunk.
 - Global to region-local conversion uses Euclidean division and remainder. This is essential for negative coordinates: global sample `-1` belongs to region `-1`, local sample `255`, not region `0`.
 - `coordinate_seed` derives a deterministic seed from the world seed, geography ruleset version, and global sample coordinate including stratum. It does not depend on traversal/generation order, runtime IDs, or names.
-- `GEOGRAPHY_RULESET_VERSION` identifies the deterministic coordinate and terrain sampling contract as version `1`.
+- `GEOGRAPHY_RULESET_VERSION` identifies the deterministic coordinate and terrain sampling contract. Ruleset 1 retains the original elevation field; ruleset 2 adds mountain uplift.
 
 Implemented in v0.53.2:
 
@@ -84,6 +84,13 @@ Implemented in v0.53.10:
 - Connectivity reuses the existing strictly downhill coarse watershed graph and bounded river accumulation. It is a local topology contract, not a second routing simulation, physically calibrated discharge, seasonal water balance, or water transport simulation. Generated water geometry remains derived on demand and no save migration is introduced.
 - Automated tests cover deterministic river links, downhill destination invariants, terminal ocean/lake nodes, and underground rejection.
 
+Implemented in v0.53.11:
+
+- Added a deterministic, warped ridged-noise mountain field on the shared global macro lattice. Broad ridge belts receive regional variation and bounded positive uplift on land.
+- Integrated mountain uplift into the authoritative surface elevation sampler, so climate cooling, watershed routing, river accumulation, and depression analysis consume the same mountain-shaped terrain.
+- Kept all calculations fixed-point, stateless, renderer-independent, and independent of region generation order. Ocean and underground samples receive no mountain uplift.
+- Advanced the geography ruleset to version 2. Existing worlds pinned to ruleset 1 retain their original elevation field; no save migration or persisted mountain state is introduced.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -95,7 +102,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
 
 - Physically calibrated discharge, seasonal water balance, and simulated river/lake water transport; current connectivity exposes deterministic graph links rather than moving or balancing water.
-- Mountain ranges and other major terrain barriers.
+- Additional major terrain barriers and physically calibrated hydrology.
 - A dedicated underground-strata generator for caves and underground networks.
 - Geography-aware location footprints, route constraints, and on-demand frontier integration.
 
