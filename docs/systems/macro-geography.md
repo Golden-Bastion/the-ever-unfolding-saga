@@ -23,6 +23,14 @@ Implemented in v0.53.2:
 - The sampler is stateless and coordinate-based. Sampling order, chunk visitation order, runtime IDs, and display names cannot affect results.
 - The surface sampler rejects nonzero strata until underground terrain has its own generation model.
 
+Implemented in v0.53.3:
+
+- `climate::sample_surface` combines broad and regional deterministic temperature and moisture fields on the same global lattice.
+- Temperature is reduced by elevation; moisture receives a bounded maritime influence from ocean samples at increasing distances. Precipitation potential is derived from moisture and temperature.
+- The public sample exposes signed Q16 temperature, unsigned Q16 moisture and precipitation potential, plus a stable `Biome` classification. Integer arithmetic owns all classification decisions.
+- The initial biome catalogue is Ocean, Coast, Desert, Grassland, Temperate Forest, Taiga, Tundra, and Alpine. Coast is assigned only to land samples directly adjacent to ocean; high elevations take the Alpine classification.
+- Sampling is stateless, seed/ruleset keyed, independent of region visitation order, and rejects underground strata.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
