@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines renderer-independent world coordinates and deterministic terrain, shoreline, climate, hierarchical watershed, river-channel, and closed-basin depression fields. It does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic terrain, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, and closed-basin depression fields. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
@@ -59,7 +59,14 @@ Implemented in v0.53.7:
 - `depressions::sample_surface` follows the coarse watershed to a closed inland outlet and resolves its local spill elevation using a deterministic minimax flood over a fixed 17 × 17 window of coarse terrain cells.
 - The result exposes the sink coordinate, floor elevation, local spill elevation, depression depth, and the connected footprint below the spill level. The footprint excludes disconnected low terrain elsewhere in the search window.
 - The query has a fixed spatial/work bound and remains stateless, renderer-independent, and consistent across region ownership and negative coordinates. Ocean outlets, unresolved outlet traces, and underground strata do not produce depression samples.
-- This is a terrain-only depression foundation, not a claim that every depression is a filled lake. Persistent waterbody placement, precipitation-weighted discharge, and connected water-system generation remain future work; no save migration or persisted hydrology state is introduced.
+- This is a terrain-only depression foundation, not a claim that every depression is a filled lake. Precipitation-potential accumulation is now available for river catchments, but physically calibrated discharge, persistent waterbody placement, and connected water-system generation remain future work; no save migration or persisted hydrology state is introduced.
+
+Implemented in v0.53.8:
+
+- rivers::sample_surface now sums the climate precipitation-potential value for each accepted upstream coarse cell, alongside its contributing-area count.
+- The unsigned Q16 × coarse-cell sum is a relative wetness/contributing-flow index, not a physical discharge or water-volume measurement. The existing river-channel threshold remains area-based until flow thresholds can be calibrated against a more complete water model.
+- Each query retains the 128-contributor and 1,024-neighbor-candidate bounds. A truncated result explicitly makes both the contributing-cell count and weighted sum lower bounds.
+- The result is deterministic, fixed-point, renderer-independent, and derived on demand. It introduces no persisted hydrology state or save migration.
 
 ## Persistence contract
 
@@ -71,7 +78,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
 
-- Persistent lake/waterbody placement, precipitation-weighted discharge, and connected water-system generation.
+- Persistent lake/waterbody placement, physically calibrated discharge, and connected water-system generation.
 - Mountain ranges and other major terrain barriers.
 - A dedicated underground-strata generator for caves and underground networks.
 - Geography-aware location footprints, route constraints, and on-demand frontier integration.
