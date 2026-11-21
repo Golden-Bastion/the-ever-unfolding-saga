@@ -156,6 +156,7 @@ impl RouteGeography {
     }
 }
 
+/// Compass heading for local maps, where increasing macro y maps to south.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RouteHeading {
     North,
@@ -297,7 +298,21 @@ pub fn plan_route(
         if !middle_terrain.is_land() {
             return RouteGeography::unavailable(RoutePlanningStatus::NoLandPath);
         }
-        return planned_geography(world_seed, ruleset_version, vec![start, middle, end], 0);
+        let movement_cost = if dx == 0 || dy == 0 { 100_u64 } else { 141_u64 };
+        let slope_cost =
+            u64::from(start_terrain.elevation_q16().abs_diff(end_terrain.elevation_q16())) / 128;
+        let ridge_cost = u64::from(
+            middle_terrain
+                .mountain_ridge_strength_q16()
+                .saturating_add(end_terrain.mountain_ridge_strength_q16()),
+        ) / 128;
+        let total_cost = movement_cost + slope_cost + ridge_cost;
+        return planned_geography(
+            world_seed,
+            ruleset_version,
+            vec![start, middle, end],
+            total_cost,
+        );
     }
 
     let min_x = goal_x.min(0).saturating_sub(SEARCH_MARGIN_CELLS);
