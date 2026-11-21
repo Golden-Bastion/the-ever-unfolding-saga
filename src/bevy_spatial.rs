@@ -20,6 +20,7 @@ use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId, UiButtonActivation,
 };
+use crate::geography::frontier;
 use crate::geography::routes::{RouteHeading, RouteProfile};
 use crate::input::InputEvent;
 use crate::interaction_actions::{
@@ -27,7 +28,7 @@ use crate::interaction_actions::{
 };
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
-    apply_authored_spatial_discoveries, configure_map_routes, ensure_spatial_entity_placements,
+    apply_authored_spatial_discoveries, configure_map_frontiers, configure_map_routes, ensure_spatial_entity_placements,
     generate_local_map_with_layout, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
     MapExit, MapRouteDestination, SpatialDiscoveryDefinition, SpatialEncounterStatus,
     SpatialEntityKind, SpatialPropKind, Terrain,
@@ -588,6 +589,7 @@ pub(crate) fn enter(
         return;
     };
     let location_id = format!("location.{}", location.id);
+    let map_frontiers = frontier::frontier_targets_for_location(&game.world, location.id);
     let map_routes = game
         .world
         .routes_from(location.id)
@@ -609,6 +611,7 @@ pub(crate) fn enter(
                 target_location_id,
                 profile,
                 preferred_side,
+                frontier_id: route.id.strip_prefix("route.").filter(|id| id.starts_with("frontier.")).map(str::to_string),
             }
         })
         .collect::<Vec<_>>();
@@ -663,6 +666,7 @@ pub(crate) fn enter(
     // Reconcile every authoritative route into an existing map. Established
     // passages retain their IDs and positions; newly added routes append exits.
     configure_map_routes(&mut map, &map_routes);
+    configure_map_frontiers(&mut map, &map_frontiers);
     if !location.dangerous {
         let prototype_poi_id = format!("{location_id}.poi.initial_discovery");
         map.points_of_interest
@@ -1614,12 +1618,15 @@ fn use_map_exit(
     exit_id: &str,
     target_location_id: EntityId,
 ) {
-    let Some(game_state) = lifecycle.session.as_ref().map(|session| &session.state) else {
+    let Some(source_location_id) = lifecycle
+        .session
+        .as_ref()
+        .map(|session| session.state.character.location_id)
+    else {
         state.message = Some("The current world session is unavailable.".to_string());
         state.dirty = true;
         return;
     };
-    let source_location_id = game_state.character.location_id;
     let expected_map_id = format!("location.{source_location_id}");
     let active_map_matches = state
         .session
@@ -1633,15 +1640,14 @@ fn use_map_exit(
             map.exits
                 .iter()
                 .find(|exit| exit.id == exit_id && exit.target_location_id == target_location_id)
-                .map(|exit| {
-                    (
-                        exit.route_id.clone(),
-                        exit_interaction_available(map, state.position, exit),
-                    )
-                })
+                .map(|exit| (
+                    exit.route_id.clone(),
+                    exit.frontier.clone(),
+                    exit_interaction_available(map, state.position, exit),
+                ))
         });
 
-    let Some((route_id, passage_available)) = selected_passage else {
+    let Some((route_id, frontier_target, passage_available)) = selected_passage else {
         state.message = Some("Move closer to the passage and find a clear approach.".to_string());
         state.dirty = true;
         return;
@@ -1652,11 +1658,83 @@ fn use_map_exit(
         return;
     }
 
-    if !crate::game::actions::has_location_travel_route(
-        game_state,
-        target_location_id,
-        route_id.as_deref(),
-    ) {
+    if target_location_id == 0 {
+        let Some(frontier_target) = frontier_target else {
+            state.message = Some("That passage has no valid frontier destination.".to_string());
+            state.dirty = true;
+            return;
+        };
+        sync_spatial_to_game(state, lifecycle);
+        let materialized = lifecycle.session.as_mut().map(|session| {
+            crate::geography::frontier::materialize_frontier(
+                &mut session.state.world,
+                source_location_id,
+                &frontier_target,
+            )
+        });
+        let Some(Ok(materialized)) = materialized else {
+            state.message = Some("No traversable land connection could be found beyond this frontier.".to_string());
+            state.dirty = true;
+            return;
+        };
+
+        let route = lifecycle
+            .session
+            .as_ref()
+            .and_then(|session| session.state.world.route_by_id(&materialized.route_id))
+            .cloned();
+        let Some(route) = route else {
+            state.message = Some("The frontier route could not be established.".to_string());
+            state.dirty = true;
+            return;
+        };
+        let geography = route.geography.as_ref();
+        let profile = geography
+            .map(|geography| geography.profile)
+            .filter(|profile| *profile != RouteProfile::Unavailable);
+        let preferred_side = geography
+            .and_then(|geography| geography.heading_from(route.location_a_id == source_location_id))
+            .map(|heading| match heading {
+                RouteHeading::North => crate::spatial::MapExitSide::North,
+                RouteHeading::East => crate::spatial::MapExitSide::East,
+                RouteHeading::South => crate::spatial::MapExitSide::South,
+                RouteHeading::West => crate::spatial::MapExitSide::West,
+            });
+        if let Some(map) = state.maps.get_mut(&expected_map_id) {
+            configure_map_routes(
+                map,
+                &[MapRouteDestination {
+                    route_id: route.id.clone(),
+                    target_location_id: materialized.location_id,
+                    profile,
+                    preferred_side,
+                    frontier_id: Some(frontier_target.id.clone()),
+                }],
+            );
+        }
+        sync_spatial_to_game(state, lifecycle);
+        if let Err(message) = travel_to_location(
+            state,
+            lifecycle,
+            navigation,
+            materialized.location_id,
+            Some(&materialized.route_id),
+            "The new frontier route could not be entered.",
+        ) {
+            state.message = Some(message.to_string());
+            state.dirty = true;
+        }
+        return;
+    }
+
+    let valid_route = lifecycle.session.as_ref().is_some_and(|session| {
+        crate::game::actions::has_location_travel_route(
+            &session.state,
+            target_location_id,
+            route_id.as_deref(),
+        )
+    });
+    if !valid_route {
         state.message = Some("That passage no longer leads to a connected location.".to_string());
         state.dirty = true;
         return;
