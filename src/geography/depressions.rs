@@ -61,8 +61,8 @@ impl DepressionSample {
         let basin_y = self.outlet_cell.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
         let cell_x = coordinate.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
         let cell_y = coordinate.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
-        let offset_x = cell_x - basin_x + DEPRESSION_SEARCH_RADIUS_CELLS;
-        let offset_y = cell_y - basin_y + DEPRESSION_SEARCH_RADIUS_CELLS;
+        let Some(offset_x) = cell_x.checked_sub(basin_x).and_then(|value| value.checked_add(DEPRESSION_SEARCH_RADIUS_CELLS)) else { return false; };
+        let Some(offset_y) = cell_y.checked_sub(basin_y).and_then(|value| value.checked_add(DEPRESSION_SEARCH_RADIUS_CELLS)) else { return false; };
         if !(0..WINDOW_SIDE as i64).contains(&offset_x)
             || !(0..WINDOW_SIDE as i64).contains(&offset_y)
         {
@@ -120,7 +120,10 @@ pub fn sample_surface(
     }
 
     let basin_footprint = basin_footprint(&elevations, spill_elevation_q16);
-    let basin_cell_count = basin_footprint.iter().map(|word| word.count_ones()).sum::<u32>() as u16;
+    let basin_cell_count = basin_footprint
+        .iter()
+        .map(|word| word.count_ones())
+        .sum::<u32>() as u16;
     if basin_cell_count == 0 {
         return None;
     }
