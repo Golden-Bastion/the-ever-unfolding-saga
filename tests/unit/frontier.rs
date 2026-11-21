@@ -77,7 +77,7 @@ fn land_connection_fixture() -> (
 
 #[test]
 fn frontier_listing_is_deterministic_and_does_not_materialize_world_state() {
-    let (mut world, _, _) = land_connection_fixture();
+    let (world, _, _) = land_connection_fixture();
 
     let original_regions = world.regions.len();
     let original_locations = world.locations.len();

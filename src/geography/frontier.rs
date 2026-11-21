@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{locations, routes, MacroCoordinate, RegionCoordinate};
+use super::{locations, routes, RegionCoordinate};
 use crate::model::{Location, LocationGeographyRecord, Region, RouteDirection, World, WorldRoute};
 
 const FRONTIER_ANCHOR_CANDIDATES: usize = 16;
