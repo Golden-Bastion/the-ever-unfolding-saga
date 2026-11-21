@@ -77,18 +77,7 @@ fn land_connection_fixture() -> (World, crate::geography::frontier::FrontierTarg
 
 #[test]
 fn frontier_listing_is_deterministic_and_does_not_materialize_world_state() {
-    let mut world = world_with_source(7_321, 20, 128);
-    // Ensure this chosen source anchor is land for the selected test seed.
-    if !terrain::sample_surface(
-        7_321,
-        GEOGRAPHY_RULESET_VERSION,
-        MacroCoordinate::new(248, 128),
-    )
-    .is_some_and(|sample| sample.is_land())
-    {
-        let (_, _, anchor_fixture) = land_connection_fixture();
-        world.location_geography[0].anchor = anchor_fixture;
-    }
+    let (mut world, _, _) = land_connection_fixture();
 
     let original_regions = world.regions.len();
     let original_locations = world.locations.len();
