@@ -4,6 +4,14 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.10: Surface-water connectivity
+
+- Added a renderer-independent hydrology sampler that identifies ocean, inland-lake, and river-channel cells using the existing geography layers.
+- Exposed each river channel's immediate downstream coarse cell and classified the destination as ocean, lake, another river channel, lower-threshold land, an inconclusive truncated estimate, or a closed basin. Truncated below-threshold accumulation remains unresolved rather than being treated as dry land. Lake and ocean coverage take precedence at terminal water cells.
+- Reused the existing strictly downhill watershed graph; no second routing simulation, persistent generated-water state, or physical discharge claim was introduced.
+- Added automated coverage for terminal ocean/lake nodes, deterministic river links, downhill destination invariants, and underground rejection.
+- Bumped Rust and Android version metadata to 0.53.10.
+
 ### v0.53.9: Deterministic inland lakes and waterbody state
 
 - Extended depression samples with a compact connected-basin footprint and deterministic coarse-cell membership checks.
