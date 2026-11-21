@@ -96,7 +96,7 @@ src/
 ├── geography.rs             # renderer-neutral macro-geography coordinates and deterministic sample keys
 │   ├── terrain.rs           # deterministic surface elevation fields on the global macro lattice
 │   ├── watershed.rs         # hierarchical coarse drainage links and local D8 sampling
-│   ├── rivers.rs            # bounded upstream contributing-area estimates and river-channel classification
+│   ├── rivers.rs            # bounded contributing-area and precipitation-potential estimates for river channels
 │   ├── depressions.rs       # bounded closed-basin spill-level and footprint analysis
 │   ├── coast.rs             # shoreline adjacency and direction masks derived from elevation
 │   └── climate.rs           # deterministic surface climate and biome classification
@@ -106,7 +106,7 @@ src/
 └── rng.rs                   # deterministic/random generation helpers
 ```
 
-The geography module owns signed global/region coordinate conversion, deterministic coordinate-derived seeds, and renderer-independent terrain fields. Surface elevation, shoreline adjacency, regional temperature and moisture, biome classification, hierarchical watershed drainage, contributing-area estimates, river-channel classification, and bounded closed-basin depression analysis are sampled from the shared global lattice. Terrain and climate use deterministic fixed-point noise; coarse watershed links descend strictly by representative elevation, while local D8 directions remain within their coarse cell. Hydrology remains renderer-independent and derives on demand without persistent generated state.
+The geography module owns signed global/region coordinate conversion, deterministic coordinate-derived seeds, and renderer-independent terrain fields. Surface elevation, shoreline adjacency, regional temperature and moisture, biome classification, hierarchical watershed drainage, contributing-area and precipitation-potential estimates for river channels, and bounded closed-basin depression analysis are sampled from the shared global lattice. Terrain and climate use deterministic fixed-point noise; coarse watershed links descend strictly by representative elevation, while local D8 directions remain within their coarse cell. The precipitation-potential sum is a relative index rather than physical discharge, and channel classification remains area-based. Hydrology remains renderer-independent and derives on demand without persistent generated state.
 
 The exact module list may evolve, but new modules should represent meaningful responsibilities rather than arbitrary slices of large files.
 
