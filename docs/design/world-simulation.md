@@ -186,7 +186,7 @@ A history record that a bridge collapsed and was repaired does not determine whe
 
 Simulation systems should emit structured results or change records that presentation can display appropriately. Presentation must not implement authoritative rules.
 
-## 9. Persistence and inheritance
+## 8. Persistence and inheritance
 
 The save system must store sufficient authoritative data to continue simulation consistently: world time, persistent state changes, relevant scheduled transitions or deadlines, cooldowns, stable identities, and duplicate-prevention markers where required.
 
@@ -202,7 +202,7 @@ Older saves require conservative migration with safe defaults. Missing new field
 
 Event definitions can be rehydrated from the current content package where appropriate, while runtime-created events and world state require their existing explicit persistence path. Content updates must not silently erase established world consequences.
 
-## 10. Performance, determinism, and engineering quality
+## 9. Performance, determinism, and engineering quality
 
 - **Profile before restricting scope.** Use representative workloads and target-device measurements to identify real bottlenecks before reducing simulation fidelity.
 - **Keep ownership explicit.** Each domain defines its state, update method, time semantics, and transition rules.
