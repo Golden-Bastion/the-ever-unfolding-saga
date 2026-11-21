@@ -53,5 +53,8 @@ fn seed_world_adds_missing_content_locations_and_repairs_metadata() {
         crate::geography::MacroCoordinate::new(12, 34)
     );
     assert_eq!(world.location_geography[0].footprint_radius_samples, 2);
-    assert_eq!(world.location_geography[0].stable_key, "location.content.location.test");
+    assert_eq!(
+        world.location_geography[0].stable_key,
+        "location.content.location.test"
+    );
 }

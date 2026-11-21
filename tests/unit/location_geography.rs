@@ -65,7 +65,11 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
     let mut second = legacy_world();
     let original_history = first.history.clone();
     let original_maps = first.local_maps.clone();
-    let original_region_ids = first.regions.iter().map(|region| region.id).collect::<Vec<_>>();
+    let original_region_ids = first
+        .regions
+        .iter()
+        .map(|region| region.id)
+        .collect::<Vec<_>>();
     let original_location_ids = first
         .locations
         .iter()
@@ -96,11 +100,19 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
     assert_eq!(first.history[0].text, original_history[0].text);
     assert_eq!(first.local_maps, original_maps);
     assert_eq!(
-        first.regions.iter().map(|region| region.id).collect::<Vec<_>>(),
+        first
+            .regions
+            .iter()
+            .map(|region| region.id)
+            .collect::<Vec<_>>(),
         original_region_ids
     );
     assert_eq!(
-        first.locations.iter().map(|location| location.id).collect::<Vec<_>>(),
+        first
+            .locations
+            .iter()
+            .map(|location| location.id)
+            .collect::<Vec<_>>(),
         original_location_ids
     );
     assert_eq!(first.geography_embedding_version, 1);
@@ -148,7 +160,10 @@ fn location_anchors_are_surface_coordinates_owned_by_their_regions() {
             .iter()
             .find(|region| region.id == location.region_id)
             .unwrap();
-        assert_eq!(record.anchor.region_and_local().0, region.coordinate.unwrap());
+        assert_eq!(
+            record.anchor.region_and_local().0,
+            region.coordinate.unwrap()
+        );
         assert!(record.footprint_radius_samples <= 4);
     }
 }
@@ -173,12 +188,7 @@ fn generated_location_keys_and_anchors_do_not_depend_on_runtime_entity_ids() {
     rekeyed.locations[1].exits = vec![100];
     rekeyed.regions[0].location_ids = vec![101];
     rekeyed.regions[1].location_ids = vec![100];
-    rekeyed.routes[0] = WorldRoute::new(
-        "route.legacy",
-        100,
-        101,
-        RouteDirection::Bidirectional,
-    );
+    rekeyed.routes[0] = WorldRoute::new("route.legacy", 100, 101, RouteDirection::Bidirectional);
 
     ensure_location_geography(&mut original, None);
     ensure_location_geography(&mut rekeyed, None);

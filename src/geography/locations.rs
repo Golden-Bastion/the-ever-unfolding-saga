@@ -89,9 +89,7 @@ pub fn ensure_location_geography(world: &mut World, content: Option<&CampaignCon
             .iter_mut()
             .find(|record| record.location_id == location.id)
         {
-            if existing.stable_key.starts_with("location.compat.")
-                && authored_location.is_some()
-            {
+            if existing.stable_key.starts_with("location.compat.") && authored_location.is_some() {
                 existing.stable_key = stable_key;
             }
             continue;
@@ -216,10 +214,7 @@ fn embed_missing_region_coordinates(world: &mut World) {
             continue;
         };
 
-        if region_a != region_b
-            && valid_ids.contains(&region_a)
-            && valid_ids.contains(&region_b)
-        {
+        if region_a != region_b && valid_ids.contains(&region_a) && valid_ids.contains(&region_b) {
             adjacency.entry(region_a).or_default().insert(region_b);
             adjacency.entry(region_b).or_default().insert(region_a);
         }
@@ -252,11 +247,7 @@ fn embed_missing_region_coordinates(world: &mut World) {
 
     let mut next_x = 0_i64;
     for id in order {
-        let Some(region) = world
-            .regions
-            .iter_mut()
-            .find(|region| region.id == id)
-        else {
+        let Some(region) = world.regions.iter_mut().find(|region| region.id == id) else {
             continue;
         };
         if region.coordinate.is_some() {
@@ -283,18 +274,18 @@ fn choose_anchor(
         return MacroCoordinate::ORIGIN;
     };
 
-    let key_hash = stable_key.bytes().fold(
-        0xcbf2_9ce4_8422_2325_u64,
-        |hash, byte| (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3),
-    );
+    let key_hash = stable_key
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
+        });
 
     let mut best: Option<(i64, MacroCoordinate)> = None;
     for index in 0..PLACEMENT_CANDIDATES {
         let random = coordinate_seed(seed ^ key_hash, ruleset.wrapping_add(index as u32), origin);
-        let Some(coordinate) = region.global_sample(
-            (random & 0xff) as u16,
-            ((random >> 32) & 0xff) as u16,
-        ) else {
+        let Some(coordinate) =
+            region.global_sample((random & 0xff) as u16, ((random >> 32) & 0xff) as u16)
+        else {
             continue;
         };
 
@@ -350,9 +341,7 @@ fn validated_footprint_radius(
             .x
             .checked_add(*dx)
             .zip(anchor.y.checked_add(*dy))
-            .and_then(|(x, y)| {
-                terrain::sample_surface(seed, ruleset, MacroCoordinate::new(x, y))
-            })
+            .and_then(|(x, y)| terrain::sample_surface(seed, ruleset, MacroCoordinate::new(x, y)))
             .is_some_and(|sample| sample.is_land())
     }) {
         requested
