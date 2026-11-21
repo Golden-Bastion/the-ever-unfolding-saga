@@ -10,6 +10,7 @@ use std::collections::{BTreeSet, VecDeque};
 
 /// Hard upper bound on coarse cells included in one accumulation query.
 pub const MAX_CONTRIBUTING_CELLS: usize = 128;
+
 /// Minimum contributing coarse cells required to classify a river channel.
 pub const MIN_RIVER_CONTRIBUTING_CELLS: u16 = 8;
 
@@ -23,11 +24,19 @@ pub struct FlowAccumulation {
 impl FlowAccumulation {
     /// Number of coarse watershed cells found to drain through this cell.
     /// The target cell itself is included for land samples.
-    pub const fn contributing_cells(self) -> u16 { self.contributing_cells }
+    pub const fn contributing_cells(self) -> u16 {
+        self.contributing_cells
+    }
+
     /// Whether additional contributors were found beyond the work bound.
     /// When true, contributing_cells is a lower bound.
-    pub const fn is_truncated(self) -> bool { self.truncated }
-    pub const fn is_complete(self) -> bool { !self.truncated }
+    pub const fn is_truncated(self) -> bool {
+        self.truncated
+    }
+
+    pub const fn is_complete(self) -> bool {
+        !self.truncated
+    }
 }
 
 /// River-channel classification and its contributing-area estimate.
@@ -39,8 +48,14 @@ pub struct RiverSample {
 
 impl RiverSample {
     /// Center of the coarse watershed cell represented by this sample.
-    pub const fn coarse_cell(self) -> MacroCoordinate { self.coarse_cell }
-    pub const fn accumulation(self) -> FlowAccumulation { self.accumulation }
+    pub const fn coarse_cell(self) -> MacroCoordinate {
+        self.coarse_cell
+    }
+
+    pub const fn accumulation(self) -> FlowAccumulation {
+        self.accumulation
+    }
+
     /// A truncated result confirms a channel only after the threshold is met.
     pub const fn is_channel(self) -> bool {
         self.accumulation.contributing_cells >= MIN_RIVER_CONTRIBUTING_CELLS
@@ -56,22 +71,32 @@ pub fn sample_surface(
     ruleset_version: u32,
     coordinate: MacroCoordinate,
 ) -> Option<RiverSample> {
-    if coordinate.stratum != 0 { return None; }
+    if coordinate.stratum != 0 {
+        return None;
+    }
+
     let watershed_sample = watershed::sample_surface(world_seed, ruleset_version, coordinate)?;
     let coarse_cell = watershed_sample.coarse_cell();
     let accumulation = if watershed_sample.is_ocean() {
-        FlowAccumulation { contributing_cells: 0, truncated: false }
+        FlowAccumulation {
+            contributing_cells: 0,
+            truncated: false,
+        }
     } else {
-        accumulate_upstream(world_seed, ruleset_version, coarse_cell)?
+        accumulate_upstream(world_seed, ruleset_version, coarse_cell)
     };
-    Some(RiverSample { coarse_cell, accumulation })
+
+    Some(RiverSample {
+        coarse_cell,
+        accumulation,
+    })
 }
 
 fn accumulate_upstream(
     world_seed: u64,
     ruleset_version: u32,
     start: MacroCoordinate,
-) -> Option<FlowAccumulation> {
+) -> FlowAccumulation {
     let start_key = (
         start.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
         start.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
@@ -83,33 +108,76 @@ fn accumulate_upstream(
     let mut truncated = false;
 
     while let Some(downstream) = pending.pop_front() {
-        let (downstream_x, downstream_y) = (
-            downstream.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
-            downstream.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
-        );
+        let downstream_x = downstream.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
+        let downstream_y = downstream.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
+
         for (dx, dy, _) in watershed::NEIGHBORS {
-            let Some(candidate_x) = downstream_x.checked_add(dx) else { continue; };
-            let Some(candidate_y) = downstream_y.checked_add(dy) else { continue; };
-            let key = (candidate_x, candidate_y);
-            if accepted.contains(&key) || !examined.insert(key) { continue; }
-            let Some(candidate) = watershed::cell_center(candidate_x, candidate_y) else { continue; };
-            let Some(elevation) = terrain::sample_surface(world_seed, ruleset_version, candidate) else { continue; };
-            if !elevation.is_land() { continue; }
-            let drains_here = watershed::downstream_cell(
-                world_seed, ruleset_version, candidate_x, candidate_y, elevation.elevation_q16()
-            ) == Some(downstream);
-            if !drains_here { continue; }
+            let Some(candidate_x) = downstream_x.checked_add(dx) else {
+                continue;
+            };
+            let Some(candidate_y) = downstream_y.checked_add(dy) else {
+                continue;
+            };
+            let candidate_key = (candidate_x, candidate_y);
+
+            if accepted.contains(&candidate_key) || !examined.insert(candidate_key) {
+                continue;
+            }
+
+            let Some(candidate) = watershed::cell_center(candidate_x, candidate_y) else {
+                continue;
+            };
+            if !drains_into(
+                world_seed,
+                ruleset_version,
+                candidate_x,
+                candidate_y,
+                candidate,
+                downstream,
+            ) {
+                continue;
+            }
+
             if contributing_cells == MAX_CONTRIBUTING_CELLS {
                 truncated = true;
                 break;
             }
-            accepted.insert(key);
+
+            accepted.insert(candidate_key);
             contributing_cells += 1;
             pending.push_back(candidate);
         }
-        if truncated { break; }
+
+        if truncated {
+            break;
+        }
     }
-    Some(FlowAccumulation { contributing_cells: contributing_cells as u16, truncated })
+
+    FlowAccumulation {
+        contributing_cells: contributing_cells as u16,
+        truncated,
+    }
+}
+
+fn drains_into(
+    world_seed: u64,
+    ruleset_version: u32,
+    candidate_x: i64,
+    candidate_y: i64,
+    candidate: MacroCoordinate,
+    downstream: MacroCoordinate,
+) -> bool {
+    let Some(elevation) = terrain::sample_surface(world_seed, ruleset_version, candidate) else {
+        return false;
+    };
+    elevation.is_land()
+        && watershed::downstream_cell(
+            world_seed,
+            ruleset_version,
+            candidate_x,
+            candidate_y,
+            elevation.elevation_q16(),
+        ) == Some(downstream)
 }
 
 #[cfg(test)]
