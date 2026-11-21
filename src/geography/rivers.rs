@@ -1,11 +1,11 @@
 //! Deterministic, renderer-independent river-channel extraction.
 //!
 //! Flow accumulation walks the reverse coarse watershed graph. Each query
-//! examines at most MAX_CONTRIBUTING_CELLS accepted cells; it never scans the
-//! unbounded world or stores generated hydrology state. Accumulation is a
-//! contributing-area count, not a simulated water volume.
+//! examines at most MAX_CONTRIBUTING_CELLS accepted cells and sums their
+//! climate-derived precipitation potential. The sum is a relative index, not
+//! physical discharge or water volume; no generated hydrology state is stored.
 
-use super::{terrain, watershed, MacroCoordinate};
+use super::{climate, terrain, watershed, MacroCoordinate};
 use std::collections::{BTreeSet, VecDeque};
 
 /// Hard upper bound on coarse cells included in one accumulation query.
@@ -18,6 +18,7 @@ pub const MIN_RIVER_CONTRIBUTING_CELLS: u16 = 8;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FlowAccumulation {
     contributing_cells: u16,
+    precipitation_potential_sum_q16: u64,
     truncated: bool,
 }
 
@@ -28,8 +29,17 @@ impl FlowAccumulation {
         self.contributing_cells
     }
 
+    /// Sum of the contributors' precipitation-potential samples.
+    ///
+    /// This unsigned Q16 × coarse-cell index is useful for comparing relative
+    /// wetness across drainage areas. It is not a physical discharge value.
+    /// When the query is truncated, this sum is also a lower bound.
+    pub const fn precipitation_potential_sum_q16(self) -> u64 {
+        self.precipitation_potential_sum_q16
+    }
+
     /// Whether additional contributors were found beyond the work bound.
-    /// When true, contributing_cells is a lower bound.
+    /// When true, both contributing_cells and the precipitation sum are lower bounds.
     pub const fn is_truncated(self) -> bool {
         self.truncated
     }
@@ -80,6 +90,7 @@ pub fn sample_surface(
     let accumulation = if watershed_sample.is_ocean() {
         FlowAccumulation {
             contributing_cells: 0,
+            precipitation_potential_sum_q16: 0,
             truncated: false,
         }
     } else {
@@ -105,6 +116,8 @@ fn accumulate_upstream(
     let mut accepted = BTreeSet::from([start_key]);
     let mut examined = BTreeSet::new();
     let mut contributing_cells = 1usize;
+    let mut precipitation_potential_sum_q16 =
+        u64::from(precipitation_potential_q16(world_seed, ruleset_version, start));
     let mut truncated = false;
 
     while let Some(downstream) = pending.pop_front() {
@@ -127,16 +140,16 @@ fn accumulate_upstream(
             let Some(candidate) = watershed::cell_center(candidate_x, candidate_y) else {
                 continue;
             };
-            if !drains_into(
+            let Some(candidate_precipitation_q16) = upstream_precipitation_q16(
                 world_seed,
                 ruleset_version,
                 candidate_x,
                 candidate_y,
                 candidate,
                 downstream,
-            ) {
+            ) else {
                 continue;
-            }
+            };
 
             if contributing_cells == MAX_CONTRIBUTING_CELLS {
                 truncated = true;
@@ -145,6 +158,8 @@ fn accumulate_upstream(
 
             accepted.insert(candidate_key);
             contributing_cells += 1;
+            precipitation_potential_sum_q16 = precipitation_potential_sum_q16
+                .saturating_add(u64::from(candidate_precipitation_q16));
             pending.push_back(candidate);
         }
 
@@ -155,29 +170,42 @@ fn accumulate_upstream(
 
     FlowAccumulation {
         contributing_cells: contributing_cells as u16,
+        precipitation_potential_sum_q16,
         truncated,
     }
 }
 
-fn drains_into(
+fn upstream_precipitation_q16(
     world_seed: u64,
     ruleset_version: u32,
     candidate_x: i64,
     candidate_y: i64,
     candidate: MacroCoordinate,
     downstream: MacroCoordinate,
-) -> bool {
-    let Some(elevation) = terrain::sample_surface(world_seed, ruleset_version, candidate) else {
-        return false;
-    };
-    elevation.is_land()
-        && watershed::downstream_cell(
+) -> Option<u32> {
+    let elevation = terrain::sample_surface(world_seed, ruleset_version, candidate)?;
+    if !elevation.is_land()
+        || watershed::downstream_cell(
             world_seed,
             ruleset_version,
             candidate_x,
             candidate_y,
             elevation.elevation_q16(),
-        ) == Some(downstream)
+        ) != Some(downstream)
+    {
+        return None;
+    }
+
+    Some(precipitation_potential_q16(world_seed, ruleset_version, candidate))
+}
+
+fn precipitation_potential_q16(
+    world_seed: u64,
+    ruleset_version: u32,
+    coordinate: MacroCoordinate,
+) -> u32 {
+    climate::sample_surface(world_seed, ruleset_version, coordinate)
+        .map_or(0, |sample| sample.precipitation_q16())
 }
 
 #[cfg(test)]
