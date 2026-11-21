@@ -5,6 +5,18 @@ fn find_lake_cell(seed: u64) -> Option<MacroCoordinate> {
     for coarse_y in (-40..=-1).rev() {
         for coarse_x in (-40..=-1).rev() {
             let coordinate = watershed::cell_center(coarse_x, coarse_y)?;
+            let elevation = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+            if !elevation.is_land()
+                || watershed::downstream_cell(
+                    seed,
+                    GEOGRAPHY_RULESET_VERSION,
+                    coarse_x,
+                    coarse_y,
+                    elevation.elevation_q16(),
+                ).is_some()
+            {
+                continue;
+            }
             if waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate).is_some() {
                 return Some(coordinate);
             }
@@ -52,6 +64,10 @@ fn river_channels_expose_a_deterministic_downstream_connection() {
         .flat_map(|y| (-16..=16).map(move |x| (x, y)))
         .filter_map(|(x, y)| watershed::cell_center(x, y))
         .find_map(|coordinate| {
+            let flow = rivers::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+            if !flow.is_channel() {
+                return None;
+            }
             sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
                 .filter(|sample| matches!(sample.kind(), SurfaceWaterKind::River(_)))
         })
@@ -71,7 +87,11 @@ fn river_channels_expose_a_deterministic_downstream_connection() {
         assert!(next_elevation < current_elevation);
 
         match river.downstream().unwrap() {
-            FlowDestination::Ocean => assert!(!terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next).unwrap().is_land()),
+            FlowDestination::Ocean => assert!(
+                !terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next)
+                    .unwrap()
+                    .is_land()
+            ),
             FlowDestination::Lake { outlet_cell } => {
                 let lake = waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, next)
                     .expect("lake destination must be covered by an inland lake");
@@ -80,13 +100,14 @@ fn river_channels_expose_a_deterministic_downstream_connection() {
             FlowDestination::River { coarse_cell } | FlowDestination::Land { coarse_cell } => {
                 assert_eq!(coarse_cell, next);
             }
-            FlowDestination::ClosedBasin => panic!("a linked river cell cannot terminate at a closed basin"),
+            FlowDestination::ClosedBasin => {
+                panic!("a linked river cell cannot terminate at a closed basin")
+            }
         }
     } else {
         assert_eq!(river.downstream(), Some(FlowDestination::ClosedBasin));
     }
 }
-
 #[test]
 fn surface_hydrology_rejects_underground_strata() {
     assert!(sample_surface(
