@@ -464,18 +464,12 @@ pub fn ensure_world_route_geography(world: &mut World) -> usize {
         if route.geography.is_some() {
             continue;
         }
-        let Some(start) = anchors.get(&route.location_a_id).copied() else {
-            route.geography = Some(RouteGeography::unavailable(
-                RoutePlanningStatus::MissingEndpoint,
-            ));
-            generated += 1;
-            continue;
-        };
-        let Some(end) = anchors.get(&route.location_b_id).copied() else {
-            route.geography = Some(RouteGeography::unavailable(
-                RoutePlanningStatus::MissingEndpoint,
-            ));
-            generated += 1;
+        let (Some(start), Some(end)) = (
+            anchors.get(&route.location_a_id).copied(),
+            anchors.get(&route.location_b_id).copied(),
+        ) else {
+            // A route may be added before location embedding. Leave it pending
+            // so a later embedding pass can plan it instead of persisting failure.
             continue;
         };
         route.geography = Some(plan_route(seed, ruleset, start, end));
