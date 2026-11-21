@@ -146,7 +146,7 @@ This resolves whether legacy worlds should be embedded or left behind. The exact
 
 - **Authored placement contract (partially resolved in v0.53.14):** `LocationContent` may provide an exact surface anchor and footprint radius, and persisted location-geography records retain authored content IDs as stable keys. Region-level placement constraints, environmental archetype constraints, and local-map connection-point requirements remain open.
 - **Geography scale (resolved 21 November 2026):** each region is a signed chunk of 256 × 256 macro samples. `RegionCoordinate` identifies chunks and `MacroCoordinate` identifies positions in the shared global sample lattice; both include a vertical stratum index, with zero for the surface and negative values for underground layers. This is separate from local-map tile dimensions; continuous terrain sampling/interpolation remains future implementation work.
-- **Geographic route-to-passage contract:** The v0.53 route layer now gives each passage a stable route ID and reconciles newly added routes into unused edge positions without moving established passages. The later geography layer still needs to define how route endpoints and physical connection points conform to terrain and regional boundaries.
+- **Geographic route-to-passage contract (updated in v0.53.15):** World routes now persist bounded terrain-aware macro paths, broad profiles, and explicit crossing requirements. New local-map passages inherit the route profile and prefer the compass side indicated by the macro path; existing passage identities and positions remain unchanged. Richer local connection-point placement, infrastructure construction/enforcement, vertical cave entrances, and frontier materialization remain open.
 
 ## Focused validation required by later implementation stages
 
@@ -192,7 +192,7 @@ The first coordinate-contract stage is implemented on the v0.53.x development li
 - Added stable coordinate-derived sample seeds keyed by world seed, geography ruleset version, and global sample coordinate. Sampling order and runtime entity allocation do not affect the result.
 - New generated worlds persist distinct coordinates for their initial regions. Direct authored seeding into an otherwise empty world anchors its first region at the origin.
 - Added optional region coordinates and a geography ruleset marker to persistent world data. Pre-geography saves deserialize with unassigned coordinates and ruleset version zero; the deterministic legacy-world embedding remains a separate migration stage.
-- Subsequent v0.53.x work added the continuous surface/underground geography fields, deterministic legacy embedding, persistent location anchors/footprints, and bounded route-corridor feature assessment. Terrain-aware route path selection, route profiles, and local-map connection-point integration remain outstanding.
+- Subsequent v0.53.x work added the continuous surface/underground geography fields, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, and route-aligned local-map passages. Vertical cave entrances/inter-stratum routes, richer local connection-point placement, and on-demand frontier materialization remain outstanding.
 
 
 ## Implementation follow-up — location geography and corridor assessment (v0.53.14)
@@ -203,3 +203,11 @@ The first coordinate-contract stage is implemented on the v0.53.x development li
 - Every location without a saved geography record receives a deterministic macro anchor within its owning region chunk and a footprint radius validated against surrounding land samples. Authored content may provide an exact surface anchor and footprint radius. Existing anchors always take precedence.
 - Added a bounded straight-line corridor assessment for route candidates. It exposes separate ocean, lake, river, unresolved-water, and mountain-ridge signals. This is not yet a route pathfinder and does not change authoritative route connectivity or travel permission.
 - The migration is idempotent and does not allocate entity IDs or mutate route records, history, or saved local maps.
+
+## Implementation follow-up — terrain-aware route planning and passage profiles (v0.53.15)
+
+- Added deterministic bounded A* planning between persisted location anchors on the shared macro lattice. Ocean terrain is impassable; elevation and mountain-ridge strength contribute soft costs. Search, endpoint distance, grid spacing, and persisted path length are explicitly bounded.
+- Persisted each route's canonical endpoint-A-to-endpoint-B path, planning status, total cost, broad route profile, and detected crossing requirements. Confirmed rivers require a ford-or-bridge solution, lakes require a ferry, unresolved river estimates require survey, and mountain ridges are marked as pass candidates.
+- New local-map passages inherit the route profile and prefer the compass side indicated by the macro path. Existing passage IDs, positions, terrain, discoveries, and other saved map state are preserved. Missing passage profiles are backfilled during reconciliation.
+- Older saves default the optional route-geography and map-passage profile fields. Existing route graphs remain authoritative; this change does not remove graph connectivity or claim that required crossing infrastructure has already been constructed.
+- Ocean ferry routes and cave routes are not generated by this overland planner. Cave connections require explicit vertical entrances; frontier materialization and richer local-map connection-point constraints remain future work.

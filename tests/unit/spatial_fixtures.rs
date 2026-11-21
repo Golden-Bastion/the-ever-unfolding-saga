@@ -175,6 +175,7 @@ fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
     map.exits.push(MapExit {
         id: "location.10.exit.20".into(),
         route_id: Some("route.fixture.one".into()),
+        route_profile: None,
         position: edge,
         target_location_id: 20,
     });
@@ -202,6 +203,7 @@ fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
     duplicate_passage.exits.push(MapExit {
         id: "location.10.exit.20.duplicate".into(),
         route_id: Some("route.fixture.two".into()),
+        route_profile: None,
         position: second_edge,
         target_location_id: 20,
     });

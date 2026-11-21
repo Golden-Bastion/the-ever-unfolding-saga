@@ -18,6 +18,7 @@ use crate::bevy_spatial::{self, SpatialExplorationState};
 use crate::character_appearance::generate_character_portrait;
 use crate::content::{loader::load_campaign_content_report, CharacterPartContent};
 use crate::game_paths::GamePaths;
+use crate::geography::routes::{RouteHeading, RouteProfile};
 use crate::input::InputEvent;
 use crate::model::{GameState, RouteDirection, ThreatState, WorldGenerationMetadata, WorldRoute};
 use crate::presentation::{CharacterPortraitLayerView, CharacterPortraitView};
@@ -476,9 +477,25 @@ fn generate_world_lab_session(options: WorldLabOptions) -> (LocalMap, WorldLabSc
     let map_routes = game
         .world
         .routes_from(location.id)
-        .map(|(route, target_location_id)| MapRouteDestination {
-            route_id: route.id.clone(),
-            target_location_id,
+        .map(|(route, target_location_id)| {
+            let geography = route.geography.as_ref();
+            let profile = geography
+                .map(|geography| geography.profile)
+                .filter(|profile| *profile != RouteProfile::Unavailable);
+            let preferred_side = geography
+                .and_then(|geography| geography.heading_from(route.location_a_id == location.id))
+                .map(|heading| match heading {
+                    RouteHeading::North => crate::spatial::MapExitSide::North,
+                    RouteHeading::East => crate::spatial::MapExitSide::East,
+                    RouteHeading::South => crate::spatial::MapExitSide::South,
+                    RouteHeading::West => crate::spatial::MapExitSide::West,
+                });
+            MapRouteDestination {
+                route_id: route.id.clone(),
+                target_location_id,
+                profile,
+                preferred_side,
+            }
         })
         .collect::<Vec<_>>();
     configure_map_routes(&mut map, &map_routes);
@@ -1297,6 +1314,7 @@ fn place_world_lab_passage(state: &mut DeveloperToolsState, spatial: &mut Spatia
             MapExit {
                 id,
                 route_id: Some(route_id.clone()),
+                route_profile: None,
                 position,
                 target_location_id: destination_id,
             },

@@ -867,6 +867,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
     let exit = MapExit {
         id: "location.10.exit.20".into(),
         route_id: None,
+        route_profile: None,
         position: GridPosition {
             x: map.width - 1,
             y: 1,
@@ -923,6 +924,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
         MapExit {
             id: "location.10.exit.self".into(),
             route_id: None,
+            route_profile: None,
             position: first_position,
             target_location_id: 10,
         },
@@ -1101,16 +1103,113 @@ fn terrain_editor_cannot_turn_a_room_cell_into_a_wall() {
 }
 
 #[test]
+fn map_exit_profile_defaults_when_loading_an_older_saved_passage() {
+    let mut map = generate_local_map(817, "location.10", LocalMapConfig::default());
+    let exit = MapExit {
+        id: "location.10.exit.20".into(),
+        route_id: None,
+        route_profile: None,
+        position: GridPosition {
+            x: map.width - 1,
+            y: 2,
+        },
+        target_location_id: 20,
+    };
+    let mut value = serde_json::to_value(exit).unwrap();
+    value.as_object_mut().unwrap().remove("route_profile");
+    let loaded: MapExit = serde_json::from_value(value).unwrap();
+    assert!(loaded.route_profile.is_none());
+    map.exits.push(loaded);
+    assert_eq!(map.exits.len(), 1);
+}
+
+#[test]
+fn route_reconciliation_uses_profile_and_preferred_side_for_new_passages() {
+    use crate::geography::routes::RouteProfile;
+    use crate::spatial::MapExitSide;
+
+    let mut map = generate_local_map(818, "location.10", LocalMapConfig::default());
+    map.terrain.fill(Terrain::Floor);
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.rooms.clear();
+    map.doors.clear();
+    map.interactables.clear();
+    map.encounters.clear();
+    configure_map_routes(
+        &mut map,
+        &[MapRouteDestination {
+            route_id: "route.northbound".into(),
+            target_location_id: 20,
+            profile: Some(RouteProfile::MountainPass),
+            preferred_side: Some(MapExitSide::North),
+        }],
+    );
+
+    assert_eq!(map.exits.len(), 1);
+    assert_eq!(map.exits[0].route_profile, Some(RouteProfile::MountainPass));
+    assert_eq!(map.exits[0].position.y, 0);
+}
+
+#[test]
+fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
+    use crate::geography::routes::RouteProfile;
+    use crate::spatial::MapExitSide;
+
+    let mut map = generate_local_map(819, "location.10", LocalMapConfig::default());
+    map.terrain.fill(Terrain::Floor);
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.rooms.clear();
+    map.doors.clear();
+    map.interactables.clear();
+    map.encounters.clear();
+    let position = GridPosition {
+        x: map.width - 1,
+        y: 2,
+    };
+    let existing = MapExit {
+        id: "location.10.route.route.east".into(),
+        route_id: Some("route.east".into()),
+        route_profile: None,
+        position,
+        target_location_id: 20,
+    };
+    assert!(map.place_map_exit(existing, &[20]));
+
+    configure_map_routes(
+        &mut map,
+        &[MapRouteDestination {
+            route_id: "route.east".into(),
+            target_location_id: 20,
+            profile: Some(RouteProfile::RiverCrossing),
+            preferred_side: Some(MapExitSide::North),
+        }],
+    );
+
+    assert_eq!(map.exits.len(), 1);
+    assert_eq!(map.exits[0].position, position);
+    assert_eq!(
+        map.exits[0].route_profile,
+        Some(RouteProfile::RiverCrossing)
+    );
+}
+
+#[test]
 fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_idempotently() {
     let mut map = generate_local_map(818, "location.10", LocalMapConfig::default());
     let routes = vec![
         MapRouteDestination {
             route_id: "route.path.alpha".into(),
             target_location_id: 20,
+            profile: None,
+            preferred_side: None,
         },
         MapRouteDestination {
             route_id: "route.path.beta".into(),
             target_location_id: 20,
+            profile: None,
+            preferred_side: None,
         },
     ];
 
@@ -1130,6 +1229,8 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
     expanded_routes.push(MapRouteDestination {
         route_id: "route.path.gamma".into(),
         target_location_id: 21,
+        profile: None,
+        preferred_side: None,
     });
     configure_map_routes(&mut map, &expanded_routes);
     assert_eq!(map.exits.len(), 3);
@@ -1149,6 +1250,8 @@ fn route_reconciliation_distributes_new_passages_round_robin_by_compass_side() {
         .map(|slot| MapRouteDestination {
             route_id: format!("route.slot.{slot:02}"),
             target_location_id: 20 + slot,
+            profile: None,
+            preferred_side: None,
         })
         .collect::<Vec<_>>();
 
@@ -1186,6 +1289,7 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
     map.exits.push(MapExit {
         id: "location.10.exit.20".into(),
         route_id: None,
+        route_profile: None,
         position,
         target_location_id: 20,
     });
@@ -1195,6 +1299,8 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
         &[MapRouteDestination {
             route_id: "route.migrated.20".into(),
             target_location_id: 20,
+            profile: None,
+            preferred_side: None,
         }],
     );
 

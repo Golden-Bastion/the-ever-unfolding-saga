@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, and bounded route-corridor assessment. It does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, and bounded terrain-aware route planning. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
@@ -99,7 +99,7 @@ Implemented in v0.53.14:
 - Added persisted location-geography records with stable authored/generated/compatibility keys, global macro anchors, and validated footprint radii. New locations receive deterministic anchors within their owning region chunk; authored content may optionally specify an exact surface anchor and footprint radius.
 - Added deterministic compatibility embedding for legacy regions without coordinates. Region ordering follows a stable breadth-first traversal of the saved route graph with stable ID tie-breaking. Existing coordinates are never moved.
 - Legacy worlds receive a persisted geography seed derived from saved world/region/location/route identities when no generation seed exists. Display names and content ordering are excluded. Geography ruleset and embedding versions are persisted separately from the save-format version.
-- Added a bounded candidate-corridor assessment that reports ocean, lake, river, unresolved-water, and mountain-ridge samples independently. It is diagnostic input for future route selection, not a pathfinder or permission to cross obstacles.
+- Added a bounded candidate-corridor assessment that reports ocean, lake, river, unresolved-water, and mountain-ridge samples independently. It is retained as a lightweight diagnostic; route creation now uses the terrain-aware planner described below.
 - Automated tests cover stable compatibility embedding, identity/allocator preservation, deterministic location placement, authored anchors, bounded footprints, and route-corridor assessment.
 
 Implemented in v0.53.13:
@@ -118,6 +118,16 @@ Implemented in v0.53.12:
 - Kept the field deterministic, fixed-point, renderer-independent, and unchanged for ruleset 1. This is derived data only and introduces no save migration or geography-ruleset increment.
 - Water barriers remain represented by the existing surface-water sampler: oceans, lakes, rivers, and unresolved river estimates are distinct and must not be collapsed into ordinary land during route planning.
 
+Implemented in v0.53.15:
+
+- Replaced direct-line route creation with deterministic bounded A* over the shared macro lattice. The planner uses a 32-sample search grid with midpoint validation at 16-sample intervals, an eight-direction grid, a 4,096-node expansion cap, a 96-cell maximum endpoint distance, and a 256-point persisted path cap.
+- Ocean terrain is impassable for this overland planner. Elevation changes and mountain-ridge strength contribute soft movement costs, allowing routes to prefer lower, gentler corridors without treating every mountain as an absolute barrier.
+- Persisted route geography records the canonical endpoint-A-to-endpoint-B path, planning status, total cost, broad route profile, and detected physical crossings. River crossings identify a ford-or-bridge requirement, lake crossings identify a ferry requirement, and inconclusive river estimates require survey; mountain barriers are marked as pass candidates.
+- Route geography is generated when location geography is embedded and when new routes are added to an already-geography-backed world. Existing saved route plans are never silently regenerated. Older saves default the new route field to absent and receive plans through the existing geography migration.
+- New local-map passages inherit their route profile and prefer the compass side indicated by the macro path. Existing passages retain their IDs, positions, and map geometry; reconciliation only backfills missing route profiles.
+- Cave routes remain unsupported until explicit vertical entrances connect surface locations to underground strata. This planner does not invent shafts or infer physical depth from stratum numbers.
+- Automated tests cover deterministic land paths, endpoint and land invariants, route-heading reversal, old-save defaults, route-plan persistence, passage-side preference, profile backfilling, and preservation of established passage positions.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -126,7 +136,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 ## Boundaries and remaining work
 
-The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, and bounded candidate-route corridor assessment are implemented. Remaining geography/topology work is terrain-aware route path selection, explicit route profiles and infrastructure requirements for water/cave crossings, local-map connection-point integration, and on-demand frontier materialization.
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, and route-aligned local-map passages are implemented. Remaining geography/topology work is explicit vertical cave entrances and inter-stratum connections, richer local-map connection-point integration, and idempotent on-demand frontier materialization.
 
 The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 

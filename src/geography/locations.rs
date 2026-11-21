@@ -131,6 +131,7 @@ pub fn ensure_location_geography(world: &mut World, content: Option<&CampaignCon
     world.geography_embedding_version = world
         .geography_embedding_version
         .max(LOCATION_GEOGRAPHY_EMBEDDING_VERSION);
+    crate::geography::routes::ensure_world_route_geography(world);
 }
 
 fn compatibility_seed(world: &World) -> u64 {

@@ -546,6 +546,7 @@ fn world_lab_passage_editor_updates_persistent_route_links() {
                 MapExit {
                     id: passage_id.clone(),
                     route_id: Some(route_id.clone()),
+                    route_profile: None,
                     position: *position,
                     target_location_id: destination_id,
                 },

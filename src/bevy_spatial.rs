@@ -20,6 +20,7 @@ use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId, UiButtonActivation,
 };
+use crate::geography::routes::{RouteHeading, RouteProfile};
 use crate::input::InputEvent;
 use crate::interaction_actions::{
     discover_available_interactions, AvailableInteraction, InteractionActionKind, InteractionTarget,
@@ -590,9 +591,25 @@ pub(crate) fn enter(
     let map_routes = game
         .world
         .routes_from(location.id)
-        .map(|(route, target_location_id)| MapRouteDestination {
-            route_id: route.id.clone(),
-            target_location_id,
+        .map(|(route, target_location_id)| {
+            let geography = route.geography.as_ref();
+            let profile = geography
+                .map(|geography| geography.profile)
+                .filter(|profile| *profile != RouteProfile::Unavailable);
+            let preferred_side = geography
+                .and_then(|geography| geography.heading_from(route.location_a_id == location.id))
+                .map(|heading| match heading {
+                    RouteHeading::North => crate::spatial::MapExitSide::North,
+                    RouteHeading::East => crate::spatial::MapExitSide::East,
+                    RouteHeading::South => crate::spatial::MapExitSide::South,
+                    RouteHeading::West => crate::spatial::MapExitSide::West,
+                });
+            MapRouteDestination {
+                route_id: route.id.clone(),
+                target_location_id,
+                profile,
+                preferred_side,
+            }
         })
         .collect::<Vec<_>>();
     let world_seed = game
