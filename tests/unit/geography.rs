@@ -280,7 +280,6 @@ fn terrain_samples_do_not_depend_on_region_sampling_order() {
 
     assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
 }
-
 #[test]
 fn surface_climate_is_deterministic_and_varies_across_coordinates() {
     let coordinate = MacroCoordinate::new(-1_337, 2_048);
