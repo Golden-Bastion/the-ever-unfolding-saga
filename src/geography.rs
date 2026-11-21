@@ -4,7 +4,7 @@
 //! sample coordinates are signed so expansion works in every direction from the
 //! world origin. Vertical strata keep underground geography addressable without
 //! changing the shared horizontal coordinate system. Terrain, coast, climate, watershed,
-//! river, depression, and waterbody submodules build deterministic surface environment fields on this contract.
+//! river, depression, waterbody, and hydrology submodules build deterministic surface environment fields on this contract.
 
 use serde::{Deserialize, Serialize};
 
