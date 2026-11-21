@@ -117,7 +117,6 @@ fn a_flat_window_has_no_depression_depth_or_basin_footprint() {
     assert_eq!(count_basin_cells(&elevations, spill), 0);
 }
 
-
 #[test]
 fn depression_samples_expose_only_the_connected_basin_footprint() {
     let seed = 8_211;
