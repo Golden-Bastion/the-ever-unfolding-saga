@@ -31,6 +31,14 @@ Implemented in v0.53.3:
 - The initial biome catalogue is Ocean, Coast, Desert, Grassland, Temperate Forest, Taiga, Tundra, and Alpine. Coast is assigned only to land samples directly adjacent to ocean; high elevations take the Alpine classification.
 - Sampling is stateless, seed/ruleset keyed, independent of region visitation order, and rejects underground strata.
 
+Implemented in v0.53.4:
+
+- `coast::sample_surface` exposes shoreline adjacency for both land and ocean samples using the eight immediate compass neighbors.
+- Each sample includes an eight-bit direction mask identifying neighboring samples of the opposite terrain type, allowing callers to determine shoreline orientation without reconstructing neighbor queries.
+- Land-side and water-side shoreline samples share the same deterministic elevation boundary. The result is derived on demand from global coordinates and remains consistent across region chunks.
+- Climate biome classification now consumes the shared shoreline sampler instead of maintaining a duplicate adjacency check.
+- Shoreline sampling rejects underground strata and introduces no persisted state or save migration.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -54,11 +62,3 @@ Macro-geography coordinates are not:
 - A claim that legacy route graphs already match physical terrain.
 
 The 256 × 256 resolution describes macro samples per region chunk. It does not prescribe local-map dimensions, real-world kilometres, or a continuous terrain renderer.
-
-Implemented in v0.53.4:
-
-- `coast::sample_surface` exposes shoreline adjacency for both land and ocean samples using the eight immediate compass neighbors.
-- Each sample includes an eight-bit direction mask identifying neighboring samples of the opposite terrain type, allowing callers to determine shoreline orientation without reconstructing neighbor queries.
-- Land-side and water-side shoreline samples share the same deterministic elevation boundary. The result is derived on demand from global coordinates and remains consistent across region chunks.
-- Climate biome classification now consumes the shared shoreline sampler instead of maintaining a duplicate adjacency check.
-- Shoreline sampling rejects underground strata and introduces no persisted state or save migration.
