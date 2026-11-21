@@ -406,7 +406,6 @@ fn coastal_biome_classification_remains_continuous_across_region_edges() {
     panic!("expected the generated coastline to cross at least one searched region edge");
 }
 
-
 #[test]
 fn shoreline_sampling_is_deterministic_and_rejects_underground_strata() {
     let coordinate = MacroCoordinate::new(-513, 1_025);
@@ -414,10 +413,7 @@ fn shoreline_sampling_is_deterministic_and_rejects_underground_strata() {
     let repeated = coast::sample_surface(82, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
 
     assert_eq!(first, repeated);
-    assert_eq!(
-        first.is_shoreline(),
-        first.opposite_terrain_mask() != 0
-    );
+    assert_eq!(first.is_shoreline(), first.opposite_terrain_mask() != 0);
     assert!(coast::sample_surface(
         82,
         GEOGRAPHY_RULESET_VERSION,
@@ -457,6 +453,7 @@ fn shoreline_masks_identify_opposite_terrain_in_each_direction() {
     assert_ne!(first_shore.is_coastal_land(), second_shore.is_coastal_land());
     assert_ne!(first_shore.is_coastal_water(), second_shore.is_coastal_water());
 }
+
 #[test]
 fn shoreline_data_is_continuous_across_region_chunk_boundaries() {
     use coast::direction;
