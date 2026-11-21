@@ -123,7 +123,7 @@ This keeps frontend orchestration separate from simulation rules without maintai
 
 The model represents the authoritative simulation state. Systems should mutate state through explicit functions belonging to the appropriate owner.
 
-World-level state includes persistent locations, factions, world history, event cooldowns, corpses, placed items, and other changes that survive character death.
+World-level state includes persistent locations, factions, world history, event cooldowns, corpses, placed items, explicit waterbody modifications, and other changes that survive character death.
 
 Character-level state includes attributes, experience, conditions, inventory, active quests, and other properties belonging to the current life.
 
