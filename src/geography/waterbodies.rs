@@ -4,8 +4,8 @@
 //! precipitation potential, and coarse-cell elevation. Only explicit changes
 //! are persisted by the world model; generated geography remains seed-derived.
 
-use super::{coordinate_seed, climate, depressions, terrain, watershed, MacroCoordinate};
 use super::rivers;
+use super::{climate, coordinate_seed, depressions, terrain, watershed, MacroCoordinate};
 
 /// Minimum connected coarse cells required for a depression to qualify as a lake.
 pub const MIN_LAKE_BASIN_CELLS: u16 = 2;
@@ -103,12 +103,9 @@ pub fn sample_surface(
         return None;
     }
 
-    let precipitation = climate::sample_surface(
-        world_seed,
-        ruleset_version,
-        depression.outlet_cell(),
-    )?
-    .precipitation_q16();
+    let precipitation =
+        climate::sample_surface(world_seed, ruleset_version, depression.outlet_cell())?
+            .precipitation_q16();
     if precipitation == 0 {
         return None;
     }
@@ -123,17 +120,14 @@ pub fn sample_surface(
     }
 
     let depth = (water_surface - local_elevation).clamp(0, i64::from(i32::MAX)) as i32;
-    let river_inflow = rivers::sample_surface(
-        world_seed,
-        ruleset_version,
-        depression.outlet_cell(),
-    )
-    .is_some_and(|sample| sample.is_channel());
+    let river_inflow =
+        rivers::sample_surface(world_seed, ruleset_version, depression.outlet_cell())
+            .is_some_and(|sample| sample.is_channel());
 
     Some(LakeSample {
         outlet_cell: depression.outlet_cell(),
-        water_surface_elevation_q16: water_surface.clamp(i64::from(i32::MIN), i64::from(i32::MAX))
-            as i32,
+        water_surface_elevation_q16: water_surface
+            .clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
         depth_q16: depth,
         basin_cell_count: depression.basin_cell_count(),
         precipitation_potential_q16: precipitation,
