@@ -109,7 +109,7 @@ pub fn sample_surface(
     let filled_depth =
         i64::from(depression.depth_q16()).saturating_mul(i64::from(precipitation)) / Q16_ONE;
     let water_surface = i64::from(depression.floor_elevation_q16()) + filled_depth;
-    let local_elevation = i64::from(coarse_terrain.elevation_q16());
+    let local_elevation = i64::from(local_terrain.elevation_q16());
     if local_elevation > water_surface {
         return None;
     }
