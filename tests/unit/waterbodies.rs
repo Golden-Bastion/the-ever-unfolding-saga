@@ -1,5 +1,5 @@
 use super::*;
-use crate::geography::{RegionCoordinate, GEOGRAPHY_RULESET_VERSION};
+use crate::geography::{coast, RegionCoordinate, GEOGRAPHY_RULESET_VERSION};
 
 fn find_lake_cell(seed: u64) -> Option<MacroCoordinate> {
     for coarse_y in (-40..=-1).rev() {
