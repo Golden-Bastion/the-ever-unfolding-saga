@@ -5,7 +5,7 @@
 //! world origin. Vertical strata keep underground geography addressable without
 //! changing the shared horizontal coordinate system. Terrain, mountains, coast,
 //! climate, watershed, river, depression, waterbody, and hydrology submodules build
-//! deterministic surface environment fields on this contract.
+//! deterministic surface and underground geography fields on this contract.
 
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +16,7 @@ pub mod hydrology;
 pub mod mountains;
 pub mod rivers;
 pub mod terrain;
+pub mod underground;
 pub mod waterbodies;
 pub mod watershed;
 
