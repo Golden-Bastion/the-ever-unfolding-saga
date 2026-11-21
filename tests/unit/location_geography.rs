@@ -66,5 +66,6 @@ fn generated_location_keys_are_independent_of_runtime_entity_ids() {
         geography_ruleset_version: crate::geography::GEOGRAPHY_RULESET_VERSION,
     });
     ensure_location_geography(&mut world, None);
+    assert_eq!(world.geography_seed, Some(77));
     assert!(world.location_geography.iter().all(|r| r.stable_key.starts_with("location.generated.")));
 }

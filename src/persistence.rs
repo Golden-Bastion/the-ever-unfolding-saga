@@ -279,7 +279,6 @@ fn normalize_loaded_game(mut game: GameState, save_file_version: u32) -> GameSta
     // deterministic migration uses string identities and never consumes
     // runtime entity IDs or changes World.next_id.
     game.world.migrate_legacy_exits();
-    crate::geography::locations::ensure_location_geography(&mut game.world, None);
     let routes = game.world.routes.clone();
     for map in &mut game.world.local_maps {
         let Some(source_id) = map
