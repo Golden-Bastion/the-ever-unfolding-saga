@@ -381,7 +381,8 @@ fn discovery_requires_passages_to_match_authoritative_route_records() {
     )));
     map.exits.push(MapExit {
         id: "exit.one-way".into(),
-        route_id: Some(route_id.into()),
+        route_id: route_id: Some(route_id.into()),
+        route_profile: None,
         position: map.entry,
         target_location_id: destination_id,
     });

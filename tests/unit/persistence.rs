@@ -495,7 +495,8 @@ fn version_four_save_migrates_legacy_edges_and_passages_without_allocating_ids()
     let mut map = map;
     map.exits.push(crate::spatial::MapExit {
         id: format!("location.{source_id}.exit.{destination_id}"),
-        route_id: None,
+        route_id: route_id: None,
+        route_profile: None,
         position: crate::spatial::GridPosition {
             x: map.width - 1,
             y: 1,
