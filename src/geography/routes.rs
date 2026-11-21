@@ -554,7 +554,7 @@ fn classify_crossings(
     path: &[MacroCoordinate],
 ) -> Vec<RouteCrossing> {
     let mut crossings = Vec::new();
-    for coordinate in path {
+    for (index, coordinate) in path.iter().enumerate() {
         let Some(surface) = terrain::sample_surface(world_seed, ruleset_version, *coordinate) else {
             continue;
         };
@@ -567,6 +567,11 @@ fn classify_crossings(
             );
         }
 
+        // Water classification is more expensive than elevation sampling.
+        // Probe each 32-sample grid node and always include the final endpoint.
+        if index % 2 != 0 && index + 1 != path.len() {
+            continue;
+        }
         let Some(water) = hydrology::sample_surface(world_seed, ruleset_version, *coordinate) else {
             continue;
         };

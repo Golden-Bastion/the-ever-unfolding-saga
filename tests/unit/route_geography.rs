@@ -179,3 +179,52 @@ fn legacy_world_routes_deserialize_without_geography_metadata() {
     let loaded: crate::model::WorldRoute = serde_json::from_value(value).unwrap();
     assert!(loaded.geography.is_none());
 }
+
+#[test]
+fn route_profiles_reflect_combined_terrain_crossing_requirements() {
+    use crate::geography::routes::{
+        classify_profile, RouteCrossing, RouteCrossingKind, RouteInfrastructure, RouteProfile,
+    };
+
+    let crossing = |kind, infrastructure| RouteCrossing {
+        coordinate: MacroCoordinate::new(32, 64),
+        kind,
+        infrastructure,
+    };
+    assert_eq!(classify_profile(&[]), RouteProfile::Trail);
+    assert_eq!(
+        classify_profile(&[crossing(
+            RouteCrossingKind::MountainPass,
+            RouteInfrastructure::None,
+        )]),
+        RouteProfile::MountainPass
+    );
+    assert_eq!(
+        classify_profile(&[crossing(
+            RouteCrossingKind::River,
+            RouteInfrastructure::FordOrBridge,
+        )]),
+        RouteProfile::RiverCrossing
+    );
+    assert_eq!(
+        classify_profile(&[crossing(
+            RouteCrossingKind::Lake,
+            RouteInfrastructure::Ferry,
+        )]),
+        RouteProfile::WaterCrossing
+    );
+    assert_eq!(
+        classify_profile(&[
+            crossing(RouteCrossingKind::MountainPass, RouteInfrastructure::None),
+            crossing(RouteCrossingKind::River, RouteInfrastructure::FordOrBridge),
+        ]),
+        RouteProfile::Mixed
+    );
+    assert_eq!(
+        classify_profile(&[crossing(
+            RouteCrossingKind::UnresolvedWater,
+            RouteInfrastructure::Survey,
+        )]),
+        RouteProfile::Inconclusive
+    );
+}

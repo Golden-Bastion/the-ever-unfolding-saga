@@ -1103,6 +1103,27 @@ fn terrain_editor_cannot_turn_a_room_cell_into_a_wall() {
 }
 
 #[test]
+fn map_exit_profile_defaults_when_loading_an_older_saved_passage() {
+    let mut map = generate_local_map(817, "location.10", LocalMapConfig::default());
+    let exit = MapExit {
+        id: "location.10.exit.20".into(),
+        route_id: None,
+        route_profile: None,
+        position: GridPosition {
+            x: map.width - 1,
+            y: 2,
+        },
+        target_location_id: 20,
+    };
+    let mut value = serde_json::to_value(exit).unwrap();
+    value.as_object_mut().unwrap().remove("route_profile");
+    let loaded: MapExit = serde_json::from_value(value).unwrap();
+    assert!(loaded.route_profile.is_none());
+    map.exits.push(loaded);
+    assert_eq!(map.exits.len(), 1);
+}
+
+#[test]
 fn route_reconciliation_uses_profile_and_preferred_side_for_new_passages() {
     use crate::geography::routes::RouteProfile;
     use crate::spatial::MapExitSide;
