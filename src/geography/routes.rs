@@ -571,7 +571,7 @@ fn classify_crossings(
 
         // Water classification is more expensive than elevation sampling.
         // Probe each 32-sample grid node and always include the final endpoint.
-        if index % 2 != 0 && index + 1 != path.len() {
+        if path.len() > 3 && index % 2 != 0 && index + 1 != path.len() {
             continue;
         }
         let Some(water) = hydrology::sample_surface(world_seed, ruleset_version, *coordinate) else {
