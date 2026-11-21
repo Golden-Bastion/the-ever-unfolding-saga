@@ -23,6 +23,14 @@ Implemented in v0.53.2:
 - The sampler is stateless and coordinate-based. Sampling order, chunk visitation order, runtime IDs, and display names cannot affect results.
 - The surface sampler rejects nonzero strata until underground terrain has its own generation model.
 
+Implemented in v0.53.4:
+
+- `coast::sample_surface` exposes shoreline adjacency for both land and ocean samples using the eight immediate compass neighbors.
+- Each sample includes an eight-bit direction mask identifying neighboring samples of the opposite terrain type, allowing callers to determine shoreline orientation without reconstructing neighbor queries.
+- Land-side and water-side shoreline samples share the same deterministic elevation boundary. The result is derived on demand from global coordinates and remains consistent across region chunks.
+- Climate biome classification now consumes the shared shoreline sampler instead of maintaining a duplicate adjacency check.
+- Shoreline sampling rejects underground strata and introduces no persisted state or save migration.
+
 Implemented in v0.53.3:
 
 - `climate::sample_surface` combines broad and regional deterministic temperature and moisture fields on the same global lattice.
@@ -41,7 +49,6 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
 
-- Explicit coast and shoreline information derived from neighboring elevation samples.
 - Watersheds, drainage direction, rivers, lakes, and connected water systems.
 - Mountain ranges and other major terrain barriers.
 - A dedicated underground-strata generator for caves and underground networks.
