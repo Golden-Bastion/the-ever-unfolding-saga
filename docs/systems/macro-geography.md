@@ -42,7 +42,6 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
 
 - Explicit coast and shoreline information derived from neighboring elevation samples.
-- Climate, temperature, moisture, and biome classification.
 - Watersheds, drainage direction, rivers, lakes, and connected water systems.
 - Mountain ranges and other major terrain barriers.
 - A dedicated underground-strata generator for caves and underground networks.
