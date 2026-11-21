@@ -101,7 +101,7 @@ pub fn sample_surface(
             ruleset_version,
             coarse_cell,
             start_precipitation_q16,
-        )
+        )?
     };
 
     Some(RiverSample {
@@ -115,7 +115,7 @@ fn accumulate_upstream(
     ruleset_version: u32,
     start: MacroCoordinate,
     start_precipitation_q16: u32,
-) -> FlowAccumulation {
+) -> Option<FlowAccumulation> {
     let start_key = (
         start.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
         start.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
@@ -147,22 +147,25 @@ fn accumulate_upstream(
             let Some(candidate) = watershed::cell_center(candidate_x, candidate_y) else {
                 continue;
             };
-            let Some(candidate_precipitation_q16) = upstream_precipitation_q16(
+            if !drains_into(
                 world_seed,
                 ruleset_version,
                 candidate_x,
                 candidate_y,
                 candidate,
                 downstream,
-            ) else {
+            ) {
                 continue;
-            };
+            }
 
             if contributing_cells == MAX_CONTRIBUTING_CELLS {
                 truncated = true;
                 break;
             }
 
+            let candidate_precipitation_q16 =
+                climate::sample_surface(world_seed, ruleset_version, candidate)?
+                    .precipitation_q16();
             accepted.insert(candidate_key);
             contributing_cells += 1;
             precipitation_potential_sum_q16 = precipitation_potential_sum_q16
@@ -175,35 +178,32 @@ fn accumulate_upstream(
         }
     }
 
-    FlowAccumulation {
+    Some(FlowAccumulation {
         contributing_cells: contributing_cells as u16,
         precipitation_potential_sum_q16,
         truncated,
-    }
+    })
 }
 
-fn upstream_precipitation_q16(
+fn drains_into(
     world_seed: u64,
     ruleset_version: u32,
     candidate_x: i64,
     candidate_y: i64,
     candidate: MacroCoordinate,
     downstream: MacroCoordinate,
-) -> Option<u32> {
-    let elevation = terrain::sample_surface(world_seed, ruleset_version, candidate)?;
-    if !elevation.is_land()
-        || watershed::downstream_cell(
+) -> bool {
+    let Some(elevation) = terrain::sample_surface(world_seed, ruleset_version, candidate) else {
+        return false;
+    };
+    elevation.is_land()
+        && watershed::downstream_cell(
             world_seed,
             ruleset_version,
             candidate_x,
             candidate_y,
             elevation.elevation_q16(),
-        ) != Some(downstream)
-    {
-        return None;
-    }
-
-    Some(climate::sample_surface(world_seed, ruleset_version, candidate)?.precipitation_q16())
+        ) == Some(downstream)
 }
 
 #[cfg(test)]
