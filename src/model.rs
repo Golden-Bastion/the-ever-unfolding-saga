@@ -150,6 +150,16 @@ impl ThreatState {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LocationGeographyRecord {
+    pub location_id: EntityId,
+    pub stable_key: String,
+    pub anchor: crate::geography::MacroCoordinate,
+    #[serde(default = "default_location_footprint_radius")]
+    pub footprint_radius_samples: u16,
+}
+fn default_location_footprint_radius() -> u16 { 4 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct World {
     pub id: EntityId,
@@ -158,6 +168,14 @@ pub struct World {
     pub next_id: EntityId,
     #[serde(default)]
     pub generation: Option<WorldGenerationMetadata>,
+    #[serde(default)]
+    pub geography_seed: Option<u64>,
+    #[serde(default)]
+    pub geography_ruleset_version: u32,
+    #[serde(default)]
+    pub geography_embedding_version: u32,
+    #[serde(default)]
+    pub location_geography: Vec<LocationGeographyRecord>,
     pub regions: Vec<Region>,
     pub locations: Vec<Location>,
     /// Authoritative persistent connections between world locations.
@@ -483,6 +501,10 @@ impl World {
             mode,
             next_id: 2,
             generation: None,
+            geography_seed: None,
+            geography_ruleset_version: 0,
+            geography_embedding_version: 0,
+            location_geography: Vec::new(),
             regions: Vec::new(),
             locations: Vec::new(),
             routes: Vec::new(),
@@ -993,6 +1015,8 @@ pub fn create_new_state(
         extra_edges: config.extra_edges,
         geography_ruleset_version: GEOGRAPHY_RULESET_VERSION,
     });
+    world.geography_seed = Some(seed);
+    world.geography_ruleset_version = GEOGRAPHY_RULESET_VERSION;
     crate::procedural::place_authored_content(&mut world, &content);
     world.record_history(0, "A new world stirs beneath ash and ruin.");
     let mut character = world.spawn_character(character_name, title);

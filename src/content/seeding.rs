@@ -120,6 +120,7 @@ impl CampaignContent {
                 .collect();
         }
 
+        crate::geography::locations::ensure_location_geography(world, Some(self));
         added
     }
 }

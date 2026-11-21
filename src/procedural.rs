@@ -108,7 +108,11 @@ pub fn generate_world(
 /// remain, so the procedural graph continues to provide connectivity and
 /// additional routes around authored locations.
 pub fn place_authored_content(world: &mut World, content: &CampaignContent) -> usize {
-    if world.regions.is_empty() || content.world.locations.is_empty() {
+    if world.regions.is_empty() {
+        return 0;
+    }
+    if content.world.locations.is_empty() {
+        crate::geography::locations::ensure_location_geography(world, Some(content));
         return 0;
     }
 
@@ -182,6 +186,7 @@ pub fn place_authored_content(world: &mut World, content: &CampaignContent) -> u
 
     world.rebuild_location_exit_cache();
     rebuild_region_location_ids(world);
+    crate::geography::locations::ensure_location_geography(world, Some(content));
     authored_locations.len()
 }
 
