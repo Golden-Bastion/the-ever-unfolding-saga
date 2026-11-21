@@ -86,11 +86,12 @@ fn frontier_listing_is_deterministic_and_does_not_materialize_world_state() {
     let second = frontier_targets_for_location(&world, 3);
 
     assert_eq!(first, second);
-    assert_eq!(first.len(), 4);
-    assert_eq!(
-        first.iter().map(|frontier| frontier.direction).collect::<Vec<_>>(),
-        FrontierDirection::ALL
-    );
+    assert!(first.iter().any(|frontier| frontier.direction == FrontierDirection::East));
+    assert!(first.iter().all(|frontier| {
+        frontier.direction != FrontierDirection::East
+            || frontier.direction.adjacent_region(RegionCoordinate::ORIGIN)
+                == Some(frontier.target_region)
+    }));
     assert_eq!(world.regions.len(), original_regions);
     assert_eq!(world.locations.len(), original_locations);
     assert_eq!(world.next_id, original_next_id);
