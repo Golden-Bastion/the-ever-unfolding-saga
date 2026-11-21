@@ -292,10 +292,12 @@ fn choose_anchor(
     let mut best: Option<(i64, MacroCoordinate)> = None;
     for index in 0..PLACEMENT_CANDIDATES {
         let random = coordinate_seed(seed ^ key_hash, ruleset.wrapping_add(index as u32), origin);
-        let coordinate = MacroCoordinate::new(
-            origin.x.saturating_add((random & 0xff) as i64),
-            origin.y.saturating_add(((random >> 32) & 0xff) as i64),
-        );
+        let Some(coordinate) = region.global_sample(
+            (random & 0xff) as u16,
+            ((random >> 32) & 0xff) as u16,
+        ) else {
+            continue;
+        };
 
         let Some(sample) = terrain::sample_surface(seed, ruleset, coordinate) else {
             continue;
