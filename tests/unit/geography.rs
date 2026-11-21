@@ -195,8 +195,8 @@ fn continental_field_contains_both_land_and_ocean_samples() {
     let mut land_samples = 0usize;
     let mut ocean_samples = 0usize;
 
-    for y in (-4_096..4_096).step_by(256) {
-        for x in (-4_096..4_096).step_by(256) {
+    for y in (-32_768..32_768).step_by(1_024) {
+        for x in (-32_768..32_768).step_by(1_024) {
             let sample = terrain::sample_surface(
                 7_321,
                 GEOGRAPHY_RULESET_VERSION,
@@ -213,8 +213,8 @@ fn continental_field_contains_both_land_and_ocean_samples() {
 
     assert!(land_samples > 0, "the generated field should contain land");
     assert!(ocean_samples > 0, "the generated field should contain ocean");
-    assert!(land_samples > 256, "land should occupy a meaningful area");
-    assert!(ocean_samples > 256, "ocean should occupy a meaningful area");
+    assert!(land_samples > 1_024, "land should occupy a meaningful area");
+    assert!(ocean_samples > 1_024, "ocean should occupy a meaningful area");
 }
 
 #[test]
