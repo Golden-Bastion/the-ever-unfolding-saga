@@ -280,3 +280,104 @@ fn terrain_samples_do_not_depend_on_region_sampling_order() {
 
     assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
 }
+
+
+#[test]
+fn surface_climate_is_deterministic_and_varies_across_coordinates() {
+    let coordinate = MacroCoordinate::new(-1_337, 2_048);
+    let first = climate::sample_surface(42, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let repeated = climate::sample_surface(42, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    assert_eq!(first, repeated);
+    assert!((-65_536..=65_536).contains(&first.temperature_q16()));
+    assert!(first.moisture_q16() <= 65_536);
+    assert!(first.precipitation_q16() <= 65_536);
+
+    let distant = climate::sample_surface(
+        42,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::new(8_192, -6_144),
+    )
+    .unwrap();
+    assert_ne!(first, distant);
+}
+
+#[test]
+fn climate_sampler_rejects_underground_strata() {
+    assert!(climate::sample_surface(
+        42,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::in_stratum(0, 0, -2),
+    )
+    .is_none());
+}
+
+#[test]
+fn climate_sampling_is_independent_of_region_order_and_negative_coordinates() {
+    let coordinates = [
+        MacroCoordinate::new(-257, -1),
+        MacroCoordinate::new(-256, 255),
+        MacroCoordinate::new(255, 256),
+        MacroCoordinate::new(256, -257),
+    ];
+    let forward = coordinates
+        .iter()
+        .map(|coordinate| {
+            climate::sample_surface(731, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
+    let reverse = coordinates
+        .iter()
+        .rev()
+        .map(|coordinate| {
+            climate::sample_surface(731, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
+}
+
+#[test]
+fn climate_biomes_have_multiple_distinct_surface_environments() {
+    use std::collections::HashSet;
+
+    let mut biomes = HashSet::new();
+    for y in (-16_384..16_384).step_by(1_024) {
+        for x in (-16_384..16_384).step_by(1_024) {
+            let sample = climate::sample_surface(
+                7_321,
+                GEOGRAPHY_RULESET_VERSION,
+                MacroCoordinate::new(x, y),
+            )
+            .unwrap();
+            biomes.insert(sample.biome());
+        }
+    }
+
+    assert!(biomes.len() >= 4, "expected varied environments, got {biomes:?}");
+}
+
+#[test]
+fn coastal_biome_classification_remains_continuous_across_region_edges() {
+    let mut coastal_sample = None;
+    for x in [255, 256] {
+        for y in (-8_192..8_192).step_by(16) {
+            let coordinate = MacroCoordinate::new(x, y);
+            let terrain = terrain::sample_surface(55, GEOGRAPHY_RULESET_VERSION, coordinate)
+                .unwrap();
+            if terrain.is_land()
+                && climate::sample_surface(55, GEOGRAPHY_RULESET_VERSION, coordinate)
+                    .is_some_and(|sample| sample.biome() == climate::Biome::Coast)
+            {
+                coastal_sample = Some(coordinate);
+                break;
+            }
+        }
+        if coastal_sample.is_some() {
+            break;
+        }
+    }
+
+    assert!(
+        coastal_sample.is_some(),
+        "expected to find a coastal sample at the region boundary"
+    );
+}
