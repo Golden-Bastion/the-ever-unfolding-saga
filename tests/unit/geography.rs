@@ -623,3 +623,37 @@ fn watershed_outlet_traces_are_bounded_and_deterministic() {
         assert!(first.is_terminal());
     }
 }
+
+
+#[test]
+fn watershed_outlet_kinds_match_their_terminal_cells() {
+    let coordinate = MacroCoordinate::new(31_337, -18_721);
+    let outlet = watershed::trace_to_outlet(5_119, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let sample = watershed::sample_surface(
+        5_119,
+        GEOGRAPHY_RULESET_VERSION,
+        outlet.coordinate(),
+    ).unwrap();
+
+    match outlet.kind() {
+        watershed::OutletKind::Ocean => assert!(sample.is_ocean()),
+        watershed::OutletKind::ClosedBasin => {
+            assert!(!sample.is_ocean());
+            assert!(sample.coarse_downstream().is_none());
+        }
+        watershed::OutletKind::SearchLimit => assert!(!outlet.is_terminal()),
+    }
+}
+
+#[test]
+fn watershed_sampling_is_independent_of_region_chunk_ownership() {
+    let coordinate = MacroCoordinate::new(-257, 511);
+    let (region, local_x, local_y) = coordinate.region_and_local();
+    let reconstructed = region.global_sample(local_x, local_y).unwrap();
+
+    assert_eq!(reconstructed, coordinate);
+    assert_eq!(
+        watershed::sample_surface(1_701, GEOGRAPHY_RULESET_VERSION, coordinate),
+        watershed::sample_surface(1_701, GEOGRAPHY_RULESET_VERSION, reconstructed),
+    );
+}
