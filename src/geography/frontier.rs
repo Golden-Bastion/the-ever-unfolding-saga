@@ -13,6 +13,7 @@ use crate::model::{
 };
 
 const FRONTIER_ANCHOR_CANDIDATES: usize = 16;
+const FRONTIER_ELIGIBILITY_CANDIDATES: usize = 4;
 
 /// Cardinal direction from an existing region into the frontier destination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -159,7 +160,7 @@ fn frontier_has_land_approach(
         frontier.target_region,
         &frontier.location_key(),
         frontier.direction,
-        FRONTIER_ANCHOR_CANDIDATES,
+        FRONTIER_ELIGIBILITY_CANDIDATES,
     )
     .into_iter()
     .any(|candidate| {
@@ -256,10 +257,20 @@ pub fn materialize_frontier(
         if !route.connects(source_location_id, location_id) {
             return Err(FrontierMaterializationError::RouteIdentityConflict);
         }
-        let region_id = world
+        let location = world
             .location_by_id(location_id)
-            .map(|location| location.region_id)
             .ok_or(FrontierMaterializationError::RouteIdentityConflict)?;
+        let region = world
+            .regions
+            .iter()
+            .find(|region| region.id == location.region_id)
+            .ok_or(FrontierMaterializationError::RouteIdentityConflict)?;
+        if region.coordinate != Some(frontier.target_region)
+            || !route.allows_travel(source_location_id, location_id)
+        {
+            return Err(FrontierMaterializationError::RouteIdentityConflict);
+        }
+        let region_id = region.id;
         return Ok(FrontierMaterialization {
             region_id,
             location_id,
@@ -277,6 +288,26 @@ pub fn materialize_frontier(
         .iter()
         .find(|region| region.coordinate == Some(frontier.target_region))
         .map(|region| region.id);
+    if let Some(location_id) = existing_location_id {
+        if location_id == source_location_id {
+            return Err(FrontierMaterializationError::RouteIdentityConflict);
+        }
+        let location = world
+            .location_by_id(location_id)
+            .ok_or(FrontierMaterializationError::RouteIdentityConflict)?;
+        let owning_region = world
+            .regions
+            .iter()
+            .find(|region| region.id == location.region_id)
+            .ok_or(FrontierMaterializationError::RouteIdentityConflict)?;
+        if owning_region.coordinate != Some(frontier.target_region) {
+            return Err(FrontierMaterializationError::RouteIdentityConflict);
+        }
+    }
+    if existing_location_id.is_none() && world.next_id <= source_location_id {
+        return Err(FrontierMaterializationError::RouteIdentityConflict);
+    }
+
     let existing_record = existing_location_id.and_then(|id| {
         world
             .location_geography
@@ -285,7 +316,13 @@ pub fn materialize_frontier(
     });
 
     let (anchor, route_geography, created_location) = if let Some(record) = existing_record {
-        let geography = routes::plan_route(seed, ruleset, source_anchor, record.anchor);
+        let location_id = existing_location_id.expect("existing geography record has a location");
+        let (start, end) = if source_location_id < location_id {
+            (source_anchor, record.anchor)
+        } else {
+            (record.anchor, source_anchor)
+        };
+        let geography = routes::plan_route(seed, ruleset, start, end);
         if geography.status != routes::RoutePlanningStatus::Planned {
             return Err(FrontierMaterializationError::NoLandApproach);
         }
