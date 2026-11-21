@@ -65,11 +65,11 @@ impl ClimateSample {
     }
 
     pub fn moisture(self) -> f32 {
-        f32::from(self.moisture_q16) / Q16_ONE as f32
+        self.moisture_q16 as f32 / Q16_ONE as f32
     }
 
     pub fn precipitation_potential(self) -> f32 {
-        f32::from(self.precipitation_q16) / Q16_ONE as f32
+        self.precipitation_q16 as f32 / Q16_ONE as f32
     }
 }
 
