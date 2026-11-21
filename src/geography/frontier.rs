@@ -196,8 +196,9 @@ pub fn materialize_frontier(
         .find(|record| record.location_id == source_location_id)
         .map(|record| record.anchor)
         .ok_or(FrontierMaterializationError::MissingSource)?;
-    world.location_by_id(source_location_id)
-        .ok_or(FrontierMaterializationError::MissingSource)?;
+    if world.location_by_id(source_location_id).is_none() {
+        return Err(FrontierMaterializationError::MissingSource);
+    }
     let seed = world
         .geography_seed
         .ok_or(FrontierMaterializationError::MissingGeography)?;
