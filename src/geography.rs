@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 pub mod climate;
 pub mod coast;
 pub mod depressions;
+pub mod hydrology;
 pub mod rivers;
 pub mod terrain;
 pub mod waterbodies;
