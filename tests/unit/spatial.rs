@@ -1343,7 +1343,7 @@ fn pending_frontier_passages_are_idempotent_and_upgrade_in_place() {
     assert_eq!(pending.route_id, None);
     assert_eq!(pending.frontier, Some(frontier.clone()));
 
-    configure_map_frontiers(&mut map, &[frontier.clone()]);
+    configure_map_frontiers(&mut map, std::slice::from_ref(&frontier));
     assert_eq!(map.exits, vec![pending.clone()]);
 
     configure_map_routes(
