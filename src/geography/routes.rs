@@ -13,7 +13,7 @@ pub const MAX_CORRIDOR_SAMPLES: usize = 16;
 pub const ROUTE_GRID_SPACING: i64 = 32;
 pub const MAX_ROUTE_SEARCH_NODES: usize = 4_096;
 pub const MAX_ROUTE_GRID_DISTANCE: i32 = 96;
-pub const MAX_ROUTE_PATH_POINTS: usize = 128;
+pub const MAX_ROUTE_PATH_POINTS: usize = 256;
 const SEARCH_MARGIN_CELLS: i32 = 12;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -94,7 +94,7 @@ pub struct RouteCrossing {
 }
 
 /// Persisted, deterministic route geometry and the physical features it crosses.
-/// The path is sampled at a coarse 32-sample interval; it is not local-map geometry.
+/// The path follows a 32-sample search grid with midpoint validation; it is not local-map geometry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteGeography {
     #[serde(default)]
@@ -358,9 +358,32 @@ pub fn plan_route(
                 continue;
             }
 
+            let Some(current_coordinate) =
+                route_node_coordinate(start, end, goal, current)
+            else {
+                continue;
+            };
+            let Some(next_coordinate) = route_node_coordinate(start, end, goal, next) else {
+                continue;
+            };
+            let Some(midpoint) = midpoint(current_coordinate, next_coordinate) else {
+                continue;
+            };
+            let Some(midpoint_terrain) =
+                terrain::sample_surface(world_seed, ruleset_version, midpoint)
+            else {
+                continue;
+            };
+            if !midpoint_terrain.is_land() {
+                continue;
+            }
+
             let movement_cost = if step_x == 0 || step_y == 0 { 100_u64 } else { 141_u64 };
             let slope_cost = u64::from(current_terrain.elevation_q16().abs_diff(next_terrain.elevation_q16())) / 128;
-            let ridge_cost = u64::from(next_terrain.mountain_ridge_strength_q16()) / 64;
+            let ridge_cost = u64::from(
+                midpoint_terrain.mountain_ridge_strength_q16()
+                    .saturating_add(next_terrain.mountain_ridge_strength_q16()),
+            ) / 128;
             let next_cost = current_cost
                 .saturating_add(movement_cost)
                 .saturating_add(slope_cost)
@@ -396,14 +419,24 @@ pub fn plan_route(
     }
     nodes.reverse();
 
-    let mut path = Vec::with_capacity(nodes.len());
+    let mut node_coordinates = Vec::with_capacity(nodes.len());
     for node in nodes {
         let Some(coordinate) = route_node_coordinate(start, end, goal, node) else {
             return RouteGeography::unavailable(RoutePlanningStatus::InvalidEndpoint);
         };
-        if path.last().copied() != Some(coordinate) {
-            path.push(coordinate);
-        }
+        node_coordinates.push(coordinate);
+    }
+
+    let mut path = Vec::with_capacity(node_coordinates.len().saturating_mul(2));
+    if let Some(first) = node_coordinates.first().copied() {
+        path.push(first);
+    }
+    for pair in node_coordinates.windows(2) {
+        let Some(middle) = midpoint(pair[0], pair[1]) else {
+            return RouteGeography::unavailable(RoutePlanningStatus::InvalidEndpoint);
+        };
+        path.push(middle);
+        path.push(pair[1]);
     }
     if path.len() > MAX_ROUTE_PATH_POINTS {
         return RouteGeography::unavailable(RoutePlanningStatus::SearchLimit);
@@ -449,6 +482,12 @@ pub fn ensure_world_route_geography(world: &mut World) -> usize {
         generated += 1;
     }
     generated
+}
+
+fn midpoint(start: MacroCoordinate, end: MacroCoordinate) -> Option<MacroCoordinate> {
+    let x = (i128::from(start.x) + i128::from(end.x)) / 2;
+    let y = (i128::from(start.y) + i128::from(end.y)) / 2;
+    Some(MacroCoordinate::new(i64::try_from(x).ok()?, i64::try_from(y).ok()?))
 }
 
 fn nearest_grid_offset(delta: i128) -> Option<i32> {
