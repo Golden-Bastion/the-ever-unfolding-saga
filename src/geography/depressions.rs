@@ -23,6 +23,7 @@ pub struct DepressionSample {
     floor_elevation_q16: i32,
     spill_elevation_q16: i32,
     basin_cell_count: u16,
+    basin_footprint: [u64; 5],
 }
 
 impl DepressionSample {
@@ -49,6 +50,26 @@ impl DepressionSample {
     /// Number of connected coarse cells below the spill level, including the floor.
     pub const fn basin_cell_count(self) -> u16 {
         self.basin_cell_count
+    }
+
+    /// Whether a coarse watershed cell belongs to this connected basin footprint.
+    pub fn contains_coarse_cell(self, coordinate: MacroCoordinate) -> bool {
+        if coordinate.stratum != 0 {
+            return false;
+        }
+        let basin_x = self.outlet_cell.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
+        let basin_y = self.outlet_cell.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
+        let cell_x = coordinate.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
+        let cell_y = coordinate.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES);
+        let offset_x = cell_x - basin_x + DEPRESSION_SEARCH_RADIUS_CELLS;
+        let offset_y = cell_y - basin_y + DEPRESSION_SEARCH_RADIUS_CELLS;
+        if !(0..WINDOW_SIDE as i64).contains(&offset_x)
+            || !(0..WINDOW_SIDE as i64).contains(&offset_y)
+        {
+            return false;
+        }
+        let index = window_index(offset_x as usize, offset_y as usize);
+        self.basin_footprint[index / 64] & (1_u64 << (index % 64)) != 0
     }
 }
 
@@ -98,7 +119,8 @@ pub fn sample_surface(
         return None;
     }
 
-    let basin_cell_count = count_basin_cells(&elevations, spill_elevation_q16);
+    let basin_footprint = basin_footprint(&elevations, spill_elevation_q16);
+    let basin_cell_count = basin_footprint.iter().map(|word| word.count_ones()).sum::<u32>() as u16;
     if basin_cell_count == 0 {
         return None;
     }
@@ -108,6 +130,7 @@ pub fn sample_surface(
         floor_elevation_q16,
         spill_elevation_q16,
         basin_cell_count,
+        basin_footprint,
     })
 }
 
@@ -165,18 +188,17 @@ fn minimax_spill_elevation(elevations: &[i32; WINDOW_CELL_COUNT]) -> Option<i32>
 }
 
 /// Count the center-connected footprint below the resolved spill level.
-fn count_basin_cells(elevations: &[i32; WINDOW_CELL_COUNT], spill_level: i32) -> u16 {
+fn basin_footprint(elevations: &[i32; WINDOW_CELL_COUNT], spill_level: i32) -> [u64; 5] {
     if elevations[CENTER_INDEX] >= spill_level {
-        return 0;
+        return [0; 5];
     }
 
+    let mut footprint = [0_u64; 5];
     let mut visited = [false; WINDOW_CELL_COUNT];
     let mut pending = VecDeque::from([CENTER_INDEX]);
     visited[CENTER_INDEX] = true;
-    let mut count = 0_u16;
-
     while let Some(index) = pending.pop_front() {
-        count += 1;
+        footprint[index / 64] |= 1_u64 << (index % 64);
         let x = index % WINDOW_SIDE;
         let y = index / WINDOW_SIDE;
 
@@ -199,7 +221,14 @@ fn count_basin_cells(elevations: &[i32; WINDOW_CELL_COUNT], spill_level: i32) ->
         }
     }
 
-    count
+    footprint
+}
+
+fn count_basin_cells(elevations: &[i32; WINDOW_CELL_COUNT], spill_level: i32) -> u16 {
+    basin_footprint(elevations, spill_level)
+        .iter()
+        .map(|word| word.count_ones())
+        .sum::<u32>() as u16
 }
 
 #[cfg(test)]
