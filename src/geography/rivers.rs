@@ -14,7 +14,7 @@ pub const MAX_CONTRIBUTING_CELLS: usize = 128;
 /// Minimum contributing coarse cells required to classify a river channel.
 pub const MIN_RIVER_CONTRIBUTING_CELLS: u16 = 8;
 
-/// Bounded estimate of the land area draining through one coarse cell.
+/// Bounded estimate of the contributing land area and precipitation potential draining through one coarse cell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FlowAccumulation {
     contributing_cells: u16,
@@ -49,7 +49,7 @@ impl FlowAccumulation {
     }
 }
 
-/// River-channel classification and its contributing-area estimate.
+/// River-channel classification and its bounded contributing-area/precipitation estimate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RiverSample {
     coarse_cell: MacroCoordinate,
@@ -94,7 +94,14 @@ pub fn sample_surface(
             truncated: false,
         }
     } else {
-        accumulate_upstream(world_seed, ruleset_version, coarse_cell)
+        let start_precipitation_q16 =
+            climate::sample_surface(world_seed, ruleset_version, coarse_cell)?.precipitation_q16();
+        accumulate_upstream(
+            world_seed,
+            ruleset_version,
+            coarse_cell,
+            start_precipitation_q16,
+        )
     };
 
     Some(RiverSample {
@@ -107,6 +114,7 @@ fn accumulate_upstream(
     world_seed: u64,
     ruleset_version: u32,
     start: MacroCoordinate,
+    start_precipitation_q16: u32,
 ) -> FlowAccumulation {
     let start_key = (
         start.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
@@ -116,8 +124,7 @@ fn accumulate_upstream(
     let mut accepted = BTreeSet::from([start_key]);
     let mut examined = BTreeSet::new();
     let mut contributing_cells = 1usize;
-    let mut precipitation_potential_sum_q16 =
-        u64::from(precipitation_potential_q16(world_seed, ruleset_version, start));
+    let mut precipitation_potential_sum_q16 = u64::from(start_precipitation_q16);
     let mut truncated = false;
 
     while let Some(downstream) = pending.pop_front() {
@@ -196,16 +203,7 @@ fn upstream_precipitation_q16(
         return None;
     }
 
-    Some(precipitation_potential_q16(world_seed, ruleset_version, candidate))
-}
-
-fn precipitation_potential_q16(
-    world_seed: u64,
-    ruleset_version: u32,
-    coordinate: MacroCoordinate,
-) -> u32 {
-    climate::sample_surface(world_seed, ruleset_version, coordinate)
-        .map_or(0, |sample| sample.precipitation_q16())
+    Some(climate::sample_surface(world_seed, ruleset_version, candidate)?.precipitation_q16())
 }
 
 #[cfg(test)]
