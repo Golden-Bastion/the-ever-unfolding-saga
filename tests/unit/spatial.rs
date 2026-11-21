@@ -868,6 +868,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
         id: "location.10.exit.20".into(),
         route_id: None,
         route_profile: None,
+        frontier: None,
         position: GridPosition {
             x: map.width - 1,
             y: 1,
@@ -925,6 +926,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
             id: "location.10.exit.self".into(),
             route_id: None,
             route_profile: None,
+            frontier: None,
             position: first_position,
             target_location_id: 10,
         },
@@ -1109,6 +1111,7 @@ fn map_exit_profile_defaults_when_loading_an_older_saved_passage() {
         id: "location.10.exit.20".into(),
         route_id: None,
         route_profile: None,
+        frontier: None,
         position: GridPosition {
             x: map.width - 1,
             y: 2,
@@ -1172,6 +1175,7 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
         id: "location.10.route.route.east".into(),
         route_id: Some("route.east".into()),
         route_profile: None,
+        frontier: None,
         position,
         target_location_id: 20,
     };
@@ -1184,6 +1188,7 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
             target_location_id: 20,
             profile: Some(RouteProfile::RiverCrossing),
             preferred_side: Some(MapExitSide::North),
+            frontier_id: None,
         }],
     );
 
@@ -1290,6 +1295,7 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
         id: "location.10.exit.20".into(),
         route_id: None,
         route_profile: None,
+        frontier: None,
         position,
         target_location_id: 20,
     });
