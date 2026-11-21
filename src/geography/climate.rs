@@ -5,7 +5,7 @@
 //! increase moisture. Biome classification is a compact environmental layer,
 //! not a planetary climate-zone model.
 
-use super::{terrain, MacroCoordinate};
+use super::{coast, terrain, MacroCoordinate};
 
 const Q16_ONE: i64 = 1 << 16;
 const TEMPERATURE_BROAD_CELL: i64 = 16_384;
@@ -125,7 +125,8 @@ pub fn sample_surface(
     let moisture = apply_ocean_moisture(base_moisture, ocean_influence);
 
     let precipitation = precipitation_potential(moisture, temperature);
-    let coast = terrain.is_land() && has_adjacent_ocean(world_seed, ruleset_version, coordinate);
+    let coast = coast::sample_surface(world_seed, ruleset_version, coordinate)
+        .is_some_and(|sample| sample.is_coastal_land());
     let biome = classify_biome(terrain.elevation_q16(), temperature, moisture, coast);
 
     Some(ClimateSample {
@@ -168,33 +169,6 @@ fn classify_biome(elevation: i32, temperature: i64, moisture: i64, coast: bool) 
     } else {
         Biome::Grassland
     }
-}
-
-fn has_adjacent_ocean(world_seed: u64, ruleset_version: u32, coordinate: MacroCoordinate) -> bool {
-    for (dx, dy) in [
-        (-1, -1),
-        (0, -1),
-        (1, -1),
-        (-1, 0),
-        (1, 0),
-        (-1, 1),
-        (0, 1),
-        (1, 1),
-    ] {
-        let Some(x) = coordinate.x.checked_add(dx) else {
-            continue;
-        };
-        let Some(y) = coordinate.y.checked_add(dy) else {
-            continue;
-        };
-        let neighbor = MacroCoordinate::new(x, y);
-        if terrain::sample_surface(world_seed, ruleset_version, neighbor)
-            .is_some_and(|sample| !sample.is_land())
-        {
-            return true;
-        }
-    }
-    false
 }
 
 fn ocean_moisture_influence(
