@@ -66,7 +66,11 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
     let original_history = first.history.clone();
     let original_maps = first.local_maps.clone();
     let original_region_ids = first.regions.iter().map(|region| region.id).collect::<Vec<_>>();
-    let original_location_ids = first.locations.iter().map(|location| location.id).collect::<Vec<_>>();
+    let original_location_ids = first
+        .locations
+        .iter()
+        .map(|location| location.id)
+        .collect::<Vec<_>>();
     ensure_location_geography(&mut first, None);
     ensure_location_geography(&mut second, None);
 
@@ -91,8 +95,14 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
     assert_eq!(first.history[0].turn, original_history[0].turn);
     assert_eq!(first.history[0].text, original_history[0].text);
     assert_eq!(first.local_maps, original_maps);
-    assert_eq!(first.regions.iter().map(|region| region.id).collect::<Vec<_>>(), original_region_ids);
-    assert_eq!(first.locations.iter().map(|location| location.id).collect::<Vec<_>>(), original_location_ids);
+    assert_eq!(
+        first.regions.iter().map(|region| region.id).collect::<Vec<_>>(),
+        original_region_ids
+    );
+    assert_eq!(
+        first.locations.iter().map(|location| location.id).collect::<Vec<_>>(),
+        original_location_ids
+    );
     assert_eq!(first.geography_embedding_version, 1);
 }
 
