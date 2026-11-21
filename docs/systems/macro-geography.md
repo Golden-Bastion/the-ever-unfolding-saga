@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines renderer-independent world coordinates and deterministic terrain, shoreline, and climate fields. It does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic terrain, shoreline, climate, and hierarchical watershed fields. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
@@ -39,6 +39,14 @@ Implemented in v0.53.4:
 - Climate biome classification now consumes the shared shoreline sampler instead of maintaining a duplicate adjacency check.
 - Shoreline sampling rejects underground strata and introduces no persisted state or save migration.
 
+Implemented in v0.53.5:
+
+- `watershed::sample_surface` exposes a coarse drainage cell on a 4,096-sample lattice, its strictly lower downstream coarse cell, and local D8 drainage direction within the same coarse cell.
+- Coarse downstream links select the lowest lower neighbor, with signed-coordinate tie-breaking for stable results. Strictly decreasing representative elevation makes the coarse drainage graph acyclic.
+- `watershed::trace_to_outlet` follows the coarse network to ocean or a closed inland basin. Traces have a fixed 128-link bound and report `SearchLimit` explicitly rather than inventing an outlet.
+- Local depressions do not erase the larger-scale downstream link. The coarse network and local D8 sample are exposed separately so later depression handling and river accumulation can build on them.
+- All samples are derived on demand from the existing fixed-point terrain field. Sampling rejects underground strata, handles negative coordinates through Euclidean cell partitioning, and introduces no persisted state or save migration.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -49,7 +57,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 The current elevation field is the first physical geography layer, not a complete terrain simulation. Still required:
 
-- Watersheds, drainage direction, rivers, lakes, and connected water systems.
+- River-channel extraction, flow accumulation, lake/depression resolution, and connected water-system generation.
 - Mountain ranges and other major terrain barriers.
 - A dedicated underground-strata generator for caves and underground networks.
 - Geography-aware location footprints, route constraints, and on-demand frontier integration.
