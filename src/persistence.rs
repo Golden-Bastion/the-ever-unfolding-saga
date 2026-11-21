@@ -200,6 +200,9 @@ pub fn load_game_with_metadata(path: &Path) -> io::Result<LoadedSave> {
         }
     }
     game.campaign_content = Some(content);
+    if let Some(content) = game.campaign_content.as_ref() {
+        crate::geography::locations::ensure_location_geography(&mut game.world, Some(content));
+    }
     Ok(LoadedSave {
         game,
         mod_dependencies,

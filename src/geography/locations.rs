@@ -11,7 +11,9 @@ const PLACEMENT_CANDIDATES: u64 = 128;
 /// Attach deterministic geography to every region and location that lacks it.
 /// Existing coordinates and anchors always win; no IDs, routes, history, or maps are changed.
 pub fn ensure_location_geography(world: &mut World, content: Option<&CampaignContent>) {
-    let seed = world.geography_seed.unwrap_or_else(|| compatibility_seed(world));
+    let seed = world.geography_seed
+        .or_else(|| world.generation.as_ref().map(|generation| generation.seed))
+        .unwrap_or_else(|| compatibility_seed(world));
     world.geography_seed = Some(seed);
     let ruleset = if world.geography_ruleset_version != 0 {
         world.geography_ruleset_version
@@ -24,12 +26,16 @@ pub fn ensure_location_geography(world: &mut World, content: Option<&CampaignCon
     let authored = content.map(|c| c.world.locations.iter()
         .map(|location| (location.name.as_str(), location)).collect::<BTreeMap<_, _>>());
 
+    let mut region_ordinals = BTreeMap::<u64, usize>::new();
     for location in &world.locations {
         let Some(region) = world.regions.iter().find(|r| r.id == location.region_id) else { continue; };
         let Some(region_coordinate) = region.coordinate else { continue; };
         let authored_location = authored.as_ref().and_then(|entries| entries.get(location.name.as_str()).copied());
+        let ordinal = region_ordinals.entry(location.region_id).or_default();
+        let generated_key = format!("location.generated.{}.{}.{}", region_coordinate.x, region_coordinate.y, *ordinal);
+        *ordinal += 1;
         let stable_key = authored_location.map(|entry| format!("location.content.{}", entry.id))
-            .unwrap_or_else(|| format!("location.compat.{}", location.id));
+            .unwrap_or_else(|| if world.generation.is_some() { generated_key } else { format!("location.compat.{}", location.id) });
         if let Some(existing) = world.location_geography.iter_mut().find(|r| r.location_id == location.id) {
             if existing.stable_key.starts_with("location.compat.") && authored_location.is_some() {
                 existing.stable_key = stable_key;
@@ -42,7 +48,7 @@ pub fn ensure_location_geography(world: &mut World, content: Option<&CampaignCon
         let radius = authored_location.and_then(|e| e.geography.as_ref())
             .and_then(|g| g.footprint_radius_samples)
             .unwrap_or(DEFAULT_FOOTPRINT_RADIUS_SAMPLES).min(32);
-        let anchor = authored_anchor.unwrap_or_else(|| choose_anchor(seed, ruleset, region_coordinate, location.id, &stable_key, radius));
+        let anchor = authored_anchor.unwrap_or_else(|| choose_anchor(seed, ruleset, region_coordinate, &stable_key, radius));
         let footprint_radius_samples = if authored_anchor.is_some() { radius } else { validated_footprint_radius(seed, ruleset, anchor, radius) };
         world.location_geography.push(LocationGeographyRecord { location_id: location.id, stable_key, anchor, footprint_radius_samples });
     }
@@ -113,9 +119,9 @@ fn embed_missing_region_coordinates(world: &mut World) {
     }
 }
 
-fn choose_anchor(seed: u64, ruleset: u32, region: RegionCoordinate, location_id: u64, stable_key: &str, radius: u16) -> MacroCoordinate {
+fn choose_anchor(seed: u64, ruleset: u32, region: RegionCoordinate, stable_key: &str, radius: u16) -> MacroCoordinate {
     let Some(origin) = region.global_sample(0, 0) else { return MacroCoordinate::ORIGIN; };
-    let key_hash = stable_key.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x100_0000_01b3)) ^ location_id.rotate_left(19);
+    let key_hash = stable_key.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x100_0000_01b3));
     let mut best: Option<(i64, MacroCoordinate)> = None;
     for index in 0..PLACEMENT_CANDIDATES {
         let random = coordinate_seed(seed ^ key_hash, ruleset.wrapping_add(index as u32), origin);

@@ -106,6 +106,9 @@ fn merge_world_locations(base: &mut Vec<LocationContent>, incoming: Vec<Location
                 |discovery| discovery.id.clone(),
             );
             location.spatial_discoveries = discoveries;
+            if location.geography.is_none() {
+                location.geography = existing.geography.clone();
+            }
         }
         merge_vec_by_key(base, vec![location], |entry| entry.id.clone());
     }
