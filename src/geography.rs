@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 pub mod climate;
 pub mod coast;
 pub mod terrain;
+pub mod watershed;
 
 /// Number of macro-geography samples along each side of a region chunk.
 pub const REGION_SAMPLE_RESOLUTION: u16 = 256;
