@@ -541,8 +541,14 @@ fn watershed_sampling_is_deterministic_and_rejects_underground() {
     let repeated = watershed::sample_surface(1_337, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
 
     assert_eq!(first, repeated);
-    assert_eq!(first.coarse_cell().x.rem_euclid(watershed::WATERSHED_CELL_SAMPLES), watershed::WATERSHED_CELL_SAMPLES / 2);
-    assert_eq!(first.coarse_cell().y.rem_euclid(watershed::WATERSHED_CELL_SAMPLES), watershed::WATERSHED_CELL_SAMPLES / 2);
+    assert_eq!(
+        first.coarse_cell().x.rem_euclid(watershed::WATERSHED_CELL_SAMPLES),
+        watershed::WATERSHED_CELL_SAMPLES / 2
+    );
+    assert_eq!(
+        first.coarse_cell().y.rem_euclid(watershed::WATERSHED_CELL_SAMPLES),
+        watershed::WATERSHED_CELL_SAMPLES / 2
+    );
     assert!(watershed::sample_surface(
         1_337,
         GEOGRAPHY_RULESET_VERSION,
@@ -563,12 +569,19 @@ fn watershed_coarse_links_are_strictly_downhill_and_region_independent() {
         MacroCoordinate::new(4_095, 4_096),
         MacroCoordinate::new(8_192, -8_193),
     ];
-    let forward = coordinates.iter().map(|coordinate| {
-        watershed::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
-    }).collect::<Vec<_>>();
-    let reverse = coordinates.iter().rev().map(|coordinate| {
-        watershed::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
-    }).collect::<Vec<_>>();
+    let forward = coordinates
+        .iter()
+        .map(|coordinate| {
+            watershed::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
+    let reverse = coordinates
+        .iter()
+        .rev()
+        .map(|coordinate| {
+            watershed::sample_surface(8_201, GEOGRAPHY_RULESET_VERSION, *coordinate).unwrap()
+        })
+        .collect::<Vec<_>>();
     assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
 
     for sample in forward {
@@ -587,9 +600,8 @@ fn watershed_local_d8_directions_stay_inside_their_coarse_cell() {
     for y in (-8_192..8_192).step_by(257) {
         for x in (-8_192..8_192).step_by(257) {
             let coordinate = MacroCoordinate::new(x, y);
-            let sample = watershed::sample_surface(
-                4_771, GEOGRAPHY_RULESET_VERSION, coordinate
-            ).unwrap();
+            let sample =
+                watershed::sample_surface(4_771, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
             if let Some(direction) = sample.local_direction() {
                 let (dx, dy) = direction.offset();
                 let neighbor = MacroCoordinate::new(x + dx, y + dy);
@@ -612,8 +624,10 @@ fn watershed_local_d8_directions_stay_inside_their_coarse_cell() {
 #[test]
 fn watershed_outlet_traces_are_bounded_and_deterministic() {
     let coordinate = MacroCoordinate::new(-12_345, 6_789);
-    let first = watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
-    let repeated = watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let first =
+        watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+    let repeated =
+        watershed::trace_to_outlet(912, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
     assert_eq!(first, repeated);
     assert!(usize::from(first.steps()) <= watershed::MAX_OUTLET_TRACE_STEPS);
     if first.kind() == watershed::OutletKind::SearchLimit {
