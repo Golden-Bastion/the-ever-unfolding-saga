@@ -24,6 +24,7 @@ const DETAIL_CHANNEL: u32 = 0x4445_5441;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SurfaceTerrainSample {
     elevation_q16: i32,
+    mountain_ridge_strength_q16: u32,
 }
 
 impl SurfaceTerrainSample {
@@ -43,6 +44,23 @@ impl SurfaceTerrainSample {
     /// Whether this sample lies above the generated sea-level threshold.
     pub const fn is_land(self) -> bool {
         self.elevation_q16 > 0
+    }
+
+    /// Normalized mountain-ridge strength in unsigned Q16.
+    ///
+    /// Route-corridor selection can use this as a soft terrain-barrier signal:
+    /// lower values identify weaker parts of a ridge belt, which may provide
+    /// more practical crossing corridors. It is not a universal passability rule.
+    pub const fn mountain_ridge_strength_q16(self) -> u32 {
+        self.mountain_ridge_strength_q16
+    }
+
+    /// Whether this sample lies within a strong mountain-ridge barrier.
+    ///
+    /// A mountain barrier is difficult terrain, not an absolute prohibition
+    /// on crossing. Roads, trails, and passes may still cross it.
+    pub const fn is_mountain_barrier(self) -> bool {
+        self.mountain_ridge_strength_q16 >= 42_000
     }
 }
 
@@ -67,6 +85,7 @@ pub fn sample_surface(
     Some(SurfaceTerrainSample {
         elevation_q16: (i64::from(base_elevation) + i64::from(mountain.uplift_q16()))
             .clamp(-Q16_ONE, Q16_ONE) as i32,
+        mountain_ridge_strength_q16: mountain.ridge_strength_q16(),
     })
 }
 
