@@ -34,6 +34,30 @@ impl RouteCorridorAssessment {
 ///
 /// Long corridors are marked undersampled. Water and mountain signals remain
 /// distinct so later route selection cannot mistake uncertain terrain for land.
+/// Assess an existing world route using its persisted endpoint geography.
+pub fn assess_world_route(
+    world: &crate::model::World,
+    route_id: &str,
+) -> Option<RouteCorridorAssessment> {
+    let route = world.route_by_id(route_id)?;
+    let start = world
+        .location_geography
+        .iter()
+        .find(|record| record.location_id == route.location_a_id)?
+        .anchor;
+    let end = world
+        .location_geography
+        .iter()
+        .find(|record| record.location_id == route.location_b_id)?
+        .anchor;
+    assess_corridor(
+        world.geography_seed?,
+        world.geography_ruleset_version,
+        start,
+        end,
+    )
+}
+
 pub fn assess_corridor(
     world_seed: u64,
     ruleset_version: u32,

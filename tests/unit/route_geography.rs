@@ -31,3 +31,57 @@ fn corridor_rejects_underground_endpoints() {
     )
     .is_none());
 }
+
+#[test]
+fn world_route_assessment_uses_persisted_location_anchors() {
+    use crate::geography::locations::ensure_location_geography;
+    use crate::model::{Location, Region, RouteDirection, World, WorldMode, WorldRoute};
+
+    let mut world = World::new("Route test", WorldMode::New);
+    world.generation = Some(crate::model::WorldGenerationMetadata {
+        seed: 88,
+        region_count: 1,
+        location_count: 2,
+        extra_edges: 0,
+        geography_ruleset_version: GEOGRAPHY_RULESET_VERSION,
+    });
+    world.regions.push(Region {
+        id: 2,
+        name: "Test".into(),
+        description: String::new(),
+        location_ids: vec![3, 4],
+        coordinate: Some(crate::geography::RegionCoordinate::ORIGIN),
+    });
+    world.locations = vec![
+        Location {
+            id: 3,
+            name: "Start".into(),
+            description: String::new(),
+            region_id: 2,
+            dangerous: false,
+            corpse_ids: Vec::new(),
+            exits: Vec::new(),
+            spatial_layout: None,
+        },
+        Location {
+            id: 4,
+            name: "End".into(),
+            description: String::new(),
+            region_id: 2,
+            dangerous: false,
+            corpse_ids: Vec::new(),
+            exits: Vec::new(),
+            spatial_layout: None,
+        },
+    ];
+    world.add_route(WorldRoute::new(
+        "route.test",
+        3,
+        4,
+        RouteDirection::Bidirectional,
+    ));
+    ensure_location_geography(&mut world, None);
+
+    assert!(assess_world_route(&world, "route.test").is_some());
+    assert!(assess_world_route(&world, "missing").is_none());
+}
