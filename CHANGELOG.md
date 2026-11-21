@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.8: Precipitation-weighted river accumulation
+
+- Extended bounded reverse-watershed accumulation to sum each contributing coarse cell's deterministic climate precipitation-potential value alongside contributing area.
+- Exposed the sum as an unsigned Q16 × coarse-cell relative index. It is not a physical discharge or water-volume estimate; existing river-channel classification remains area-based until flow thresholds can be calibrated against a fuller water model.
+- Preserved the 128-contributor and 1,024-neighbor-candidate bounds. Truncated results expose lower-bound contributing counts and precipitation sums.
+- Added automated coverage for deterministic weighted accumulation, upstream/downstream contribution inclusion, fixed-point bounds, negative coordinates, region ownership, and underground rejection.
+- Kept hydrology renderer-independent, on-demand, and free of persisted state or save-format changes.
+- Bumped Rust and Android version metadata to 0.53.8.
+
 ### v0.53.7: Bounded depression and spill analysis
 
 - Added deterministic closed-basin resolution by tracing the existing coarse watershed to an inland sink, then finding its lowest local spill level with a minimax flood over a fixed 17 × 17 coarse-cell window.
