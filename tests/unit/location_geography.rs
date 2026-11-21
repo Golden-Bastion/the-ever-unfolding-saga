@@ -49,6 +49,13 @@ fn legacy_world() -> World {
         11,
         RouteDirection::Bidirectional,
     ));
+    world.record_history(3, "A memory from before geography embedding.");
+    world.next_id = 30;
+    world.local_maps.push(crate::spatial::generate_local_map(
+        77,
+        "location.10",
+        crate::spatial::LocalMapConfig::default(),
+    ));
     world
 }
 
@@ -56,6 +63,10 @@ fn legacy_world() -> World {
 fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
     let mut first = legacy_world();
     let mut second = legacy_world();
+    let original_history = first.history.clone();
+    let original_maps = first.local_maps.clone();
+    let original_region_ids = first.regions.iter().map(|region| region.id).collect::<Vec<_>>();
+    let original_location_ids = first.locations.iter().map(|location| location.id).collect::<Vec<_>>();
     ensure_location_geography(&mut first, None);
     ensure_location_geography(&mut second, None);
 
@@ -73,9 +84,12 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
             .collect::<Vec<_>>()
     );
     assert_eq!(first.location_geography, second.location_geography);
-    assert_eq!(first.next_id, 20);
+    assert_eq!(first.next_id, 30);
     assert_eq!(first.routes.len(), 1);
-    assert!(first.history.is_empty());
+    assert_eq!(first.history, original_history);
+    assert_eq!(first.local_maps, original_maps);
+    assert_eq!(first.regions.iter().map(|region| region.id).collect::<Vec<_>>(), original_region_ids);
+    assert_eq!(first.locations.iter().map(|location| location.id).collect::<Vec<_>>(), original_location_ids);
     assert_eq!(first.geography_embedding_version, 1);
 }
 
