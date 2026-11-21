@@ -22,6 +22,7 @@ mod desktop_window;
 mod events;
 mod game;
 mod game_paths;
+pub mod geography;
 mod input;
 mod interaction_actions;
 mod mod_manager;

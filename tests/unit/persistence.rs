@@ -48,6 +48,12 @@ fn compressed_save_round_trips() {
     });
 
     let generation = state.world.generation;
+    let original_region_coordinates = state
+        .world
+        .regions
+        .iter()
+        .map(|region| region.coordinate)
+        .collect::<Vec<_>>();
     let original_description = state.world.locations[0].description.clone();
     let original_exits = state.world.locations[0].exits.clone();
     state.world.locations[0].description = "A scar left by the first warden.".to_string();
@@ -79,6 +85,15 @@ fn compressed_save_round_trips() {
     );
     assert_eq!(loaded.rng_state, state.rng_state);
     assert_eq!(loaded.world.generation, generation);
+    assert_eq!(
+        loaded
+            .world
+            .regions
+            .iter()
+            .map(|region| region.coordinate)
+            .collect::<Vec<_>>(),
+        original_region_coordinates
+    );
     assert_eq!(loaded.world.locations[0].description, mutated_description);
     assert_ne!(loaded.world.locations[0].description, original_description);
     assert_eq!(loaded.world.locations[0].exits, original_exits);
@@ -138,7 +153,7 @@ fn save_list_metadata_exposes_character_world_and_format_details() {
     assert_eq!(metadata.mod_dependency_count, 1);
     assert_eq!(
         metadata.details_line(),
-        "Level 4 | The Cinder March | Day 12 | Format v5 | 1 mod"
+        "Level 4 | The Cinder March | Day 12 | Format v6 | 1 mod"
     );
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }
@@ -554,5 +569,59 @@ fn version_four_save_migrates_legacy_edges_and_passages_without_allocating_ids()
     let migrated_again = crate::persistence::normalize_loaded_game(loaded.clone(), 4);
     assert_eq!(migrated_again.world.routes, loaded.world.routes);
     assert_eq!(migrated_again.world.next_id, expected_next_id);
+    fs::remove_dir_all(&dir).expect("temporary directory should be removed");
+}
+
+#[test]
+fn version_five_save_defaults_unembedded_geography_fields() {
+    let dir = temp_dir();
+    let path = dir.join("version-five-geography-defaults.json");
+    let state = create_new_state(
+        "Legacy Geography World",
+        WorldMode::New,
+        "Legacy Warden".to_string(),
+        "Ash Walker".to_string(),
+    );
+    let payload = SaveFile {
+        save_file_version: 5,
+        game: &state,
+        runtime_generated_events: Vec::new(),
+        mod_dependencies: Vec::new(),
+    };
+    let mut json: serde_json::Value =
+        serde_json::to_value(payload).expect("version-five payload should serialize");
+    let world = json["game"]["world"]
+        .as_object_mut()
+        .expect("world should be an object");
+    for region in world["regions"]
+        .as_array_mut()
+        .expect("regions should be an array")
+    {
+        region
+            .as_object_mut()
+            .expect("region should be an object")
+            .remove("coordinate");
+    }
+    world["generation"]
+        .as_object_mut()
+        .expect("generation metadata should be an object")
+        .remove("geography_ruleset_version");
+    fs::write(
+        &path,
+        serde_json::to_vec(&json).expect("version-five save should serialize"),
+    )
+    .expect("version-five save should be written");
+
+    let loaded = load_game(&path).expect("version-five save should remain loadable");
+    assert!(loaded
+        .world
+        .regions
+        .iter()
+        .all(|region| region.coordinate.is_none()));
+    assert_eq!(
+        loaded.world.generation.unwrap().geography_ruleset_version,
+        0,
+        "legacy worlds must remain explicitly unembedded until compatibility migration"
+    );
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
 }

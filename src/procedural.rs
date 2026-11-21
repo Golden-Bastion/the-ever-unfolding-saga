@@ -1,4 +1,5 @@
 use crate::content::CampaignContent;
+use crate::geography::RegionCoordinate;
 use crate::model::{Location, Region, RouteDirection, World, WorldMode, WorldRoute};
 use crate::rng::DeterministicRng;
 
@@ -52,6 +53,7 @@ pub fn generate_world(
             name: format!("Region {:02}", index + 1),
             description: format!("A generated region shaped by seed {seed:016x}."),
             location_ids: Vec::new(),
+            coordinate: Some(RegionCoordinate::new(index as i64, 0)),
         });
         region_ids.push(id);
     }

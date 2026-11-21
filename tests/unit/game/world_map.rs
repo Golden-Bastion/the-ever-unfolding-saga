@@ -18,6 +18,7 @@ fn test_state() -> GameState {
         name: "Ashen Vale".to_string(),
         description: "A valley of old roads.".to_string(),
         location_ids: vec![10, 11, 12, 13, 14],
+        coordinate: None,
     }];
     state.world.locations = vec![
         location(10, "Crossroads", vec![11, 12]),

@@ -145,7 +145,7 @@ This resolves whether legacy worlds should be embedded or left behind. The exact
 ## Design decisions still open for coordinate-backed topology
 
 - **Authored placement contract:** Which placement, footprint, and connection-point constraints belong on `RegionContent` and `LocationContent`, and how should authored IDs be retained in saved runtime entities when display names change?
-- **Geography scale:** What are region dimensions and macro-geography sampling resolution? The design deliberately leaves universal local tile sizes and continuous global terrain implementation details open.
+- **Geography scale (resolved 21 November 2026):** each region is a signed chunk of 256 × 256 macro samples. `RegionCoordinate` identifies chunks and `MacroCoordinate` identifies positions in the shared global sample lattice; both include a vertical stratum index, with zero for the surface and negative values for underground layers. This is separate from local-map tile dimensions; continuous terrain sampling/interpolation remains future implementation work.
 - **Geographic route-to-passage contract:** The v0.53 route layer now gives each passage a stable route ID and reconciles newly added routes into unused edge positions without moving established passages. The later geography layer still needs to define how route endpoints and physical connection points conform to terrain and regional boundaries.
 
 ## Focused validation required by later implementation stages
@@ -181,3 +181,15 @@ The first route-identity layer was implemented after this audit was merged.
 - Travel, known-route fast-travel traversal, World Map route views, procedural generation, authored seeding, and World Lab route editing now use persistent route records. Physical passage interactions validate the passage's specific route ID.
 
 This layer intentionally does not yet define route type/profile, terrain constraints, macro-geographic route geometry, distance, travel cost, or route discovery state. Those remain dependent on the coordinate-backed world topology design and are not implied by this implementation.
+
+
+## Implementation follow-up — macro-geography coordinate foundation
+
+The first coordinate-contract stage is implemented on the v0.53.x development line.
+
+- Added signed `RegionCoordinate` and `MacroCoordinate` value types with checked region-to-global conversion and Euclidean global-to-region partitioning, including negative coordinates.
+- Fixed the initial region chunk resolution at 256 × 256 macro samples.
+- Added stable coordinate-derived sample seeds keyed by world seed, geography ruleset version, and global sample coordinate. Sampling order and runtime entity allocation do not affect the result.
+- New generated worlds persist distinct coordinates for their initial regions. Direct authored seeding into an otherwise empty world anchors its first region at the origin.
+- Added optional region coordinates and a geography ruleset marker to persistent world data. Pre-geography saves deserialize with unassigned coordinates and ruleset version zero; the deterministic legacy-world embedding remains a separate migration stage.
+- The coordinate module defines no terrain fields or physical geography yet. Authored placement constraints, terrain sampling/interpolation, route-to-terrain validation, and legacy embedding remain outstanding.

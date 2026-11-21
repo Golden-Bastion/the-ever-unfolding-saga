@@ -18,6 +18,7 @@ fn generated_world() -> World {
         region_count: 4,
         location_count: 16,
         extra_edges: 8,
+        geography_ruleset_version: crate::geography::GEOGRAPHY_RULESET_VERSION,
     });
     world
 }
