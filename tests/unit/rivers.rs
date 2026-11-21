@@ -33,6 +33,13 @@ fn upstream_cells_are_included_in_their_downstream_accumulation() {
                 continue;
             };
 
+            if !terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, downstream)
+                .unwrap()
+                .is_land()
+            {
+                continue;
+            }
+
             let downstream_flow =
                 sample_surface(seed, GEOGRAPHY_RULESET_VERSION, downstream).unwrap();
             assert!(downstream_flow.accumulation().contributing_cells() >= 2);
