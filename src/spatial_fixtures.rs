@@ -257,12 +257,23 @@ fn validate_local_map(map: &LocalMap) -> Result<(), String> {
         .and_then(|id| id.parse::<u64>().ok());
     let mut exit_ids = HashSet::new();
     let mut route_ids = HashSet::new();
+    let mut frontier_ids = HashSet::new();
     let mut legacy_destinations = HashSet::new();
     for exit in &map.exits {
         if exit.id.trim().is_empty() || !exit_ids.insert(exit.id.as_str()) {
             return Err("passage IDs must be non-empty and unique".to_string());
         }
-        if exit.target_location_id == 0 || source_location_id == Some(exit.target_location_id) {
+        if let Some(frontier) = exit.frontier.as_ref() {
+            if frontier.id.trim().is_empty()
+                || exit.target_location_id != 0
+                || exit.route_id.is_some()
+            {
+                return Err("pending frontier passages require a stable frontier ID and no route destination".to_string());
+            }
+            if !frontier_ids.insert(frontier.id.as_str()) {
+                return Err("frontier passage identities must be non-empty and unique".to_string());
+            }
+        } else if exit.target_location_id == 0 || source_location_id == Some(exit.target_location_id) {
             return Err(
                 "passage destinations must be non-zero and different from the source location"
                     .to_string(),
