@@ -92,7 +92,7 @@ pub fn sample_surface(
     })
 }
 
-fn value_noise(
+pub(crate) fn value_noise(
     world_seed: u64,
     ruleset_version: u32,
     coordinate: MacroCoordinate,
