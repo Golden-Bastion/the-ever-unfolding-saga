@@ -78,6 +78,33 @@ fn upstream_cells_are_included_in_their_downstream_accumulation() {
 }
 
 #[test]
+fn ocean_samples_have_no_river_flow_or_precipitation_sum() {
+    let seed = 8_211;
+    let mut ocean_coordinate = None;
+
+    'search: for coarse_y in -32..=32 {
+        for coarse_x in -32..=32 {
+            let Some(coordinate) = watershed::cell_center(coarse_x, coarse_y) else {
+                continue;
+            };
+            if terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                .is_some_and(|sample| !sample.is_land())
+            {
+                ocean_coordinate = Some(coordinate);
+                break 'search;
+            }
+        }
+    }
+
+    let coordinate = ocean_coordinate.expect("expected ocean in the deterministic search area");
+    let sample = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+
+    assert_eq!(sample.accumulation().contributing_cells(), 0);
+    assert_eq!(sample.accumulation().precipitation_potential_sum_q16(), 0);
+    assert!(!sample.is_channel());
+}
+
+#[test]
 fn river_sampler_rejects_underground_strata() {
     assert!(sample_surface(
         8_211,
