@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, and underground cave-network fields. It does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, and bounded route-corridor assessment. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
