@@ -199,13 +199,9 @@ pub fn connection_targets_for_location(
             else {
                 continue;
             };
-            let Some(neighbor) = neighboring_chamber_center(
-                seed,
-                ruleset,
-                cell_x,
-                cell_y,
-                chamber.stratum,
-            ) else {
+            let Some(neighbor) =
+                neighboring_chamber_center(seed, ruleset, cell_x, cell_y, chamber.stratum)
+            else {
                 continue;
             };
             targets.push(CaveConnectionTarget {
