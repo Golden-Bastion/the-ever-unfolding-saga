@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.20: Route connection placement and semantic presentation
+
+- New ordinary route and frontier passages now prefer the middle of their selected map edge, expanding outward for additional connections instead of starting at a corner. Existing saved passage positions and IDs are never moved.
+- Route allocation remains deterministic and continues to honor macro-geography heading preferences, authored gate thresholds, and fallback compass sides.
+- Added renderer-neutral semantic categories for frontiers, trails, mountain passes, river/water crossings, mixed or uncertain routes, unclassified legacy routes, cave entrances, vertical shafts, and horizontal cave passages.
+- The spatial renderer now applies restrained provisional tints to those categories. These are interim distinctions, not substitutes for dedicated assets; the remaining art requirements are recorded in [#491](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/491).
+- Advanced the local-map generator version to 7. This does not regenerate established maps; newly introduced passages use the improved placement while old passage identities and positions remain intact.
+- Added automated coverage for centered route/frontier placement and semantic presentation classification.
+- Bumped Rust and Android metadata to 0.53.20.
+
 ### v0.53.19: Physical cave transitions on local maps
 
 - Added persistent cave-transition metadata to local-map passages, with backward-compatible defaults for maps saved before cave topology integration.
