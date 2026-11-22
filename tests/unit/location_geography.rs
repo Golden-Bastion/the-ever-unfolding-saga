@@ -115,7 +115,7 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
             .collect::<Vec<_>>(),
         original_location_ids
     );
-    assert_eq!(first.geography_embedding_version, 1);
+    assert_eq!(first.geography_embedding_version, 2);
 }
 
 #[test]
