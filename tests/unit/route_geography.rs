@@ -1,3 +1,7 @@
+use crate::geography::routes::{assess_corridor, assess_world_route, MAX_CORRIDOR_SAMPLES};
+use crate::geography::{MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
+use crate::geography::routes::ROUTE_GRID_SPACING;
+
 fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
     use crate::geography::{terrain, waterbodies, watershed};
 
@@ -66,10 +70,6 @@ fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
     }
     None
 }
-
-use crate::geography::routes::{assess_corridor, assess_world_route, MAX_CORRIDOR_SAMPLES};
-use crate::geography::{MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
-use crate::geography::routes::ROUTE_GRID_SPACING;
 
 #[test]
 fn corridor_assessment_is_deterministic_and_bounded() {
@@ -586,6 +586,8 @@ fn exact_river_bank_metadata_roundtrips_and_old_records_default_empty() {
                 y_q16: 12 * RIVER_POSITION_SCALE + RIVER_POSITION_SCALE / 4,
             },
         }),
+        lake_id: None,
+        lake_banks: None,
     };
     let encoded = serde_json::to_value(&crossing).unwrap();
     let decoded: crate::geography::routes::RouteCrossing = serde_json::from_value(encoded).unwrap();
