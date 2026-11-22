@@ -2217,9 +2217,15 @@ fn render_spatial_screen(
         let exit_position = map_to_world(exit_grid, Some(map));
         if let Some(image) = assets.passage_image.clone() {
             let color = match exit.cave_target.as_ref().map(|target| target.kind) {
-                Some(crate::geography::caves::CaveConnectionKind::SurfaceEntrance) => Color::srgb(0.62, 0.48, 0.34),
-                Some(crate::geography::caves::CaveConnectionKind::VerticalShaft) => Color::srgb(0.55, 0.58, 0.62),
-                Some(crate::geography::caves::CaveConnectionKind::HorizontalPassage) => Color::srgb(0.68, 0.62, 0.50),
+                Some(crate::geography::caves::CaveConnectionKind::SurfaceEntrance) => {
+                    Color::srgb(0.62, 0.48, 0.34)
+                }
+                Some(crate::geography::caves::CaveConnectionKind::VerticalShaft) => {
+                    Color::srgb(0.55, 0.58, 0.62)
+                }
+                Some(crate::geography::caves::CaveConnectionKind::HorizontalPassage) => {
+                    Color::srgb(0.68, 0.62, 0.50)
+                }
                 None => Color::WHITE,
             };
             commands.spawn((
