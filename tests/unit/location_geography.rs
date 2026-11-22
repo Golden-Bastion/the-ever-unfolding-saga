@@ -241,8 +241,18 @@ fn settlement_archetype_prefers_freshwater_and_flatter_ground() {
         20_000,
     );
 
+    let water_nearby_without_full_footprint = anchor_candidate_score(
+        LocationArchetype::Settlement,
+        20_000,
+        10_000,
+        false,
+        true,
+        2_000,
+    );
+
     assert!(with_water > without_water);
     assert!(without_water > rough_ground);
+    assert!(without_water > water_nearby_without_full_footprint);
 }
 
 #[test]
