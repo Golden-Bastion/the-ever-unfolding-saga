@@ -3054,7 +3054,6 @@ fn spawn_ferry_cutscene_overlay(
         .id();
     commands.entity(overlay).add_child(detail);
 
-    let _crossing_axis = crossing.horizontal;
 }
 
 #[cfg(target_os = "android")]
