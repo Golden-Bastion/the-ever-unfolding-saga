@@ -66,13 +66,22 @@ fn surface_shaft_materializes_one_persistent_cave_chamber_and_route() {
     assert!(!second.created_location);
     assert!(!second.created_region);
     assert_eq!(world.locations.iter().filter(|location| location.id == first.location_id).count(), 1);
+
+    let return_target = connection_targets_for_location(&world, first.location_id)
+        .into_iter()
+        .find(|candidate| candidate.route_id() == first.route_id)
+        .expect("the cave chamber should expose its reciprocal surface entrance");
+    assert_eq!(return_target.destination_location_id, Some(3));
+    let returned = materialize_connection(&mut world, first.location_id, &return_target).unwrap();
+    assert_eq!(returned.location_id, 3);
+    assert_eq!(returned.route_id, first.route_id);
 }
 
 #[test]
 fn cave_chamber_targets_are_stable_and_only_follow_real_passages() {
     let mut found = None;
     'search: for seed in 1..64 {
-        for stratum in [-1, -2, -3] {
+        for stratum in [-3, -2] {
             for y in (-128..=128).step_by(16) {
                 for x in (-128..=128).step_by(16) {
                     let anchor = MacroCoordinate::in_stratum(x, y, stratum);
