@@ -1,5 +1,5 @@
 use crate::geography::caves::{connection_targets_for_location, materialize_connection, CaveConnectionKind};
-use crate::geography::{MacroCoordinate, RegionCoordinate};
+use crate::geography::MacroCoordinate;
 use crate::model::{Location, LocationGeographyRecord, Region, World, WorldMode};
 
 fn surface_world(seed: u64, anchor: MacroCoordinate) -> World {
@@ -82,7 +82,7 @@ fn cave_chamber_targets_are_stable_and_only_follow_real_passages() {
                     let Some(chamber) = sample.network_cell() else {
                         continue;
                     };
-                    if chamber != anchor || sample.connections() == 0 {
+                    if sample.connections() == 0 {
                         continue;
                     }
                     let mut world = surface_world(seed, MacroCoordinate::new(0, 0));
