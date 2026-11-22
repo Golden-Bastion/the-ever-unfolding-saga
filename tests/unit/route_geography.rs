@@ -1,6 +1,7 @@
-use crate::geography::routes::{assess_corridor, assess_world_route, MAX_CORRIDOR_SAMPLES};
+use crate::geography::routes::{
+    assess_corridor, assess_world_route, MAX_CORRIDOR_SAMPLES, ROUTE_GRID_SPACING,
+};
 use crate::geography::{MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
-use crate::geography::routes::ROUTE_GRID_SPACING;
 
 fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
     use crate::geography::{terrain, waterbodies, watershed};
@@ -11,7 +12,8 @@ fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
                 let Some(center) = watershed::cell_center(coarse_x, coarse_y) else {
                     continue;
                 };
-                let Some(lake) = waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, center)
+                let Some(lake) =
+                    waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, center)
                 else {
                     continue;
                 };
@@ -60,7 +62,9 @@ fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
                         .collect::<Vec<_>>();
                     if path.iter().any(|coordinate| {
                         waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate)
-                            .is_some_and(|sample| sample.id(seed, GEOGRAPHY_RULESET_VERSION) == lake_id)
+                            .is_some_and(|sample| {
+                                sample.id(seed, GEOGRAPHY_RULESET_VERSION) == lake_id
+                            })
                     }) {
                         return Some((seed, lake_id, path));
                     }
