@@ -653,23 +653,15 @@ fn classify_crossings(
                 {
                     continue;
                 }
-                let network = rivers::trace_network(
-                    world_seed,
-                    ruleset_version,
-                    river.coarse_cell(),
-                );
-                let flow_direction = network
-                    .as_ref()
-                    .and_then(|network| network.path.first())
-                    .and_then(|point| point.flow_direction);
+                let river_width = river.width_class();
                 push_crossing(
                     &mut crossings,
                     *coordinate,
                     RouteCrossingKind::River,
-                    infrastructure_for_water(RouteCrossingKind::River, Some(river.width_class())),
-                    network.map(|network| network.id),
-                    Some(river.width_class()),
-                    flow_direction,
+                    infrastructure_for_water(RouteCrossingKind::River, Some(river_width)),
+                    river.network_id(world_seed, ruleset_version),
+                    Some(river_width),
+                    river.flow_direction(world_seed, ruleset_version),
                 );
             }
             SurfaceWaterKind::UnresolvedRiver(_) => push_crossing(
