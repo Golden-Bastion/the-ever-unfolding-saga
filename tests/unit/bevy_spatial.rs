@@ -1992,7 +1992,6 @@ fn interior_door_state_blocks_and_allows_continuous_grid_edge_crossing() {
     assert!(!can_cross_position_edge(&map, from, to));
 }
 
-
 #[test]
 fn spatial_material_palette_distinguishes_existing_terrain_types() {
     let discovered = [
