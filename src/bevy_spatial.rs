@@ -599,27 +599,20 @@ pub(crate) fn enter(
             let profile = geography
                 .map(|geography| geography.profile)
                 .filter(|profile| *profile != RouteProfile::Unavailable);
-            let authored_preferred_side = game
-                .campaign_content
-                .as_ref()
-                .and_then(|content| {
-                    let source = content
-                        .world
-                        .locations
-                        .iter()
-                        .find(|entry| entry.name == location.name)?;
-                    let target_name = game
-                        .world
-                        .location_by_id(target_location_id)?
-                        .name
-                        .as_str();
-                    let target = content
-                        .world
-                        .locations
-                        .iter()
-                        .find(|entry| entry.name == target_name)?;
-                    source.exit_sides.get(&target.id).copied()
-                });
+            let authored_preferred_side = game.campaign_content.as_ref().and_then(|content| {
+                let source = content
+                    .world
+                    .locations
+                    .iter()
+                    .find(|entry| entry.name == location.name)?;
+                let target_name = game.world.location_by_id(target_location_id)?.name.as_str();
+                let target = content
+                    .world
+                    .locations
+                    .iter()
+                    .find(|entry| entry.name == target_name)?;
+                source.exit_sides.get(&target.id).copied()
+            });
             let preferred_side = authored_preferred_side.or_else(|| {
                 geography
                     .and_then(|geography| {
