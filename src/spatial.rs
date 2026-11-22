@@ -647,6 +647,10 @@ impl LocalMap {
         let mut reachable = self.reachable_walkable_positions();
         reachable.retain(|position| {
             *position != self.entry
+                && position.x > 0
+                && position.x < self.width.saturating_sub(1)
+                && position.y > 0
+                && position.y < self.height.saturating_sub(1)
                 && !self.exits.iter().any(|existing| existing.position == *position)
                 && !self.points_of_interest.iter().any(|point| point.position == *position)
                 && !self.interactables.iter().any(|actor| actor.position == *position)
@@ -2001,9 +2005,18 @@ pub fn configure_map_cave_connections(
     targets.sort_by(|left, right| left.id.cmp(&right.id));
     targets.dedup_by(|left, right| left.id == right.id);
     for target in targets {
-        if map.exits.iter().any(|exit| exit.cave_target.as_ref().is_some_and(|value| value.id == target.id)) { continue; }
         let route_id = target.route_id();
         let established = routes.iter().find(|route| route.route_id == route_id);
+        if let Some(existing) = map.exits.iter_mut().find(|exit| {
+            exit.cave_target.as_ref().is_some_and(|value| value.id == target.id)
+        }) {
+            if let Some(route) = established {
+                existing.route_id = Some(route.route_id.clone());
+                existing.route_profile = route.profile;
+                existing.target_location_id = route.target_location_id;
+            }
+            continue;
+        }
         let exit = MapExit {
             id: format!("{}.cave.{}", map.location_id, target.id),
             route_id: established.map(|route| route.route_id.clone()),
