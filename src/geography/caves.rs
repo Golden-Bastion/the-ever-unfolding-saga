@@ -275,8 +275,18 @@ pub fn connection_targets_for_location(
         }
     }
 
-    targets.sort_by(|left, right| left.id.cmp(&right.id));
-    targets.dedup_by(|left, right| left.id == right.id);
+    if anchor.stratum == 0 {
+        targets.sort_by_key(|target| {
+            let dx = i128::from(target.destination_anchor.x) - i128::from(anchor.x);
+            let dy = i128::from(target.destination_anchor.y) - i128::from(anchor.y);
+            (dx * dx + dy * dy, target.id.clone())
+        });
+        targets.dedup_by(|left, right| left.id == right.id);
+        targets.truncate(3);
+    } else {
+        targets.sort_by(|left, right| left.id.cmp(&right.id));
+        targets.dedup_by(|left, right| left.id == right.id);
+    }
     targets
 }
 
