@@ -194,7 +194,7 @@ The 256 × 256 resolution describes macro samples per region chunk. It does not 
 
 New location anchors use an authored `archetype` preference, defaulting to `wilderness` for older campaign content and generated locations without an explicit type.
 
-- `settlement` ranks 128 deterministic land candidates toward lower-relief terrain, then checks at most the 24 strongest candidates for a classified river or inland lake within 128 macro samples in a cardinal direction. This bounds the more expensive hydrology probes.
+- `settlement` ranks 128 deterministic land candidates toward lower-relief terrain, then checks at most the 24 strongest candidates for a classified river or inland lake at cardinal probes 128 macro samples away. This bounds the more expensive hydrology probes.
 - `wilderness` keeps broad environmental preferences and does not require proximity to water or low relief.
 - `landmark` favors higher elevation and stronger mountain-ridge character, allowing distinctive elevated sites.
 
