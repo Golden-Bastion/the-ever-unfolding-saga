@@ -5,8 +5,10 @@ This is the authoritative overview of unfinished work, current priorities, and p
 Completed work in the current development line belongs in [CHANGELOG.md](CHANGELOG.md); earlier completed work belongs in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md). Detailed design decisions live in [docs/design/](docs/design/README.md), while [system documentation](docs/systems/) describes current implementation behavior and boundaries.
 
 ## Current development line — v0.53.x: world topology and spatial-world expansion
+**Delivered in v0.53.22:** added data-driven `settlement`, `wilderness`, and `landmark` location placement archetypes. Settlement candidates favor flatter land and nearby classified freshwater; wilderness retains broad environmental flexibility; landmarks favor elevated, geologically distinctive terrain. Existing anchors and explicit authored coordinates remain unchanged, while legacy worlds without anchors adopt the new policy when embedded.
 
-**Repository version at this roadmap revision: 0.53.21.**
+
+**Repository version at this roadmap revision: 0.53.22.**
 
 **Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
 
@@ -60,7 +62,7 @@ The initial world-topology compatibility audit is complete in [world-topology co
 
 1. **Complete geography-backed route planning and frontier integration.** The continuous macro-geography fields, legacy embedding, location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, and deterministic vertical cave-connection candidates are in place. New route and frontier passages now prefer centered, evenly distributed map-edge connection points, while established passages retain their saved positions. Cave transitions remain reachable interior points. Every route profile and transition type now has a distinct semantic visual category and provisional renderer tint; dedicated route artwork remains tracked under [#491](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/491). Physical discharge calibration and seasonal water balance are not required; seasonal rainfall/drought and their gameplay consequences belong to time-driven world simulation. Neighboring chunks must remain coherent regardless of generation order.
 2. **Preserve the established-world compatibility contract.** Legacy region embedding and location anchors are now persisted without changing IDs, next_id, routes, history, authored content, or saved local maps. Continue covering this contract as topology systems are extended.
-3. **Anchor authored and generated locations to physical geography.** Stable macro anchors and footprints now exist, with optional authored exact anchors. Further environmental archetype constraints and richer authored-location connection placement remain outstanding; route profiles now drive semantic passage presentation, with bespoke assets tracked under #491.
+3. **Anchor authored and generated locations to physical geography.** Stable macro anchors and footprints now exist, with optional authored exact anchors. Richer authored-location connection placement remains outstanding; route profiles now drive semantic passage presentation, with bespoke assets tracked under #491.
 4. **Keep physical travel and known-route fast travel complementary,** including travel time, encounter/event interruption, and conservative migration of older worlds.
 5. **Make exploration and local maps available consistently across supported location types** while preserving direct location-level actions where spatial traversal is unnecessary.
 6. **Expand the data-driven encounter foundation** with multiple independent encounters, persistent roaming entities, and investigation/clue progression where supported by the underlying world and simulation rules.
