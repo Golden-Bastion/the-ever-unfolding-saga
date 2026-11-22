@@ -8,6 +8,7 @@ The root [ROADMAP.md](../../ROADMAP.md) is the only project-wide index of remain
 
 - [Game vision](game-vision.md) — character-focused experience, self-directed lives, exploration, and inherited world history.
 - [Spatial gameplay](spatial-gameplay.md) — safe-location actions, spatial exploration, investigation, dynamic encounters, and eventual action combat.
+- [World scale and travel](world-scale-and-travel.md) — minimum sense of scale for local maps, locations, regions, overland journeys, and travel time.
 - [Pixel-art visual direction](pixel-art-direction.md) — graphics-first visual identity, asset consistency, and incremental migration.
 - [Audio system](audio-system.md) — music, ambient sound, state-driven transitions, volume settings, and asset provenance.
 

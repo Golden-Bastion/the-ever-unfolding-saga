@@ -28,7 +28,7 @@ Content loading validates duplicate IDs, broken references, event definitions, f
 
 ## Authored local-map layouts
 
-A location may optionally declare a `spatial_layout` identifier. The current built-in identifiers are `shrine_chamber` (Old Shrine), `ashen_gate_causeway` (Ashen Gate), and `hollow_market_square` (Hollow Market). These select deterministic renderer-neutral terrain, props, room membership, and door topology for newly generated local maps. The gate and market templates require at least a 24×16 map. Unknown identifiers and layouts that do not fit the configured dimensions fall back to procedural generation. Authored layout changes do not rewrite established maps saved by a player.
+A location may optionally declare a `spatial_layout` identifier. The current built-in identifiers are `shrine_chamber` (Old Shrine), `ashen_gate_causeway` (Ashen Gate), and `hollow_market_square` (Hollow Market). These select deterministic renderer-neutral terrain, props, room membership, and door topology for newly generated local maps. The standard outdoor map now defaults to 64×48 tiles; the gate and market templates require at least 64×16. The shrine chamber remains a compact 32×24 interior and can be generated from maps as small as 24×12. Unknown identifiers and layouts that do not fit the configured dimensions fall back to procedural generation. Authored layout changes do not rewrite established maps saved by a player. The local-map generator version advances when these generation defaults or layouts change, but established saved geometry remains authoritative.
 
 ## Authored connection-side preferences
 

@@ -11,10 +11,11 @@ use crate::geography::frontier::{FrontierDirection, FrontierTarget};
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 7;
-pub const DEFAULT_MAP_WIDTH: u16 = 24;
-pub const DEFAULT_MAP_HEIGHT: u16 = 16;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 8;
+pub const DEFAULT_MAP_WIDTH: u16 = 64;
+pub const DEFAULT_MAP_HEIGHT: u16 = 48;
 const MIN_MAP_DIMENSION: u16 = 8;
+const MIN_SHRINE_LAYOUT_WIDTH: u16 = 24;
 const MAX_MAP_DIMENSION: u16 = 128;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1193,7 +1194,7 @@ pub fn generate_local_map_with_layout(
     let width = config.width;
     let height = config.height;
     let layout_id = match layout {
-        Some("shrine_chamber") if width >= DEFAULT_MAP_WIDTH && height >= 12 => {
+        Some("shrine_chamber") if width >= MIN_SHRINE_LAYOUT_WIDTH && height >= 12 => {
             Some("shrine_chamber".to_string())
         }
         Some("ashen_gate_causeway" | "hollow_market_square")
@@ -1295,8 +1296,8 @@ pub fn generate_local_map_with_layout(
 /// compact and sits above the guaranteed east-west corridor, so entry-to-POI
 /// and edge-passage routes remain clear. Layout geometry is renderer-neutral.
 fn apply_shrine_chamber(map: &mut LocalMap) {
-    // The initial template is designed for the standard 24x16 prototype map.
-    if map.width < DEFAULT_MAP_WIDTH || map.height < 12 {
+    // The chamber remains a compact authored landmark within the larger outdoor space.
+    if map.width < MIN_SHRINE_LAYOUT_WIDTH || map.height < 12 {
         return;
     }
 
@@ -1481,7 +1482,7 @@ fn apply_ashen_gate_causeway(map: &mut LocalMap) {
 /// as first-pass stall counters and unlit lantern posts; dedicated market art
 /// can replace these through the existing mod-aware asset paths later.
 fn apply_hollow_market_square(map: &mut LocalMap) {
-    const GATE_X: u16 = 4;
+    let gate_x = map.width / 5;
     let gate_y = map.entry.y;
 
     map.props.clear();
@@ -1502,7 +1503,7 @@ fn apply_hollow_market_square(map: &mut LocalMap) {
     // A broken arcade wall marks the threshold from the approach into the
     // market square. The threshold stays open and every graph exit routes to it.
     for y in 1..map.height - 1 {
-        let index = usize::from(y) * usize::from(map.width) + usize::from(GATE_X);
+        let index = usize::from(y) * usize::from(map.width) + usize::from(gate_x);
         map.terrain[index] = if y == gate_y {
             Terrain::Floor
         } else {
@@ -1510,7 +1511,14 @@ fn apply_hollow_market_square(map: &mut LocalMap) {
         };
     }
 
-    let stall_positions = [(7, 4), (12, 4), (17, 4), (8, 11), (13, 11), (18, 11)];
+    let stall_positions = [
+        (map.width * 35 / 100, map.height * 25 / 100),
+        (map.width * 50 / 100, map.height * 25 / 100),
+        (map.width * 65 / 100, map.height * 25 / 100),
+        (map.width * 35 / 100, map.height * 70 / 100),
+        (map.width * 50 / 100, map.height * 70 / 100),
+        (map.width * 65 / 100, map.height * 70 / 100),
+    ];
     for (index, (x, y)) in stall_positions.into_iter().enumerate() {
         let position = GridPosition { x, y };
         if map.contains(position) && x + SpatialPropKind::Table.footprint_width() < map.width {
@@ -1522,9 +1530,18 @@ fn apply_hollow_market_square(map: &mut LocalMap) {
         }
     }
 
-    for (index, position) in [GridPosition { x: 10, y: 6 }, GridPosition { x: 16, y: 10 }]
-        .into_iter()
-        .enumerate()
+    for (index, position) in [
+        GridPosition {
+            x: map.width * 42 / 100,
+            y: map.height * 38 / 100,
+        },
+        GridPosition {
+            x: map.width * 58 / 100,
+            y: map.height * 58 / 100,
+        },
+    ]
+    .into_iter()
+    .enumerate()
     {
         if map.contains(position) && map.terrain_at(position).is_some_and(Terrain::is_walkable) {
             map.props.push(SpatialProp {
@@ -1537,11 +1554,11 @@ fn apply_hollow_market_square(map: &mut LocalMap) {
 
     let approach_room = format!("{}.room.market_approach", map.location_id);
     let market_room = format!("{}.room.market_court", map.location_id);
-    let approach_cells = (1..GATE_X)
+    let approach_cells = (1..gate_x)
         .flat_map(|x| (1..map.height - 1).map(move |y| GridPosition { x, y }))
         .filter(|position| map.is_walkable(*position))
         .collect();
-    let market_cells = (GATE_X..map.width - 1)
+    let market_cells = (gate_x..map.width - 1)
         .flat_map(|x| (1..map.height - 1).map(move |y| GridPosition { x, y }))
         .filter(|position| map.is_walkable(*position))
         .collect();
@@ -1560,11 +1577,11 @@ fn apply_hollow_market_square(map: &mut LocalMap) {
         id: format!("{}.door.market_arch", map.location_id),
         edge: GridEdge::new(
             GridPosition {
-                x: GATE_X - 1,
+                x: gate_x - 1,
                 y: gate_y,
             },
             GridPosition {
-                x: GATE_X,
+                x: gate_x,
                 y: gate_y,
             },
         )
@@ -1578,7 +1595,7 @@ fn apply_hollow_market_square(map: &mut LocalMap) {
 fn authored_gate_barrier_x(map: &LocalMap) -> Option<u16> {
     match map.layout_id.as_deref() {
         Some("ashen_gate_causeway") => Some(map.width / 2),
-        Some("hollow_market_square") => Some(4),
+        Some("hollow_market_square") => Some(map.width / 5),
         _ => None,
     }
 }
@@ -1626,7 +1643,7 @@ fn authored_gate_exit_waypoints(
 /// entry-to-discovery route. Props are persisted and are not regenerated for
 /// an already established local map.
 fn populate_generated_props(map: &mut LocalMap, rng: &mut DeterministicRng) {
-    let target_count = (usize::from(map.width) * usize::from(map.height) / 96).clamp(1, 5);
+    let target_count = (usize::from(map.width) * usize::from(map.height) / 96).clamp(1, 24);
 
     for index in 0..target_count {
         let mut kind = if index % 2 == 0 {
