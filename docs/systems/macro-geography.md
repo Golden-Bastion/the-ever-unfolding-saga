@@ -11,7 +11,7 @@ Implemented in v0.53.1:
 - Stratum `0` is the surface; negative stratum indices identify underground layers. Surface and underground samples may share horizontal coordinates without sharing sample seeds.
 - `underground::sample_underground` samples negative strata independently. It generates jittered chamber nodes on a 64-sample global lattice and reciprocal cardinal links where both neighboring chambers exist and the shared deterministic edge is open. Chamber-to-chamber passages follow the segment between stable node centers, so networks remain coherent across region boundaries.
 - Underground samples distinguish solid rock, chambers, and passages. Open samples expose their stable chamber-center coordinate and connected-neighbor mask. A query inspects one node and at most four neighbors; it does not scan the world or persist generated cave geometry.
-- Stratum numbers are layer identifiers, not calibrated physical depths. The initial model modestly increases chamber frequency on deeper layers but does not yet model rock composition, geological formation, underground water, or vertical shafts between strata.
+- Stratum numbers are layer identifiers, not calibrated physical depths. The initial model modestly increases chamber frequency on deeper layers but does not model rock composition, geological formation, or underground water. Deterministic vertical-connection candidates are described below.
 - Region-local to global conversion uses checked multiplication and addition and rejects local indices outside the chunk.
 - Global to region-local conversion uses Euclidean division and remainder. This is essential for negative coordinates: global sample `-1` belongs to region `-1`, local sample `255`, not region `0`.
 - `coordinate_seed` derives a deterministic seed from the world seed, geography ruleset version, and global sample coordinate including stratum. It does not depend on traversal/generation order, runtime IDs, or names.
@@ -137,6 +137,13 @@ Implemented in v0.53.16:
 - The optional pending-frontier marker defaults absent when reading older saves. Existing region coordinates, location anchors, routes, and established local maps are not regenerated or relocated. No save-format or geography-ruleset change was required.
 - Automated tests cover read-only candidate listing, stable identities, allocator-order-independent coordinates/paths, single-region expansion, repeat-use idempotence, invalid target rejection, pending interaction discovery, and passage upgrade.
 
+Implemented in v0.53.17:
+
+- `vertical::connection_for_cell` derives at most one vertical opening for an underground network cell and the layer immediately above it. For upper stratum zero, the upper endpoint must be exposed land and the lower endpoint must be open cave space on stratum -1. For negative upper strata, both endpoints must be open cave samples and the lower endpoint is exactly one stratum deeper.
+- Candidate coordinates are selected from a fixed 9 × 9 grid around the cave cell center. A stable coordinate-derived score selects the same candidate regardless of query order, region ownership, or runtime IDs.
+- `vertical::connections_near` inspects at most 25 network cells and returns stable, ordered candidates. No world-sized scan, mutable cache, or persisted generated cave geometry is introduced.
+- These candidates expose valid vertical geography but do not yet allocate cave locations, add authoritative `WorldRoute` records, or create local-map entrances. The next integration stage must connect them to persistent world topology without changing established locations or maps.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -145,7 +152,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 ## Boundaries and remaining work
 
-The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, and idempotent on-demand frontier materialization are implemented. Remaining geography/topology work is explicit vertical cave entrances and inter-stratum connections plus richer local-map connection-point integration.
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, and deterministic vertical cave-connection candidates are implemented. Remaining geography/topology work is authoritative world-route/location integration for vertical connections plus richer local-map connection-point integration.
 
 The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 
