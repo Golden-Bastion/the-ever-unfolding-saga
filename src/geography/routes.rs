@@ -154,6 +154,33 @@ pub struct RouteGeography {
 }
 
 impl RouteGeography {
+    /// Return resolved inland-lake crossings in the order they are encountered
+    /// from the selected route endpoint. Crossings without two verified shores
+    /// remain requirements, but cannot yet drive a physical ferry scene.
+    pub fn resolved_lake_crossings(&self, from_a: bool) -> Vec<&RouteCrossing> {
+        let crossings = self
+            .crossings
+            .iter()
+            .filter(|crossing| {
+                crossing.kind == RouteCrossingKind::Lake
+                    && crossing.lake_id.is_some()
+                    && crossing.lake_banks.is_some()
+            });
+        if from_a {
+            crossings.collect()
+        } else {
+            crossings.rev().collect()
+        }
+    }
+
+    pub fn has_resolved_lake_crossing(&self) -> bool {
+        self.crossings.iter().any(|crossing| {
+            crossing.kind == RouteCrossingKind::Lake
+                && crossing.lake_id.is_some()
+                && crossing.lake_banks.is_some()
+        })
+    }
+
     pub fn unavailable(status: RoutePlanningStatus) -> Self {
         Self {
             status,

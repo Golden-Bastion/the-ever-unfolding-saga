@@ -50,6 +50,12 @@ Local maps can provide physical route exits such as roads, gates, mountain passe
 
 Walking to a physical exit should be the natural way to discover new routes, approach dangerous or authored travel situations, and explore places along a journey.
 
+#### Lake ferry transitions
+
+A route that crosses an inland lake should expose a physical ferry landing at the route passage in the current location. The player boards there, enters a distinct crossing scene, and arrives at the opposite shore before the connected destination location loads. Treat this as a short authored-feeling cutscene rather than a second explorable map or a seamless global-water simulation. When a route crosses multiple lakes, present the crossings in travel order.
+
+The crossing scene consumes the exact persisted lake identity and shore pair. It must not invent a dock in an endpoint local map when the macro crossing lies elsewhere, and it must not fabricate shore positions when geography cannot resolve both banks. Provisional colored shapes are acceptable until dedicated landing, boat, and water artwork exists. The sequence is transient presentation; world-route identity and travel remain authoritative. Known-route fast travel can continue to skip the local cutscene.
+
 ### 4. Keep fast travel alongside spatial travel
 
 The design retains fast travel as a convenience, rather than forcing players to physically repeat every journey.

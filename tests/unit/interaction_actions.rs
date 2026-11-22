@@ -399,6 +399,100 @@ fn discovery_requires_passages_to_match_authoritative_route_records() {
 }
 
 #[test]
+fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
+    use crate::geography::river_geometry::{RiverPosition, RIVER_POSITION_SCALE};
+    use crate::geography::routes::{
+        LakeBankIntersection, RouteCrossing, RouteCrossingKind, RouteGeography,
+        RouteInfrastructure, RoutePlanningStatus, RouteProfile,
+    };
+
+    let mut game = crate::model::create_new_state(
+        "Ferry Interaction Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let source_id = game.character.location_id;
+    let source = game.world.location_by_id(source_id).unwrap().clone();
+    let mut map = crate::spatial::generate_local_map(
+        32,
+        format!("location.{source_id}"),
+        crate::spatial::LocalMapConfig::default(),
+    );
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.interactables.clear();
+    map.encounters.clear();
+
+    let crossing = |resolved: bool| RouteCrossing {
+        coordinate: crate::geography::MacroCoordinate::new(8, 12),
+        kind: RouteCrossingKind::Lake,
+        infrastructure: RouteInfrastructure::Ferry,
+        river_id: None,
+        river_width: None,
+        river_flow_direction: None,
+        river_banks: None,
+        lake_id: Some("lake.interaction.fixture".into()),
+        lake_banks: resolved.then_some(LakeBankIntersection {
+            entry: RiverPosition {
+                x_q16: 8 * RIVER_POSITION_SCALE,
+                y_q16: 12 * RIVER_POSITION_SCALE,
+            },
+            exit: RiverPosition {
+                x_q16: 9 * RIVER_POSITION_SCALE,
+                y_q16: 12 * RIVER_POSITION_SCALE,
+            },
+        }),
+    };
+
+    for (name, resolved) in [("Resolved Ferry", true), ("Unresolved Crossing", false)] {
+        let destination_id = game.world.allocate_id();
+        game.world.locations.push(crate::model::Location {
+            id: destination_id,
+            name: name.into(),
+            description: "A route destination.".into(),
+            region_id: source.region_id,
+            dangerous: false,
+            corpse_ids: Vec::new(),
+            exits: Vec::new(),
+            spatial_layout: None,
+        });
+        let route_id = format!("route.ferry.{destination_id}");
+        let mut route = crate::model::WorldRoute::new(
+            route_id.clone(),
+            source_id,
+            destination_id,
+            crate::model::RouteDirection::Bidirectional,
+        );
+        route.geography = Some(RouteGeography {
+            status: RoutePlanningStatus::Planned,
+            profile: RouteProfile::WaterCrossing,
+            path: Vec::new(),
+            crossings: vec![crossing(resolved)],
+            total_cost: 0,
+        });
+        assert!(game.world.add_route(route));
+        map.exits.push(MapExit {
+            id: format!("exit.{destination_id}"),
+            route_id: Some(route_id),
+            route_profile: Some(RouteProfile::WaterCrossing),
+            frontier: None,
+            cave_target: None,
+            position: map.entry,
+            target_location_id: destination_id,
+        });
+    }
+
+    let player = (f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
+    let labels = discover_available_interactions(&map, &game, player)
+        .into_iter()
+        .map(|interaction| interaction.label)
+        .collect::<Vec<_>>();
+    assert!(labels.iter().any(|label| label == "Board ferry to Resolved Ferry"));
+    assert!(labels.iter().any(|label| label == "Enter: Unresolved Crossing"));
+}
+
+#[test]
 fn nearby_interior_doors_offer_state_appropriate_contextual_actions() {
     let mut map = crate::spatial::generate_local_map_with_layout(
         42,
