@@ -79,8 +79,8 @@ impl RiverSample {
 ///
 /// These are categorical world-generation widths, not calibrated metres or
 /// local-map tile counts. The classes grow downstream as more watershed cells
-/// contribute to the channel. Truncated accumulation can establish the lower
-/// classes, but the largest class should be read as a lower-bound estimate.
+/// contribute to the channel. A truncated accumulation has reached the query's
+/// 128-cell work limit, so VeryWide is a confirmed lower-bound class, not a maximum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RiverWidthClass {
