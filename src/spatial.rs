@@ -629,7 +629,9 @@ impl LocalMap {
     /// Place a deterministic cave entrance or shaft on a reachable interior tile.
     /// Unlike overland passages, cave transitions are not forced onto map edges.
     pub fn place_cave_exit(&mut self, exit: MapExit) -> bool {
-        let Some(target) = exit.cave_target.as_ref() else { return false; };
+        let Some(target) = exit.cave_target.as_ref() else {
+            return false;
+        };
         let source_id = self.location_entity_id();
         if target.id.trim().is_empty()
             || exit.id.trim().is_empty()
@@ -657,16 +659,21 @@ impl LocalMap {
                 && !self.encounters.iter().any(|encounter| encounter.position == *position)
                 && !self.props.iter().any(|prop| prop.footprint_contains(*position, self.width))
         });
-        let seed = target.id.bytes().fold(self.seed ^ 0x9e37_79b9_7f4a_7c15, |state, byte| {
-            state.rotate_left(7) ^ u64::from(byte).wrapping_mul(0x100_0000_01b3)
-        });
+        let seed = target
+            .id
+            .bytes()
+            .fold(self.seed ^ 0x9e37_79b9_7f4a_7c15, |state, byte| {
+                state.rotate_left(7) ^ u64::from(byte).wrapping_mul(0x100_0000_01b3)
+            });
         let Some(position) = reachable.into_iter().max_by_key(|position| {
             let dx = i64::from(position.x) - i64::from(self.entry.x);
             let dy = i64::from(position.y) - i64::from(self.entry.y);
             let distance = (dx * dx + dy * dy) as u64;
             let tie = seed ^ (u64::from(position.x) << 32) ^ u64::from(position.y);
             (distance, tie)
-        }) else { return false; };
+        }) else {
+            return false;
+        };
         let mut exit = exit;
         exit.position = position;
         self.exits.push(exit);
@@ -2008,7 +2015,9 @@ pub fn configure_map_cave_connections(
         let route_id = target.route_id();
         let established = routes.iter().find(|route| route.route_id == route_id);
         if let Some(existing) = map.exits.iter_mut().find(|exit| {
-            exit.cave_target.as_ref().is_some_and(|value| value.id == target.id)
+            exit.cave_target
+                .as_ref()
+                .is_some_and(|value| value.id == target.id)
         }) {
             if let Some(route) = established {
                 existing.route_id = Some(route.route_id.clone());
