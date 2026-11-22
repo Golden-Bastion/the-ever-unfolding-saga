@@ -226,7 +226,7 @@ fn water_crossings_distinguish_fords_bridges_ferries_and_impassable_water() {
 #[test]
 fn coarse_channel_cells_do_not_create_false_local_route_crossings() {
     use crate::geography::hydrology::{self, SurfaceWaterKind};
-    use crate::geography::routes::{classify_crossings, RouteCrossingKind, RouteInfrastructure};
+    use crate::geography::routes::{classify_crossings, RouteCrossingKind};
     use crate::geography::watershed;
 
     let fixture = [8_211, 42, 1_701, 7_321, 12_345, 1, 2, 3]
@@ -290,7 +290,7 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
     use crate::geography::river_geometry::{
         RiverGeometryCache, RiverPosition, RIVER_POSITION_SCALE,
     };
-    use crate::geography::routes::{classify_crossings, RouteCrossingKind};
+    use crate::geography::routes::{classify_crossings, RouteCrossingKind, RouteInfrastructure};
     use crate::geography::terrain;
     use crate::geography::watershed;
 
