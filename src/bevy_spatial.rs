@@ -31,8 +31,8 @@ use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_cave_connections, configure_map_frontiers,
     configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout,
     ExplorationSession, GridPosition, LocalMap, LocalMapConfig, MapExit, MapExitVisualKind,
-    MapRouteDestination,
-    SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind,
+    MapRouteDestination, SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind,
+    SpatialPropKind,
     Terrain,
 };
 use crate::spatial_animation::{
