@@ -5,9 +5,10 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use crate::content::CampaignContent;
 use crate::geography::frontier::FrontierDirection;
 use crate::geography::{
-    coordinate_seed, hydrology, terrain, MacroCoordinate, RegionCoordinate,
+    coordinate_seed, terrain, waterbodies, MacroCoordinate, RegionCoordinate,
     GEOGRAPHY_RULESET_VERSION,
 };
+use crate::geography::river_geometry::{RiverGeometryCache, RiverPosition, RIVER_POSITION_SCALE};
 use crate::model::{LocationGeographyRecord, World};
 
 pub const LOCATION_GEOGRAPHY_EMBEDDING_VERSION: u32 = 2;
@@ -403,7 +404,10 @@ fn anchor_candidate_score(
 
 fn has_nearby_freshwater(seed: u64, ruleset: u32, coordinate: MacroCoordinate) -> bool {
     const PROBE_DISTANCE: i64 = 128;
+    let mut river_geometry = RiverGeometryCache::default();
+
     for (dx, dy) in [
+        (0, 0),
         (PROBE_DISTANCE, 0),
         (-PROBE_DISTANCE, 0),
         (0, PROBE_DISTANCE),
@@ -417,12 +421,18 @@ fn has_nearby_freshwater(seed: u64, ruleset: u32, coordinate: MacroCoordinate) -
         else {
             continue;
         };
-        if hydrology::sample_surface(seed, ruleset, probe).is_some_and(|sample| {
-            matches!(
-                sample.kind(),
-                hydrology::SurfaceWaterKind::River(_) | hydrology::SurfaceWaterKind::Lake(_)
-            )
-        }) {
+
+        if waterbodies::sample_surface(seed, ruleset, probe).is_some() {
+            return true;
+        }
+        let Some(position) = RiverPosition::from_macro_coordinate(probe) else {
+            continue;
+        };
+        if river_geometry
+            .segments_near(seed, ruleset, position)
+            .iter()
+            .any(|segment| segment.is_near(position, PROBE_DISTANCE * RIVER_POSITION_SCALE))
+        {
             return true;
         }
     }

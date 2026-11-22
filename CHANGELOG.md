@@ -4,6 +4,19 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.26: Local river channels and exact route-bank intersections
+
+- Added deterministic curved river channel segments derived from the existing downstream watershed links. Adjacent segments share exact coarse-cell endpoints, keeping connected channels continuous across region and local-map boundaries.
+- Converted existing relative river width classes into bounded Q16 channel bands. These are local presentation widths, not physical discharge or calibrated real-world dimensions.
+- Projected channel bands at local tile centres for newly generated generic outdoor maps. Only the river strip becomes impassable water; entire watershed cells are not flooded. Existing saved maps and authored layouts are not regenerated.
+- Route planning now records a river crossing only when a route segment intersects both generated banks, storing exact Q16 entry/exit positions alongside river identity, relative width, and flow direction.
+- Added backward-compatible defaults for bank metadata on older route records. Established route plans are not silently rewritten.
+- Added bounded geometry caches and automated coverage for deterministic shared endpoints, local channel footprints, bank intersections, coarse-cell false-positive rejection, and legacy serialization.
+- Advanced `LOCAL_MAP_GENERATOR_VERSION` from 9 to 10 so new maps identify the added river-terrain rules; established saved maps remain unchanged.
+- Updated settlement freshwater proximity to use generated channel geometry and lake coverage rather than coarse river-bearing watershed-cell membership.
+- Kept physical ford/bridge/ferry structures, dedicated water artwork, fluid simulation, physical discharge calibration, and seasonal water balance out of scope.
+- Bumped Rust and Android metadata to 0.53.26.
+
 ### v0.53.25: River networks and route-crossing requirements
 
 - Added deterministic, bounded downstream river-course tracing over the existing coarse watershed graph. Traces expose ordered macro-coordinate centre-points, immediate downstream links, flow directions, and relative width classes.

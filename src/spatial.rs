@@ -12,7 +12,7 @@ use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 9;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 10;
 pub const DEFAULT_MAP_WIDTH: u16 = 64;
 pub const DEFAULT_MAP_HEIGHT: u16 = 48;
 const MIN_MAP_DIMENSION: u16 = 8;

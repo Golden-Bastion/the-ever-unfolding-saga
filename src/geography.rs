@@ -19,6 +19,7 @@ pub mod local_surface;
 pub mod locations;
 pub mod mountains;
 pub mod rivers;
+pub mod river_geometry;
 pub mod routes;
 pub mod terrain;
 pub mod underground;
