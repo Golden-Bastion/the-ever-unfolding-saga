@@ -6,7 +6,9 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.53.x: world topology and spatial-world expansion
 
-**Repository version at this roadmap revision: 0.53.20.**
+**Repository version at this roadmap revision: 0.53.21.**
+
+**Delivered in v0.53.21:** introduced a restrained material-led provisional palette for the existing local-map floor, ash, rubble, wall, pillar, and table sprites. Discovery shading remains distinct, and existing route/actor semantic tints are retained. This is a renderer-only interim treatment; biome-specific vegetation, water, and regional environmental colours await corresponding local-map terrain/art coverage.
 
 **Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
 
