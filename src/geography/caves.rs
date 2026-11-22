@@ -392,7 +392,7 @@ pub fn materialize_connection(
             name: if anchor.stratum == 0 {
                 format!("Hidden Cave Entrance ({}, {})", anchor.x, anchor.y)
             } else {
-                format!("Cavern Chamber ({}, {})", anchor.x, anchor.y)
+                format!("Cavern Chamber ({}, {}, layer {})", anchor.x, anchor.y, anchor.stratum)
             },
             description: if anchor.stratum == 0 {
                 "A concealed opening in the earth leads into the cave network.".to_string()
