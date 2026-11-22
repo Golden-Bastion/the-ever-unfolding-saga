@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, bounded terrain-aware route planning, and on-demand frontier materialization. It does not depend on Bevy or local-map tile geometry.
+The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, bounded terrain-aware route planning, on-demand frontier materialization, and persistent individual cave-chamber topology. It does not depend on Bevy or local-map tile geometry.
 
 Implemented in v0.53.1:
 
@@ -144,6 +144,15 @@ Implemented in v0.53.17:
 - `vertical::connections_near` inspects at most 25 network cells and returns stable, ordered candidates. No world-sized scan, mutable cache, or persisted generated cave geometry is introduced.
 - These candidates expose valid vertical geography but do not yet allocate cave locations, add authoritative `WorldRoute` records, or create local-map entrances. The next integration stage must connect them to persistent world topology without changing established locations or maps.
 
+Implemented in v0.53.18:
+
+- `caves::connection_targets_for_location` exposes immediate cave connections from a persisted location. Surface locations receive bounded nearby shaft candidates; cave locations receive only their actual reciprocal horizontal neighbors and vertical connections attached to their own chamber.
+- Each generated chamber has its own persistent `Location`, anchored at the underground sampler's stable chamber center and keyed by stratum plus signed global coordinates. Its region is created or reused at the matching region/stratum coordinate.
+- `caves::materialize_connection` validates the selected target against the current deterministic topology, creates or reuses exactly one destination chamber/region, and adds a bidirectional authoritative `WorldRoute`. Stable route IDs are based on the physical connection, not allocated entity IDs.
+- A cave chamber exposes the reverse side of a previously materialized surface shaft and reuses the original surface location. Deeper shafts and horizontal passages likewise resolve to one route identity from either endpoint.
+- Cave routes deliberately do not receive surface A* paths. The existing overland planner reports unsupported strata rather than inventing a surface corridor. Local-map shaft/entrance placement and interaction remain the next integration step; this stage changes persistent world topology only.
+- Generated cave geometry remains derived on demand. Only materialized locations, regions, and routes are persisted; repeated requests are idempotent and no world-sized scan or recursive network generation is performed.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -152,7 +161,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 ## Boundaries and remaining work
 
-The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, and deterministic vertical cave-connection candidates are implemented. Remaining geography/topology work is authoritative world-route/location integration for vertical connections plus richer local-map connection-point integration.
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, deterministic vertical candidates, and persistent individual cave-chamber locations/routes are implemented. Remaining geography/topology work is physical local-map integration for cave entrances and shafts, plus richer local-map connection-point placement for all route types.
 
 The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 

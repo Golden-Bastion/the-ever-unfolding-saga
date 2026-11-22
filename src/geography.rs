@@ -9,6 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod caves;
 pub mod climate;
 pub mod coast;
 pub mod depressions;

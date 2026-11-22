@@ -100,6 +100,7 @@ src/
 │   ├── frontier.rs          # stable on-demand frontier identities and adjacent-region materialization
 │   ├── underground.rs       # deterministic chamber nodes and reciprocal cave-network passages
 │   ├── vertical.rs          # bounded deterministic surface entrances and inter-stratum shafts
+│   ├── caves.rs             # persistent individual cave chambers and authoritative cave routes
 │   ├── mountains.rs         # deterministic mountain-ridge strength and terrain uplift
 │   ├── watershed.rs         # hierarchical coarse drainage links and local D8 sampling
 │   ├── rivers.rs            # bounded contributing-area and precipitation-potential estimates for river channels
