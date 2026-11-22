@@ -35,7 +35,11 @@
         ],
         "scene_art": "   |||||||\n  /|_____|\\\\\n  ||     ||\n  ||  _  ||\n  ||_| |_||\n    /   \\\n",
         "scene_image": "locations/ashen_gate.png",
-        "archetype": "landmark"
+        "archetype": "landmark",
+        "exit_sides": {
+          "location.hollow_market": "east",
+          "location.charred_watchtower": "north"
+        }
       },
       {
         "id": "location.hollow_market",
@@ -67,7 +71,12 @@
           "location.sootbound_crossing"
         ],
         "scene_art": " [ ] [ ] [ ]\n  |   |   |\n _|___|___|_\n/___________\\\\\n",
-        "archetype": "settlement"
+        "archetype": "settlement",
+        "exit_sides": {
+          "location.ashen_gate": "west",
+          "location.old_shrine": "north",
+          "location.sootbound_crossing": "south"
+        }
       },
       {
         "id": "location.old_shrine",

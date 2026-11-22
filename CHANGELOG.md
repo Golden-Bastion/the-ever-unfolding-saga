@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.23: Authored local-map connection-side preferences
+
+- Added optional `exit_sides` mappings to authored locations, keyed by stable destination content IDs and supporting north/east/south/west.
+- Authored side preferences take precedence over macro-route headings when a new local-map passage is placed. Exact tile positions remain generator-selected, reachable, centered, and deterministic.
+- Existing local-map passages retain their saved IDs and positions; changing campaign preferences does not relocate established connections.
+- Added validation for undeclared destinations, backward-compatible empty defaults for older content, and base-campaign examples for Ashen Gate and Hollow Market.
+- Added automated coverage for legacy content deserialization, authored-reference validation, and side-driven passage placement.
+- Bumped Rust and Android metadata to 0.53.23.
+
 ### v0.53.22: Environmental location placement archetypes
 
 - Added optional authored `settlement`, `wilderness`, and `landmark` archetypes to location content. Older content defaults to wilderness.

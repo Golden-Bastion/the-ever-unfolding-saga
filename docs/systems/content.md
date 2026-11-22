@@ -30,6 +30,14 @@ Content loading validates duplicate IDs, broken references, event definitions, f
 
 A location may optionally declare a `spatial_layout` identifier. The current built-in identifiers are `shrine_chamber` (Old Shrine), `ashen_gate_causeway` (Ashen Gate), and `hollow_market_square` (Hollow Market). These select deterministic renderer-neutral terrain, props, room membership, and door topology for newly generated local maps. The gate and market templates require at least a 24×16 map. Unknown identifiers and layouts that do not fit the configured dimensions fall back to procedural generation. Authored layout changes do not rewrite established maps saved by a player.
 
+## Authored connection-side preferences
+
+A location may define an optional `exit_sides` object keyed by the stable content ID of one of its declared `exits`. Values are `north`, `east`, `south`, or `west`, and describe the preferred local-map edge for that connection. The preference is deliberately side-only: the map generator still chooses a safe, reachable, centered position and carves the required approach. It does not expose fragile authored tile coordinates.
+
+An omitted preference uses the existing macro-route heading, followed by deterministic compass-side fallback. An authored preference takes precedence when a new passage is placed. Existing saved passage IDs and positions are never moved when content changes; preferences affect only newly added passages. Validation rejects preferences that reference destinations not declared in the same location's `exits` list. Older content defaults to no preferences.
+
+The base campaign demonstrates this on Ashen Gate and Hollow Market, where authored layouts and approaches make broad-side choices useful.
+
 ## Authored spatial discoveries
 
 A location may define an optional `spatial_discoveries` array. Each entry has a stable `id`, a player-facing `title`, a `description`, and an optional `requires_evidence` array containing stable IDs of other spatial discoveries. These definitions become points of interest when that location's local map is first generated. Placement is deterministic for the established map seed and avoids blocked or unreachable cells, exits, and actor placements. All listed prerequisites must be known by the current character before the Examine action becomes available. An empty list keeps the older generic fallback for locations that have not received authored discoveries yet.
