@@ -488,8 +488,12 @@ fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
         .into_iter()
         .map(|interaction| interaction.label)
         .collect::<Vec<_>>();
-    assert!(labels.iter().any(|label| label == "Board ferry to Resolved Ferry"));
-    assert!(labels.iter().any(|label| label == "Enter: Unresolved Crossing"));
+    assert!(labels
+        .iter()
+        .any(|label| label == "Board ferry to Resolved Ferry"));
+    assert!(labels
+        .iter()
+        .any(|label| label == "Enter: Unresolved Crossing"));
 }
 
 #[test]

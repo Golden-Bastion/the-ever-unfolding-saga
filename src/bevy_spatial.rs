@@ -615,8 +615,7 @@ fn update_ferry_transit(
             transit.stage = stage;
             rebuild_scene = true;
         }
-        progress = 0.15
-            + (elapsed / FERRY_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 0.70;
+        progress = 0.15 + (elapsed / FERRY_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 0.70;
         if elapsed >= FERRY_CROSSING_DURATION_SECONDS {
             transit.crossing_index += 1;
             transit.elapsed_seconds = 0.0;
@@ -1960,25 +1959,21 @@ fn use_map_exit(
         .as_deref()
         .and_then(|route_id| {
             lifecycle.session.as_ref().and_then(|session| {
-                session
-                    .state
-                    .world
-                    .route_by_id(route_id)
-                    .and_then(|route| {
-                        route.geography.as_ref().map(|geography| {
-                            geography
-                                .resolved_lake_crossings(route.location_a_id == source_location_id)
-                                .into_iter()
-                                .filter_map(|crossing| {
-                                    let banks = crossing.lake_banks?;
-                                    Some(FerryTransitCrossing {
-                                        horizontal: banks.exit.x_q16.abs_diff(banks.entry.x_q16)
-                                            >= banks.exit.y_q16.abs_diff(banks.entry.y_q16),
-                                    })
+                session.state.world.route_by_id(route_id).and_then(|route| {
+                    route.geography.as_ref().map(|geography| {
+                        geography
+                            .resolved_lake_crossings(route.location_a_id == source_location_id)
+                            .into_iter()
+                            .filter_map(|crossing| {
+                                let banks = crossing.lake_banks?;
+                                Some(FerryTransitCrossing {
+                                    horizontal: banks.exit.x_q16.abs_diff(banks.entry.x_q16)
+                                        >= banks.exit.y_q16.abs_diff(banks.entry.y_q16),
                                 })
-                                .collect::<Vec<_>>()
-                        })
+                            })
+                            .collect::<Vec<_>>()
                     })
+                })
             })
         })
         .unwrap_or_default();
@@ -2898,11 +2893,7 @@ fn render_spatial_screen(
     state.dirty = false;
 }
 
-fn spawn_ferry_cutscene_overlay(
-    commands: &mut Commands,
-    parent: Entity,
-    transit: &FerryTransit,
-) {
+fn spawn_ferry_cutscene_overlay(commands: &mut Commands, parent: Entity, transit: &FerryTransit) {
     let Some(crossing) = transit.crossings.get(transit.crossing_index) else {
         return;
     };
@@ -2996,10 +2987,7 @@ fn spawn_ferry_cutscene_overlay(
     };
     for shore in [shore_a, shore_b] {
         let entity = commands
-            .spawn((
-                shore,
-                BackgroundColor(Color::srgb(0.42, 0.34, 0.21)),
-            ))
+            .spawn((shore, BackgroundColor(Color::srgb(0.42, 0.34, 0.21))))
             .id();
         commands.entity(water).add_child(entity);
     }
@@ -3021,8 +3009,8 @@ fn spawn_ferry_cutscene_overlay(
         commands.entity(water).add_child(stripe);
     }
 
-    let boat_progress = 15.0
-        + (transit.elapsed_seconds / FERRY_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 70.0;
+    let boat_progress =
+        15.0 + (transit.elapsed_seconds / FERRY_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 70.0;
     let boat = commands
         .spawn((
             SpatialFerryBoat(crossing.horizontal),
@@ -3063,7 +3051,6 @@ fn spawn_ferry_cutscene_overlay(
         ))
         .id();
     commands.entity(overlay).add_child(detail);
-
 }
 
 #[cfg(target_os = "android")]

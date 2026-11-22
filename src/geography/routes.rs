@@ -158,14 +158,11 @@ impl RouteGeography {
     /// from the selected route endpoint. Crossings without two verified shores
     /// remain requirements, but cannot yet drive a physical ferry scene.
     pub fn resolved_lake_crossings(&self, from_a: bool) -> Vec<&RouteCrossing> {
-        let crossings = self
-            .crossings
-            .iter()
-            .filter(|crossing| {
-                crossing.kind == RouteCrossingKind::Lake
-                    && crossing.lake_id.is_some()
-                    && crossing.lake_banks.is_some()
-            });
+        let crossings = self.crossings.iter().filter(|crossing| {
+            crossing.kind == RouteCrossingKind::Lake
+                && crossing.lake_id.is_some()
+                && crossing.lake_banks.is_some()
+        });
         if from_a {
             crossings.collect()
         } else {
