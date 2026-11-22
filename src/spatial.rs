@@ -157,9 +157,6 @@ impl SpatialProp {
     }
 }
 
-/// A physical local-map transition. Ordinary routes occupy map edges; cave
-/// entrances and shafts occupy reachable interior tiles. Destinations are
-/// validated against the authoritative world graph before travel is applied.
 /// A canonical boundary between two cardinally adjacent map cells.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GridEdge {
@@ -209,6 +206,9 @@ pub struct SpatialDoor {
     pub room_b: String,
     pub state: DoorState,
 }
+/// A physical local-map transition. Ordinary routes occupy map edges; cave
+/// entrances and shafts occupy reachable interior tiles. Destinations are
+/// validated against the authoritative world graph before travel is applied.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MapExit {
     /// Stable within this local map and independent of destination display text.
