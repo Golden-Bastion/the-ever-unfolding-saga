@@ -10,10 +10,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'data/**'
-      - 'CHANGELOG.md'
-      - 'RELEASE-NOTES.md'
       - '.github/scripts/**'
-      - 'docs/development-process.md'
 
 concurrency:
   group: pr-checks-${{ github.event.pull_request.number }}

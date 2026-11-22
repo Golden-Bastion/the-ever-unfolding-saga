@@ -2,6 +2,10 @@ name: License check
 
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '**/*.md'
   push:
     branches: [main]
   workflow_dispatch:

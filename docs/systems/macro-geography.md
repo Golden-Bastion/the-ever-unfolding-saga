@@ -4,6 +4,22 @@
 
 The macro-geography module defines renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, bounded terrain-aware route planning, on-demand frontier materialization, and persistent individual cave-chamber topology. It does not depend on Bevy or local-map tile geometry.
 
+## Current visual realization
+
+**The existence of a generated geography feature does not mean that feature is currently drawn in the game.** The v0.53 macro-geography systems produce authoritative, deterministic data for future world presentation and gameplay. The current spatial renderer still draws the established local-map terrain/prop catalogue; it does not yet sample macro elevation, mountain ridges, biome classifications, or surface-water coverage to create corresponding landscape tiles, terrain silhouettes, vegetation, rivers, or lakes.
+
+What is visible today is narrower:
+
+- The spatial scene has its existing local-map floor, ash, rubble, wall, pillar, and table imagery, with the provisional material palette introduced in v0.53.21.
+- The spatial scene presents the existing sky and celestial cycle from world time, plus player and available actor sprites.
+- Route/frontier passages and cave transitions have semantic categories and provisional renderer tints. They still use generic passage imagery rather than a complete set of dedicated route, entrance, shaft, and tunnel assets; those needs are tracked in [#491](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/491).
+- Cave topology is connected to reachable local-map transitions, but the generated chamber network is not yet rendered as a continuous or geographically detailed underground landscape.
+- Location archetypes affect deterministic placement only. They do not currently give settlements, wilderness locations, or landmarks distinct visual layouts or environmental art.
+
+In particular, the current material palette is not biome rendering: a forest, desert, tundra, alpine region, river, or lake is not yet guaranteed to look different in local exploration because of its macro-geography classification. The World Map also remains an interim route-graph presentation, not a rendered continuous geographic map.
+
+The next presentation stage is to connect macro samples to local-map environmental composition and then supply coherent, region-appropriate terrain, vegetation, water, mountain, and underground assets. Keep this presentation layer downstream of the renderer-neutral geography model; it must not become a second source of terrain, route, or water truth.
+
 Implemented in v0.53.1:
 
 - `RegionCoordinate` identifies a fixed 256 × 256 region chunk using signed `i64` chunk coordinates.
@@ -173,7 +189,7 @@ Implemented in v0.53.19:
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
 
-Existing saves deserialize without region coordinates. Their geography ruleset defaults to `0`, meaning "not embedded/migrated"; normal loading does not invent coordinates or reinterpret established topology. A dedicated migration must later place legacy regions and locations deterministically, persist migration provenance, and preserve runtime IDs, routes, history, and saved local maps.
+Existing saves may deserialize without region coordinates, a geography seed, or a nonzero geography ruleset/embedding version. During geography initialization, `ensure_location_geography` deterministically supplies missing world geography metadata, embeds missing region coordinates, creates missing location anchors/footprints, and reconciles route geography. Compatibility seeds derive from immutable saved world/region identities when no generation seed exists. Existing region coordinates and location anchors remain authoritative; the migration preserves runtime IDs, established routes, history, and saved local maps. The persisted ruleset and embedding versions record the applied contracts.
 
 ## Boundaries and remaining work
 
@@ -188,7 +204,7 @@ Macro-geography coordinates are not:
 - Runtime entity IDs.
 - A claim that legacy route graphs already match physical terrain.
 
-The 256 × 256 resolution describes macro samples per region chunk. It does not prescribe local-map dimensions, real-world kilometres, or a continuous terrain renderer.
+The 256 × 256 resolution describes macro samples per region chunk. It does not prescribe local-map dimensions, real-world kilometres, or a continuous terrain renderer. The current local-map renderer does not draw a 256 × 256 macro chunk.
 
 ## Location placement archetypes
 

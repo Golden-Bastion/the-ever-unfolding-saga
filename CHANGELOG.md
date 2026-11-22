@@ -11,6 +11,7 @@ This file records completed work in the current unreleased development line. Old
 - Land and footprint validity remain primary, archetypes are preferences rather than hard biome constraints, and explicit authored anchors remain authoritative.
 - Advanced the location-geography embedding version. Existing persisted anchors are not moved; older worlds without anchors use the new policy when embedded.
 - Added automated coverage for archetype scoring and legacy content defaults.
+- Clarified in the roadmap and macro-geography system documentation which generated geography features are currently visible and which still require local-map visual integration and dedicated assets.
 - Bumped Rust and Android metadata to 0.53.22.
 
 ### v0.53.21: Provisional spatial material palette
