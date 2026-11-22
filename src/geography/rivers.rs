@@ -5,7 +5,8 @@
 //! climate-derived precipitation potential. The sum is a relative index, not
 //! physical discharge or water volume; no generated hydrology state is stored.
 
-use super::{climate, terrain, watershed, MacroCoordinate};
+use super::{climate, terrain, waterbodies, watershed, MacroCoordinate};
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, VecDeque};
 
 /// Hard upper bound on coarse cells included in one accumulation query.
@@ -71,6 +72,283 @@ impl RiverSample {
     /// A truncated result confirms a channel only after the threshold is met.
     pub const fn is_channel(self) -> bool {
         self.accumulation.contributing_cells >= MIN_RIVER_CONTRIBUTING_CELLS
+    }
+}
+
+/// Relative river width inferred from bounded contributing area.
+///
+/// These are categorical world-generation widths, not calibrated metres or
+/// local-map tile counts. The classes grow downstream as more watershed cells
+/// contribute to the channel. A truncated accumulation has reached the query's
+/// 128-cell work limit, so VeryWide is a confirmed lower-bound class, not a maximum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RiverWidthClass {
+    Narrow,
+    Medium,
+    Wide,
+    VeryWide,
+}
+
+impl RiverWidthClass {
+    const fn from_contributing_cells(cells: u16) -> Self {
+        match cells {
+            0..=15 => Self::Narrow,
+            16..=31 => Self::Medium,
+            32..=63 => Self::Wide,
+            _ => Self::VeryWide,
+        }
+    }
+
+    /// Whether the current width class is suitable for a natural ford.
+    pub const fn is_fordable(self) -> bool {
+        matches!(self, Self::Narrow | Self::Medium)
+    }
+}
+
+/// Terminal or bounded continuation reached by tracing a river downstream.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RiverOutletKind {
+    Ocean,
+    Lake,
+    ClosedBasin,
+    Land,
+    Unresolved,
+    SearchLimit,
+}
+
+/// Stable identity shared by river branches that drain to the same outlet.
+///
+/// The identity is derived from the outlet coordinate and terminal kind. A
+/// search-limited trace uses its deterministic continuation coordinate and is
+/// therefore explicitly provisional until a longer trace reaches the outlet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RiverId {
+    pub outlet_coordinate: MacroCoordinate,
+    pub outlet_kind: RiverOutletKind,
+}
+
+/// Direction in which a river flows between adjacent coarse watershed cells.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RiverFlowDirection {
+    North,
+    NorthEast,
+    East,
+    SouthEast,
+    South,
+    SouthWest,
+    West,
+    NorthWest,
+}
+
+/// One representative centre point in a traced river course.
+///
+/// Its coordinate is the centre of a coarse watershed cell, not a locally
+/// resolved channel pixel or tile. The field provides connected macro-scale
+/// topology; a later presentation layer can refine it into riverbank geometry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RiverPathPoint {
+    pub coordinate: MacroCoordinate,
+    pub width: RiverWidthClass,
+    pub contributing_cells: u16,
+    pub downstream: Option<MacroCoordinate>,
+    pub flow_direction: Option<RiverFlowDirection>,
+}
+
+/// The terminal point reached by a bounded downstream river trace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RiverOutlet {
+    pub coordinate: MacroCoordinate,
+    pub kind: RiverOutletKind,
+}
+
+/// A connected downstream course through the deterministic watershed graph.
+///
+/// This is one downstream course, not an eagerly materialized branching tree.
+/// Tributary traces share an identity when they reach the same outlet. The path
+/// contains representative channel-cell centres in flow order; the final point
+/// records its next drainage coordinate even when that destination is a lake or ocean.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RiverNetwork {
+    pub id: RiverId,
+    pub path: Vec<RiverPathPoint>,
+    pub outlet: RiverOutlet,
+}
+
+impl RiverSample {
+    /// Relative width class derived from the bounded contributing-area count.
+    pub const fn width_class(self) -> RiverWidthClass {
+        RiverWidthClass::from_contributing_cells(self.accumulation.contributing_cells)
+    }
+
+    /// Stable identity of the downstream drainage network containing this cell.
+    ///
+    /// This follows only the coarse watershed links; it does not trace or
+    /// materialize the full river course. The outlet may lie beyond an
+    /// intervening lake, because identity is based on the underlying drainage
+    /// basin rather than the first visible water feature.
+    pub fn network_id(self, world_seed: u64, ruleset_version: u32) -> Option<RiverId> {
+        let outlet = watershed::trace_to_outlet(world_seed, ruleset_version, self.coarse_cell)?;
+        let (outlet_coordinate, outlet_kind) = match outlet.kind() {
+            watershed::OutletKind::Ocean => (outlet.coordinate(), RiverOutletKind::Ocean),
+            watershed::OutletKind::ClosedBasin => {
+                if let Some(lake) =
+                    waterbodies::sample_surface(world_seed, ruleset_version, outlet.coordinate())
+                {
+                    (lake.outlet_cell(), RiverOutletKind::Lake)
+                } else {
+                    (outlet.coordinate(), RiverOutletKind::ClosedBasin)
+                }
+            }
+            watershed::OutletKind::SearchLimit => {
+                (outlet.coordinate(), RiverOutletKind::SearchLimit)
+            }
+        };
+        Some(RiverId {
+            outlet_coordinate,
+            outlet_kind,
+        })
+    }
+
+    /// Immediate flow direction at this channel cell.
+    pub fn flow_direction(
+        self,
+        world_seed: u64,
+        ruleset_version: u32,
+    ) -> Option<RiverFlowDirection> {
+        let drainage = watershed::sample_surface(world_seed, ruleset_version, self.coarse_cell)?;
+        flow_direction(self.coarse_cell, drainage.coarse_downstream()?)
+    }
+}
+
+/// Maximum number of channel cells included in one downstream course query.
+pub const MAX_RIVER_NETWORK_STEPS: usize = 128;
+
+/// Trace a confirmed river channel downstream through connected watershed cells.
+///
+/// The query is deterministic and bounded. It follows the existing strictly
+/// downhill coarse graph, records channel centres and relative width changes,
+/// and stops at an ocean, lake, closed basin, unresolved land continuation, or
+/// the explicit step limit. It does not simulate water volume or search the
+/// whole upstream catchment.
+pub fn trace_network(
+    world_seed: u64,
+    ruleset_version: u32,
+    coordinate: MacroCoordinate,
+) -> Option<RiverNetwork> {
+    let initial = sample_surface(world_seed, ruleset_version, coordinate)?;
+    if !initial.is_channel() {
+        return None;
+    }
+
+    let mut current = initial.coarse_cell();
+    let mut visited = BTreeSet::new();
+    let mut path = Vec::new();
+    let mut outlet = None;
+
+    for step in 0..MAX_RIVER_NETWORK_STEPS {
+        let key = (
+            current.x.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
+            current.y.div_euclid(watershed::WATERSHED_CELL_SAMPLES),
+        );
+        if !visited.insert(key) {
+            outlet = Some(RiverOutlet {
+                coordinate: current,
+                kind: RiverOutletKind::SearchLimit,
+            });
+            break;
+        }
+
+        let elevation = terrain::sample_surface(world_seed, ruleset_version, current)?;
+        if !elevation.is_land() {
+            outlet = Some(RiverOutlet {
+                coordinate: current,
+                kind: RiverOutletKind::Ocean,
+            });
+            break;
+        }
+        if let Some(lake) = waterbodies::sample_surface(world_seed, ruleset_version, current) {
+            outlet = Some(RiverOutlet {
+                coordinate: lake.outlet_cell(),
+                kind: RiverOutletKind::Lake,
+            });
+            break;
+        }
+
+        let sample = sample_surface(world_seed, ruleset_version, current)?;
+        if !sample.is_channel() {
+            outlet = Some(RiverOutlet {
+                coordinate: current,
+                kind: if sample.accumulation().is_truncated() {
+                    RiverOutletKind::Unresolved
+                } else {
+                    RiverOutletKind::Land
+                },
+            });
+            break;
+        }
+
+        let drainage = watershed::sample_surface(world_seed, ruleset_version, current)?;
+        let downstream = drainage.coarse_downstream();
+        path.push(RiverPathPoint {
+            coordinate: sample.coarse_cell(),
+            width: sample.width_class(),
+            contributing_cells: sample.accumulation().contributing_cells(),
+            downstream,
+            flow_direction: downstream.and_then(|next| flow_direction(current, next)),
+        });
+
+        match downstream {
+            Some(next) => {
+                current = next;
+                if step + 1 == MAX_RIVER_NETWORK_STEPS {
+                    outlet = Some(RiverOutlet {
+                        coordinate: current,
+                        kind: RiverOutletKind::SearchLimit,
+                    });
+                }
+            }
+            None => {
+                outlet = Some(RiverOutlet {
+                    coordinate: current,
+                    kind: RiverOutletKind::ClosedBasin,
+                });
+            }
+        }
+
+        if outlet.is_some() {
+            break;
+        }
+    }
+
+    if path.is_empty() {
+        return None;
+    }
+
+    let outlet = outlet.unwrap_or(RiverOutlet {
+        coordinate: current,
+        kind: RiverOutletKind::SearchLimit,
+    });
+    let id = initial.network_id(world_seed, ruleset_version)?;
+    Some(RiverNetwork { id, path, outlet })
+}
+
+fn flow_direction(from: MacroCoordinate, to: MacroCoordinate) -> Option<RiverFlowDirection> {
+    let cell = watershed::WATERSHED_CELL_SAMPLES;
+    let dx = to.x.div_euclid(cell) - from.x.div_euclid(cell);
+    let dy = to.y.div_euclid(cell) - from.y.div_euclid(cell);
+    match (dx.signum(), dy.signum()) {
+        (0, -1) => Some(RiverFlowDirection::North),
+        (1, -1) => Some(RiverFlowDirection::NorthEast),
+        (1, 0) => Some(RiverFlowDirection::East),
+        (1, 1) => Some(RiverFlowDirection::SouthEast),
+        (0, 1) => Some(RiverFlowDirection::South),
+        (-1, 1) => Some(RiverFlowDirection::SouthWest),
+        (-1, 0) => Some(RiverFlowDirection::West),
+        (-1, -1) => Some(RiverFlowDirection::NorthWest),
+        _ => None,
     }
 }
 

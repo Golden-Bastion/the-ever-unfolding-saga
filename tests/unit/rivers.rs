@@ -164,6 +164,125 @@ fn truncated_accumulation_is_explicit_and_preserves_confirmed_channels() {
     assert!(sample.accumulation().is_truncated());
     assert!(!sample.accumulation().is_complete());
     assert!(sample.is_channel());
+    assert_eq!(sample.width_class(), RiverWidthClass::VeryWide);
+}
+
+#[test]
+fn river_width_classes_follow_contributing_area() {
+    let sample = |cells| RiverSample {
+        coarse_cell: MacroCoordinate::ORIGIN,
+        accumulation: FlowAccumulation {
+            contributing_cells: cells,
+            precipitation_potential_sum_q16: 0,
+            truncated: false,
+        },
+    };
+
+    assert_eq!(sample(8).width_class(), RiverWidthClass::Narrow);
+    assert_eq!(sample(15).width_class(), RiverWidthClass::Narrow);
+    assert_eq!(sample(16).width_class(), RiverWidthClass::Medium);
+    assert_eq!(sample(31).width_class(), RiverWidthClass::Medium);
+    assert_eq!(sample(32).width_class(), RiverWidthClass::Wide);
+    assert_eq!(sample(63).width_class(), RiverWidthClass::Wide);
+    assert_eq!(sample(64).width_class(), RiverWidthClass::VeryWide);
+    assert!(RiverWidthClass::Narrow.is_fordable());
+    assert!(RiverWidthClass::Medium.is_fordable());
+    assert!(!RiverWidthClass::Wide.is_fordable());
+    assert!(!RiverWidthClass::VeryWide.is_fordable());
+}
+
+#[test]
+fn river_network_trace_is_deterministic_and_preserves_downhill_links() {
+    let fixture = [8_211, 42, 1_701, 7_321, 12_345, 1, 2, 3]
+        .into_iter()
+        .find_map(|seed| {
+            for coarse_y in -48..=48 {
+                for coarse_x in -48..=48 {
+                    let Some(coordinate) = watershed::cell_center(coarse_x, coarse_y) else {
+                        continue;
+                    };
+                    let Some(channel) = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                    else {
+                        continue;
+                    };
+                    if !channel.is_channel() {
+                        continue;
+                    }
+                    if let Some(network) =
+                        trace_network(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                    {
+                        return Some((seed, network));
+                    }
+                }
+            }
+            None
+        })
+        .expect("expected a confirmed river channel in the deterministic search area");
+
+    let (seed, network) = fixture;
+    assert!(!network.path.is_empty());
+    assert!(network.path.len() <= MAX_RIVER_NETWORK_STEPS);
+    assert_eq!(
+        sample_surface(seed, GEOGRAPHY_RULESET_VERSION, network.path[0].coordinate)
+            .and_then(|sample| sample.network_id(seed, GEOGRAPHY_RULESET_VERSION)),
+        Some(network.id),
+    );
+    assert_eq!(
+        trace_network(seed, GEOGRAPHY_RULESET_VERSION, network.path[0].coordinate),
+        Some(network.clone())
+    );
+
+    for pair in network.path.windows(2) {
+        assert_eq!(pair[0].downstream, Some(pair[1].coordinate));
+    }
+
+    for point in &network.path {
+        let sample = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, point.coordinate)
+            .expect("every traced point must be a valid surface sample");
+        assert!(
+            sample.is_channel(),
+            "every traced point must be a river channel"
+        );
+        assert_eq!(
+            point.contributing_cells,
+            sample.accumulation().contributing_cells()
+        );
+
+        if let Some(downstream) = point.downstream {
+            assert!(point.flow_direction.is_some());
+            let current_elevation =
+                terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, point.coordinate)
+                    .unwrap()
+                    .elevation_q16();
+            let downstream_elevation =
+                terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, downstream)
+                    .unwrap()
+                    .elevation_q16();
+            assert!(
+                downstream_elevation < current_elevation,
+                "river courses must follow strictly downhill links"
+            );
+        } else {
+            assert_eq!(point.flow_direction, None);
+        }
+    }
+
+    // If this generated course contains adjacent channel cells, a trace begun
+    // at the downstream point must reproduce the same continuation. The
+    // deterministic fixture is not required to contain a multi-cell channel:
+    // channel thresholds and nearby lake/land outlets are world-seed dependent.
+    if network.path.len() >= 2 {
+        let downstream_trace =
+            trace_network(seed, GEOGRAPHY_RULESET_VERSION, network.path[1].coordinate)
+                .expect("a downstream channel point should still be traceable");
+        assert_eq!(
+            downstream_trace.path[0].coordinate,
+            network.path[1].coordinate
+        );
+        if network.id.outlet_kind != RiverOutletKind::SearchLimit {
+            assert_eq!(downstream_trace.id, network.id);
+        }
+    }
 }
 
 #[test]
