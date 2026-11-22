@@ -716,7 +716,12 @@ impl LocalMap {
                     x: x as u16,
                     y: y as u16,
                 };
-                if self.is_walkable(next) && visited.insert(next) {
+                let edge = GridEdge::new(position, next).expect("neighbor cells share an edge");
+                let blocked_by_door = self
+                    .doors
+                    .iter()
+                    .any(|door| door.edge == edge && door.state != DoorState::Open);
+                if self.is_walkable(next) && !blocked_by_door && visited.insert(next) {
                     queue.push_back(next);
                 }
             }
