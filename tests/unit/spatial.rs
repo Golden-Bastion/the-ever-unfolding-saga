@@ -869,6 +869,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
         route_id: None,
         route_profile: None,
         frontier: None,
+            cave_target: None,
         position: GridPosition {
             x: map.width - 1,
             y: 1,
@@ -927,6 +928,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
             route_id: None,
             route_profile: None,
             frontier: None,
+            cave_target: None,
             position: first_position,
             target_location_id: 10,
         },
@@ -1112,6 +1114,7 @@ fn map_exit_profile_defaults_when_loading_an_older_saved_passage() {
         route_id: None,
         route_profile: None,
         frontier: None,
+            cave_target: None,
         position: GridPosition {
             x: map.width - 1,
             y: 2,
@@ -1178,6 +1181,7 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
         route_id: Some("route.east".into()),
         route_profile: None,
         frontier: None,
+            cave_target: None,
         position,
         target_location_id: 20,
     };
@@ -1302,6 +1306,7 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
         route_id: None,
         route_profile: None,
         frontier: None,
+            cave_target: None,
         position,
         target_location_id: 20,
     });
