@@ -2799,3 +2799,218 @@ fn render_world_lab_editor(
         spawn_world_lab_map_preview(
             commands,
             preview_panel,
+            "EDIT PREVIEW",
+            "",
+            None,
+            "Generate a map first.",
+        );
+        bevy_presentation::spawn_muted_label(commands, controls, "No temporary map is available.");
+    }
+    if let Some(status) = state.world_lab_status.as_deref() {
+        bevy_presentation::spawn_muted_label(commands, controls, status);
+    }
+    for (index, (icon, label)) in WORLD_LAB_EDITOR_ACTIONS.iter().enumerate() {
+        let button =
+            bevy_presentation::spawn_action_button(commands, controls, index, *icon, *label);
+        if navigation.selected == index {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
+    }
+}
+
+fn render_world_lab_fixtures(
+    commands: &mut Commands,
+    navigation: &NavigationState,
+    state: &DeveloperToolsState,
+) {
+    let root = bevy_presentation::spawn_screen(commands, "WORLD LAB | FIXTURES");
+    bevy_presentation::spawn_muted_label(
+        commands,
+        root,
+        "Reusable spatial maps are stored separately from campaign saves. Import validates a fixture before it replaces the temporary sandbox.",
+    );
+
+    let workspace = commands.spawn(lab_workspace_node()).id();
+    commands.entity(root).add_child(workspace);
+    let preview_panel = spawn_world_lab_panel(commands, workspace);
+    let controls = spawn_world_lab_panel(commands, workspace);
+
+    let selected_fixture = state.world_lab_fixtures.get(navigation.selected);
+    spawn_world_lab_map_preview(
+        commands,
+        preview_panel,
+        "FIXTURE PREVIEW",
+        "Legend: @ entry | ? discovery | E passage | N NPC | C remains | P prop | # wall | . floor | : ash | % rubble",
+        selected_fixture
+            .and_then(|fixture| fixture.map.as_ref())
+            .map(world_lab_map_preview),
+        "Select a valid fixture to preview its map.",
+    );
+    if let Some(fixture) = selected_fixture {
+        bevy_presentation::spawn_label(commands, preview_panel, &fixture.name);
+        bevy_presentation::spawn_muted_label(commands, preview_panel, &fixture.details);
+        if let Some(error) = fixture.error.as_deref() {
+            bevy_presentation::spawn_muted_label(commands, preview_panel, error);
+        }
+    } else if state.world_lab_fixtures.is_empty() {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            preview_panel,
+            "No fixtures are available yet. Save a generated map or import a .json fixture.",
+        );
+    }
+
+    if state.world_lab_fixtures.is_empty() {
+        bevy_presentation::spawn_muted_label(
+            commands,
+            controls,
+            "No fixtures found. Save the current map or import a .json fixture.",
+        );
+    }
+    for (index, fixture) in state.world_lab_fixtures.iter().enumerate() {
+        let button = bevy_presentation::spawn_action_button_with_detail(
+            commands,
+            controls,
+            index,
+            if fixture.error.is_some() {
+                "cancel"
+            } else {
+                "folder"
+            },
+            &fixture.name,
+            &fixture.details,
+        );
+        if navigation.selected == index {
+            commands
+                .entity(button)
+                .insert(bevy_presentation::UiSelected);
+        }
+    }
+
+    let import_index = state.world_lab_fixtures.len();
+    let import = bevy_presentation::spawn_action_button(
+        commands,
+        controls,
+        import_index,
+        "folder",
+        "Import fixture",
+    );
+    if navigation.selected == import_index {
+        commands
+            .entity(import)
+            .insert(bevy_presentation::UiSelected);
+    }
+    let refresh_index = import_index + 1;
+    let refresh = bevy_presentation::spawn_action_button(
+        commands,
+        controls,
+        refresh_index,
+        "continue",
+        "Refresh fixture list",
+    );
+    if navigation.selected == refresh_index {
+        commands
+            .entity(refresh)
+            .insert(bevy_presentation::UiSelected);
+    }
+    let back_index = refresh_index + 1;
+    let back = bevy_presentation::spawn_action_button(
+        commands,
+        controls,
+        back_index,
+        "back",
+        "Back to World Lab",
+    );
+    if navigation.selected == back_index {
+        commands.entity(back).insert(bevy_presentation::UiSelected);
+    }
+    if let Some(status) = state.world_lab_status.as_deref() {
+        bevy_presentation::spawn_muted_label(commands, controls, status);
+    }
+}
+
+fn developer_tools_screen_requires_render(
+    rendered_screen: Option<ScreenId>,
+    active_screen: ScreenId,
+    dirty: bool,
+) -> bool {
+    rendered_screen != Some(active_screen) || dirty
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_if_active(
+    mut commands: Commands,
+    navigation: Res<NavigationState>,
+    mut state: ResMut<DeveloperToolsState>,
+    mut images: ResMut<Assets<Image>>,
+    mut cache: ResMut<PortraitImageCache>,
+    spatial: Res<SpatialExplorationState>,
+    roots: Query<Entity, With<BevyScreenRoot>>,
+    character_lab_roots: Query<Entity, With<CharacterLabRoot>>,
+    character_lab_workspaces: Query<Entity, With<CharacterLabWorkspace>>,
+    character_lab_viewers: Query<Entity, With<CharacterLabViewerHost>>,
+    character_lab_controls: Query<Entity, With<CharacterLabControlsHost>>,
+    children: Query<&Children>,
+) {
+    let Some(screen) = navigation
+        .current_screen
+        .filter(|screen| is_developer_tool_screen(*screen))
+    else {
+        state.rendered_screen = None;
+        return;
+    };
+    if !developer_tools_screen_requires_render(state.rendered_screen, screen, state.dirty) {
+        return;
+    }
+
+    if screen == ScreenId::CharacterLab && state.rendered_screen == Some(screen) {
+        if let (Some(root), Some(workspace), Some(viewer), Some(controls)) = (
+            character_lab_roots.iter().next(),
+            character_lab_workspaces.iter().next(),
+            character_lab_viewers.iter().next(),
+            character_lab_controls.iter().next(),
+        ) {
+            render_character_lab(
+                &mut commands,
+                &navigation,
+                &state,
+                &mut images,
+                &mut cache,
+                Some((root, workspace, viewer, controls)),
+                &children,
+            );
+            state.dirty = false;
+            return;
+        }
+    }
+
+    for root in &roots {
+        commands.entity(root).despawn();
+    }
+    match screen {
+        ScreenId::DeveloperTools => render_hub(&mut commands, &navigation),
+        ScreenId::CharacterLab => render_character_lab(
+            &mut commands,
+            &navigation,
+            &state,
+            &mut images,
+            &mut cache,
+            None,
+            &children,
+        ),
+        ScreenId::WorldLab => render_world_lab(&mut commands, &navigation, &state, &spatial),
+        ScreenId::WorldLabEditor => {
+            render_world_lab_editor(&mut commands, &navigation, &state, &spatial)
+        }
+        ScreenId::WorldLabFixtures => render_world_lab_fixtures(&mut commands, &navigation, &state),
+        _ => {}
+    }
+    state.rendered_screen = Some(screen);
+    state.dirty = false;
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/bevy_dev_tools.rs"]
+mod tests;
