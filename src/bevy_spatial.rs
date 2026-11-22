@@ -3021,13 +3021,23 @@ fn spawn_ferry_cutscene_overlay(
         commands.entity(water).add_child(stripe);
     }
 
+    let boat_progress = 15.0
+        + (transit.elapsed_seconds / FERRY_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 70.0;
     let boat = commands
         .spawn((
             SpatialFerryBoat(crossing.horizontal),
             Node {
                 position_type: PositionType::Absolute,
-                left: if crossing.horizontal { percent(15) } else { percent(42) },
-                top: if crossing.horizontal { percent(42) } else { percent(15) },
+                left: if crossing.horizontal {
+                    percent(boat_progress)
+                } else {
+                    percent(42)
+                },
+                top: if crossing.horizontal {
+                    percent(42)
+                } else {
+                    percent(boat_progress)
+                },
                 width: px(52),
                 height: px(18),
                 border_radius: BorderRadius::MAX,
