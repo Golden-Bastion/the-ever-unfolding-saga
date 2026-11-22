@@ -266,6 +266,7 @@ fn mod_events_can_reference_definitions_from_other_mods() {
         name: "Later Reach".into(),
         description: "A test location supplied by another mod.".into(),
         dangerous: false,
+        archetype: None,
         exits: Vec::new(),
         scene_art: None,
         scene_image: None,
