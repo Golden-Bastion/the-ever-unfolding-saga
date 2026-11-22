@@ -71,6 +71,8 @@ fn ground_terrain_never_occludes_actors_at_different_map_depths() {
         Terrain::Rubble,
         Terrain::Sand,
         Terrain::Water,
+        Terrain::Ford,
+        Terrain::Bridge,
     ] {
         for actor_position in [
             Vec2::new(0.5, 0.5),
@@ -2014,13 +2016,15 @@ fn interior_door_state_blocks_and_allows_continuous_grid_edge_crossing() {
 }
 
 #[test]
-fn spatial_material_palette_distinguishes_existing_terrain_types() {
+fn spatial_material_palette_distinguishes_terrain_and_crossing_types() {
     let discovered = [
         terrain_tint(Terrain::Floor, true, None),
         terrain_tint(Terrain::Ash, true, None),
         terrain_tint(Terrain::Rubble, true, None),
         terrain_tint(Terrain::Sand, true, None),
         terrain_tint(Terrain::Water, true, None),
+        terrain_tint(Terrain::Ford, true, None),
+        terrain_tint(Terrain::Bridge, true, None),
         terrain_tint(Terrain::Wall, true, None),
     ];
     for (index, color) in discovered.iter().enumerate() {
@@ -2033,6 +2037,8 @@ fn spatial_material_palette_distinguishes_existing_terrain_types() {
         terrain_tint(Terrain::Rubble, false, None),
         terrain_tint(Terrain::Sand, false, None),
         terrain_tint(Terrain::Water, false, None),
+        terrain_tint(Terrain::Ford, false, None),
+        terrain_tint(Terrain::Bridge, false, None),
         terrain_tint(Terrain::Wall, false, None),
     ];
     for (index, color) in undiscovered.iter().enumerate() {
@@ -2104,6 +2110,8 @@ fn water_and_sand_reuse_the_existing_ground_art_with_distinct_material_tints() {
         terrain_image_index(Terrain::Water),
         terrain_image_index(Terrain::Floor)
     );
+    assert_eq!(terrain_image_index(Terrain::Ford), terrain_image_index(Terrain::Rubble));
+    assert_eq!(terrain_image_index(Terrain::Bridge), terrain_image_index(Terrain::Floor));
     assert_ne!(
         terrain_tint(Terrain::Sand, true, None),
         terrain_tint(Terrain::Water, true, None)
