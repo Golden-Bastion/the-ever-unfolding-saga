@@ -11,6 +11,8 @@ on:
       - 'Cargo.lock'
       - 'data/**'
       - '.github/scripts/**'
+      - 'CHANGELOG.md'
+      - 'RELEASE-NOTES.md'
 
 concurrency:
   group: pr-checks-${{ github.event.pull_request.number }}
