@@ -30,7 +30,8 @@ use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_cave_connections, configure_map_frontiers,
     configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout,
-    ExplorationSession, GridPosition, LocalMap, LocalMapConfig, MapExit, MapRouteDestination,
+    ExplorationSession, GridPosition, LocalMap, LocalMapConfig, MapExit, MapExitVisualKind,
+    MapRouteDestination,
     SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind,
     Terrain,
 };
@@ -2215,17 +2216,18 @@ fn render_spatial_screen(
         );
         let exit_position = map_to_world(exit_grid, Some(map));
         if let Some(image) = assets.passage_image.clone() {
-            let color = match exit.cave_target.as_ref().map(|target| target.kind) {
-                Some(crate::geography::caves::CaveConnectionKind::SurfaceEntrance) => {
-                    Color::srgb(0.62, 0.48, 0.34)
-                }
-                Some(crate::geography::caves::CaveConnectionKind::VerticalShaft) => {
-                    Color::srgb(0.55, 0.58, 0.62)
-                }
-                Some(crate::geography::caves::CaveConnectionKind::HorizontalPassage) => {
-                    Color::srgb(0.68, 0.62, 0.50)
-                }
-                None => Color::WHITE,
+            let color = match exit.visual_kind() {
+                MapExitVisualKind::Frontier => Color::srgb(0.76, 0.70, 0.55),
+                MapExitVisualKind::Trail => Color::srgb(0.70, 0.64, 0.49),
+                MapExitVisualKind::MountainPass => Color::srgb(0.62, 0.59, 0.54),
+                MapExitVisualKind::RiverCrossing => Color::srgb(0.48, 0.66, 0.72),
+                MapExitVisualKind::WaterCrossing => Color::srgb(0.42, 0.58, 0.68),
+                MapExitVisualKind::MixedRoute => Color::srgb(0.67, 0.61, 0.48),
+                MapExitVisualKind::UncertainRoute => Color::srgb(0.60, 0.60, 0.58),
+                MapExitVisualKind::UnclassifiedRoute => Color::WHITE,
+                MapExitVisualKind::CaveEntrance => Color::srgb(0.62, 0.48, 0.34),
+                MapExitVisualKind::VerticalShaft => Color::srgb(0.55, 0.58, 0.62),
+                MapExitVisualKind::CavePassage => Color::srgb(0.68, 0.62, 0.50),
             };
             commands.spawn((
                 SpatialWorldEntity,
