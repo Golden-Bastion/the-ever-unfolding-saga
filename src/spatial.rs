@@ -1486,8 +1486,7 @@ fn place_river_crossings(
                     &component_ids,
                     &mut best,
                     tiles,
-                    bank_before,
-                    bank_after,
+                    (bank_before, bank_after),
                     0,
                 );
             }
@@ -1528,8 +1527,7 @@ fn place_river_crossings(
                     &component_ids,
                     &mut best,
                     tiles,
-                    bank_before,
-                    bank_after,
+                    (bank_before, bank_after),
                     1,
                 );
             }
@@ -1560,10 +1558,10 @@ fn consider_river_crossing(
     component_ids: &[Option<usize>],
     best: &mut [Option<RiverCrossingCandidate>],
     tiles: Vec<GridPosition>,
-    bank_before: GridPosition,
-    bank_after: GridPosition,
+    banks: (GridPosition, GridPosition),
     axis_order: u8,
 ) {
+    let (bank_before, bank_after) = banks;
     if tiles.is_empty() || !map.is_walkable(bank_before) || !map.is_walkable(bank_after) {
         return;
     }
@@ -1599,7 +1597,7 @@ fn consider_river_crossing(
         candidate.tiles[0].x,
         candidate.axis_order,
     );
-    let replace = best[component_id].as_ref().map_or(true, |current| {
+    let replace = best[component_id].as_ref().is_none_or(|current| {
         candidate_key
             < (
                 current.tiles.len(),
