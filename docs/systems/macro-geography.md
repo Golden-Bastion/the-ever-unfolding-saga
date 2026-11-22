@@ -29,7 +29,7 @@ Implemented in v0.53.28:
 - Extended persisted `RouteCrossing` records with optional `lake_id` and `lake_banks` metadata. The lake ID is derived from the existing stable basin identity; shore points use the same Q16 global macro-coordinate lattice as river banks.
 - When a bounded planned route enters and leaves the same generated inland lake over dry land, route classification resolves both shores by deterministic integer bisection between adjacent path samples. Each shore is represented as the midpoint of the final adjacent wet/dry macro samples, and the crossing coordinate is the rounded midpoint of the two shores.
 - Lake coverage is checked at every point of the route's existing bounded path (maximum 256 points); the existing cached, coarser cadence for river/ocean/unresolved-water classification is unchanged. No world scan, new simulation, or persistent generated lake state is introduced.
-- Crossings without two resolvable dry-land shores retain their stable lake identity and ferry requirement but have no `lake_banks`; the system does not invent shore coordinates through ocean or a separate lake.
+- Crossings without two resolvable dry-land shores retain their stable lake identity and ferry requirement but have no `lake_banks`; the system does not invent shore coordinates through ocean, another lake, or a river channel.
 - The new optional fields default to `None` on older serialized route records. No outer save-format or geography-ruleset bump is required.
 - Added automated coverage for deterministic route lake identity/shore pairs, midpoint semantics, serialization, and legacy field defaults.
 
