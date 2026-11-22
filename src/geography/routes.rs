@@ -932,9 +932,7 @@ fn find_lake_bank_boundary(
         }
     }
 
-    RiverPosition::from_macro_coordinate(wet)?.midpoint(
-        RiverPosition::from_macro_coordinate(dry)?,
-    )
+    RiverPosition::from_macro_coordinate(wet)?.midpoint(RiverPosition::from_macro_coordinate(dry)?)
 }
 
 fn push_river_crossing(

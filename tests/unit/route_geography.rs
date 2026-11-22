@@ -102,22 +102,21 @@ fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
                         continue;
                     }
 
-                    let mut river_cache = crate::geography::river_geometry::RiverGeometryCache::default();
+                    let mut river_cache =
+                        crate::geography::river_geometry::RiverGeometryCache::default();
                     let shores = [path[first_lake_point - 1], path[last_lake_point + 1]];
                     let has_two_dry_banks = shores.into_iter().all(|shore| {
                         if !terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, shore)
                             .is_some_and(|sample| sample.is_land())
-                            || waterbodies::sample_surface(
-                                seed,
-                                GEOGRAPHY_RULESET_VERSION,
-                                shore,
-                            )
-                            .is_some()
+                            || waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, shore)
+                                .is_some()
                         {
                             return false;
                         }
                         let Some(position) =
-                            crate::geography::river_geometry::RiverPosition::from_macro_coordinate(shore)
+                            crate::geography::river_geometry::RiverPosition::from_macro_coordinate(
+                                shore,
+                            )
                         else {
                             return false;
                         };
