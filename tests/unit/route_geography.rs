@@ -287,7 +287,9 @@ fn coarse_channel_cells_do_not_create_false_local_route_crossings() {
 #[test]
 fn route_crossing_classifier_records_generated_bank_intersections() {
     use crate::geography::hydrology::{self, SurfaceWaterKind};
-    use crate::geography::river_geometry::{RiverGeometryCache, RiverPosition};
+    use crate::geography::river_geometry::{
+        RiverGeometryCache, RiverPosition, RIVER_POSITION_SCALE,
+    };
     use crate::geography::routes::{classify_crossings, RouteCrossingKind};
     use crate::geography::terrain;
     use crate::geography::watershed;
@@ -316,54 +318,82 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
                     if segment.width_class().is_fordable() {
                         continue;
                     }
-                    let points = segment.centerline();
-                    let (Some(before), Some(center), Some(after)) =
-                        (points.get(2), points.get(3), points.get(4))
-                    else {
-                        continue;
-                    };
-                    let Some(rounded) = center.rounded_macro_coordinate() else {
-                        continue;
-                    };
-                    let dx = after.x_q16 - before.x_q16;
-                    let dy = after.y_q16 - before.y_q16;
-                    let normal_x = if dy > 0 {
-                        -1
-                    } else if dy < 0 {
-                        1
-                    } else {
-                        0
-                    };
-                    let normal_y = if dx > 0 {
-                        1
-                    } else if dx < 0 {
-                        -1
-                    } else {
-                        0
-                    };
-                    if normal_x == 0 && normal_y == 0 {
-                        continue;
-                    }
-                    let start =
-                        MacroCoordinate::new(rounded.x + normal_x * 8, rounded.y + normal_y * 8);
-                    let end =
-                        MacroCoordinate::new(rounded.x - normal_x * 8, rounded.y - normal_y * 8);
-                    if ![start, end].into_iter().all(|point| {
-                        terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, point)
-                            .is_some_and(|terrain| terrain.is_land())
-                    }) {
-                        continue;
-                    }
 
-                    let crossings =
-                        classify_crossings(seed, GEOGRAPHY_RULESET_VERSION, &[start, end]);
-                    if let Some(crossing) = crossings.into_iter().find(|crossing| {
-                        crossing.kind == RouteCrossingKind::River
-                            && crossing.river_id == Some(segment.river_id())
-                            && crossing.river_banks.is_some()
-                    }) {
-                        fixture = Some(crossing);
-                        break 'search;
+                    // Test the middle of a tessellated chord, not a shared curve
+                    // vertex. This keeps the fixture independent of how adjacent
+                    // chords approximate their bank joins.
+                    for pair in segment.centerline().windows(2) {
+                        let Some(center) = pair[0].midpoint(pair[1]) else {
+                            continue;
+                        };
+                        let dx = pair[1].x_q16 - pair[0].x_q16;
+                        let dy = pair[1].y_q16 - pair[0].y_q16;
+                        let normal_scale = dx.unsigned_abs().max(dy.unsigned_abs());
+                        if normal_scale == 0 {
+                            continue;
+                        }
+
+                        // A perpendicular span of 16 macro samples is wider
+                        // than every generated channel band, with fixed-point
+                        // arithmetic retaining the curve's local tangent.
+                        let span_q16 = i128::from(RIVER_POSITION_SCALE) * 16;
+                        let normal_scale = i128::from(normal_scale);
+                        let Some(offset_x) = i64::try_from(
+                            -i128::from(dy) * span_q16 / normal_scale,
+                        )
+                        .ok() else {
+                            continue;
+                        };
+                        let Some(offset_y) = i64::try_from(
+                            i128::from(dx) * span_q16 / normal_scale,
+                        )
+                        .ok() else {
+                            continue;
+                        };
+                        let Some(start_position) = center.offset(-offset_x, -offset_y) else {
+                            continue;
+                        };
+                        let Some(end_position) = center.offset(offset_x, offset_y) else {
+                            continue;
+                        };
+                        let (Some(start), Some(end)) = (
+                            start_position.rounded_macro_coordinate(),
+                            end_position.rounded_macro_coordinate(),
+                        ) else {
+                            continue;
+                        };
+                        let (Some(route_start), Some(route_end)) = (
+                            RiverPosition::from_macro_coordinate(start),
+                            RiverPosition::from_macro_coordinate(end),
+                        ) else {
+                            continue;
+                        };
+
+                        // Reject a quantized fixture unless the selected channel
+                        // itself confirms that this route crosses both banks.
+                        if segment.intersect_route(route_start, route_end).is_none() {
+                            continue;
+                        }
+                        if ![start, end].into_iter().all(|point| {
+                            terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, point)
+                                .is_some_and(|terrain| terrain.is_land())
+                        }) {
+                            continue;
+                        }
+
+                        let crossings = classify_crossings(
+                            seed,
+                            GEOGRAPHY_RULESET_VERSION,
+                            &[start, end],
+                        );
+                        if let Some(crossing) = crossings.into_iter().find(|crossing| {
+                            crossing.kind == RouteCrossingKind::River
+                                && crossing.river_id == Some(segment.river_id())
+                                && crossing.river_banks.is_some()
+                        }) {
+                            fixture = Some(crossing);
+                            break 'search;
+                        }
                     }
                 }
             }
