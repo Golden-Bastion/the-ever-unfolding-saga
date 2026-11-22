@@ -50,6 +50,10 @@ pub struct LocationContent {
     pub archetype: Option<crate::geography::locations::LocationArchetype>,
     #[serde(default)]
     pub exits: Vec<String>,
+    /// Preferred local-map edge for each authored destination content ID.
+    /// Omitted entries retain geography-derived and deterministic placement.
+    #[serde(default)]
+    pub exit_sides: HashMap<String, crate::spatial::MapExitSide>,
     #[serde(default)]
     pub scene_art: Option<String>,
     /// Runtime-loaded image reference, resolved from data/assets or a mod asset directory.
@@ -349,6 +353,13 @@ impl CampaignContent {
             .collect::<HashMap<_, _>>();
 
         for location in &self.world.locations {
+            for (target_id, _) in &location.exit_sides {
+                if target_id.trim().is_empty() {
+                    issues.push(format!("location {} has an authored exit side with an empty destination ID", location.id));
+                } else if !location.exits.iter().any(|exit| exit == target_id) {
+                    issues.push(format!("location {} assigns an exit side to {} but does not declare that exit", location.id, target_id));
+                }
+            }
             for discovery in &location.spatial_discoveries {
                 let mut prerequisites = HashSet::new();
                 for prerequisite in &discovery.requires_evidence {
