@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.18: Persistent individual cave chambers
+
+- Added `geography::caves` to expose immediate cave connections from a persistent location: reciprocal horizontal chamber passages, surface entrances, and shafts between adjacent underground strata.
+- Materializing a connection creates or reuses one cave chamber location and its owning region, using a stable key and macro anchor derived from the generated cave network rather than runtime entity IDs.
+- Persisted each materialized connection as one bidirectional authoritative `WorldRoute`. Repeated materialization reuses the same destination and route; reverse traversal from a cave chamber resolves the existing surface endpoint instead of creating a duplicate.
+- Kept cave routes separate from overland path geometry. The existing surface A* planner is not misapplied to underground coordinates; local-map physical transitions remain the next integration step.
+- Added automated coverage for shaft materialization, stable chamber identity, horizontal connection discovery, and reciprocal route reuse.
+- Bumped Rust and Android version metadata to 0.53.18.
+
 ### v0.53.17: Deterministic vertical cave connections
 
 - Added surface-to-first-stratum entrance candidates only where the surface sample is land and the corresponding underground sample is open cave space.
