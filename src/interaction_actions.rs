@@ -213,7 +213,8 @@ pub(crate) fn discover_available_interactions(
 
     for exit in &map.exits {
         let pending_frontier = exit.frontier.is_some() && exit.target_location_id == 0;
-        if (!pending_frontier
+        let pending_cave = exit.cave_target.is_some() && exit.target_location_id == 0;
+        if (!pending_frontier && !pending_cave
             && !crate::game::actions::has_location_travel_route(
                 game,
                 exit.target_location_id,
@@ -223,7 +224,14 @@ pub(crate) fn discover_available_interactions(
         {
             continue;
         }
-        let label = if pending_frontier {
+        let label = if pending_cave {
+            match exit.cave_target.as_ref().map(|target| target.kind) {
+                Some(crate::geography::caves::CaveConnectionKind::SurfaceEntrance) => "Descend into cave".to_string(),
+                Some(crate::geography::caves::CaveConnectionKind::VerticalShaft) => "Use vertical shaft".to_string(),
+                Some(crate::geography::caves::CaveConnectionKind::HorizontalPassage) => "Enter cave passage".to_string(),
+                None => "Use cave passage".to_string(),
+            }
+        } else if pending_frontier {
             let direction = exit
                 .frontier
                 .as_ref()
