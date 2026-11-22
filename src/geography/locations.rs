@@ -288,7 +288,10 @@ fn choose_anchor(
     region: RegionCoordinate,
     stable_key: &str,
     radius: u16,
+    archetype: LocationArchetype,
 ) -> MacroCoordinate {
+    const SETTLEMENT_WATER_CANDIDATES: usize = 24;
+
     let Some(origin) = region.global_sample(0, 0) else {
         return MacroCoordinate::ORIGIN;
     };
@@ -299,7 +302,7 @@ fn choose_anchor(
             (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
         });
 
-    let mut best: Option<(i64, MacroCoordinate)> = None;
+    let mut candidates = Vec::<(i64, MacroCoordinate)>::new();
     for index in 0..PLACEMENT_CANDIDATES {
         let random = coordinate_seed(seed ^ key_hash, ruleset.wrapping_add(index as u32), origin);
         let Some(coordinate) =
@@ -311,26 +314,146 @@ fn choose_anchor(
         let Some(sample) = terrain::sample_surface(seed, ruleset, coordinate) else {
             continue;
         };
+        if !sample.is_land() {
+            continue;
+        }
+
         let footprint = validated_footprint_radius(seed, ruleset, coordinate, radius);
-        let land_bonus = if sample.is_land() { 1_i64 << 40 } else { 0 };
-        let footprint_bonus = if footprint == radius && radius > 0 {
-            1_i64 << 24
+        let full_footprint = footprint == radius && radius > 0;
+        let local_relief = if archetype == LocationArchetype::Settlement {
+            local_relief_q16(seed, ruleset, coordinate)
         } else {
             0
         };
-        let score = land_bonus + footprint_bonus + i64::from(sample.elevation_q16())
-            - i64::from(sample.mountain_ridge_strength_q16() / 4);
-
-        match best {
-            None => best = Some((score, coordinate)),
-            Some((best_score, _)) if score > best_score => {
-                best = Some((score, coordinate));
-            }
-            Some(_) => {}
-        }
+        let score = anchor_candidate_score(
+            archetype,
+            sample.elevation_q16(),
+            sample.mountain_ridge_strength_q16(),
+            full_footprint,
+            false,
+            local_relief,
+        );
+        candidates.push((score, coordinate));
     }
 
-    best.map(|(_, coordinate)| coordinate).unwrap_or(origin)
+    candidates.sort_by(|left, right| {
+        right
+            .0
+            .cmp(&left.0)
+            .then_with(|| left.1.x.cmp(&right.1.x))
+            .then_with(|| left.1.y.cmp(&right.1.y))
+    });
+
+    if archetype == LocationArchetype::Settlement {
+        let mut best: Option<(i64, MacroCoordinate)> = None;
+        for (base_score, coordinate) in
+            candidates.into_iter().take(SETTLEMENT_WATER_CANDIDATES)
+        {
+            let freshwater_nearby = has_nearby_freshwater(seed, ruleset, coordinate);
+            let score = if freshwater_nearby {
+                base_score + (1_i64 << 32)
+            } else {
+                base_score
+            };
+            if best.is_none_or(|(best_score, _)| score > best_score) {
+                best = Some((score, coordinate));
+            }
+        }
+        best.map(|(_, coordinate)| coordinate).unwrap_or(origin)
+    } else {
+        candidates
+            .first()
+            .map(|(_, coordinate)| *coordinate)
+            .unwrap_or(origin)
+    }
+}
+
+const Q16_ONE: i64 = 1 << 16;
+
+/// Score one land candidate. Land and footprint validity dominate every
+/// archetype preference; these preferences only rank otherwise viable sites.
+fn anchor_candidate_score(
+    archetype: LocationArchetype,
+    elevation_q16: i32,
+    ridge_strength_q16: u32,
+    full_footprint: bool,
+    freshwater_nearby: bool,
+    local_relief_q16: u32,
+) -> i64 {
+    let land_and_footprint = (1_i64 << 40) + if full_footprint { 1_i64 << 24 } else { 0 };
+    let elevation = i64::from(elevation_q16);
+    let ridge = i64::from(ridge_strength_q16);
+    let relief = i64::from(local_relief_q16);
+
+    land_and_footprint
+        + match archetype {
+            LocationArchetype::Settlement => {
+                let freshwater = if freshwater_nearby { 1_i64 << 32 } else { 0 };
+                freshwater + (Q16_ONE - elevation) * 8 - ridge * 4 - relief * 8
+            }
+            LocationArchetype::Wilderness => elevation / 4 - ridge / 4,
+            LocationArchetype::Landmark => elevation * 4 + ridge * 4 - relief / 4,
+        }
+}
+
+fn has_nearby_freshwater(seed: u64, ruleset: u32, coordinate: MacroCoordinate) -> bool {
+    const PROBE_DISTANCE: i64 = 128;
+    for (dx, dy) in [
+        (PROBE_DISTANCE, 0),
+        (-PROBE_DISTANCE, 0),
+        (0, PROBE_DISTANCE),
+        (0, -PROBE_DISTANCE),
+    ] {
+        let Some(probe) = coordinate
+            .x
+            .checked_add(dx)
+            .zip(coordinate.y.checked_add(dy))
+            .map(|(x, y)| MacroCoordinate::new(x, y))
+        else {
+            continue;
+        };
+        if hydrology::sample_surface(seed, ruleset, probe).is_some_and(|sample| {
+            matches!(
+                sample.kind(),
+                hydrology::SurfaceWaterKind::River(_) | hydrology::SurfaceWaterKind::Lake(_)
+            )
+        }) {
+            return true;
+        }
+    }
+    false
+}
+
+fn local_relief_q16(seed: u64, ruleset: u32, coordinate: MacroCoordinate) -> u32 {
+    const PROBE_DISTANCE: i64 = 64;
+    let Some(center) = terrain::sample_surface(seed, ruleset, coordinate) else {
+        return 0;
+    };
+    let center = i64::from(center.elevation_q16());
+    let mut minimum = center;
+    let mut maximum = center;
+    for (dx, dy) in [
+        (PROBE_DISTANCE, 0),
+        (-PROBE_DISTANCE, 0),
+        (0, PROBE_DISTANCE),
+        (0, -PROBE_DISTANCE),
+    ] {
+        let Some(probe) = coordinate
+            .x
+            .checked_add(dx)
+            .zip(coordinate.y.checked_add(dy))
+            .map(|(x, y)| MacroCoordinate::new(x, y))
+        else {
+            continue;
+        };
+        let Some(sample) = terrain::sample_surface(seed, ruleset, probe) else {
+            continue;
+        };
+        let elevation = i64::from(sample.elevation_q16());
+        minimum = minimum.min(elevation);
+        maximum = maximum.max(elevation);
+    }
+    (maximum - minimum).clamp(0, i64::from(u32::MAX)) as u32
 }
 
 /// Produce deterministic land-anchor candidates close to the edge through
