@@ -156,4 +156,13 @@ fn cave_chamber_targets_are_stable_and_only_follow_real_passages() {
     assert!(world
         .route_by_id(&materialized.route_id)
         .is_some_and(|route| route.connects(3, materialized.location_id)));
+
+    let reverse = connection_targets_for_location(&world, materialized.location_id)
+        .into_iter()
+        .find(|target| target.route_id() == materialized.route_id)
+        .expect("the neighboring chamber should expose the reciprocal passage");
+    assert_eq!(reverse.destination_anchor, chamber);
+    let returned = materialize_connection(&mut world, materialized.location_id, &reverse).unwrap();
+    assert_eq!(returned.location_id, 3);
+    assert_eq!(returned.route_id, materialized.route_id);
 }
