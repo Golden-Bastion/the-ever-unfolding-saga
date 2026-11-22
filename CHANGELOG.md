@@ -4,6 +4,13 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.21: Provisional spatial material palette
+
+- Added distinct, restrained material tints for existing floor, ash, rubble, and wall tiles, plus stone pillars and wooden tables.
+- Preserved discovery shading while allowing discovered surfaces and props to retain their material identity.
+- Kept route-connection and actor tints unchanged. The palette is renderer-only and does not add biome or simulation state.
+- Bumped Rust and Android version metadata to 0.53.21.
+
 ### v0.53.20: Route connection placement and semantic presentation
 
 - New ordinary route and frontier passages now prefer the middle of their selected map edge, expanding outward for additional connections instead of starting at a corner. Existing saved passage positions and IDs are never moved.
