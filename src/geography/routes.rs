@@ -174,7 +174,7 @@ impl RouteGeography {
     }
 
     pub fn has_resolved_lake_crossing(&self) -> bool {
-        self.resolved_lake_crossings(true).len() > 0
+        !self.resolved_lake_crossings(true).is_empty()
     }
 
     pub fn unavailable(status: RoutePlanningStatus) -> Self {
