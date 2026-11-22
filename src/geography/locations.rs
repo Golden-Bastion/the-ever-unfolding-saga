@@ -127,7 +127,14 @@ pub fn ensure_location_geography(world: &mut World, content: Option<&CampaignCon
             .unwrap_or_default();
 
         let anchor = authored_anchor.unwrap_or_else(|| {
-            choose_anchor(seed, ruleset, region_coordinate, &stable_key, radius, archetype)
+            choose_anchor(
+                seed,
+                ruleset,
+                region_coordinate,
+                &stable_key,
+                radius,
+                archetype,
+            )
         });
         let footprint_radius_samples = if authored_anchor.is_some() {
             radius
@@ -346,9 +353,7 @@ fn choose_anchor(
 
     if archetype == LocationArchetype::Settlement {
         let mut best: Option<(i64, MacroCoordinate)> = None;
-        for (base_score, coordinate) in
-            candidates.into_iter().take(SETTLEMENT_WATER_CANDIDATES)
-        {
+        for (base_score, coordinate) in candidates.into_iter().take(SETTLEMENT_WATER_CANDIDATES) {
             let freshwater_nearby = has_nearby_freshwater(seed, ruleset, coordinate);
             let score = if freshwater_nearby {
                 base_score + (1_i64 << 32)

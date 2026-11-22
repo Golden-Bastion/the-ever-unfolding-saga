@@ -566,7 +566,6 @@ fn spatial_evidence_requirements_must_exist_and_form_an_acyclic_graph() {
     assert!(issues.iter().any(|issue| issue.contains("contain a cycle")));
 }
 
-
 #[test]
 fn location_archetype_mod_overrides_preserve_omitted_base_values() {
     let mut base = default_campaign_content();

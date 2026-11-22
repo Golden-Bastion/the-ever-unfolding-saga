@@ -211,7 +211,6 @@ fn generated_location_keys_and_anchors_do_not_depend_on_runtime_entity_ids() {
         .all(|record| record.stable_key.starts_with("location.generated.")));
 }
 
-
 #[test]
 fn settlement_archetype_prefers_freshwater_and_flatter_ground() {
     use crate::geography::locations::{anchor_candidate_score, LocationArchetype};
