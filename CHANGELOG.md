@@ -9,7 +9,7 @@ This file records completed work in the current unreleased development line. Old
 - Added stable generated lake identity to persisted `RouteCrossing` records when a planned surface route enters an inland lake.
 - For route paths with land on both sides, resolve both lake shores using a bounded fixed-point bisection along the existing route segment and persist the Q16 bank-entry/exit positions in route travel order. The crossing coordinate is now their rounded midpoint.
 - Lake coverage is checked at every node of the already bounded route path so lake shore transitions are not skipped by the coarser ocean/river water-probe cadence. River/ocean/unresolved-water classification retains its existing cadence and bounds.
-- Crossings that lack two resolvable land shores retain the ferry requirement and stable lake identity but leave bank metadata absent; no shore is invented through ocean or another lake.
+- Crossings that lack two resolvable land shores retain the ferry requirement and stable lake identity but leave bank metadata absent; no shore is invented through ocean, another lake, or a river channel.
 - Added automated coverage for deterministic shore resolution, all optional crossing metadata, and legacy route records without lake fields.
 - New optional `lake_id` and `lake_banks` fields default empty when loading older route records. No save-format or geography-ruleset bump is required.
 - Bumped Rust and Android metadata to 0.53.28.
