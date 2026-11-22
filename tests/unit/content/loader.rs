@@ -565,3 +565,70 @@ fn spatial_evidence_requirements_must_exist_and_form_an_acyclic_graph() {
         .any(|issue| issue.contains("unknown evidence")));
     assert!(issues.iter().any(|issue| issue.contains("contain a cycle")));
 }
+
+
+#[test]
+fn location_archetype_mod_overrides_preserve_omitted_base_values() {
+    let mut base = default_campaign_content();
+    let market = base
+        .world
+        .locations
+        .iter_mut()
+        .find(|location| location.id == "location.hollow_market")
+        .unwrap();
+    market.archetype = Some(crate::geography::locations::LocationArchetype::Settlement);
+
+    let mut legacy_mod = empty_mod_content();
+    legacy_mod.world.locations.push(LocationContent {
+        id: "location.hollow_market".into(),
+        name: "Hollow Market".into(),
+        description: "A modded description.".into(),
+        dangerous: false,
+        archetype: None,
+        exits: Vec::new(),
+        scene_art: None,
+        scene_image: None,
+        spatial_layout: None,
+        geography: None,
+        spatial_discoveries: Vec::new(),
+    });
+    merge_campaign_content(&mut base, legacy_mod);
+
+    let market = base
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id == "location.hollow_market")
+        .unwrap();
+    assert_eq!(
+        market.archetype,
+        Some(crate::geography::locations::LocationArchetype::Settlement)
+    );
+
+    let mut override_mod = empty_mod_content();
+    override_mod.world.locations.push(LocationContent {
+        id: "location.hollow_market".into(),
+        name: "Hollow Market".into(),
+        description: "A landmark now.".into(),
+        dangerous: false,
+        archetype: Some(crate::geography::locations::LocationArchetype::Landmark),
+        exits: Vec::new(),
+        scene_art: None,
+        scene_image: None,
+        spatial_layout: None,
+        geography: None,
+        spatial_discoveries: Vec::new(),
+    });
+    merge_campaign_content(&mut base, override_mod);
+
+    let market = base
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id == "location.hollow_market")
+        .unwrap();
+    assert_eq!(
+        market.archetype,
+        Some(crate::geography::locations::LocationArchetype::Landmark)
+    );
+}
