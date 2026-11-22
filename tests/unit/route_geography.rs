@@ -77,12 +77,56 @@ fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
                             )
                         })
                         .collect::<Vec<_>>();
-                    if path.iter().any(|coordinate| {
-                        waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate)
+                    let lake_points = path
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, coordinate)| {
+                            waterbodies::sample_surface(
+                                seed,
+                                GEOGRAPHY_RULESET_VERSION,
+                                *coordinate,
+                            )
                             .is_some_and(|sample| {
                                 sample.id(seed, GEOGRAPHY_RULESET_VERSION) == lake_id
                             })
-                    }) {
+                            .then_some(index)
+                        })
+                        .collect::<Vec<_>>();
+                    let Some(first_lake_point) = lake_points.first().copied() else {
+                        continue;
+                    };
+                    let Some(last_lake_point) = lake_points.last().copied() else {
+                        continue;
+                    };
+                    if first_lake_point == 0 || last_lake_point + 1 >= path.len() {
+                        continue;
+                    }
+
+                    let mut river_cache = crate::geography::river_geometry::RiverGeometryCache::default();
+                    let shores = [path[first_lake_point - 1], path[last_lake_point + 1]];
+                    let has_two_dry_banks = shores.into_iter().all(|shore| {
+                        if !terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, shore)
+                            .is_some_and(|sample| sample.is_land())
+                            || waterbodies::sample_surface(
+                                seed,
+                                GEOGRAPHY_RULESET_VERSION,
+                                shore,
+                            )
+                            .is_some()
+                        {
+                            return false;
+                        }
+                        let Some(position) =
+                            crate::geography::river_geometry::RiverPosition::from_macro_coordinate(shore)
+                        else {
+                            return false;
+                        };
+                        !river_cache
+                            .segments_near(seed, GEOGRAPHY_RULESET_VERSION, position)
+                            .iter()
+                            .any(|segment| segment.contains_position(position))
+                    });
+                    if has_two_dry_banks {
                         return Some((seed, lake_id, path));
                     }
                 }
