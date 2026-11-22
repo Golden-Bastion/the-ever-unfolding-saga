@@ -2110,8 +2110,14 @@ fn water_and_sand_reuse_the_existing_ground_art_with_distinct_material_tints() {
         terrain_image_index(Terrain::Water),
         terrain_image_index(Terrain::Floor)
     );
-    assert_eq!(terrain_image_index(Terrain::Ford), terrain_image_index(Terrain::Rubble));
-    assert_eq!(terrain_image_index(Terrain::Bridge), terrain_image_index(Terrain::Floor));
+    assert_eq!(
+        terrain_image_index(Terrain::Ford),
+        terrain_image_index(Terrain::Rubble)
+    );
+    assert_eq!(
+        terrain_image_index(Terrain::Bridge),
+        terrain_image_index(Terrain::Floor)
+    );
     assert_ne!(
         terrain_tint(Terrain::Sand, true, None),
         terrain_tint(Terrain::Water, true, None)

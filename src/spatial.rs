@@ -9,8 +9,8 @@ use std::collections::{HashSet, VecDeque};
 use crate::geography::caves::CaveConnectionTarget;
 use crate::geography::frontier::{FrontierDirection, FrontierTarget};
 use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
-use crate::geography::routes::RouteProfile;
 use crate::geography::rivers::RiverWidthClass;
+use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
 pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 11;

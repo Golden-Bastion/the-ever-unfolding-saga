@@ -1730,9 +1730,9 @@ fn local_river_crossings_are_deterministic_walkable_and_width_appropriate() {
 #[test]
 fn non_river_water_and_river_channels_without_two_local_banks_stay_blocked() {
     let config = LocalMapConfig {
-            width: 16,
-            height: 12,
-        };
+        width: 16,
+        height: 12,
+    };
     let mut map = generate_local_map(74, "location.water_without_crossing", config);
     map.props.clear();
     map.terrain.fill(Terrain::Water);
@@ -1747,7 +1747,9 @@ fn non_river_water_and_river_channels_without_two_local_banks_stay_blocked() {
         .iter()
         .any(|terrain| matches!(terrain, Terrain::Ford | Terrain::Bridge)));
     place_river_crossings(&mut map, |position| {
-        (7..15).contains(&position.x).then_some(RiverWidthClass::Wide)
+        (7..15)
+            .contains(&position.x)
+            .then_some(RiverWidthClass::Wide)
     });
     assert!(!map
         .terrain
