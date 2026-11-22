@@ -92,11 +92,25 @@ pub enum RouteInfrastructure {
     Impassable,
 }
 
+/// The two shores where a planned route enters and leaves an inland lake.
+/// Positions follow route travel order and use the shared Q16 macro lattice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LakeBankIntersection {
+    pub entry: RiverPosition,
+    pub exit: RiverPosition,
+}
+
+impl LakeBankIntersection {
+    pub fn midpoint(self) -> Option<RiverPosition> {
+        self.entry.midpoint(self.exit)
+    }
+}
+
 /// A macro-scale route/water crossing candidate.
 ///
-/// River coordinates identify the rounded midpoint of the exact bank intersections
-/// stored in `river_banks`. Non-river crossing coordinates retain their existing
-/// sampled macro-geography meaning.
+/// Confirmed river and lake crossings retain exact bank intersections when
+/// available. `coordinate` is their rounded midpoint; older and unresolved
+/// records retain their sampled macro-geography coordinate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteCrossing {
     pub coordinate: MacroCoordinate,
@@ -115,6 +129,12 @@ pub struct RouteCrossing {
     /// Absent on legacy records and on non-river crossings.
     #[serde(default)]
     pub river_banks: Option<RiverBankIntersection>,
+    /// Stable generated identity for an inland-lake crossing.
+    #[serde(default)]
+    pub lake_id: Option<String>,
+    /// Sub-sample entry and exit shores for a confirmed lake crossing.
+    #[serde(default)]
+    pub lake_banks: Option<LakeBankIntersection>,
 }
 
 /// Persisted, deterministic route geometry and the physical features it crosses.
@@ -612,9 +632,21 @@ fn classify_crossings(
     let mut river_samples = HashMap::new();
     let mut river_geometry = RiverGeometryCache::default();
     let mut previous_water_crossing: Option<(RouteCrossingKind, Option<RiverId>)> = None;
+    let mut active_lake: Option<ActiveLakeCrossing> = None;
+
     for (index, coordinate) in path.iter().enumerate() {
         let Some(surface) = terrain::sample_surface(world_seed, ruleset_version, *coordinate)
         else {
+            if let Some(active) = active_lake.take() {
+                finish_lake_crossing(
+                    world_seed,
+                    ruleset_version,
+                    &mut crossings,
+                    active,
+                    Some(*coordinate),
+                );
+                previous_water_crossing = None;
+            }
             continue;
         };
         if surface.is_mountain_barrier() {
@@ -648,8 +680,77 @@ fn classify_crossings(
             }
         }
 
-        // Water classification is more expensive than elevation sampling.
-        // Probe each 32-sample grid node and always include the final endpoint.
+        // Lake coverage is checked at every bounded route node so a shore
+        // transition cannot disappear between the coarser river/ocean probes.
+        let lake = if surface.is_land() {
+            waterbodies::sample_surface(world_seed, ruleset_version, *coordinate)
+        } else {
+            None
+        };
+        if let Some(lake) = lake {
+            let lake_id = lake.id(world_seed, ruleset_version);
+            if !active_lake
+                .as_ref()
+                .is_some_and(|active| active.lake_id == lake_id)
+            {
+                if let Some(active) = active_lake.take() {
+                    finish_lake_crossing(
+                        world_seed,
+                        ruleset_version,
+                        &mut crossings,
+                        active,
+                        Some(*coordinate),
+                    );
+                }
+
+                let entry = index.checked_sub(1).and_then(|previous_index| {
+                    find_lake_bank_boundary(
+                        world_seed,
+                        ruleset_version,
+                        &lake_id,
+                        *coordinate,
+                        path[previous_index],
+                    )
+                });
+                let crossing_index = crossings.len();
+                crossings.push(RouteCrossing {
+                    coordinate: *coordinate,
+                    kind: RouteCrossingKind::Lake,
+                    infrastructure: RouteInfrastructure::Ferry,
+                    river_id: None,
+                    river_width: None,
+                    river_flow_direction: None,
+                    river_banks: None,
+                    lake_id: Some(lake_id.clone()),
+                    lake_banks: None,
+                });
+                active_lake = Some(ActiveLakeCrossing {
+                    lake_id,
+                    crossing_index,
+                    entry,
+                    last_inside: *coordinate,
+                });
+            } else if let Some(active) = active_lake.as_mut() {
+                active.last_inside = *coordinate;
+            }
+            previous_water_crossing = None;
+            continue;
+        }
+
+        if let Some(active) = active_lake.take() {
+            finish_lake_crossing(
+                world_seed,
+                ruleset_version,
+                &mut crossings,
+                active,
+                Some(*coordinate),
+            );
+            previous_water_crossing = None;
+        }
+
+        // River accumulation is cached by coarse watershed cell. Keep these
+        // broader water queries at every other node; lake shore metadata above
+        // uses the full, still-bounded route path.
         if path.len() > 3 && index % 2 != 0 && index + 1 != path.len() {
             continue;
         }
@@ -676,19 +777,8 @@ fn classify_crossings(
                 previous_water_crossing = Some(key);
             }
             SurfaceWaterKind::Lake(_) => {
-                let key = (RouteCrossingKind::Lake, None);
-                if previous_water_crossing != Some(key) {
-                    push_crossing(
-                        &mut crossings,
-                        *coordinate,
-                        key.0,
-                        infrastructure_for_water(key.0, None),
-                        None,
-                        None,
-                        None,
-                    );
-                }
-                previous_water_crossing = Some(key);
+                // Lake samples are handled above at every path node.
+                previous_water_crossing = None;
             }
             SurfaceWaterKind::River(_) => {
                 // A channel-bearing coarse watershed cell is no longer enough
@@ -713,7 +803,108 @@ fn classify_crossings(
             }
         }
     }
+
+    if let Some(active) = active_lake {
+        finish_lake_crossing(world_seed, ruleset_version, &mut crossings, active, None);
+    }
     crossings
+}
+
+#[derive(Debug)]
+struct ActiveLakeCrossing {
+    lake_id: String,
+    crossing_index: usize,
+    entry: Option<RiverPosition>,
+    last_inside: MacroCoordinate,
+}
+
+fn finish_lake_crossing(
+    world_seed: u64,
+    ruleset_version: u32,
+    crossings: &mut [RouteCrossing],
+    active: ActiveLakeCrossing,
+    next_coordinate: Option<MacroCoordinate>,
+) {
+    let Some(next_coordinate) = next_coordinate else {
+        return;
+    };
+    let Some(entry) = active.entry else {
+        return;
+    };
+    let Some(exit) = find_lake_bank_boundary(
+        world_seed,
+        ruleset_version,
+        &active.lake_id,
+        active.last_inside,
+        next_coordinate,
+    ) else {
+        return;
+    };
+    let banks = LakeBankIntersection { entry, exit };
+    let Some(coordinate) = banks
+        .midpoint()
+        .and_then(RiverPosition::rounded_macro_coordinate)
+    else {
+        return;
+    };
+    if let Some(crossing) = crossings.get_mut(active.crossing_index) {
+        crossing.coordinate = coordinate;
+        crossing.lake_banks = Some(banks);
+    }
+}
+
+/// Resolve the shore between a known point in one lake and a known dry-land
+/// point. The bounded integer search narrows the transition to adjacent macro
+/// samples, then stores their half-sample midpoint in the shared Q16 lattice.
+fn find_lake_bank_boundary(
+    world_seed: u64,
+    ruleset_version: u32,
+    lake_id: &str,
+    wet_coordinate: MacroCoordinate,
+    dry_coordinate: MacroCoordinate,
+) -> Option<RiverPosition> {
+    let wet_sample = waterbodies::sample_surface(world_seed, ruleset_version, wet_coordinate)?;
+    if wet_sample.id(world_seed, ruleset_version) != lake_id {
+        return None;
+    }
+    if !terrain::sample_surface(world_seed, ruleset_version, dry_coordinate)?.is_land()
+        || waterbodies::sample_surface(world_seed, ruleset_version, dry_coordinate).is_some()
+    {
+        return None;
+    }
+
+    let mut wet = wet_coordinate;
+    let mut dry = dry_coordinate;
+    for _ in 0..64 {
+        let dx = (i128::from(wet.x) - i128::from(dry.x)).abs();
+        let dy = (i128::from(wet.y) - i128::from(dry.y)).abs();
+        if dx.max(dy) <= 1 {
+            break;
+        }
+        let midpoint = MacroCoordinate::new(
+            i64::try_from((i128::from(wet.x) + i128::from(dry.x)) / 2).ok()?,
+            i64::try_from((i128::from(wet.y) + i128::from(dry.y)) / 2).ok()?,
+        );
+        if midpoint == wet || midpoint == dry {
+            break;
+        }
+        match waterbodies::sample_surface(world_seed, ruleset_version, midpoint) {
+            Some(sample) if sample.id(world_seed, ruleset_version) == lake_id => {
+                wet = midpoint;
+            }
+            Some(_) => return None,
+            None => {
+                if !terrain::sample_surface(world_seed, ruleset_version, midpoint)?.is_land() {
+                    return None;
+                }
+                dry = midpoint;
+            }
+        }
+    }
+
+    RiverPosition::from_macro_coordinate(wet)?.midpoint(
+        RiverPosition::from_macro_coordinate(dry)?,
+    )
 }
 
 fn push_river_crossing(
@@ -768,10 +959,6 @@ fn sample_route_water(
     let local_terrain = terrain::sample_surface(world_seed, ruleset_version, coordinate)?;
     if !local_terrain.is_land() {
         return Some(SurfaceWaterKind::Ocean);
-    }
-
-    if let Some(lake) = waterbodies::sample_surface(world_seed, ruleset_version, coordinate) {
-        return Some(SurfaceWaterKind::Lake(lake));
     }
 
     let coarse_cell =
@@ -836,6 +1023,8 @@ fn push_crossing(
         river_width,
         river_flow_direction,
         river_banks: None,
+        lake_id: None,
+        lake_banks: None,
     });
 }
 
