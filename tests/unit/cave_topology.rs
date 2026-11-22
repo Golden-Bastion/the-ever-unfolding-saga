@@ -112,4 +112,13 @@ fn cave_chamber_targets_are_stable_and_only_follow_real_passages() {
     assert!(targets.iter().any(|target| target.kind == CaveConnectionKind::HorizontalPassage));
     assert_eq!(targets, connection_targets_for_location(&world, 3));
     assert_eq!(targets.iter().filter(|target| target.destination_anchor == chamber).count(), 0);
+
+    let horizontal = targets.iter()
+        .find(|target| target.kind == CaveConnectionKind::HorizontalPassage)
+        .unwrap();
+    let mut world = world;
+    let materialized = materialize_connection(&mut world, 3, horizontal).unwrap();
+    assert!(materialized.created_location);
+    assert!(world.route_by_id(&materialized.route_id)
+        .is_some_and(|route| route.connects(3, materialized.location_id)));
 }
