@@ -93,7 +93,7 @@ pub fn connection_for_cell(
                     ruleset_version ^ 0x5645_5254,
                     MacroCoordinate::in_stratum(x, y, upper_stratum),
                 );
-                if best.map_or(true, |(best_score, _)| score < best_score) {
+                if best.is_none_or(|(best_score, _)| score < best_score) {
                     best = Some((score, lower));
                 }
             }
