@@ -659,23 +659,26 @@ fn classify_crossings(
                 previous_water_crossing = Some(key);
             }
             SurfaceWaterKind::River(river) => {
-                // A continuous stretch of one river is one physical crossing.
-                // Mountain markers do not interrupt water-feature continuity.
-                let river_id = river.network_id(world_seed, ruleset_version);
-                let key = (RouteCrossingKind::River, river_id);
-                if previous_water_crossing != Some(key) {
+                // A continuous water stretch is one physical crossing.
+                // Mountain markers and same-run river-cell identity queries do
+                // not interrupt continuity or repeat the bounded outlet trace.
+                let already_crossing_river = previous_water_crossing
+                    .is_some_and(|(kind, _)| kind == RouteCrossingKind::River);
+                if !already_crossing_river {
                     let river_width = river.width_class();
+                    let river_id = river.network_id(world_seed, ruleset_version);
                     push_crossing(
                         &mut crossings,
                         *coordinate,
-                        key.0,
-                        infrastructure_for_water(key.0, Some(river_width)),
+                        RouteCrossingKind::River,
+                        infrastructure_for_water(RouteCrossingKind::River, Some(river_width)),
                         river_id,
                         Some(river_width),
                         river.flow_direction(world_seed, ruleset_version),
                     );
+                    previous_water_crossing =
+                        Some((RouteCrossingKind::River, river_id));
                 }
-                previous_water_crossing = Some(key);
             }
             SurfaceWaterKind::UnresolvedRiver(_) => {
                 let key = (RouteCrossingKind::UnresolvedWater, None);
