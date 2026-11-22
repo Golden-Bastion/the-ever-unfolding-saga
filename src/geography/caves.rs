@@ -256,13 +256,15 @@ pub fn materialize_connection(
                 .map(|record| record.location_id)
         })
         .or_else(|| {
-            (target.destination_anchor.stratum == 0).then(|| {
+            if target.destination_anchor.stratum == 0 {
                 world
                     .location_geography
                     .iter()
                     .find(|record| record.anchor == target.destination_anchor)
                     .map(|record| record.location_id)
-            })?
+            } else {
+                None
+            }
         });
 
     if let Some(route) = world.route_by_id(&route_id) {
