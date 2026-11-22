@@ -628,12 +628,9 @@ fn classify_crossings(
         if path.len() > 3 && index % 2 != 0 && index + 1 != path.len() {
             continue;
         }
-        let Some(water) = sample_route_water(
-            world_seed,
-            ruleset_version,
-            *coordinate,
-            &mut river_samples,
-        ) else {
+        let Some(water) =
+            sample_route_water(world_seed, ruleset_version, *coordinate, &mut river_samples)
+        else {
             previous_water_crossing = None;
             continue;
         };
@@ -686,8 +683,7 @@ fn classify_crossings(
                         Some(river_width),
                         river.flow_direction(world_seed, ruleset_version),
                     );
-                    previous_water_crossing =
-                        Some((RouteCrossingKind::River, river_id));
+                    previous_water_crossing = Some((RouteCrossingKind::River, river_id));
                 }
             }
             SurfaceWaterKind::UnresolvedRiver(_) => {
@@ -731,8 +727,8 @@ fn sample_route_water(
         return Some(SurfaceWaterKind::Lake(lake));
     }
 
-    let coarse_cell = watershed::sample_surface(world_seed, ruleset_version, coordinate)?
-        .coarse_cell();
+    let coarse_cell =
+        watershed::sample_surface(world_seed, ruleset_version, coordinate)?.coarse_cell();
     let river = *river_samples
         .entry(coarse_cell)
         .or_insert_with(|| rivers::sample_surface(world_seed, ruleset_version, coarse_cell));
@@ -780,8 +776,7 @@ fn push_crossing(
     river_flow_direction: Option<RiverFlowDirection>,
 ) {
     let same_crossing = crossings.last().is_some_and(|last| {
-        last.kind == kind
-            && (kind != RouteCrossingKind::River || last.river_id == river_id)
+        last.kind == kind && (kind != RouteCrossingKind::River || last.river_id == river_id)
     });
     if same_crossing {
         return;

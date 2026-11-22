@@ -188,10 +188,10 @@ fn legacy_world_routes_deserialize_without_geography_metadata() {
 
 #[test]
 fn water_crossings_distinguish_fords_bridges_ferries_and_impassable_water() {
+    use crate::geography::rivers::RiverWidthClass;
     use crate::geography::routes::{
         infrastructure_for_water, RouteCrossingKind, RouteInfrastructure,
     };
-    use crate::geography::rivers::RiverWidthClass;
 
     assert_eq!(
         infrastructure_for_water(RouteCrossingKind::River, Some(RiverWidthClass::Narrow)),
@@ -226,9 +226,7 @@ fn water_crossings_distinguish_fords_bridges_ferries_and_impassable_water() {
 #[test]
 fn generated_route_crossings_capture_river_identity_width_and_flow() {
     use crate::geography::hydrology::{self, SurfaceWaterKind};
-    use crate::geography::routes::{
-        classify_crossings, RouteCrossingKind, RouteInfrastructure,
-    };
+    use crate::geography::routes::{classify_crossings, RouteCrossingKind, RouteInfrastructure};
     use crate::geography::watershed;
 
     let fixture = [8_211, 42, 1_701, 7_321, 12_345, 1, 2, 3]
@@ -239,17 +237,17 @@ fn generated_route_crossings_capture_river_identity_width_and_flow() {
                     let Some(coordinate) = watershed::cell_center(coarse_x, coarse_y) else {
                         continue;
                     };
-                    let Some(sample) = hydrology::sample_surface(
-                        seed,
-                        GEOGRAPHY_RULESET_VERSION,
-                        coordinate,
-                    ) else {
+                    let Some(sample) =
+                        hydrology::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                    else {
                         continue;
                     };
                     let SurfaceWaterKind::River(river) = sample.kind() else {
                         continue;
                     };
-                    if river.flow_direction(seed, GEOGRAPHY_RULESET_VERSION).is_none()
+                    if river
+                        .flow_direction(seed, GEOGRAPHY_RULESET_VERSION)
+                        .is_none()
                         || river.network_id(seed, GEOGRAPHY_RULESET_VERSION).is_none()
                     {
                         continue;
@@ -261,8 +259,7 @@ fn generated_route_crossings_capture_river_identity_width_and_flow() {
                         MacroCoordinate::new(coordinate.x + 1, coordinate.y),
                         MacroCoordinate::new(coordinate.x + 2, coordinate.y),
                     ];
-                    let crossings =
-                        classify_crossings(seed, GEOGRAPHY_RULESET_VERSION, &path);
+                    let crossings = classify_crossings(seed, GEOGRAPHY_RULESET_VERSION, &path);
                     let river_crossings = crossings
                         .iter()
                         .filter(|crossing| crossing.kind == RouteCrossingKind::River)
@@ -295,16 +292,13 @@ fn generated_route_crossings_capture_river_identity_width_and_flow() {
         }
     );
     let encoded = serde_json::to_value(&crossing).unwrap();
-    let decoded: crate::geography::routes::RouteCrossing =
-        serde_json::from_value(encoded).unwrap();
+    let decoded: crate::geography::routes::RouteCrossing = serde_json::from_value(encoded).unwrap();
     assert_eq!(decoded, crossing);
 }
 
 #[test]
 fn legacy_route_crossings_deserialize_without_river_metadata() {
-    use crate::geography::routes::{
-        RouteCrossing, RouteCrossingKind, RouteInfrastructure,
-    };
+    use crate::geography::routes::{RouteCrossing, RouteCrossingKind, RouteInfrastructure};
 
     let value = serde_json::json!({
         "coordinate": { "x": 32, "y": 64, "stratum": 0 },

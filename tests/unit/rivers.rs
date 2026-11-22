@@ -201,8 +201,7 @@ fn river_network_traces_downhill_courses_with_stable_outlet_identity() {
                     let Some(coordinate) = watershed::cell_center(coarse_x, coarse_y) else {
                         continue;
                     };
-                    let Some(channel) =
-                        sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                    let Some(channel) = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
                     else {
                         continue;
                     };
@@ -240,31 +239,23 @@ fn river_network_traces_downhill_courses_with_stable_outlet_identity() {
     for pair in network.path.windows(2) {
         assert_eq!(pair[0].downstream, Some(pair[1].coordinate));
         assert!(pair[0].flow_direction.is_some());
-        let current = terrain::sample_surface(
-            seed,
-            GEOGRAPHY_RULESET_VERSION,
-            pair[0].coordinate,
-        )
-        .unwrap()
-        .elevation_q16();
-        let next = terrain::sample_surface(
-            seed,
-            GEOGRAPHY_RULESET_VERSION,
-            pair[1].coordinate,
-        )
-        .unwrap()
-        .elevation_q16();
+        let current = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, pair[0].coordinate)
+            .unwrap()
+            .elevation_q16();
+        let next = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, pair[1].coordinate)
+            .unwrap()
+            .elevation_q16();
         assert!(next < current, "river courses must follow downhill links");
     }
 
-    let downstream_trace = trace_network(
-        seed,
-        GEOGRAPHY_RULESET_VERSION,
-        network.path[1].coordinate,
-    )
-    .expect("a downstream channel point should still belong to the same river");
+    let downstream_trace =
+        trace_network(seed, GEOGRAPHY_RULESET_VERSION, network.path[1].coordinate)
+            .expect("a downstream channel point should still belong to the same river");
     assert_eq!(downstream_trace.id, network.id);
-    assert_eq!(downstream_trace.path[0].coordinate, network.path[1].coordinate);
+    assert_eq!(
+        downstream_trace.path[0].coordinate,
+        network.path[1].coordinate
+    );
 }
 
 #[test]
