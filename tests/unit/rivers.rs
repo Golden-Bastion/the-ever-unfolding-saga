@@ -167,6 +167,93 @@ fn truncated_accumulation_is_explicit_and_preserves_confirmed_channels() {
 }
 
 #[test]
+fn river_width_classes_follow_contributing_area() {
+    let sample = |cells| RiverSample {
+        coarse_cell: MacroCoordinate::ORIGIN,
+        accumulation: FlowAccumulation {
+            contributing_cells: cells,
+            precipitation_potential_sum_q16: 0,
+            truncated: false,
+        },
+    };
+
+    assert_eq!(sample(8).width_class(), RiverWidthClass::Narrow);
+    assert_eq!(sample(15).width_class(), RiverWidthClass::Narrow);
+    assert_eq!(sample(16).width_class(), RiverWidthClass::Medium);
+    assert_eq!(sample(31).width_class(), RiverWidthClass::Medium);
+    assert_eq!(sample(32).width_class(), RiverWidthClass::Wide);
+    assert_eq!(sample(63).width_class(), RiverWidthClass::Wide);
+    assert_eq!(sample(64).width_class(), RiverWidthClass::VeryWide);
+    assert!(RiverWidthClass::Narrow.is_fordable());
+    assert!(RiverWidthClass::Medium.is_fordable());
+    assert!(!RiverWidthClass::Wide.is_fordable());
+    assert!(!RiverWidthClass::VeryWide.is_fordable());
+}
+
+#[test]
+fn river_network_traces_downhill_courses_with_stable_outlet_identity() {
+    let fixture = [8_211, 42, 1_701, 7_321, 12_345, 1, 2, 3]
+        .into_iter()
+        .find_map(|seed| {
+            for coarse_y in -48..=48 {
+                for coarse_x in -48..=48 {
+                    let coordinate = watershed::cell_center(coarse_x, coarse_y)?;
+                    let channel = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+                    if !channel.is_channel() {
+                        continue;
+                    }
+                    let network = trace_network(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+                    if network.path.len() >= 2
+                        && network.outlet.kind != RiverOutletKind::SearchLimit
+                    {
+                        return Some((seed, network));
+                    }
+                }
+            }
+            None
+        })
+        .expect("expected a multi-cell river course draining to a bounded outlet");
+
+    let (seed, network) = fixture;
+    assert!(network.path.len() <= MAX_RIVER_NETWORK_STEPS);
+    assert_eq!(network.id.outlet_coordinate, network.outlet.coordinate);
+    assert_eq!(network.id.outlet_kind, network.outlet.kind);
+    assert_eq!(
+        trace_network(seed, GEOGRAPHY_RULESET_VERSION, network.path[0].coordinate),
+        Some(network.clone())
+    );
+
+    for pair in network.path.windows(2) {
+        assert_eq!(pair[0].downstream, Some(pair[1].coordinate));
+        assert!(pair[0].flow_direction.is_some());
+        let current = terrain::sample_surface(
+            seed,
+            GEOGRAPHY_RULESET_VERSION,
+            pair[0].coordinate,
+        )
+        .unwrap()
+        .elevation_q16();
+        let next = terrain::sample_surface(
+            seed,
+            GEOGRAPHY_RULESET_VERSION,
+            pair[1].coordinate,
+        )
+        .unwrap()
+        .elevation_q16();
+        assert!(next < current, "river courses must follow downhill links");
+    }
+
+    let downstream_trace = trace_network(
+        seed,
+        GEOGRAPHY_RULESET_VERSION,
+        network.path[1].coordinate,
+    )
+    .expect("a downstream channel point should still belong to the same river");
+    assert_eq!(downstream_trace.id, network.id);
+    assert_eq!(downstream_trace.path[0].coordinate, network.path[1].coordinate);
+}
+
+#[test]
 fn river_sampling_is_independent_of_region_chunk_ownership() {
     let coordinate = MacroCoordinate::new(-257, 511);
     let (region, local_x, local_y) = coordinate.region_and_local();
