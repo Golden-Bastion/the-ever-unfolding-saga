@@ -224,9 +224,9 @@ fn water_crossings_distinguish_fords_bridges_ferries_and_impassable_water() {
 }
 
 #[test]
-fn generated_route_crossings_capture_river_identity_width_and_flow() {
+fn coarse_channel_cells_do_not_create_false_local_route_crossings() {
     use crate::geography::hydrology::{self, SurfaceWaterKind};
-    use crate::geography::routes::{classify_crossings, RouteCrossingKind, RouteInfrastructure};
+    use crate::geography::routes::{classify_crossings, RouteCrossingKind};
     use crate::geography::watershed;
 
     let fixture = [8_211, 42, 1_701, 7_321, 12_345, 1, 2, 3]
@@ -234,9 +234,7 @@ fn generated_route_crossings_capture_river_identity_width_and_flow() {
         .find_map(|seed| {
             for coarse_y in -48..=48 {
                 for coarse_x in -48..=48 {
-                    let Some(coordinate) = watershed::cell_center(coarse_x, coarse_y) else {
-                        continue;
-                    };
+                    let coordinate = watershed::cell_center(coarse_x, coarse_y)?;
                     let Some(sample) =
                         hydrology::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
                     else {
@@ -245,57 +243,218 @@ fn generated_route_crossings_capture_river_identity_width_and_flow() {
                     let SurfaceWaterKind::River(river) = sample.kind() else {
                         continue;
                     };
-                    if river
-                        .flow_direction(seed, GEOGRAPHY_RULESET_VERSION)
-                        .is_none()
-                        || river.network_id(seed, GEOGRAPHY_RULESET_VERSION).is_none()
-                    {
+                    let Some(flow) = river.flow_direction(seed, GEOGRAPHY_RULESET_VERSION) else {
                         continue;
-                    }
-
-                    // All three points remain inside the same 4,096-sample watershed cell.
-                    let path = [
-                        coordinate,
-                        MacroCoordinate::new(coordinate.x + 1, coordinate.y),
-                        MacroCoordinate::new(coordinate.x + 2, coordinate.y),
-                    ];
-                    let crossings = classify_crossings(seed, GEOGRAPHY_RULESET_VERSION, &path);
-                    let river_crossings = crossings
-                        .iter()
-                        .filter(|crossing| crossing.kind == RouteCrossingKind::River)
-                        .collect::<Vec<_>>();
-                    if river_crossings.len() == 1 {
-                        return Some((river, (*river_crossings[0]).clone(), seed));
-                    }
+                    };
+                    let (flow_x, flow_y) = match flow {
+                        crate::geography::rivers::RiverFlowDirection::North => (0, -1),
+                        crate::geography::rivers::RiverFlowDirection::NorthEast => (1, -1),
+                        crate::geography::rivers::RiverFlowDirection::East => (1, 0),
+                        crate::geography::rivers::RiverFlowDirection::SouthEast => (1, 1),
+                        crate::geography::rivers::RiverFlowDirection::South => (0, 1),
+                        crate::geography::rivers::RiverFlowDirection::SouthWest => (-1, 1),
+                        crate::geography::rivers::RiverFlowDirection::West => (-1, 0),
+                        crate::geography::rivers::RiverFlowDirection::NorthWest => (-1, -1),
+                    };
+                    // Stay comfortably inside this cell but away from the
+                    // bounded channel bend around its centreline.
+                    let offset_x = -flow_y * 1_000;
+                    let offset_y = flow_x * 1_000;
+                    return Some((
+                        seed,
+                        MacroCoordinate::new(coordinate.x + offset_x, coordinate.y + offset_y),
+                    ));
                 }
             }
             None
         })
-        .expect("expected a deterministic confirmed river crossing");
+        .expect("expected a deterministic confirmed river channel");
 
-    let (river, crossing, seed) = fixture;
-    assert_eq!(
-        crossing.river_id,
-        river.network_id(seed, GEOGRAPHY_RULESET_VERSION)
-    );
-    assert_eq!(crossing.river_width, Some(river.width_class()));
-    assert_eq!(
-        crossing.river_flow_direction,
-        river.flow_direction(seed, GEOGRAPHY_RULESET_VERSION)
-    );
+    let (seed, coordinate) = fixture;
+    // This short road lies inside a channel-bearing watershed cell but well
+    // away from its locally derived channel. Coarse membership alone is not a
+    // bank intersection and must not create a bridge/ford requirement.
+    let path = [
+        MacroCoordinate::new(coordinate.x + 100, coordinate.y + 300),
+        MacroCoordinate::new(coordinate.x + 101, coordinate.y + 300),
+    ];
+    let crossings = classify_crossings(seed, GEOGRAPHY_RULESET_VERSION, &path);
+    assert!(!crossings
+        .iter()
+        .any(|crossing| crossing.kind == RouteCrossingKind::River));
+}
+
+#[test]
+fn route_crossing_classifier_records_generated_bank_intersections() {
+    use crate::geography::hydrology::{self, SurfaceWaterKind};
+    use crate::geography::river_geometry::{
+        RiverGeometryCache, RiverPosition, RIVER_POSITION_SCALE,
+    };
+    use crate::geography::routes::{classify_crossings, RouteCrossingKind, RouteInfrastructure};
+    use crate::geography::terrain;
+    use crate::geography::watershed;
+
+    let mut fixture = None;
+    'search: for seed in [8_211, 42, 1_701, 7_321, 12_345, 1, 2, 3] {
+        for coarse_y in -48..=48 {
+            for coarse_x in -48..=48 {
+                let Some(coordinate) = watershed::cell_center(coarse_x, coarse_y) else {
+                    continue;
+                };
+                let Some(sample) =
+                    hydrology::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                else {
+                    continue;
+                };
+                if !matches!(sample.kind(), SurfaceWaterKind::River(_)) {
+                    continue;
+                }
+
+                let mut geometry = RiverGeometryCache::default();
+                let Some(position) = RiverPosition::from_macro_coordinate(coordinate) else {
+                    continue;
+                };
+                for segment in geometry.segments_near(seed, GEOGRAPHY_RULESET_VERSION, position) {
+                    // Narrow and medium rivers still have exact banks; their
+                    // infrastructure is a ford rather than a bridge. Exercise
+                    // every generated width class instead of requiring a
+                    // large river to appear in this bounded deterministic search.
+
+                    // Test the middle of a tessellated chord, not a shared curve
+                    // vertex. This keeps the fixture independent of how adjacent
+                    // chords approximate their bank joins.
+                    for pair in segment.centerline().windows(2) {
+                        let Some(center) = pair[0].midpoint(pair[1]) else {
+                            continue;
+                        };
+                        let dx = pair[1].x_q16 - pair[0].x_q16;
+                        let dy = pair[1].y_q16 - pair[0].y_q16;
+                        let normal_scale = dx.unsigned_abs().max(dy.unsigned_abs());
+                        if normal_scale == 0 {
+                            continue;
+                        }
+
+                        // A perpendicular span of 16 macro samples is wider
+                        // than every generated channel band, with fixed-point
+                        // arithmetic retaining the curve's local tangent.
+                        let span_q16 = i128::from(RIVER_POSITION_SCALE) * 16;
+                        let normal_scale = i128::from(normal_scale);
+                        let Some(offset_x) =
+                            i64::try_from(-i128::from(dy) * span_q16 / normal_scale).ok()
+                        else {
+                            continue;
+                        };
+                        let Some(offset_y) =
+                            i64::try_from(i128::from(dx) * span_q16 / normal_scale).ok()
+                        else {
+                            continue;
+                        };
+                        let Some(start_position) = center.offset(-offset_x, -offset_y) else {
+                            continue;
+                        };
+                        let Some(end_position) = center.offset(offset_x, offset_y) else {
+                            continue;
+                        };
+                        let (Some(start), Some(end)) = (
+                            start_position.rounded_macro_coordinate(),
+                            end_position.rounded_macro_coordinate(),
+                        ) else {
+                            continue;
+                        };
+                        let (Some(route_start), Some(route_end)) = (
+                            RiverPosition::from_macro_coordinate(start),
+                            RiverPosition::from_macro_coordinate(end),
+                        ) else {
+                            continue;
+                        };
+
+                        // Reject a quantized fixture unless the selected channel
+                        // itself confirms that this route crosses both banks.
+                        if segment.intersect_route(route_start, route_end).is_none() {
+                            continue;
+                        }
+                        if ![start, end].into_iter().all(|point| {
+                            terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, point)
+                                .is_some_and(|terrain| terrain.is_land())
+                        }) {
+                            continue;
+                        }
+
+                        let crossings =
+                            classify_crossings(seed, GEOGRAPHY_RULESET_VERSION, &[start, end]);
+                        if let Some(crossing) = crossings.into_iter().find(|crossing| {
+                            crossing.kind == RouteCrossingKind::River
+                                && crossing.river_id == Some(segment.river_id())
+                                && crossing.river_banks.is_some()
+                        }) {
+                            fixture = Some((crossing, segment.width_class()));
+                            break 'search;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let (crossing, width) =
+        fixture.expect("expected a planned path to cross both generated river banks");
+    let banks = crossing
+        .river_banks
+        .expect("confirmed crossings retain both banks");
+    assert_ne!(banks.entry, banks.exit);
+    assert_eq!(crossing.kind, RouteCrossingKind::River);
+    assert_eq!(crossing.river_width, Some(width));
     assert_eq!(
         crossing.infrastructure,
-        if river.width_class().is_fordable() {
+        if width.is_fordable() {
             RouteInfrastructure::Ford
         } else {
             RouteInfrastructure::Bridge
         }
     );
+}
+
+#[test]
+fn exact_river_bank_metadata_roundtrips_and_old_records_default_empty() {
+    use crate::geography::river_geometry::{
+        RiverBankIntersection, RiverPosition, RIVER_POSITION_SCALE,
+    };
+    use crate::geography::rivers::{RiverFlowDirection, RiverId, RiverOutletKind, RiverWidthClass};
+    use crate::geography::routes::{RouteCrossing, RouteCrossingKind, RouteInfrastructure};
+
+    let crossing = RouteCrossing {
+        coordinate: MacroCoordinate::new(8, 12),
+        kind: RouteCrossingKind::River,
+        infrastructure: RouteInfrastructure::Bridge,
+        river_id: Some(RiverId {
+            outlet_coordinate: MacroCoordinate::new(128, 256),
+            outlet_kind: RiverOutletKind::Ocean,
+        }),
+        river_width: Some(RiverWidthClass::Wide),
+        river_flow_direction: Some(RiverFlowDirection::SouthEast),
+        river_banks: Some(RiverBankIntersection {
+            entry: RiverPosition {
+                x_q16: 8 * RIVER_POSITION_SCALE,
+                y_q16: 11 * RIVER_POSITION_SCALE + RIVER_POSITION_SCALE / 4,
+            },
+            exit: RiverPosition {
+                x_q16: 8 * RIVER_POSITION_SCALE,
+                y_q16: 12 * RIVER_POSITION_SCALE + RIVER_POSITION_SCALE / 4,
+            },
+        }),
+    };
     let encoded = serde_json::to_value(&crossing).unwrap();
     let decoded: crate::geography::routes::RouteCrossing = serde_json::from_value(encoded).unwrap();
     assert_eq!(decoded, crossing);
-}
 
+    let legacy = serde_json::json!({
+        "coordinate": { "x": 32, "y": 64, "stratum": 0 },
+        "kind": "river",
+        "infrastructure": "ford_or_bridge"
+    });
+    let legacy: RouteCrossing = serde_json::from_value(legacy).unwrap();
+    assert_eq!(legacy.river_banks, None);
+}
 #[test]
 fn legacy_route_crossings_deserialize_without_river_metadata() {
     use crate::geography::routes::{RouteCrossing, RouteCrossingKind, RouteInfrastructure};
@@ -312,6 +471,7 @@ fn legacy_route_crossings_deserialize_without_river_metadata() {
     assert_eq!(crossing.river_id, None);
     assert_eq!(crossing.river_width, None);
     assert_eq!(crossing.river_flow_direction, None);
+    assert_eq!(crossing.river_banks, None);
 }
 
 #[test]
@@ -327,6 +487,7 @@ fn route_profiles_reflect_combined_terrain_crossing_requirements() {
         river_id: None,
         river_width: None,
         river_flow_direction: None,
+        river_banks: None,
     };
     assert_eq!(classify_profile(&[]), RouteProfile::Trail);
     assert_eq!(

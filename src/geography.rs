@@ -18,6 +18,7 @@ pub mod hydrology;
 pub mod local_surface;
 pub mod locations;
 pub mod mountains;
+pub mod river_geometry;
 pub mod rivers;
 pub mod routes;
 pub mod terrain;

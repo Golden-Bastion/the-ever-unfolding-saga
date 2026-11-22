@@ -1,12 +1,14 @@
-//! Bounded projection of macro-geography into one local exploration area.
+//! Bounded projection of macro-geography and river channels into one local area.
 //!
-//! The macro lattice and local tile grid have independent resolutions. This
-//! module samples the location's persisted footprint at a bounded set of points
-//! and resamples those points across the local map; it never assumes one macro
-//! sample corresponds to one playable tile.
+//! The macro lattice and local tile grid have independent resolutions. The
+//! location footprint is sampled at a bounded set of points for broad terrain,
+//! while deterministic channel geometry is evaluated at tile centres so narrow
+//! rivers are not lost between coarse samples.
 
 use super::{
     climate::{self, Biome},
+    river_geometry::{RiverGeometryCache, RiverPosition},
+    rivers::RiverWidthClass,
     terrain, waterbodies, MacroCoordinate,
 };
 
@@ -17,6 +19,7 @@ const MAX_LOCAL_MAP_DIMENSION: u16 = 128;
 pub enum SurfaceWaterFeature {
     Land,
     Ocean,
+    /// Non-ocean water that blocks local movement, including lakes and rivers.
     Lake,
 }
 
@@ -25,6 +28,7 @@ pub struct LocalSurfaceSample {
     biome: Biome,
     water: SurfaceWaterFeature,
     mountain_barrier: bool,
+    river_width: Option<RiverWidthClass>,
 }
 
 impl LocalSurfaceSample {
@@ -39,9 +43,18 @@ impl LocalSurfaceSample {
     pub const fn is_mountain_barrier(self) -> bool {
         self.mountain_barrier
     }
+
+    /// Relative channel width when this tile lies inside a generated river.
+    pub const fn river_width(self) -> Option<RiverWidthClass> {
+        self.river_width
+    }
+
+    pub const fn is_river(self) -> bool {
+        self.river_width.is_some()
+    }
 }
 
-/// A small macro-sample grid resampled over a local map's tile dimensions.
+/// A broad macro sample grid plus a tile-resolution river footprint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalSurfaceMap {
     tile_width: u16,
@@ -49,15 +62,17 @@ pub struct LocalSurfaceMap {
     sample_width: u16,
     sample_height: u16,
     samples: Vec<LocalSurfaceSample>,
+    river_tiles: Vec<Option<RiverWidthClass>>,
 }
 
 impl LocalSurfaceMap {
     /// Sample a location footprint for the requested local-map dimensions.
     ///
-    /// The horizontal footprint uses the persisted radius. The vertical radius
-    /// is scaled by the map aspect ratio so macro sampling remains isotropic
-    /// without introducing a physical tile-to-macro-unit conversion. At most
-    /// 17 × 17 macro positions are evaluated, regardless of footprint size.
+    /// Broad terrain uses at most 17 × 17 macro positions. River geometry is
+    /// then checked at local tile centres against cached channel segments. This
+    /// second pass is also bounded: at most 289 distinct coarse query cells and
+    /// nine candidate source cells per query. Macro samples are never treated
+    /// as individual playable tiles or physical distance units.
     pub fn sample_location(
         world_seed: u64,
         ruleset_version: u32,
@@ -110,17 +125,54 @@ impl LocalSurfaceMap {
                     biome: climate_sample.biome(),
                     water,
                     mountain_barrier: terrain_sample.is_mountain_barrier(),
+                    river_width: None,
                 });
             }
         }
 
-        Some(Self {
+        let tile_count = usize::from(tile_width) * usize::from(tile_height);
+        let mut result = Self {
             tile_width,
             tile_height,
             sample_width,
             sample_height,
             samples,
-        })
+            river_tiles: vec![None; tile_count],
+        };
+
+        let mut river_cache = RiverGeometryCache::default();
+        for tile_y in 0..tile_height {
+            for tile_x in 0..tile_width {
+                let Some(base_sample) = result.macro_sample_at_tile(tile_x, tile_y) else {
+                    continue;
+                };
+                if base_sample.water != SurfaceWaterFeature::Land {
+                    continue;
+                }
+
+                let position = tile_center_position(
+                    anchor,
+                    radius_x,
+                    radius_y,
+                    tile_x,
+                    tile_y,
+                    tile_width,
+                    tile_height,
+                )?;
+                let segments = river_cache.segments_near(world_seed, ruleset_version, position);
+                let width = segments
+                    .iter()
+                    .filter(|segment| segment.contains_position(position))
+                    .map(|segment| segment.width_class())
+                    .max_by_key(|width| width_rank(*width));
+                if let Some(width) = width {
+                    let index = usize::from(tile_y) * usize::from(tile_width) + usize::from(tile_x);
+                    result.river_tiles[index] = Some(width);
+                }
+            }
+        }
+
+        Some(result)
     }
 
     pub const fn dimensions(&self) -> (u16, u16) {
@@ -132,12 +184,18 @@ impl LocalSurfaceMap {
         (self.sample_width, self.sample_height)
     }
 
-    /// Return the macro-derived sample covering one local tile.
-    ///
-    /// Nearest-cell resampling is intentional for this first presentation
-    /// stage: it keeps water/land boundaries discrete and avoids inventing
-    /// interpolated coastlines or river geometry.
+    /// Return the broad terrain and any local river channel covering one tile.
     pub fn sample_at_tile(&self, tile_x: u16, tile_y: u16) -> Option<LocalSurfaceSample> {
+        let mut sample = self.macro_sample_at_tile(tile_x, tile_y)?;
+        let index = usize::from(tile_y) * usize::from(self.tile_width) + usize::from(tile_x);
+        if let Some(width) = self.river_tiles.get(index).copied().flatten() {
+            sample.water = SurfaceWaterFeature::Lake;
+            sample.river_width = Some(width);
+        }
+        Some(sample)
+    }
+
+    fn macro_sample_at_tile(&self, tile_x: u16, tile_y: u16) -> Option<LocalSurfaceSample> {
         if tile_x >= self.tile_width || tile_y >= self.tile_height {
             return None;
         }
@@ -151,6 +209,40 @@ impl LocalSurfaceMap {
         self.samples
             .get(sample_y * usize::from(self.sample_width) + sample_x)
             .copied()
+    }
+}
+
+fn tile_center_position(
+    anchor: MacroCoordinate,
+    radius_x: u16,
+    radius_y: u16,
+    tile_x: u16,
+    tile_y: u16,
+    tile_width: u16,
+    tile_height: u16,
+) -> Option<RiverPosition> {
+    use super::river_geometry::RIVER_POSITION_SCALE;
+
+    let x_offset_numerator = i128::from(tile_x) * 2 + 1 - i128::from(tile_width);
+    let y_offset_numerator = i128::from(tile_y) * 2 + 1 - i128::from(tile_height);
+    let x_offset = x_offset_numerator * i128::from(radius_x) * i128::from(RIVER_POSITION_SCALE)
+        / i128::from(tile_width);
+    let y_offset = y_offset_numerator * i128::from(radius_y) * i128::from(RIVER_POSITION_SCALE)
+        / i128::from(tile_height);
+    Some(RiverPosition {
+        x_q16: i64::try_from(i128::from(anchor.x) * i128::from(RIVER_POSITION_SCALE) + x_offset)
+            .ok()?,
+        y_q16: i64::try_from(i128::from(anchor.y) * i128::from(RIVER_POSITION_SCALE) + y_offset)
+            .ok()?,
+    })
+}
+
+fn width_rank(width: RiverWidthClass) -> u8 {
+    match width {
+        RiverWidthClass::Narrow => 0,
+        RiverWidthClass::Medium => 1,
+        RiverWidthClass::Wide => 2,
+        RiverWidthClass::VeryWide => 3,
     }
 }
 

@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BinaryHeap, HashMap};
 use serde::{Deserialize, Serialize};
 
 use super::hydrology::SurfaceWaterKind;
+use super::river_geometry::{RiverBankIntersection, RiverGeometryCache, RiverPosition};
 use super::rivers::{self, RiverFlowDirection, RiverId, RiverWidthClass};
 use super::{hydrology, terrain, waterbodies, watershed, MacroCoordinate};
 use crate::model::World;
@@ -93,9 +94,9 @@ pub enum RouteInfrastructure {
 
 /// A macro-scale route/water crossing candidate.
 ///
-/// River coordinates identify the sampled route point inside a channel-bearing
-/// watershed cell. Until higher-resolution river centre-lines are introduced,
-/// they are not guaranteed to be the exact point where the route meets a bank.
+/// River coordinates identify the rounded midpoint of the exact bank intersections
+/// stored in `river_banks`. Non-river crossing coordinates retain their existing
+/// sampled macro-geography meaning.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteCrossing {
     pub coordinate: MacroCoordinate,
@@ -110,6 +111,10 @@ pub struct RouteCrossing {
     /// Flow direction at the crossing, useful when orienting future bridges.
     #[serde(default)]
     pub river_flow_direction: Option<RiverFlowDirection>,
+    /// Sub-sample entry and exit points where the route meets the generated banks.
+    /// Absent on legacy records and on non-river crossings.
+    #[serde(default)]
+    pub river_banks: Option<RiverBankIntersection>,
 }
 
 /// Persisted, deterministic route geometry and the physical features it crosses.
@@ -605,6 +610,7 @@ fn classify_crossings(
 ) -> Vec<RouteCrossing> {
     let mut crossings = Vec::new();
     let mut river_samples = HashMap::new();
+    let mut river_geometry = RiverGeometryCache::default();
     let mut previous_water_crossing: Option<(RouteCrossingKind, Option<RiverId>)> = None;
     for (index, coordinate) in path.iter().enumerate() {
         let Some(surface) = terrain::sample_surface(world_seed, ruleset_version, *coordinate)
@@ -621,6 +627,25 @@ fn classify_crossings(
                 None,
                 None,
             );
+        }
+
+        if index > 0 {
+            let route_start = path[index - 1];
+            let route_end = *coordinate;
+            if let (Some(start), Some(end)) = (
+                RiverPosition::from_macro_coordinate(route_start),
+                RiverPosition::from_macro_coordinate(route_end),
+            ) {
+                if let Some(midpoint) = start.midpoint(end) {
+                    for segment in
+                        river_geometry.segments_near(world_seed, ruleset_version, midpoint)
+                    {
+                        if let Some(banks) = segment.intersect_route(start, end) {
+                            push_river_crossing(&mut crossings, banks, segment);
+                        }
+                    }
+                }
+            }
         }
 
         // Water classification is more expensive than elevation sampling.
@@ -665,26 +690,11 @@ fn classify_crossings(
                 }
                 previous_water_crossing = Some(key);
             }
-            SurfaceWaterKind::River(river) => {
-                // A continuous water stretch is one physical crossing.
-                // Mountain markers and same-run river-cell identity queries do
-                // not interrupt continuity or repeat the bounded outlet trace.
-                let already_crossing_river = previous_water_crossing
-                    .is_some_and(|(kind, _)| kind == RouteCrossingKind::River);
-                if !already_crossing_river {
-                    let river_width = river.width_class();
-                    let river_id = river.network_id(world_seed, ruleset_version);
-                    push_crossing(
-                        &mut crossings,
-                        *coordinate,
-                        RouteCrossingKind::River,
-                        infrastructure_for_water(RouteCrossingKind::River, Some(river_width)),
-                        river_id,
-                        Some(river_width),
-                        river.flow_direction(world_seed, ruleset_version),
-                    );
-                    previous_water_crossing = Some((RouteCrossingKind::River, river_id));
-                }
+            SurfaceWaterKind::River(_) => {
+                // A channel-bearing coarse watershed cell is no longer enough
+                // to claim a road crossing. Only intersected local bank geometry
+                // above produces a confirmed river crossing record.
+                previous_water_crossing = None;
             }
             SurfaceWaterKind::UnresolvedRiver(_) => {
                 let key = (RouteCrossingKind::UnresolvedWater, None);
@@ -706,12 +716,49 @@ fn classify_crossings(
     crossings
 }
 
-/// Classify route water while reusing river accumulation for every point
-/// that belongs to the same coarse watershed cell.
-///
-/// River presence is still a coarse-cell candidate, not a precise local-channel
-/// intersection. The finer river geometry needed to identify exact bank crossings
-/// remains a separate presentation/topology refinement.
+fn push_river_crossing(
+    crossings: &mut Vec<RouteCrossing>,
+    banks: RiverBankIntersection,
+    segment: &super::river_geometry::RiverChannelSegment,
+) {
+    let Some(midpoint) = banks.midpoint() else {
+        return;
+    };
+    if let Some(last) = crossings.last() {
+        if last.kind == RouteCrossingKind::River && last.river_id == Some(segment.river_id()) {
+            if let Some(previous) = last.river_banks {
+                if let Some(previous_midpoint) = previous.midpoint() {
+                    let dx = i128::from(midpoint.x_q16) - i128::from(previous_midpoint.x_q16);
+                    let dy = i128::from(midpoint.y_q16) - i128::from(previous_midpoint.y_q16);
+                    let tolerance = i128::from(super::river_geometry::RIVER_POSITION_SCALE) * 2;
+                    if dx * dx + dy * dy <= tolerance * tolerance {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    let Some(coordinate) = midpoint.rounded_macro_coordinate() else {
+        return;
+    };
+    let width = segment.width_class();
+    push_crossing(
+        crossings,
+        coordinate,
+        RouteCrossingKind::River,
+        infrastructure_for_water(RouteCrossingKind::River, Some(width)),
+        Some(segment.river_id()),
+        Some(width),
+        Some(segment.flow_direction()),
+    );
+    if let Some(crossing) = crossings.last_mut() {
+        crossing.river_banks = Some(banks);
+    }
+}
+
+/// Classify broad water features while reusing bounded river accumulation for
+/// each coarse watershed cell. Confirmed river channels are only used as a broad
+/// candidate signal here; exact route crossings come from local bank geometry.
 fn sample_route_water(
     world_seed: u64,
     ruleset_version: u32,
@@ -775,9 +822,9 @@ fn push_crossing(
     river_width: Option<RiverWidthClass>,
     river_flow_direction: Option<RiverFlowDirection>,
 ) {
-    let same_crossing = crossings.last().is_some_and(|last| {
-        last.kind == kind && (kind != RouteCrossingKind::River || last.river_id == river_id)
-    });
+    let same_crossing = crossings
+        .last()
+        .is_some_and(|last| kind != RouteCrossingKind::River && last.kind == kind);
     if same_crossing {
         return;
     }
@@ -788,6 +835,7 @@ fn push_crossing(
         river_id,
         river_width,
         river_flow_direction,
+        river_banks: None,
     });
 }
 
