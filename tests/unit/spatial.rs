@@ -1397,6 +1397,9 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
     map.props.clear();
     map.interactables.clear();
     map.encounters.clear();
+    map.generator_version = 5;
+    let original_terrain = map.terrain.clone();
+    let original_discoveries = map.points_of_interest.clone();
     let target = CaveConnectionTarget {
         id: "vertical.fixture.entrance".into(),
         destination_anchor: MacroCoordinate { x: 120, y: -64, stratum: -1 },
@@ -1417,6 +1420,8 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
     configure_map_cave_connections(&mut map, std::slice::from_ref(&target), &[]);
     assert_eq!(map.exits, vec![entrance.clone()]);
     assert_eq!(map.generator_version, LOCAL_MAP_GENERATOR_VERSION);
+    assert_eq!(map.terrain, original_terrain);
+    assert_eq!(map.points_of_interest, original_discoveries);
 
     let route = MapRouteDestination {
         route_id: target.route_id(),
@@ -1431,6 +1436,7 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
     linked.encounters.clear();
     configure_map_cave_connections(&mut linked, &[target], &[route]);
     assert_eq!(linked.exits.len(), 1);
+    assert_eq!(linked.exits[0].position, entrance.position);
     assert_eq!(linked.exits[0].target_location_id, 99);
     assert_eq!(linked.exits[0].route_id.as_deref(), Some("route.cave.vertical.fixture.entrance"));
 }
