@@ -6,7 +6,7 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 ## Current development line — v0.53.x: world topology and spatial-world expansion
 
-**Repository version at this roadmap revision: 0.53.16.**
+**Repository version at this roadmap revision: 0.53.17.**
 
 **Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
 
@@ -44,13 +44,15 @@ Completed work in the current development line belongs in [CHANGELOG.md](CHANGEL
 
 **Delivered in v0.53.16:** added on-demand cardinal frontier passages whose stable identities derive from the source location's persisted geography key and adjacent region coordinates. A frontier creates no destination while merely being listed or displayed. When the player uses one, the system selects deterministic land anchors near the shared region edge, requires a bounded planned land route, then creates or reuses exactly the adjacent region and one destination location. The canonical route and geographic path are persisted, and the exact pending local-map passage is converted in place without changing its passage ID or position. Repeated materialization reuses the same region, location, and route; it does not generate neighboring regions or reroll established world/map state.
 
+**Delivered in v0.53.17:** added bounded, deterministic vertical-connection sampling between adjacent strata. Surface entrances require exposed land directly above open cave space; underground shafts require both adjacent strata to contain open cave space at the same global horizontal coordinate. Each cave network cell exposes at most one stable connection candidate per layer pair, and nearby queries are bounded to at most 25 cells. This is derived geography only: it does not yet create world locations/routes or modify local maps.
+
 The v0.52.x development line is complete. The project owner has confirmed the integrated desktop/Android spatial-first gameplay verification and the separate spatial presentation/player-animation playtesting tracked by [#421](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/421) and [#446](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/446). The full delivered scope and final verification record are preserved in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md); the concise published summary and release assets are available in the [v0.52.70 GitHub Release](https://github.com/Golden-Bastion/the-ever-unfolding-saga/releases/tag/v0.52.70).
 
 The initial world-topology compatibility audit is complete in [world-topology compatibility audit](docs/design/world-topology-compatibility-audit.md). It records the current identity, generation, route, local-map, and save invariants, plus the owner-selected requirement to deterministically embed existing worlds through a one-time persisted migration. It does not change gameplay or save data.
 
 ### Remaining work
 
-1. **Complete geography-backed route planning and frontier integration.** The continuous macro-geography fields, legacy embedding, location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, and idempotent on-demand frontier materialization are in place. Remaining: explicit vertical cave entrances/inter-stratum route links and richer local-map connection-point integration. Physical discharge calibration and seasonal water balance are not required; seasonal rainfall/drought and their gameplay consequences belong to time-driven world simulation. Neighboring chunks must remain coherent regardless of generation order.
+1. **Complete geography-backed route planning and frontier integration.** The continuous macro-geography fields, legacy embedding, location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, and deterministic vertical cave-connection candidates are in place. Remaining: promote vertical candidates into authoritative location/route links and integrate richer local-map connection points. Physical discharge calibration and seasonal water balance are not required; seasonal rainfall/drought and their gameplay consequences belong to time-driven world simulation. Neighboring chunks must remain coherent regardless of generation order.
 2. **Preserve the established-world compatibility contract.** Legacy region embedding and location anchors are now persisted without changing IDs, next_id, routes, history, authored content, or saved local maps. Continue covering this contract as topology systems are extended.
 3. **Anchor authored and generated locations to physical geography.** Stable macro anchors and footprints now exist, with optional authored exact anchors. Further environmental archetype constraints and local-map connection-point integration remain outstanding.
 4. **Keep physical travel and known-route fast travel complementary,** including travel time, encounter/event interruption, and conservative migration of older worlds.
