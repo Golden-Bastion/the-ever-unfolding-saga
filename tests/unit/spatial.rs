@@ -869,7 +869,7 @@ fn editor_operations_place_move_and_remove_passages_using_valid_world_destinatio
         route_id: None,
         route_profile: None,
         frontier: None,
-            cave_target: None,
+        cave_target: None,
         position: GridPosition {
             x: map.width - 1,
             y: 1,
@@ -1124,6 +1124,7 @@ fn map_exit_profile_defaults_when_loading_an_older_saved_passage() {
     let mut value = serde_json::to_value(exit).unwrap();
     value.as_object_mut().unwrap().remove("route_profile");
     value.as_object_mut().unwrap().remove("frontier");
+    value.as_object_mut().unwrap().remove("cave_target");
     let loaded: MapExit = serde_json::from_value(value).unwrap();
     assert!(loaded.route_profile.is_none());
     map.exits.push(loaded);
