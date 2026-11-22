@@ -583,7 +583,7 @@ fn lake_route_crossings_record_stable_identity_and_both_shores() {
 
 #[test]
 fn resolved_lake_crossings_follow_travel_direction_and_require_both_shores() {
-    use crate::geography::river_geometry::RiverPosition;
+    use crate::geography::river_geometry::{RiverPosition, RIVER_POSITION_SCALE};
     use crate::geography::routes::{
         LakeBankIntersection, RouteCrossing, RouteCrossingKind, RouteGeography,
         RouteInfrastructure, RoutePlanningStatus, RouteProfile,
@@ -599,8 +599,8 @@ fn resolved_lake_crossings_follow_travel_direction_and_require_both_shores() {
         river_banks: None,
         lake_id: Some(lake_id.to_string()),
         lake_banks: Some(LakeBankIntersection {
-            entry: RiverPosition { x_q16: x * 65_536, y_q16: 0 },
-            exit: RiverPosition { x_q16: x * 65_536, y_q16: 65_536 },
+            entry: RiverPosition { x_q16: x * RIVER_POSITION_SCALE, y_q16: 0 },
+            exit: RiverPosition { x_q16: x * RIVER_POSITION_SCALE, y_q16: RIVER_POSITION_SCALE },
         }),
     };
     let unresolved = RouteCrossing {
