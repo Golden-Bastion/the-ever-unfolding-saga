@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.25: River networks and physical route-crossing requirements
+
+- Added deterministic, bounded downstream river-course tracing over the existing coarse watershed graph. Traces expose ordered macro-coordinate centre-points, immediate downstream links, flow directions, and relative width classes.
+- Added stable outlet-based river identities shared by tributaries that drain to the same watershed outlet. Route planning uses bounded outlet and immediate-flow queries instead of materializing whole river traces.
+- Extended new route-crossing records with optional river identity, width, and flow direction. Narrow/medium channels require a ford; wide/very-wide channels require a bridge. Lakes require ferries, open ocean is impassable to overland routes, and inconclusive water remains a survey requirement.
+- Preserved deserialization of legacy `FordOrBridge` crossings and added defaults for optional river metadata. Existing persisted route paths and crossings are not silently replanned.
+- Added automated coverage for river width thresholds, deterministic connected river traces, downhill flow, outlet identity, ford/bridge/ferry/impassable classification, and legacy crossing deserialization.
+- Kept physical discharge calibration, fluid simulation, detailed local river rendering, riverbanks, and physical bridge/ford/ferry assets out of scope.
+- Bumped Rust and Android metadata to 0.53.25.
+
 ### v0.53.24: Geography-shaped outdoor local maps
 
 - Added a bounded renderer-neutral projection from persisted location macro-geography footprints into local-map terrain. Macro samples are resampled across the local tile grid; no one-to-one macro-sample/tile conversion is assumed.
