@@ -353,7 +353,7 @@ impl CampaignContent {
             .collect::<HashMap<_, _>>();
 
         for location in &self.world.locations {
-            for (target_id, _) in &location.exit_sides {
+            for target_id in location.exit_sides.keys() {
                 if target_id.trim().is_empty() {
                     issues.push(format!(
                         "location {} has an authored exit side with an empty destination ID",
