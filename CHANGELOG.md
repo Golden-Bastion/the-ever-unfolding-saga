@@ -4,7 +4,7 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
-### v0.53.25: River networks and physical route-crossing requirements
+### v0.53.25: River networks and route-crossing requirements
 
 - Added deterministic, bounded downstream river-course tracing over the existing coarse watershed graph. Traces expose ordered macro-coordinate centre-points, immediate downstream links, flow directions, and relative width classes.
 - Added stable outlet-based river identities shared by tributaries that drain to the same watershed outlet. Route planning uses bounded outlet and immediate-flow queries instead of materializing whole river traces.
