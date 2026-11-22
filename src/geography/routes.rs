@@ -644,6 +644,7 @@ fn classify_crossings(
                     &mut crossings,
                     active,
                     Some(*coordinate),
+                    &mut river_geometry,
                 );
                 previous_water_crossing = None;
             }
@@ -700,6 +701,7 @@ fn classify_crossings(
                         &mut crossings,
                         active,
                         Some(*coordinate),
+                        &mut river_geometry,
                     );
                 }
 
@@ -710,6 +712,7 @@ fn classify_crossings(
                         &lake_id,
                         *coordinate,
                         path[previous_index],
+                        &mut river_geometry,
                     )
                 });
                 let crossing_index = crossings.len();
@@ -744,6 +747,7 @@ fn classify_crossings(
                 &mut crossings,
                 active,
                 Some(*coordinate),
+                &mut river_geometry,
             );
             previous_water_crossing = None;
         }
@@ -805,7 +809,14 @@ fn classify_crossings(
     }
 
     if let Some(active) = active_lake {
-        finish_lake_crossing(world_seed, ruleset_version, &mut crossings, active, None);
+        finish_lake_crossing(
+            world_seed,
+            ruleset_version,
+            &mut crossings,
+            active,
+            None,
+            &mut river_geometry,
+        );
     }
     crossings
 }
@@ -824,6 +835,7 @@ fn finish_lake_crossing(
     crossings: &mut [RouteCrossing],
     active: ActiveLakeCrossing,
     next_coordinate: Option<MacroCoordinate>,
+    river_geometry: &mut RiverGeometryCache,
 ) {
     let Some(next_coordinate) = next_coordinate else {
         return;
@@ -837,6 +849,7 @@ fn finish_lake_crossing(
         &active.lake_id,
         active.last_inside,
         next_coordinate,
+        river_geometry,
     ) else {
         return;
     };
@@ -862,6 +875,7 @@ fn find_lake_bank_boundary(
     lake_id: &str,
     wet_coordinate: MacroCoordinate,
     dry_coordinate: MacroCoordinate,
+    river_geometry: &mut RiverGeometryCache,
 ) -> Option<RiverPosition> {
     let wet_sample = waterbodies::sample_surface(world_seed, ruleset_version, wet_coordinate)?;
     if wet_sample.id(world_seed, ruleset_version).as_str() != lake_id {
@@ -869,6 +883,14 @@ fn find_lake_bank_boundary(
     }
     if !terrain::sample_surface(world_seed, ruleset_version, dry_coordinate)?.is_land()
         || waterbodies::sample_surface(world_seed, ruleset_version, dry_coordinate).is_some()
+    {
+        return None;
+    }
+    let dry_position = RiverPosition::from_macro_coordinate(dry_coordinate)?;
+    if river_geometry
+        .segments_near(world_seed, ruleset_version, dry_position)
+        .iter()
+        .any(|segment| segment.contains_position(dry_position))
     {
         return None;
     }
@@ -895,6 +917,14 @@ fn find_lake_bank_boundary(
             Some(_) => return None,
             None => {
                 if !terrain::sample_surface(world_seed, ruleset_version, midpoint)?.is_land() {
+                    return None;
+                }
+                let midpoint_position = RiverPosition::from_macro_coordinate(midpoint)?;
+                if river_geometry
+                    .segments_near(world_seed, ruleset_version, midpoint_position)
+                    .iter()
+                    .any(|segment| segment.contains_position(midpoint_position))
+                {
                     return None;
                 }
                 dry = midpoint;
