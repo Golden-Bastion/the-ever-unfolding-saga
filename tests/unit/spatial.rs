@@ -1292,6 +1292,15 @@ fn route_reconciliation_distributes_new_passages_round_robin_by_compass_side() {
         sides,
         vec!["east", "west", "north", "south", "east", "west"]
     );
+    let east_positions = map
+        .exits
+        .iter()
+        .filter(|exit| exit.position.x == map.width - 1)
+        .map(|exit| exit.position.y)
+        .collect::<Vec<_>>();
+    let center_y = 1 + (map.height - 3) / 2;
+    assert_eq!(east_positions[0], center_y);
+    assert!((i32::from(east_positions[1]) - i32::from(center_y)).abs() == 1);
 }
 
 #[test]
@@ -1528,7 +1537,10 @@ fn map_exit_visual_kind_distinguishes_surface_profiles_frontiers_and_cave_links(
         position: GridPosition { x: 1, y: 1 },
         target_location_id: 20,
     };
-    assert_eq!(make_exit(Some(RouteProfile::Trail)).visual_kind(), MapExitVisualKind::Trail);
+    assert_eq!(
+        make_exit(Some(RouteProfile::Trail)).visual_kind(),
+        MapExitVisualKind::Trail
+    );
     assert_eq!(
         make_exit(Some(RouteProfile::MountainPass)).visual_kind(),
         MapExitVisualKind::MountainPass
@@ -1565,9 +1577,18 @@ fn map_exit_visual_kind_distinguishes_surface_profiles_frontiers_and_cave_links(
     assert_eq!(frontier_exit.visual_kind(), MapExitVisualKind::Frontier);
 
     for (kind, expected) in [
-        (CaveConnectionKind::SurfaceEntrance, MapExitVisualKind::CaveEntrance),
-        (CaveConnectionKind::VerticalShaft, MapExitVisualKind::VerticalShaft),
-        (CaveConnectionKind::HorizontalPassage, MapExitVisualKind::CavePassage),
+        (
+            CaveConnectionKind::SurfaceEntrance,
+            MapExitVisualKind::CaveEntrance,
+        ),
+        (
+            CaveConnectionKind::VerticalShaft,
+            MapExitVisualKind::VerticalShaft,
+        ),
+        (
+            CaveConnectionKind::HorizontalPassage,
+            MapExitVisualKind::CavePassage,
+        ),
     ] {
         let mut cave_exit = make_exit(None);
         cave_exit.cave_target = Some(CaveConnectionTarget {
