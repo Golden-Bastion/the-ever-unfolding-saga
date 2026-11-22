@@ -206,6 +206,24 @@ pub struct SpatialDoor {
     pub room_b: String,
     pub state: DoorState,
 }
+/// Renderer-neutral semantic category for the physical appearance of a passage.
+/// The Bevy adapter maps these categories to temporary visual treatments until
+/// dedicated route and cave artwork is available.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MapExitVisualKind {
+    Frontier,
+    Trail,
+    MountainPass,
+    RiverCrossing,
+    WaterCrossing,
+    MixedRoute,
+    UncertainRoute,
+    UnclassifiedRoute,
+    CaveEntrance,
+    VerticalShaft,
+    CavePassage,
+}
+
 /// A physical local-map transition. Ordinary routes occupy map edges; cave
 /// entrances and shafts occupy reachable interior tiles. Destinations are
 /// validated against the authoritative world graph before travel is applied.
@@ -229,6 +247,37 @@ pub struct MapExit {
     pub cave_target: Option<CaveConnectionTarget>,
     pub position: GridPosition,
     pub target_location_id: u64,
+}
+
+impl MapExit {
+    /// Derive the semantic presentation category without persisting renderer state.
+    pub fn visual_kind(&self) -> MapExitVisualKind {
+        if let Some(target) = self.cave_target.as_ref() {
+            return match target.kind {
+                crate::geography::caves::CaveConnectionKind::SurfaceEntrance => {
+                    MapExitVisualKind::CaveEntrance
+                }
+                crate::geography::caves::CaveConnectionKind::VerticalShaft => {
+                    MapExitVisualKind::VerticalShaft
+                }
+                crate::geography::caves::CaveConnectionKind::HorizontalPassage => {
+                    MapExitVisualKind::CavePassage
+                }
+            };
+        }
+        if self.frontier.is_some() {
+            return MapExitVisualKind::Frontier;
+        }
+        match self.route_profile.unwrap_or(RouteProfile::Unavailable) {
+            RouteProfile::Trail => MapExitVisualKind::Trail,
+            RouteProfile::MountainPass => MapExitVisualKind::MountainPass,
+            RouteProfile::RiverCrossing => MapExitVisualKind::RiverCrossing,
+            RouteProfile::WaterCrossing => MapExitVisualKind::WaterCrossing,
+            RouteProfile::Mixed => MapExitVisualKind::MixedRoute,
+            RouteProfile::Inconclusive => MapExitVisualKind::UncertainRoute,
+            RouteProfile::Unavailable => MapExitVisualKind::UnclassifiedRoute,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2000,40 +2049,53 @@ pub fn configure_map_frontiers(map: &mut LocalMap, frontiers: &[FrontierTarget])
 }
 
 fn frontier_edge_positions(map: &LocalMap, side: MapExitSide) -> Vec<GridPosition> {
-    match side {
-        MapExitSide::North => {
+    edge_positions_center_out(map, side)
+}
+
+/// Order valid edge cells from the middle outward. New passages therefore
+/// approach through broad, legible map edges instead of clustering at corners.
+fn edge_positions_center_out(map: &LocalMap, side: MapExitSide) -> Vec<GridPosition> {
+    let (start, end) = match side {
+        MapExitSide::North | MapExitSide::South => {
             let start = authored_gate_barrier_x(map)
                 .map(|barrier_x| barrier_x.saturating_add(1))
                 .unwrap_or(1)
                 .max(1)
                 .min(map.width.saturating_sub(1));
-            (start..map.width.saturating_sub(1))
-                .map(|x| GridPosition { x, y: 0 })
-                .collect()
+            (start, map.width.saturating_sub(1))
         }
-        MapExitSide::East => (1..map.height.saturating_sub(1))
-            .map(|y| GridPosition {
-                x: map.width.saturating_sub(1),
-                y,
-            })
-            .collect(),
-        MapExitSide::South => {
-            let start = authored_gate_barrier_x(map)
-                .map(|barrier_x| barrier_x.saturating_add(1))
-                .unwrap_or(1)
-                .max(1)
-                .min(map.width.saturating_sub(1));
-            (start..map.width.saturating_sub(1))
-                .map(|x| GridPosition {
-                    x,
-                    y: map.height.saturating_sub(1),
-                })
-                .collect()
-        }
-        MapExitSide::West => (1..map.height.saturating_sub(1))
-            .map(|y| GridPosition { x: 0, y })
-            .collect(),
+        MapExitSide::East | MapExitSide::West => (1, map.height.saturating_sub(1)),
+    };
+    if start >= end {
+        return Vec::new();
     }
+
+    let center = start + (end - start - 1) / 2;
+    let mut axis = Vec::with_capacity(usize::from(end - start));
+    axis.push(center);
+    for offset in 1..(end - start) {
+        if let Some(right) = center.checked_add(offset).filter(|value| *value < end) {
+            axis.push(right);
+        }
+        if let Some(left) = center.checked_sub(offset).filter(|value| *value >= start) {
+            axis.push(left);
+        }
+    }
+
+    axis.into_iter()
+        .map(|value| match side {
+            MapExitSide::North => GridPosition { x: value, y: 0 },
+            MapExitSide::East => GridPosition {
+                x: map.width.saturating_sub(1),
+                y: value,
+            },
+            MapExitSide::South => GridPosition {
+                x: value,
+                y: map.height.saturating_sub(1),
+            },
+            MapExitSide::West => GridPosition { x: 0, y: value },
+        })
+        .collect()
 }
 
 /// Add physical cave transitions without regenerating an established local layout.
@@ -2139,44 +2201,47 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
 
         // Allocate one slot per compass side before using a second slot on
         // any side. This keeps authored onward/return routes spatially distinct.
-        let east = (1..map.height.saturating_sub(1))
-            .map(|y| GridPosition {
-                x: map.width.saturating_sub(1),
-                y,
-            })
-            .collect::<Vec<_>>();
-        let west = (1..map.height.saturating_sub(1))
-            .map(|y| GridPosition { x: 0, y })
-            .collect::<Vec<_>>();
-        let north_start = authored_gate_barrier_x(map)
-            .map(|barrier_x| barrier_x.saturating_add(1))
-            .unwrap_or(1)
-            .max(1)
-            .min(map.width.saturating_sub(1));
-        let north = (north_start..map.width.saturating_sub(1))
-            .map(|x| GridPosition { x, y: 0 })
-            .collect::<Vec<_>>();
-        let south = (north_start..map.width.saturating_sub(1))
-            .map(|x| GridPosition {
-                x,
-                y: map.height.saturating_sub(1),
-            })
-            .collect::<Vec<_>>();
         let compass_sides = match route.preferred_side {
-            Some(MapExitSide::North) => [&north, &east, &west, &south],
-            Some(MapExitSide::East) => [&east, &north, &south, &west],
-            Some(MapExitSide::South) => [&south, &east, &west, &north],
-            Some(MapExitSide::West) => [&west, &north, &south, &east],
-            None => [&east, &west, &north, &south],
+            Some(MapExitSide::North) => [
+                MapExitSide::North,
+                MapExitSide::East,
+                MapExitSide::West,
+                MapExitSide::South,
+            ],
+            Some(MapExitSide::East) => [
+                MapExitSide::East,
+                MapExitSide::North,
+                MapExitSide::South,
+                MapExitSide::West,
+            ],
+            Some(MapExitSide::South) => [
+                MapExitSide::South,
+                MapExitSide::East,
+                MapExitSide::West,
+                MapExitSide::North,
+            ],
+            Some(MapExitSide::West) => [
+                MapExitSide::West,
+                MapExitSide::North,
+                MapExitSide::South,
+                MapExitSide::East,
+            ],
+            None => [
+                MapExitSide::East,
+                MapExitSide::West,
+                MapExitSide::North,
+                MapExitSide::South,
+            ],
         };
-        let max_slots = compass_sides
+        let side_positions = compass_sides.map(|side| edge_positions_center_out(map, side));
+        let max_slots = side_positions
             .iter()
-            .map(|positions| positions.len())
+            .map(Vec::len)
             .max()
             .unwrap_or(0);
         let positions = (0..max_slots)
             .flat_map(|slot| {
-                compass_sides
+                side_positions
                     .iter()
                     .filter_map(move |positions| positions.get(slot).copied())
             })
