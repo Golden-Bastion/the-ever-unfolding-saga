@@ -1430,6 +1430,17 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
         preferred_side: None,
         frontier_id: None,
     };
+    configure_map_cave_connections(
+        &mut map,
+        std::slice::from_ref(&target),
+        std::slice::from_ref(&route),
+    );
+    assert_eq!(map.exits.len(), 1);
+    assert_eq!(map.exits[0].id, entrance.id);
+    assert_eq!(map.exits[0].position, entrance.position);
+    assert_eq!(map.exits[0].target_location_id, 99);
+    assert_eq!(map.exits[0].route_id.as_deref(), Some(route.route_id.as_str()));
+
     let mut linked = generate_local_map(8_194, "location.10", LocalMapConfig::default());
     linked.props.clear();
     linked.interactables.clear();
