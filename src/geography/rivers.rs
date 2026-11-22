@@ -199,13 +199,25 @@ impl RiverSample {
             ruleset_version,
             self.coarse_cell,
         )?;
-        let outlet_kind = match outlet.kind() {
-            watershed::OutletKind::Ocean => RiverOutletKind::Ocean,
-            watershed::OutletKind::ClosedBasin => RiverOutletKind::ClosedBasin,
-            watershed::OutletKind::SearchLimit => RiverOutletKind::SearchLimit,
+        let (outlet_coordinate, outlet_kind) = match outlet.kind() {
+            watershed::OutletKind::Ocean => {
+                (outlet.coordinate(), RiverOutletKind::Ocean)
+            }
+            watershed::OutletKind::ClosedBasin => {
+                if let Some(lake) =
+                    waterbodies::sample_surface(world_seed, ruleset_version, outlet.coordinate())
+                {
+                    (lake.outlet_cell(), RiverOutletKind::Lake)
+                } else {
+                    (outlet.coordinate(), RiverOutletKind::ClosedBasin)
+                }
+            }
+            watershed::OutletKind::SearchLimit => {
+                (outlet.coordinate(), RiverOutletKind::SearchLimit)
+            }
         };
         Some(RiverId {
-            outlet_coordinate: outlet.coordinate(),
+            outlet_coordinate,
             outlet_kind,
         })
     }
