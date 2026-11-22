@@ -599,8 +599,14 @@ fn resolved_lake_crossings_follow_travel_direction_and_require_both_shores() {
         river_banks: None,
         lake_id: Some(lake_id.to_string()),
         lake_banks: Some(LakeBankIntersection {
-            entry: RiverPosition { x_q16: x * RIVER_POSITION_SCALE, y_q16: 0 },
-            exit: RiverPosition { x_q16: x * RIVER_POSITION_SCALE, y_q16: RIVER_POSITION_SCALE },
+            entry: RiverPosition {
+                x_q16: x * RIVER_POSITION_SCALE,
+                y_q16: 0,
+            },
+            exit: RiverPosition {
+                x_q16: x * RIVER_POSITION_SCALE,
+                y_q16: RIVER_POSITION_SCALE,
+            },
         }),
     };
     let unresolved = RouteCrossing {
