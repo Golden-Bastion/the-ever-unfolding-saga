@@ -1684,12 +1684,12 @@ fn local_river_crossings_are_deterministic_walkable_and_width_appropriate() {
         let mut map = generate_local_map(73, "location.river_crossing_test", config);
         map.props.clear();
         map.terrain.fill(Terrain::Water);
-        for y in 1..11 {
-            for x in 1..=6 {
+        for y in 1u16..11 {
+            for x in 1u16..=6 {
                 map.terrain[usize::from(y) * usize::from(map.width) + usize::from(x)] =
                     Terrain::Floor;
             }
-            for x in 10..15 {
+            for x in 10u16..15 {
                 map.terrain[usize::from(y) * usize::from(map.width) + usize::from(x)] =
                     Terrain::Floor;
             }
@@ -1736,8 +1736,8 @@ fn non_river_water_and_river_channels_without_two_local_banks_stay_blocked() {
     let mut map = generate_local_map(74, "location.water_without_crossing", config);
     map.props.clear();
     map.terrain.fill(Terrain::Water);
-    for y in 1..11 {
-        for x in 1..=6 {
+    for y in 1u16..11 {
+        for x in 1u16..=6 {
             map.terrain[usize::from(y) * usize::from(map.width) + usize::from(x)] = Terrain::Floor;
         }
     }
