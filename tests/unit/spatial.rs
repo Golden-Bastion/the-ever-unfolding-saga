@@ -1677,16 +1677,21 @@ fn water_is_impassable_while_sand_remains_walkable() {
 #[test]
 fn local_river_crossings_are_deterministic_walkable_and_width_appropriate() {
     fn crossing_map(width: RiverWidthClass) -> LocalMap {
-        let config = LocalMapConfig { width: 16, height: 12 };
+        let config = LocalMapConfig {
+            width: 16,
+            height: 12,
+        };
         let mut map = generate_local_map(73, "location.river_crossing_test", config);
         map.props.clear();
         map.terrain.fill(Terrain::Water);
         for y in 1..11 {
             for x in 1..=6 {
-                map.terrain[usize::from(y) * usize::from(map.width) + usize::from(x)] = Terrain::Floor;
+                map.terrain[usize::from(y) * usize::from(map.width) + usize::from(x)] =
+                    Terrain::Floor;
             }
             for x in 10..15 {
-                map.terrain[usize::from(y) * usize::from(map.width) + usize::from(x)] = Terrain::Floor;
+                map.terrain[usize::from(y) * usize::from(map.width) + usize::from(x)] =
+                    Terrain::Floor;
             }
         }
         place_river_crossings(&mut map, |position| {
@@ -1703,17 +1708,31 @@ fn local_river_crossings_are_deterministic_walkable_and_width_appropriate() {
         let first = crossing_map(width);
         let second = crossing_map(width);
         assert_eq!(first.terrain, second.terrain);
-        let crossing_tiles = first.terrain.iter().filter(|terrain| **terrain == expected).count();
+        let crossing_tiles = first
+            .terrain
+            .iter()
+            .filter(|terrain| **terrain == expected)
+            .count();
         assert_eq!(crossing_tiles, 3);
-        assert!(has_walkable_path(&first, GridPosition { x: 2, y: 5 }, GridPosition { x: 13, y: 5 }));
+        assert!(has_walkable_path(
+            &first,
+            GridPosition { x: 2, y: 5 },
+            GridPosition { x: 13, y: 5 },
+        ));
         assert!(!first.is_walkable(GridPosition { x: 8, y: 5 }));
-        assert!(matches!(first.terrain_at(GridPosition { x: 8, y: 1 }), Some(Terrain::Ford | Terrain::Bridge)));
+        assert!(matches!(
+            first.terrain_at(GridPosition { x: 8, y: 1 }),
+            Some(Terrain::Ford | Terrain::Bridge)
+        ));
     }
 }
 
 #[test]
 fn non_river_water_and_river_channels_without_two_local_banks_stay_blocked() {
-    let config = LocalMapConfig { width: 16, height: 12 };
+    let config = LocalMapConfig {
+            width: 16,
+            height: 12,
+        };
     let mut map = generate_local_map(74, "location.water_without_crossing", config);
     map.props.clear();
     map.terrain.fill(Terrain::Water);
@@ -1723,11 +1742,17 @@ fn non_river_water_and_river_channels_without_two_local_banks_stay_blocked() {
         }
     }
     place_river_crossings(&mut map, |_| None);
-    assert!(!map.terrain.iter().any(|terrain| matches!(terrain, Terrain::Ford | Terrain::Bridge)));
+    assert!(!map
+        .terrain
+        .iter()
+        .any(|terrain| matches!(terrain, Terrain::Ford | Terrain::Bridge)));
     place_river_crossings(&mut map, |position| {
         (7..15).contains(&position.x).then_some(RiverWidthClass::Wide)
     });
-    assert!(!map.terrain.iter().any(|terrain| matches!(terrain, Terrain::Ford | Terrain::Bridge)));
+    assert!(!map
+        .terrain
+        .iter()
+        .any(|terrain| matches!(terrain, Terrain::Ford | Terrain::Bridge)));
 }
 
 #[test]
