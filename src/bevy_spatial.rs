@@ -3621,12 +3621,6 @@ fn spatial_environment_tint(time_points: u32) -> Option<Color> {
 }
 
 fn terrain_tint(terrain: Terrain, discovered: bool, biome: Option<Biome>) -> Color {
-    if terrain == Terrain::Ford {
-        return if discovered { Color::srgb(0.67, 0.65, 0.58) } else { Color::srgb(0.29, 0.29, 0.27) };
-    }
-    if terrain == Terrain::Bridge {
-        return if discovered { Color::srgb(0.68, 0.49, 0.31) } else { Color::srgb(0.29, 0.20, 0.13) };
-    }
     if terrain == Terrain::Floor {
         if let Some(biome) = biome {
             return match (biome, discovered) {
