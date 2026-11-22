@@ -634,7 +634,7 @@ fn classify_crossings(
             previous_water_crossing = None;
             continue;
         };
-        match water.kind() {
+        match water {
             SurfaceWaterKind::Ocean => {
                 let key = (RouteCrossingKind::Ocean, None);
                 if previous_water_crossing != Some(key) {
