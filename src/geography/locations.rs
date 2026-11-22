@@ -5,13 +5,27 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use crate::content::CampaignContent;
 use crate::geography::frontier::FrontierDirection;
 use crate::geography::{
-    coordinate_seed, terrain, MacroCoordinate, RegionCoordinate, GEOGRAPHY_RULESET_VERSION,
+    coordinate_seed, hydrology, terrain, MacroCoordinate, RegionCoordinate,
+    GEOGRAPHY_RULESET_VERSION,
 };
 use crate::model::{LocationGeographyRecord, World};
 
-pub const LOCATION_GEOGRAPHY_EMBEDDING_VERSION: u32 = 1;
+pub const LOCATION_GEOGRAPHY_EMBEDDING_VERSION: u32 = 2;
 pub const DEFAULT_FOOTPRINT_RADIUS_SAMPLES: u16 = 4;
 const PLACEMENT_CANDIDATES: u64 = 128;
+
+/// Broad environmental preferences used when selecting a new location anchor.
+#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LocationArchetype {
+    /// Favors flatter, accessible land with nearby classified freshwater.
+    Settlement,
+    /// Has no strong environmental preference beyond valid surface land.
+    #[default]
+    Wilderness,
+    /// Favors elevated and geologically distinctive terrain.
+    Landmark,
+}
 
 /// Attach deterministic geography to every region and location that lacks it.
 ///
@@ -108,9 +122,12 @@ pub fn ensure_location_geography(world: &mut World, content: Option<&CampaignCon
             .and_then(|geography| geography.footprint_radius_samples)
             .unwrap_or(DEFAULT_FOOTPRINT_RADIUS_SAMPLES)
             .min(32);
+        let archetype = authored_location
+            .map(|entry| entry.archetype)
+            .unwrap_or_default();
 
         let anchor = authored_anchor.unwrap_or_else(|| {
-            choose_anchor(seed, ruleset, region_coordinate, &stable_key, radius)
+            choose_anchor(seed, ruleset, region_coordinate, &stable_key, radius, archetype)
         });
         let footprint_radius_samples = if authored_anchor.is_some() {
             radius
