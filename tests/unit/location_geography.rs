@@ -301,7 +301,7 @@ fn legacy_location_content_defaults_to_wilderness_archetype() {
     .unwrap();
 
     assert_eq!(
-        location.archetype,
+        location.archetype.unwrap_or_default(),
         crate::geography::locations::LocationArchetype::Wilderness
     );
 }
