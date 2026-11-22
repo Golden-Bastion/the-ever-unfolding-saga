@@ -226,9 +226,15 @@ pub(crate) fn discover_available_interactions(
         }
         let label = if pending_cave {
             match exit.cave_target.as_ref().map(|target| target.kind) {
-                Some(crate::geography::caves::CaveConnectionKind::SurfaceEntrance) => "Descend into cave".to_string(),
-                Some(crate::geography::caves::CaveConnectionKind::VerticalShaft) => "Use vertical shaft".to_string(),
-                Some(crate::geography::caves::CaveConnectionKind::HorizontalPassage) => "Enter cave passage".to_string(),
+                Some(crate::geography::caves::CaveConnectionKind::SurfaceEntrance) => {
+                    "Descend into cave".to_string()
+                }
+                Some(crate::geography::caves::CaveConnectionKind::VerticalShaft) => {
+                    "Use vertical shaft".to_string()
+                }
+                Some(crate::geography::caves::CaveConnectionKind::HorizontalPassage) => {
+                    "Enter cave passage".to_string()
+                }
                 None => "Use cave passage".to_string(),
             }
         } else if pending_frontier {
