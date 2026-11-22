@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::hydrology::SurfaceWaterKind;
 use super::rivers::{self, RiverFlowDirection, RiverId, RiverWidthClass};
-use super::{hydrology, terrain, MacroCoordinate};
+use super::{hydrology, terrain, waterbodies, watershed, MacroCoordinate};
 use crate::model::World;
 
 pub const MAX_CORRIDOR_SAMPLES: usize = 16;
@@ -599,6 +599,7 @@ fn classify_crossings(
     path: &[MacroCoordinate],
 ) -> Vec<RouteCrossing> {
     let mut crossings = Vec::new();
+    let mut river_samples = HashMap::new();
     let mut previous_water_crossing: Option<(RouteCrossingKind, Option<RiverId>)> = None;
     for (index, coordinate) in path.iter().enumerate() {
         let Some(surface) = terrain::sample_surface(world_seed, ruleset_version, *coordinate)
@@ -622,8 +623,12 @@ fn classify_crossings(
         if path.len() > 3 && index % 2 != 0 && index + 1 != path.len() {
             continue;
         }
-        let Some(water) = hydrology::sample_surface(world_seed, ruleset_version, *coordinate)
-        else {
+        let Some(water) = sample_route_water(
+            world_seed,
+            ruleset_version,
+            *coordinate,
+            &mut river_samples,
+        ) else {
             previous_water_crossing = None;
             continue;
         };
@@ -698,6 +703,43 @@ fn classify_crossings(
         }
     }
     crossings
+}
+
+/// Classify route water while reusing river accumulation for every point
+/// that belongs to the same coarse watershed cell.
+///
+/// River presence is still a coarse-cell candidate, not a precise local-channel
+/// intersection. The finer river geometry needed to identify exact bank crossings
+/// remains a separate presentation/topology refinement.
+fn sample_route_water(
+    world_seed: u64,
+    ruleset_version: u32,
+    coordinate: MacroCoordinate,
+    river_samples: &mut HashMap<MacroCoordinate, Option<rivers::RiverSample>>,
+) -> Option<SurfaceWaterKind> {
+    let local_terrain = terrain::sample_surface(world_seed, ruleset_version, coordinate)?;
+    if !local_terrain.is_land() {
+        return Some(SurfaceWaterKind::Ocean);
+    }
+
+    if let Some(lake) = waterbodies::sample_surface(world_seed, ruleset_version, coordinate) {
+        return Some(SurfaceWaterKind::Lake(lake));
+    }
+
+    let coarse_cell = watershed::sample_surface(world_seed, ruleset_version, coordinate)?
+        .coarse_cell();
+    let river = *river_samples
+        .entry(coarse_cell)
+        .or_insert_with(|| rivers::sample_surface(world_seed, ruleset_version, coarse_cell));
+    let river = river?;
+
+    if river.is_channel() {
+        Some(SurfaceWaterKind::River(river))
+    } else if river.accumulation().is_truncated() {
+        Some(SurfaceWaterKind::UnresolvedRiver(river))
+    } else {
+        None
+    }
 }
 
 fn infrastructure_for_water(
