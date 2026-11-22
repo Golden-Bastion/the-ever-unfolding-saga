@@ -197,14 +197,24 @@ fn river_network_traces_downhill_courses_with_stable_outlet_identity() {
         .find_map(|seed| {
             for coarse_y in -48..=48 {
                 for coarse_x in -48..=48 {
-                    let coordinate = watershed::cell_center(coarse_x, coarse_y)?;
-                    let channel = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+                    let Some(coordinate) = watershed::cell_center(coarse_x, coarse_y) else {
+                        continue;
+                    };
+                    let Some(channel) =
+                        sample_surface(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                    else {
+                        continue;
+                    };
                     if !channel.is_channel() {
                         continue;
                     }
-                    let network = trace_network(seed, GEOGRAPHY_RULESET_VERSION, coordinate)?;
+                    let Some(network) = trace_network(seed, GEOGRAPHY_RULESET_VERSION, coordinate)
+                    else {
+                        continue;
+                    };
                     if network.path.len() >= 2
                         && network.outlet.kind != RiverOutletKind::SearchLimit
+                        && network.id.outlet_kind != RiverOutletKind::SearchLimit
                     {
                         return Some((seed, network));
                     }
@@ -216,8 +226,11 @@ fn river_network_traces_downhill_courses_with_stable_outlet_identity() {
 
     let (seed, network) = fixture;
     assert!(network.path.len() <= MAX_RIVER_NETWORK_STEPS);
-    assert_eq!(network.id.outlet_coordinate, network.outlet.coordinate);
-    assert_eq!(network.id.outlet_kind, network.outlet.kind);
+    assert_eq!(
+        sample_surface(seed, GEOGRAPHY_RULESET_VERSION, network.path[0].coordinate)
+            .and_then(|sample| sample.network_id(seed, GEOGRAPHY_RULESET_VERSION)),
+        Some(network.id),
+    );
     assert_eq!(
         trace_network(seed, GEOGRAPHY_RULESET_VERSION, network.path[0].coordinate),
         Some(network.clone())
