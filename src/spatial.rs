@@ -1428,7 +1428,11 @@ fn place_river_crossings(
                     }
                     let next_x = x + dx;
                     let next_y = y + dy;
-                    if next_x < 0 || next_y < 0 || next_x >= map.width as i32 || next_y >= map.height as i32 {
+                    if next_x < 0
+                        || next_y < 0
+                        || next_x >= i32::from(map.width)
+                        || next_y >= i32::from(map.height)
+                    {
                         continue;
                     }
                     let next = next_y as usize * width + next_x as usize;
@@ -1459,19 +1463,32 @@ fn place_river_crossings(
             let bank_before = GridPosition { x: x - 1, y };
             let before_index = usize::from(y) * width + usize::from(bank_before.x);
             if river_widths[before_index].is_some() || !map.is_walkable(bank_before) {
-                while x < map.width.saturating_sub(1) && river_widths[usize::from(y) * width + usize::from(x)].is_some() {
+                while x < map.width.saturating_sub(1)
+                    && river_widths[usize::from(y) * width + usize::from(x)].is_some()
+                {
                     x += 1;
                 }
                 continue;
             }
             let mut tiles = Vec::new();
-            while x < map.width.saturating_sub(1) && river_widths[usize::from(y) * width + usize::from(x)].is_some() {
+            while x < map.width.saturating_sub(1)
+                && river_widths[usize::from(y) * width + usize::from(x)].is_some()
+            {
                 tiles.push(GridPosition { x, y });
                 x += 1;
             }
             if x < map.width.saturating_sub(1) {
                 let bank_after = GridPosition { x, y };
-                consider_river_crossing(map, &river_widths, &component_ids, &mut best, tiles, bank_before, bank_after, 0);
+                consider_river_crossing(
+                    map,
+                    &river_widths,
+                    &component_ids,
+                    &mut best,
+                    tiles,
+                    bank_before,
+                    bank_after,
+                    0,
+                );
             }
         }
     }
@@ -1488,19 +1505,32 @@ fn place_river_crossings(
             let bank_before = GridPosition { x, y: y - 1 };
             let before_index = usize::from(bank_before.y) * width + usize::from(x);
             if river_widths[before_index].is_some() || !map.is_walkable(bank_before) {
-                while y < map.height.saturating_sub(1) && river_widths[usize::from(y) * width + usize::from(x)].is_some() {
+                while y < map.height.saturating_sub(1)
+                    && river_widths[usize::from(y) * width + usize::from(x)].is_some()
+                {
                     y += 1;
                 }
                 continue;
             }
             let mut tiles = Vec::new();
-            while y < map.height.saturating_sub(1) && river_widths[usize::from(y) * width + usize::from(x)].is_some() {
+            while y < map.height.saturating_sub(1)
+                && river_widths[usize::from(y) * width + usize::from(x)].is_some()
+            {
                 tiles.push(GridPosition { x, y });
                 y += 1;
             }
             if y < map.height.saturating_sub(1) {
                 let bank_after = GridPosition { x, y };
-                consider_river_crossing(map, &river_widths, &component_ids, &mut best, tiles, bank_before, bank_after, 1);
+                consider_river_crossing(
+                    map,
+                    &river_widths,
+                    &component_ids,
+                    &mut best,
+                    tiles,
+                    bank_before,
+                    bank_after,
+                    1,
+                );
             }
         }
     }
@@ -1542,16 +1572,40 @@ fn consider_river_crossing(
     let Some(component_id) = component_ids[first_index] else {
         return;
     };
-    if tiles.iter().any(|position| component_ids[usize::from(position.y) * width + usize::from(position.x)] != Some(component_id)) {
+    if tiles.iter().any(|position| {
+        component_ids[usize::from(position.y) * width + usize::from(position.x)]
+            != Some(component_id)
+    }) {
         return;
     }
-    let Some(crossing_width) = tiles.iter().filter_map(|position| river_widths[usize::from(position.y) * width + usize::from(position.x)]).max_by_key(|width| river_width_rank(*width)) else {
+    let Some(crossing_width) = tiles
+        .iter()
+        .filter_map(|position| {
+            river_widths[usize::from(position.y) * width + usize::from(position.x)]
+        })
+        .max_by_key(|width| river_width_rank(*width))
+    else {
         return;
     };
-    let candidate = RiverCrossingCandidate { tiles, width: crossing_width, axis_order };
-    let candidate_key = (candidate.tiles.len(), candidate.tiles[0].y, candidate.tiles[0].x, candidate.axis_order);
+    let candidate = RiverCrossingCandidate {
+        tiles,
+        width: crossing_width,
+        axis_order,
+    };
+    let candidate_key = (
+        candidate.tiles.len(),
+        candidate.tiles[0].y,
+        candidate.tiles[0].x,
+        candidate.axis_order,
+    );
     let replace = best[component_id].as_ref().map_or(true, |current| {
-        candidate_key < (current.tiles.len(), current.tiles[0].y, current.tiles[0].x, current.axis_order)
+        candidate_key
+            < (
+                current.tiles.len(),
+                current.tiles[0].y,
+                current.tiles[0].x,
+                current.axis_order,
+            )
     });
     if replace {
         best[component_id] = Some(candidate);
