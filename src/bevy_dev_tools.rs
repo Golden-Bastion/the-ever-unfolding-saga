@@ -1317,6 +1317,7 @@ fn place_world_lab_passage(state: &mut DeveloperToolsState, spatial: &mut Spatia
                 route_id: Some(route_id.clone()),
                 route_profile: None,
                 frontier: None,
+                cave_target: None,
                 position,
                 target_location_id: destination_id,
             },

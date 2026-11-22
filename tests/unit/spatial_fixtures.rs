@@ -177,6 +177,7 @@ fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
         route_id: Some("route.fixture.one".into()),
         route_profile: None,
         frontier: None,
+        cave_target: None,
         position: edge,
         target_location_id: 20,
     });
@@ -206,6 +207,7 @@ fn fixture_validation_requires_unique_world_passages_and_actor_ids() {
         route_id: Some("route.fixture.two".into()),
         route_profile: None,
         frontier: None,
+        cave_target: None,
         position: second_edge,
         target_location_id: 20,
     });

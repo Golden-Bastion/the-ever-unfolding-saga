@@ -384,6 +384,7 @@ fn discovery_requires_passages_to_match_authoritative_route_records() {
         route_id: Some(route_id.into()),
         route_profile: None,
         frontier: None,
+        cave_target: None,
         position: map.entry,
         target_location_id: destination_id,
     });
@@ -471,6 +472,7 @@ fn nearby_pending_frontier_passage_offers_exploration_without_a_world_route() {
         route_id: None,
         route_profile: None,
         frontier: Some(frontier),
+        cave_target: None,
         position: map.entry,
         target_location_id: 0,
     });
@@ -487,4 +489,49 @@ fn nearby_pending_frontier_passage_offers_exploration_without_a_world_route() {
             destination_id: 0,
         }
     );
+}
+
+#[test]
+fn pending_cave_passages_are_discoverable_without_an_existing_world_route() {
+    use crate::geography::caves::{CaveConnectionKind, CaveConnectionTarget};
+    use crate::geography::MacroCoordinate;
+
+    let game = crate::model::create_new_state(
+        "Cave Interaction Test",
+        crate::model::WorldMode::New,
+        "Ash".into(),
+        "Wanderer".into(),
+    );
+    let location_id = game.character.location_id;
+    let mut map = crate::spatial::generate_local_map(
+        31,
+        format!("location.{location_id}"),
+        crate::spatial::LocalMapConfig::default(),
+    );
+    map.props.clear();
+    map.points_of_interest.clear();
+    let target = CaveConnectionTarget {
+        id: "vertical.test.entrance".into(),
+        destination_anchor: MacroCoordinate {
+            x: 20,
+            y: 30,
+            stratum: -1,
+        },
+        destination_location_id: None,
+        kind: CaveConnectionKind::SurfaceEntrance,
+    };
+    map.exits.push(crate::spatial::MapExit {
+        id: "location.test.cave.entrance".into(),
+        route_id: None,
+        route_profile: None,
+        frontier: None,
+        cave_target: Some(target),
+        position: map.entry,
+        target_location_id: 0,
+    });
+    let player = (f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
+    let available = discover_available_interactions(&map, &game, player);
+    assert_eq!(available.len(), 1);
+    assert_eq!(available[0].action, InteractionActionKind::Enter);
+    assert_eq!(available[0].label, "Descend into cave");
 }

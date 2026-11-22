@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.19: Physical cave transitions on local maps
+
+- Added persistent cave-transition metadata to local-map passages, with backward-compatible defaults for maps saved before cave topology integration.
+- Surface entrances, horizontal chamber passages, and vertical shafts now appear as reachable interior transitions. They are not misrepresented as overland map-edge exits.
+- Cave transitions are discovered through the existing contextual interaction system. The selected connection is revalidated and materialized on use, then the same local passage is upgraded to the authoritative bidirectional world route.
+- Existing maps are migrated in place on entry: deterministic cave transitions are added and the local-map generator version advances without discarding established terrain, discoveries, props, encounters, or route passages.
+- Surface locations expose at most three nearby cave entrances to keep local maps readable. Cave chamber maps expose their immediate reciprocal horizontal and adjacent-stratum links.
+- Added automated coverage for reachable interior placement, idempotent map reconciliation, legacy map-exit defaults, and pending cave interaction discovery.
+- Bumped Rust and Android version metadata to 0.53.19.
+
 ### v0.53.18: Persistent individual cave chambers
 
 - Added `geography::caves` to expose immediate cave connections from a persistent location: reciprocal horizontal chamber passages, surface entrances, and shafts between adjacent underground strata.

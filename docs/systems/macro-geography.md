@@ -153,6 +153,14 @@ Implemented in v0.53.18:
 - Cave routes deliberately do not receive surface A* paths. The existing overland planner reports unsupported strata rather than inventing a surface corridor. Local-map shaft/entrance placement and interaction remain the next integration step; this stage changes persistent world topology only.
 - Generated cave geometry remains derived on demand. Only materialized locations, regions, and routes are persisted; repeated requests are idempotent and no world-sized scan or recursive network generation is performed.
 
+Implemented in v0.53.19:
+
+- `spatial::configure_map_cave_connections` converts the immediate cave targets for a location into physical interior map passages. Surface locations expose up to three nearest nearby entrances; cave chambers expose their immediate horizontal neighbors and adjacent-stratum shafts.
+- Interior passage positions are selected deterministically from walkable cells reachable from the map entry. They avoid existing exits, discoveries, actors, encounters, and prop footprints; they do not require a fake edge opening or a separate overland path.
+- A pending cave passage stores its `CaveConnectionTarget` and has no destination location or route yet. Interaction revalidates and materializes exactly that target, then upgrades the same passage with the resulting authoritative route and location IDs.
+- Cave routes are excluded from ordinary edge-route reconciliation. When a chamber map is entered, its deterministic cave targets recreate the physical reverse passage and reuse an already materialized route when present.
+- Local-map generator version 6 marks the migration. Older maps are upgraded on entry by adding transitions in place; existing terrain, discovered tiles, points of interest, props, encounters, actor placements, and established route passages are retained. The new optional passage field defaults absent in older saves.
+
 ## Persistence contract
 
 Each saved `Region` may carry an optional chunk coordinate. Newly generated regions receive deterministic, unique coordinates. An otherwise empty world seeded directly from authored content places its first region at the origin.
@@ -161,7 +169,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 ## Boundaries and remaining work
 
-The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, deterministic vertical candidates, and persistent individual cave-chamber locations/routes are implemented. Remaining geography/topology work is physical local-map integration for cave entrances and shafts, plus richer local-map connection-point placement for all route types.
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, deterministic vertical candidates, and persistent individual cave-chamber locations/routes are implemented. Remaining geography/topology work is richer route-specific connection-point placement and visual treatment for all route types.
 
 The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 

@@ -429,6 +429,7 @@ fn eligible_interactions_preserve_multiple_nearby_targets_and_bindings() {
         route_id: None,
         route_profile: None,
         frontier: None,
+        cave_target: None,
         position: map.entry,
         target_location_id: 999,
     }];

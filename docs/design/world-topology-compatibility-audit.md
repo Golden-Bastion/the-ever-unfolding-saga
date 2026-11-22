@@ -221,3 +221,10 @@ The first coordinate-contract stage is implemented on the v0.53.x development li
 - Materialization creates a missing adjacent region and one destination location, or reuses the already-existing adjacent region. It persists the destination's geography record and a bidirectional route with canonical macro path/profile. It does not generate any other region or synthesize full settlement content.
 - The source passage is upgraded to the route in place, preserving its local ID and position. The destination map receives the reciprocal passage through normal route reconciliation when entered. Repeated requests return the existing destination/route without consuming new IDs or rerolling geography.
 - The optional pending-frontier field defaults absent in older saves. The outer save format and macro-geography ruleset do not change.
+
+
+## Follow-up: cave map transition migration (v0.53.19)
+
+The cave-topology integration extends the local `MapExit` record with an optional serialized `CaveConnectionTarget`. The field defaults to absent, so older save data remains readable without a save-format bump. Ordinary overland and frontier exits remain edge passages; cave entrances, horizontal chamber links, and vertical shafts use interior positions.
+
+On entry, local-map generator version 6 reconciliation adds missing cave transitions to the existing saved map. Placement is deterministic and restricted to walkable interior cells reachable from the map entry; it avoids existing exits, points of interest, actors, encounters, and prop footprints. Existing terrain, discoveries, props, encounters, actor placements, and established passage IDs/positions are retained. A cave destination and authoritative route are materialized only when the player uses the passage; the pending passage is upgraded in place. This is an additive map migration, not a full layout regeneration.
