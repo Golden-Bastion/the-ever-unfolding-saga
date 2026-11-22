@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{coordinate_seed, underground, vertical, MacroCoordinate, RegionCoordinate};
+use super::{coordinate_seed, underground, vertical, MacroCoordinate};
 use crate::model::{Location, LocationGeographyRecord, Region, RouteDirection, World, WorldRoute};
 
 /// Physical relationship represented by one cave route.
@@ -37,7 +37,10 @@ impl CaveConnectionTarget {
 
     pub fn location_key(&self) -> String {
         if self.destination_anchor.stratum == 0 {
-            format!("location.cave_entrance.{}.{}", self.destination_anchor.x, self.destination_anchor.y)
+            format!(
+                "location.cave_entrance.{}.{}",
+                self.destination_anchor.x, self.destination_anchor.y
+            )
         } else {
             cave_location_key(self.destination_anchor)
         }
@@ -71,11 +74,12 @@ fn horizontal_target_id(
     first: MacroCoordinate,
     second: MacroCoordinate,
 ) -> String {
-    let (first, second) = if (first.stratum, first.x, first.y) <= (second.stratum, second.x, second.y) {
-        (first, second)
-    } else {
-        (second, first)
-    };
+    let (first, second) =
+        if (first.stratum, first.x, first.y) <= (second.stratum, second.x, second.y) {
+            (first, second)
+        } else {
+            (second, first)
+        };
     let hash = coordinate_seed(seed, ruleset ^ 0x4341_5648, first)
         ^ coordinate_seed(seed, ruleset ^ 0x4341_5649, second);
     format!("horizontal.{:016x}", hash)
@@ -174,8 +178,12 @@ pub fn connection_targets_for_location(
             } else {
                 continue;
             };
-            let Some(source_chamber) = underground::sample_underground(seed, ruleset, source_endpoint)
-                .and_then(|value| value.network_cell())
+            let Some(source_chamber) = underground::sample_underground(
+                seed,
+                ruleset,
+                source_endpoint,
+            )
+            .and_then(|value| value.network_cell())
             else {
                 continue;
             };
@@ -195,8 +203,15 @@ pub fn connection_targets_for_location(
                     (destination_endpoint, None, CaveConnectionKind::SurfaceEntrance)
                 }
             } else {
-                let Some(destination) = underground::sample_underground(seed, ruleset, destination_endpoint)
-                    .and_then(|value| value.network_cell()) else { continue; };
+                let Some(destination) = underground::sample_underground(
+                    seed,
+                    ruleset,
+                    destination_endpoint,
+                )
+                .and_then(|value| value.network_cell())
+                else {
+                    continue;
+                };
                 (destination, None, CaveConnectionKind::VerticalShaft)
             };
             targets.push(CaveConnectionTarget {
@@ -226,14 +241,19 @@ pub fn materialize_connection(
     if world.location_by_id(source_location_id).is_none() {
         return Err(CaveMaterializationError::MissingSource);
     }
-    let seed = world.geography_seed.ok_or(CaveMaterializationError::MissingGeography)?;
+    let seed = world
+        .geography_seed
+        .ok_or(CaveMaterializationError::MissingGeography)?;
     let route_id = target.route_id();
     let stable_key = target.location_key();
 
-    let existing_location_id = target.destination_location_id.or_else(|| world.location_geography
-        .iter()
-        .find(|record| record.stable_key == stable_key)
-        .map(|record| record.location_id));
+    let existing_location_id = target.destination_location_id.or_else(|| {
+        world
+            .location_geography
+            .iter()
+            .find(|record| record.stable_key == stable_key)
+            .map(|record| record.location_id)
+    });
 
     if let Some(route) = world.route_by_id(&route_id) {
         let Some(location_id) = existing_location_id else {
@@ -259,15 +279,21 @@ pub fn materialize_connection(
     }
 
     let destination_region = target.destination_anchor.region_and_local().0;
-    let existing_region_id = world.regions.iter()
+    let existing_region_id = world
+        .regions
+        .iter()
         .find(|region| region.coordinate == Some(destination_region))
         .map(|region| region.id);
     if let Some(location_id) = existing_location_id {
         let Some(location) = world.location_by_id(location_id) else {
             return Err(CaveMaterializationError::IdentityConflict);
         };
-        if world.regions.iter().find(|region| region.id == location.region_id)
-            .and_then(|region| region.coordinate) != Some(destination_region)
+        if world
+            .regions
+            .iter()
+            .find(|region| region.id == location.region_id)
+            .and_then(|region| region.coordinate)
+            != Some(destination_region)
         {
             return Err(CaveMaterializationError::IdentityConflict);
         }
@@ -293,8 +319,19 @@ pub fn materialize_connection(
         let anchor = target.destination_anchor;
         world.locations.push(Location {
             id,
-            name: if anchor.stratum == 0 { format!("Hidden Cave Entrance ({}, {})", anchor.x, anchor.y) } else { format!("Cavern Chamber ({}, {})", anchor.x, anchor.y) },
-            description: if anchor.stratum == 0 { "A concealed opening in the earth leads into the cave network.".to_string() } else { format!("A natural chamber deep beneath the surface (stratum {}).", anchor.stratum) },
+            name: if anchor.stratum == 0 {
+                format!("Hidden Cave Entrance ({}, {})", anchor.x, anchor.y)
+            } else {
+                format!("Cavern Chamber ({}, {})", anchor.x, anchor.y)
+            },
+            description: if anchor.stratum == 0 {
+                "A concealed opening in the earth leads into the cave network.".to_string()
+            } else {
+                format!(
+                    "A natural chamber deep beneath the surface (stratum {}).",
+                    anchor.stratum
+                )
+            },
             region_id,
             dangerous: anchor.stratum != 0 && (coordinate_seed(seed, world.geography_ruleset_version, anchor) & 3) != 0,
             corpse_ids: Vec::new(),
