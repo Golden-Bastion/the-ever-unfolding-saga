@@ -239,8 +239,14 @@ fn river_network_trace_is_deterministic_and_preserves_downhill_links() {
     for point in &network.path {
         let sample = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, point.coordinate)
             .expect("every traced point must be a valid surface sample");
-        assert!(sample.is_channel(), "every traced point must be a river channel");
-        assert_eq!(point.contributing_cells, sample.accumulation().contributing_cells());
+        assert!(
+            sample.is_channel(),
+            "every traced point must be a river channel"
+        );
+        assert_eq!(
+            point.contributing_cells,
+            sample.accumulation().contributing_cells()
+        );
 
         if let Some(downstream) = point.downstream {
             assert!(point.flow_direction.is_some());
