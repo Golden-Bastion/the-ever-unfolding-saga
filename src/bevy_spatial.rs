@@ -2442,17 +2442,17 @@ fn render_spatial_screen(
                 Color::srgb(0.30, 0.58, 0.68)
             } else {
                 match exit.visual_kind() {
-                MapExitVisualKind::Frontier => Color::srgb(0.76, 0.70, 0.55),
-                MapExitVisualKind::Trail => Color::srgb(0.70, 0.64, 0.49),
-                MapExitVisualKind::MountainPass => Color::srgb(0.62, 0.59, 0.54),
-                MapExitVisualKind::RiverCrossing => Color::srgb(0.48, 0.66, 0.72),
-                MapExitVisualKind::WaterCrossing => Color::srgb(0.42, 0.58, 0.68),
-                MapExitVisualKind::MixedRoute => Color::srgb(0.67, 0.61, 0.48),
-                MapExitVisualKind::UncertainRoute => Color::srgb(0.60, 0.60, 0.58),
-                MapExitVisualKind::UnclassifiedRoute => Color::WHITE,
-                MapExitVisualKind::CaveEntrance => Color::srgb(0.62, 0.48, 0.34),
-                MapExitVisualKind::VerticalShaft => Color::srgb(0.55, 0.58, 0.62),
-                MapExitVisualKind::CavePassage => Color::srgb(0.68, 0.62, 0.50),
+                    MapExitVisualKind::Frontier => Color::srgb(0.76, 0.70, 0.55),
+                    MapExitVisualKind::Trail => Color::srgb(0.70, 0.64, 0.49),
+                    MapExitVisualKind::MountainPass => Color::srgb(0.62, 0.59, 0.54),
+                    MapExitVisualKind::RiverCrossing => Color::srgb(0.48, 0.66, 0.72),
+                    MapExitVisualKind::WaterCrossing => Color::srgb(0.42, 0.58, 0.68),
+                    MapExitVisualKind::MixedRoute => Color::srgb(0.67, 0.61, 0.48),
+                    MapExitVisualKind::UncertainRoute => Color::srgb(0.60, 0.60, 0.58),
+                    MapExitVisualKind::UnclassifiedRoute => Color::WHITE,
+                    MapExitVisualKind::CaveEntrance => Color::srgb(0.62, 0.48, 0.34),
+                    MapExitVisualKind::VerticalShaft => Color::srgb(0.55, 0.58, 0.62),
+                    MapExitVisualKind::CavePassage => Color::srgb(0.68, 0.62, 0.50),
                 }
             };
             commands.spawn((
