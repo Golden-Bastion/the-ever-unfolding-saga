@@ -321,7 +321,7 @@ fn choose_anchor(
         let footprint = validated_footprint_radius(seed, ruleset, coordinate, radius);
         let full_footprint = footprint == radius && radius > 0;
         let local_relief = if archetype == LocationArchetype::Settlement {
-            local_relief_q16(seed, ruleset, coordinate)
+            local_relief_q16(seed, ruleset, coordinate, sample.elevation_q16())
         } else {
             0
         };
@@ -424,12 +424,14 @@ fn has_nearby_freshwater(seed: u64, ruleset: u32, coordinate: MacroCoordinate) -
     false
 }
 
-fn local_relief_q16(seed: u64, ruleset: u32, coordinate: MacroCoordinate) -> u32 {
+fn local_relief_q16(
+    seed: u64,
+    ruleset: u32,
+    coordinate: MacroCoordinate,
+    center_elevation_q16: i32,
+) -> u32 {
     const PROBE_DISTANCE: i64 = 64;
-    let Some(center) = terrain::sample_surface(seed, ruleset, coordinate) else {
-        return 0;
-    };
-    let center = i64::from(center.elevation_q16());
+    let center = i64::from(center_elevation_q16);
     let mut minimum = center;
     let mut maximum = center;
     for (dx, dy) in [
