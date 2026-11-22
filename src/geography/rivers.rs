@@ -177,6 +177,47 @@ impl RiverSample {
     pub const fn width_class(self) -> RiverWidthClass {
         RiverWidthClass::from_contributing_cells(self.accumulation.contributing_cells)
     }
+
+    /// Stable identity of the downstream drainage network containing this cell.
+    ///
+    /// This follows only the coarse watershed links; it does not trace or
+    /// materialize the full river course. The outlet may lie beyond an
+    /// intervening lake, because identity is based on the underlying drainage
+    /// basin rather than the first visible water feature.
+    pub fn network_id(
+        self,
+        world_seed: u64,
+        ruleset_version: u32,
+    ) -> Option<RiverId> {
+        let outlet = watershed::trace_to_outlet(
+            world_seed,
+            ruleset_version,
+            self.coarse_cell,
+        )?;
+        let outlet_kind = match outlet.kind() {
+            watershed::OutletKind::Ocean => RiverOutletKind::Ocean,
+            watershed::OutletKind::ClosedBasin => RiverOutletKind::ClosedBasin,
+            watershed::OutletKind::SearchLimit => RiverOutletKind::SearchLimit,
+        };
+        Some(RiverId {
+            outlet_coordinate: outlet.coordinate(),
+            outlet_kind,
+        })
+    }
+
+    /// Immediate flow direction at this channel cell.
+    pub fn flow_direction(
+        self,
+        world_seed: u64,
+        ruleset_version: u32,
+    ) -> Option<RiverFlowDirection> {
+        let drainage = watershed::sample_surface(
+            world_seed,
+            ruleset_version,
+            self.coarse_cell,
+        )?;
+        flow_direction(self.coarse_cell, drainage.coarse_downstream()?)
+    }
 }
 
 /// Maximum number of channel cells included in one downstream course query.
@@ -287,10 +328,7 @@ pub fn trace_network(
         coordinate: current,
         kind: RiverOutletKind::SearchLimit,
     });
-    let id = RiverId {
-        outlet_coordinate: outlet.coordinate,
-        outlet_kind: outlet.kind,
-    };
+    let id = initial.network_id(world_seed, ruleset_version)?;
     Some(RiverNetwork { id, path, outlet })
 }
 
