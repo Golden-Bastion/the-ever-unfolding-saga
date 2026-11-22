@@ -93,8 +93,7 @@ impl LocalSurfaceMap {
         let radius_y = if radius_x == 0 {
             0
         } else {
-            let scaled = (u64::from(radius_x) * u64::from(tile_height)
-                + u64::from(tile_width) / 2)
+            let scaled = (u64::from(radius_x) * u64::from(tile_height) + u64::from(tile_width) / 2)
                 / u64::from(tile_width);
             scaled.clamp(1, u64::from(u16::MAX)) as u16
         };
@@ -159,16 +158,14 @@ impl LocalSurfaceMap {
                     tile_width,
                     tile_height,
                 )?;
-                let segments =
-                    river_cache.segments_near(world_seed, ruleset_version, position);
+                let segments = river_cache.segments_near(world_seed, ruleset_version, position);
                 let width = segments
                     .iter()
                     .filter(|segment| segment.contains_position(position))
                     .map(|segment| segment.width_class())
                     .max_by_key(|width| width_rank(*width));
                 if let Some(width) = width {
-                    let index = usize::from(tile_y) * usize::from(tile_width)
-                        + usize::from(tile_x);
+                    let index = usize::from(tile_y) * usize::from(tile_width) + usize::from(tile_x);
                     result.river_tiles[index] = Some(width);
                 }
             }
@@ -189,8 +186,7 @@ impl LocalSurfaceMap {
     /// Return the broad terrain and any local river channel covering one tile.
     pub fn sample_at_tile(&self, tile_x: u16, tile_y: u16) -> Option<LocalSurfaceSample> {
         let mut sample = self.macro_sample_at_tile(tile_x, tile_y)?;
-        let index = usize::from(tile_y) * usize::from(self.tile_width)
-            + usize::from(tile_x);
+        let index = usize::from(tile_y) * usize::from(self.tile_width) + usize::from(tile_x);
         if let Some(width) = self.river_tiles.get(index).copied().flatten() {
             sample.water = SurfaceWaterFeature::Lake;
             sample.river_width = Some(width);
@@ -228,21 +224,15 @@ fn tile_center_position(
 
     let x_offset_numerator = i128::from(tile_x) * 2 + 1 - i128::from(tile_width);
     let y_offset_numerator = i128::from(tile_y) * 2 + 1 - i128::from(tile_height);
-    let x_offset = x_offset_numerator * i128::from(radius_x)
-        * i128::from(RIVER_POSITION_SCALE)
+    let x_offset = x_offset_numerator * i128::from(radius_x) * i128::from(RIVER_POSITION_SCALE)
         / i128::from(tile_width);
-    let y_offset = y_offset_numerator * i128::from(radius_y)
-        * i128::from(RIVER_POSITION_SCALE)
+    let y_offset = y_offset_numerator * i128::from(radius_y) * i128::from(RIVER_POSITION_SCALE)
         / i128::from(tile_height);
     Some(RiverPosition {
-        x_q16: i64::try_from(
-            i128::from(anchor.x) * i128::from(RIVER_POSITION_SCALE) + x_offset,
-        )
-        .ok()?,
-        y_q16: i64::try_from(
-            i128::from(anchor.y) * i128::from(RIVER_POSITION_SCALE) + y_offset,
-        )
-        .ok()?,
+        x_q16: i64::try_from(i128::from(anchor.x) * i128::from(RIVER_POSITION_SCALE) + x_offset)
+            .ok()?,
+        y_q16: i64::try_from(i128::from(anchor.y) * i128::from(RIVER_POSITION_SCALE) + y_offset)
+            .ok()?,
     })
 }
 

@@ -50,10 +50,8 @@ impl RiverPosition {
 
     pub fn midpoint(self, other: Self) -> Option<Self> {
         Some(Self {
-            x_q16: i64::try_from((i128::from(self.x_q16) + i128::from(other.x_q16)) / 2)
-                .ok()?,
-            y_q16: i64::try_from((i128::from(self.y_q16) + i128::from(other.y_q16)) / 2)
-                .ok()?,
+            x_q16: i64::try_from((i128::from(self.x_q16) + i128::from(other.x_q16)) / 2).ok()?,
+            y_q16: i64::try_from((i128::from(self.y_q16) + i128::from(other.y_q16)) / 2).ok()?,
         })
     }
 
@@ -108,14 +106,9 @@ impl RiverChannelSegment {
 
     /// Whether a global local-map tile centre falls inside this channel band.
     pub fn contains_position(&self, position: RiverPosition) -> bool {
-        self.centerline.windows(2).any(|pair| {
-            point_within_segment(
-                position,
-                pair[0],
-                pair[1],
-                self.half_width_q16,
-            )
-        })
+        self.centerline
+            .windows(2)
+            .any(|pair| point_within_segment(position, pair[0], pair[1], self.half_width_q16))
     }
 
     /// Whether a coordinate lies within a requested distance of the channel
@@ -320,20 +313,15 @@ fn curved_centerline(
     let end = RiverPosition::from_macro_coordinate(downstream)?;
     let dx = downstream.x.checked_sub(source.x)?;
     let dy = downstream.y.checked_sub(source.y)?;
-    let length_squared = i128::from(dx) * i128::from(dx)
-        + i128::from(dy) * i128::from(dy);
-    let length = i64::try_from(integer_sqrt(
-        u128::try_from(length_squared).ok()?,
-    ))
-    .ok()?;
+    let length_squared = i128::from(dx) * i128::from(dx) + i128::from(dy) * i128::from(dy);
+    let length = i64::try_from(integer_sqrt(u128::try_from(length_squared).ok()?)).ok()?;
     if length == 0 {
         return None;
     }
 
     let hash = super::coordinate_seed(world_seed, ruleset_version, source);
     let base_offset = watershed::WATERSHED_CELL_SAMPLES / 12;
-    let variation = (hash
-        % u64::try_from(watershed::WATERSHED_CELL_SAMPLES / 24).ok()?) as i64;
+    let variation = (hash % u64::try_from(watershed::WATERSHED_CELL_SAMPLES / 24).ok()?) as i64;
     let bend_samples = base_offset + variation;
     let bend_scale = i128::from(bend_samples) * i128::from(RIVER_POSITION_SCALE);
     let perpendicular_x = -i128::from(dy) * bend_scale / i128::from(length);
@@ -613,8 +601,14 @@ mod tests {
         let second = curved_centerline(991, 2, middle, destination).unwrap();
 
         assert_eq!(first, first_again);
-        assert_eq!(first.first(), RiverPosition::from_macro_coordinate(source).as_ref());
-        assert_eq!(first.last(), RiverPosition::from_macro_coordinate(middle).as_ref());
+        assert_eq!(
+            first.first(),
+            RiverPosition::from_macro_coordinate(source).as_ref()
+        );
+        assert_eq!(
+            first.last(),
+            RiverPosition::from_macro_coordinate(middle).as_ref()
+        );
         assert_eq!(first.last(), second.first());
     }
 }

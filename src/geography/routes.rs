@@ -637,11 +637,9 @@ fn classify_crossings(
                 RiverPosition::from_macro_coordinate(route_end),
             ) {
                 if let Some(midpoint) = start.midpoint(end) {
-                    for segment in river_geometry.segments_near(
-                        world_seed,
-                        ruleset_version,
-                        midpoint,
-                    ) {
+                    for segment in
+                        river_geometry.segments_near(world_seed, ruleset_version, midpoint)
+                    {
                         if let Some(banks) = segment.intersect_route(start, end) {
                             push_river_crossing(&mut crossings, banks, segment);
                         }
@@ -717,7 +715,6 @@ fn classify_crossings(
     }
     crossings
 }
-
 
 fn push_river_crossing(
     crossings: &mut Vec<RouteCrossing>,

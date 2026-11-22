@@ -327,19 +327,27 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
                     };
                     let dx = after.x_q16 - before.x_q16;
                     let dy = after.y_q16 - before.y_q16;
-                    let normal_x = if dy > 0 { -1 } else if dy < 0 { 1 } else { 0 };
-                    let normal_y = if dx > 0 { 1 } else if dx < 0 { -1 } else { 0 };
+                    let normal_x = if dy > 0 {
+                        -1
+                    } else if dy < 0 {
+                        1
+                    } else {
+                        0
+                    };
+                    let normal_y = if dx > 0 {
+                        1
+                    } else if dx < 0 {
+                        -1
+                    } else {
+                        0
+                    };
                     if normal_x == 0 && normal_y == 0 {
                         continue;
                     }
-                    let start = MacroCoordinate::new(
-                        rounded.x + normal_x * 8,
-                        rounded.y + normal_y * 8,
-                    );
-                    let end = MacroCoordinate::new(
-                        rounded.x - normal_x * 8,
-                        rounded.y - normal_y * 8,
-                    );
+                    let start =
+                        MacroCoordinate::new(rounded.x + normal_x * 8, rounded.y + normal_y * 8);
+                    let end =
+                        MacroCoordinate::new(rounded.x - normal_x * 8, rounded.y - normal_y * 8);
                     if ![start, end].into_iter().all(|point| {
                         terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, point)
                             .is_some_and(|terrain| terrain.is_land())
@@ -363,14 +371,18 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
     }
 
     let crossing = fixture.expect("expected a planned path to cross both generated river banks");
-    let banks = crossing.river_banks.expect("confirmed crossings retain both banks");
+    let banks = crossing
+        .river_banks
+        .expect("confirmed crossings retain both banks");
     assert_ne!(banks.entry, banks.exit);
     assert_eq!(crossing.kind, RouteCrossingKind::River);
 }
 
 #[test]
 fn exact_river_bank_metadata_roundtrips_and_old_records_default_empty() {
-    use crate::geography::river_geometry::{RiverBankIntersection, RiverPosition, RIVER_POSITION_SCALE};
+    use crate::geography::river_geometry::{
+        RiverBankIntersection, RiverPosition, RIVER_POSITION_SCALE,
+    };
     use crate::geography::rivers::{RiverFlowDirection, RiverId, RiverOutletKind, RiverWidthClass};
     use crate::geography::routes::{RouteCrossing, RouteCrossingKind, RouteInfrastructure};
 
@@ -396,8 +408,7 @@ fn exact_river_bank_metadata_roundtrips_and_old_records_default_empty() {
         }),
     };
     let encoded = serde_json::to_value(&crossing).unwrap();
-    let decoded: crate::geography::routes::RouteCrossing =
-        serde_json::from_value(encoded).unwrap();
+    let decoded: crate::geography::routes::RouteCrossing = serde_json::from_value(encoded).unwrap();
     assert_eq!(decoded, crossing);
 
     let legacy = serde_json::json!({

@@ -27,7 +27,6 @@ fn location_projection_is_deterministic_and_keeps_macro_and_tile_resolutions_sep
     assert!(first.sample_at_tile(64, 24).is_none());
 }
 
-
 #[test]
 fn generated_river_channels_occupy_only_their_local_tile_footprint() {
     use crate::geography::hydrology::{self, SurfaceWaterKind};
@@ -46,7 +45,9 @@ fn generated_river_channels_occupy_only_their_local_tile_footprint() {
                     };
                     if let SurfaceWaterKind::River(river) = sample.kind() {
                         if river.network_id(seed, GEOGRAPHY_RULESET_VERSION).is_some()
-                            && river.flow_direction(seed, GEOGRAPHY_RULESET_VERSION).is_some()
+                            && river
+                                .flow_direction(seed, GEOGRAPHY_RULESET_VERSION)
+                                .is_some()
                         {
                             return Some((seed, coordinate));
                         }
@@ -58,27 +59,22 @@ fn generated_river_channels_occupy_only_their_local_tile_footprint() {
         .expect("expected a deterministic river suitable for local projection");
 
     let (seed, anchor) = fixture;
-    let surface = LocalSurfaceMap::sample_location(
-        seed,
-        GEOGRAPHY_RULESET_VERSION,
-        anchor,
-        4,
-        64,
-        48,
-    )
-    .unwrap();
+    let surface =
+        LocalSurfaceMap::sample_location(seed, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48)
+            .unwrap();
 
     let center = surface.sample_at_tile(32, 24).unwrap();
     assert!(center.is_river());
-    assert!(matches!(
-        center.water(),
-        SurfaceWaterFeature::Lake
-    ));
+    assert!(matches!(center.water(), SurfaceWaterFeature::Lake));
     assert!(center.river_width().is_some());
 
     let river_tiles = (0..48)
         .flat_map(|y| (0..64).map(move |x| (x, y)))
-        .filter(|(x, y)| surface.sample_at_tile(*x, *y).is_some_and(|sample| sample.is_river()))
+        .filter(|(x, y)| {
+            surface
+                .sample_at_tile(*x, *y)
+                .is_some_and(|sample| sample.is_river())
+        })
         .count();
     assert!(river_tiles > 0);
     assert!(river_tiles < 64 * 48);

@@ -4,11 +4,11 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::content::CampaignContent;
 use crate::geography::frontier::FrontierDirection;
+use crate::geography::river_geometry::{RiverGeometryCache, RiverPosition, RIVER_POSITION_SCALE};
 use crate::geography::{
     coordinate_seed, terrain, waterbodies, MacroCoordinate, RegionCoordinate,
     GEOGRAPHY_RULESET_VERSION,
 };
-use crate::geography::river_geometry::{RiverGeometryCache, RiverPosition, RIVER_POSITION_SCALE};
 use crate::model::{LocationGeographyRecord, World};
 
 pub const LOCATION_GEOGRAPHY_EMBEDDING_VERSION: u32 = 2;
