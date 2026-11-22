@@ -6,11 +6,12 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
 
+use crate::geography::caves::{CaveConnectionKind, CaveConnectionTarget};
 use crate::geography::frontier::{FrontierDirection, FrontierTarget};
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 5;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 6;
 pub const DEFAULT_MAP_WIDTH: u16 = 24;
 pub const DEFAULT_MAP_HEIGHT: u16 = 16;
 const MIN_MAP_DIMENSION: u16 = 8;
@@ -222,6 +223,10 @@ pub struct MapExit {
     /// The numeric destination remains zero until a real world location exists.
     #[serde(default)]
     pub frontier: Option<FrontierTarget>,
+    /// Deterministic cave connection represented by an interior entrance or shaft.
+    /// Kept after materialization so the physical transition retains its identity.
+    #[serde(default)]
+    pub cave_target: Option<CaveConnectionTarget>,
     pub position: GridPosition,
     pub target_location_id: u64,
 }
@@ -564,6 +569,7 @@ impl LocalMap {
     pub fn place_map_exit(&mut self, exit: MapExit, valid_target_location_ids: &[u64]) -> bool {
         let source_id = self.location_entity_id();
         if exit.frontier.is_some()
+            || exit.cave_target.is_some()
             || exit.id.trim().is_empty()
             || exit.target_location_id == 0
             || source_id.is_some_and(|source_id| exit.target_location_id == source_id)
@@ -618,6 +624,65 @@ impl LocalMap {
         carve_exit_corridor(self, exit.position, side);
         self.exits.push(exit);
         true
+    }
+
+    /// Place a deterministic cave entrance or shaft on a reachable interior tile.
+    /// Unlike overland passages, cave transitions are not forced onto map edges.
+    pub fn place_cave_exit(&mut self, exit: MapExit) -> bool {
+        let Some(target) = exit.cave_target.as_ref() else { return false; };
+        let source_id = self.location_entity_id();
+        if target.id.trim().is_empty()
+            || exit.id.trim().is_empty()
+            || exit.frontier.is_some()
+            || exit.route_id.as_ref().is_some_and(|id| id.trim().is_empty())
+            || (exit.target_location_id == 0 && exit.route_id.is_some())
+            || source_id.is_some_and(|id| id == exit.target_location_id)
+            || self.exits.iter().any(|existing| {
+                existing.id == exit.id
+                    || existing.cave_target.as_ref().is_some_and(|value| value.id == target.id)
+                    || (existing.route_id.is_some() && existing.route_id == exit.route_id)
+            })
+        { return false; }
+
+        let mut reachable = self.reachable_walkable_positions();
+        reachable.retain(|position| {
+            *position != self.entry
+                && !self.exits.iter().any(|existing| existing.position == *position)
+                && !self.points_of_interest.iter().any(|point| point.position == *position)
+                && !self.interactables.iter().any(|actor| actor.position == *position)
+                && !self.encounters.iter().any(|encounter| encounter.position == *position)
+                && !self.props.iter().any(|prop| prop.footprint_contains(*position, self.width))
+        });
+        let seed = target.id.bytes().fold(self.seed ^ 0x9e37_79b9_7f4a_7c15, |state, byte| {
+            state.rotate_left(7) ^ u64::from(byte).wrapping_mul(0x100_0000_01b3)
+        });
+        let Some(position) = reachable.into_iter().max_by_key(|position| {
+            let dx = i64::from(position.x) - i64::from(self.entry.x);
+            let dy = i64::from(position.y) - i64::from(self.entry.y);
+            let distance = (dx * dx + dy * dy) as u64;
+            let tie = seed ^ (u64::from(position.x) << 32) ^ u64::from(position.y);
+            (distance, tie)
+        }) else { return false; };
+        let mut exit = exit;
+        exit.position = position;
+        self.exits.push(exit);
+        true
+    }
+
+    fn reachable_walkable_positions(&self) -> Vec<GridPosition> {
+        let mut visited = HashSet::new();
+        let mut queue = VecDeque::from([self.entry]);
+        visited.insert(self.entry);
+        while let Some(position) = queue.pop_front() {
+            for (dx, dy) in [(0_i32, -1_i32), (1, 0), (0, 1), (-1, 0)] {
+                let x = i32::from(position.x) + dx;
+                let y = i32::from(position.y) + dy;
+                if x < 0 || y < 0 || x >= i32::from(self.width) || y >= i32::from(self.height) { continue; }
+                let next = GridPosition { x: x as u16, y: y as u16 };
+                if self.is_walkable(next) && visited.insert(next) { queue.push_back(next); }
+            }
+        }
+        visited.into_iter().collect()
     }
 
     /// Reposition an existing passage while preserving its destination identity.
@@ -1877,6 +1942,7 @@ pub fn configure_map_frontiers(map: &mut LocalMap, frontiers: &[FrontierTarget])
                 route_id: None,
                 route_profile: None,
                 frontier: Some(frontier.clone()),
+                cave_target: None,
                 position,
                 target_location_id: 0,
             };
@@ -1922,6 +1988,34 @@ fn frontier_edge_positions(map: &LocalMap, side: MapExitSide) -> Vec<GridPositio
             .map(|y| GridPosition { x: 0, y })
             .collect(),
     }
+}
+
+/// Add physical cave transitions without regenerating an established local layout.
+/// Each target receives one stable, reachable interior tile; repeated entry is idempotent.
+pub fn configure_map_cave_connections(
+    map: &mut LocalMap,
+    targets: &[CaveConnectionTarget],
+    routes: &[MapRouteDestination],
+) {
+    let mut targets = targets.to_vec();
+    targets.sort_by(|left, right| left.id.cmp(&right.id));
+    targets.dedup_by(|left, right| left.id == right.id);
+    for target in targets {
+        if map.exits.iter().any(|exit| exit.cave_target.as_ref().is_some_and(|value| value.id == target.id)) { continue; }
+        let route_id = target.route_id();
+        let established = routes.iter().find(|route| route.route_id == route_id);
+        let exit = MapExit {
+            id: format!("{}.cave.{}", map.location_id, target.id),
+            route_id: established.map(|route| route.route_id.clone()),
+            route_profile: established.and_then(|route| route.profile),
+            frontier: None,
+            cave_target: Some(target),
+            position: map.entry,
+            target_location_id: established.map(|route| route.target_location_id).unwrap_or(0),
+        };
+        map.place_cave_exit(exit);
+    }
+    map.generator_version = LOCAL_MAP_GENERATOR_VERSION;
 }
 
 /// Reconcile authoritative world routes into an established local map.
@@ -2034,6 +2128,7 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
                 route_id: Some(route.route_id.clone()),
                 route_profile: route.profile,
                 frontier: None,
+                cave_target: None,
                 position,
                 target_location_id: route.target_location_id,
             };
