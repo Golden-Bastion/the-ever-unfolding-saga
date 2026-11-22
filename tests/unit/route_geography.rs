@@ -226,7 +226,9 @@ fn water_crossings_distinguish_fords_bridges_ferries_and_impassable_water() {
 #[test]
 fn coarse_channel_cells_do_not_create_false_local_route_crossings() {
     use crate::geography::hydrology::{self, SurfaceWaterKind};
-    use crate::geography::routes::{classify_crossings, RouteCrossingKind};
+    use crate::geography::routes::{
+        classify_crossings, RouteCrossingKind, RouteInfrastructure,
+    };
     use crate::geography::watershed;
 
     let fixture = [8_211, 42, 1_701, 7_321, 12_345, 1, 2, 3]
@@ -315,9 +317,10 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
                     continue;
                 };
                 for segment in geometry.segments_near(seed, GEOGRAPHY_RULESET_VERSION, position) {
-                    if segment.width_class().is_fordable() {
-                        continue;
-                    }
+                    // Narrow and medium rivers still have exact banks; their
+                    // infrastructure is a ford rather than a bridge. Exercise
+                    // every generated width class instead of requiring a
+                    // large river to appear in this bounded deterministic search.
 
                     // Test the middle of a tessellated chord, not a shared curve
                     // vertex. This keeps the fixture independent of how adjacent
@@ -386,7 +389,7 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
                                 && crossing.river_id == Some(segment.river_id())
                                 && crossing.river_banks.is_some()
                         }) {
-                            fixture = Some(crossing);
+                            fixture = Some((crossing, segment.width_class()));
                             break 'search;
                         }
                     }
@@ -395,12 +398,22 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
         }
     }
 
-    let crossing = fixture.expect("expected a planned path to cross both generated river banks");
+    let (crossing, width) =
+        fixture.expect("expected a planned path to cross both generated river banks");
     let banks = crossing
         .river_banks
         .expect("confirmed crossings retain both banks");
     assert_ne!(banks.entry, banks.exit);
     assert_eq!(crossing.kind, RouteCrossingKind::River);
+    assert_eq!(crossing.river_width, Some(width));
+    assert_eq!(
+        crossing.infrastructure,
+        if width.is_fordable() {
+            RouteInfrastructure::Ford
+        } else {
+            RouteInfrastructure::Bridge
+        }
+    );
 }
 
 #[test]
