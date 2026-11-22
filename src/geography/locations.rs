@@ -360,7 +360,7 @@ fn choose_anchor(
             } else {
                 base_score
             };
-            if best.map_or(true, |(best_score, _)| score > best_score) {
+            if best.is_none_or(|(best_score, _)| score > best_score) {
                 best = Some((score, coordinate));
             }
         }
