@@ -384,6 +384,7 @@ fn discovery_requires_passages_to_match_authoritative_route_records() {
         route_id: Some(route_id.into()),
         route_profile: None,
         frontier: None,
+            cave_target: None,
         position: map.entry,
         target_location_id: destination_id,
     });
@@ -471,6 +472,7 @@ fn nearby_pending_frontier_passage_offers_exploration_without_a_world_route() {
         route_id: None,
         route_profile: None,
         frontier: Some(frontier),
+            cave_target: None,
         position: map.entry,
         target_location_id: 0,
     });
