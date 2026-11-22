@@ -91,7 +91,7 @@ pub enum RiverWidthClass {
 }
 
 impl RiverWidthClass {
-    fn from_contributing_cells(cells: u16) -> Self {
+    const fn from_contributing_cells(cells: u16) -> Self {
         match cells {
             0..=15 => Self::Narrow,
             16..=31 => Self::Medium,
@@ -107,7 +107,7 @@ impl RiverWidthClass {
 }
 
 /// Terminal or bounded continuation reached by tracing a river downstream.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RiverOutletKind {
     Ocean,
