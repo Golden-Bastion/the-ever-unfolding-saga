@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.29: Ferry landing and crossing scenes
+
+- Resolved lake crossings with stable lake identity and both verified Q16 shores now identify their local-map route passage as a ferry landing. The interaction prompt explicitly offers boarding rather than presenting it as an ordinary passage.
+- Using a ferry landing plays a transient three-stage boarding, crossing, and landing scene before applying the existing authoritative world-route travel. Routes crossing multiple lakes play one short crossing sequence per resolved lake, ordered from the character's current endpoint.
+- The cutscene's provisional colored shoreline, water, and boat shapes orient horizontally or vertically from the exact shore pair. Movement and other spatial input are suspended during transit; normal fast travel remains unchanged.
+- Routes without a complete verified shore pair do not receive a fabricated ferry landing scene and retain their existing route behavior.
+- Added automated coverage for endpoint-relative crossing order, filtering unresolved lake crossings, and ferry-specific interaction labels.
+- Ferry presentation is transient and renderer-owned; no save-format, geography-ruleset, or local-map generator version bump is required.
+- Bumped Rust and Android metadata to 0.53.29.
+
 ### v0.53.28: Exact lake route-bank intersections
 
 - Added stable generated lake identity to persisted `RouteCrossing` records when a planned surface route enters an inland lake.

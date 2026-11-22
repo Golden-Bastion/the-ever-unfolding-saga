@@ -582,6 +582,72 @@ fn lake_route_crossings_record_stable_identity_and_both_shores() {
 }
 
 #[test]
+fn resolved_lake_crossings_follow_travel_direction_and_require_both_shores() {
+    use crate::geography::river_geometry::{RiverPosition, RIVER_POSITION_SCALE};
+    use crate::geography::routes::{
+        LakeBankIntersection, RouteCrossing, RouteCrossingKind, RouteGeography,
+        RouteInfrastructure, RoutePlanningStatus, RouteProfile,
+    };
+
+    let crossing = |lake_id: &str, x: i64| RouteCrossing {
+        coordinate: MacroCoordinate::new(x, 0),
+        kind: RouteCrossingKind::Lake,
+        infrastructure: RouteInfrastructure::Ferry,
+        river_id: None,
+        river_width: None,
+        river_flow_direction: None,
+        river_banks: None,
+        lake_id: Some(lake_id.to_string()),
+        lake_banks: Some(LakeBankIntersection {
+            entry: RiverPosition {
+                x_q16: x * RIVER_POSITION_SCALE,
+                y_q16: 0,
+            },
+            exit: RiverPosition {
+                x_q16: x * RIVER_POSITION_SCALE,
+                y_q16: RIVER_POSITION_SCALE,
+            },
+        }),
+    };
+    let unresolved = RouteCrossing {
+        coordinate: MacroCoordinate::new(30, 0),
+        kind: RouteCrossingKind::Lake,
+        infrastructure: RouteInfrastructure::Ferry,
+        river_id: None,
+        river_width: None,
+        river_flow_direction: None,
+        river_banks: None,
+        lake_id: Some("lake.unresolved".into()),
+        lake_banks: None,
+    };
+    let geography = RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::WaterCrossing,
+        path: Vec::new(),
+        crossings: vec![
+            crossing("lake.first", 10),
+            unresolved,
+            crossing("lake.second", 20),
+        ],
+        total_cost: 0,
+    };
+
+    let forward = geography
+        .resolved_lake_crossings(true)
+        .into_iter()
+        .map(|crossing| crossing.lake_id.as_deref().unwrap())
+        .collect::<Vec<_>>();
+    let reverse = geography
+        .resolved_lake_crossings(false)
+        .into_iter()
+        .map(|crossing| crossing.lake_id.as_deref().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(forward, vec!["lake.first", "lake.second"]);
+    assert_eq!(reverse, vec!["lake.second", "lake.first"]);
+    assert!(geography.has_resolved_lake_crossing());
+}
+
+#[test]
 fn lake_bank_metadata_roundtrips_and_legacy_records_default_empty() {
     use crate::geography::river_geometry::{RiverPosition, RIVER_POSITION_SCALE};
     use crate::geography::routes::{

@@ -246,10 +246,26 @@ pub(crate) fn discover_available_interactions(
                 .unwrap_or("unknown");
             format!("Explore {direction} frontier")
         } else {
-            game.world
+            let destination_name = game
+                .world
                 .location_by_id(exit.target_location_id)
-                .map(|location| format!("Enter: {}", location.name))
-                .unwrap_or_else(|| "Use passage".to_string())
+                .map(|location| location.name.clone());
+            let resolved_ferry = exit
+                .route_id
+                .as_deref()
+                .and_then(|route_id| game.world.route_by_id(route_id))
+                .and_then(|route| route.geography.as_ref())
+                .is_some_and(|geography| geography.has_resolved_lake_crossing());
+            if resolved_ferry {
+                format!(
+                    "Board ferry to {}",
+                    destination_name.as_deref().unwrap_or("unknown destination")
+                )
+            } else if let Some(destination_name) = destination_name {
+                format!("Enter: {destination_name}")
+            } else {
+                "Use passage".to_string()
+            }
         };
         let item = AvailableInteraction {
             action: InteractionActionKind::Enter,
