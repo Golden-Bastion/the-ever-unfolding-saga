@@ -6,24 +6,12 @@ use crate::geography::{climate, MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
 fn location_projection_is_deterministic_and_keeps_macro_and_tile_resolutions_separate() {
     let seed = 41;
     let anchor = MacroCoordinate::new(1_237, -842);
-    let first = LocalSurfaceMap::sample_location(
-        seed,
-        GEOGRAPHY_RULESET_VERSION,
-        anchor,
-        4,
-        64,
-        48,
-    )
-    .unwrap();
-    let second = LocalSurfaceMap::sample_location(
-        seed,
-        GEOGRAPHY_RULESET_VERSION,
-        anchor,
-        4,
-        64,
-        48,
-    )
-    .unwrap();
+    let first =
+        LocalSurfaceMap::sample_location(seed, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48)
+            .unwrap();
+    let second =
+        LocalSurfaceMap::sample_location(seed, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48)
+            .unwrap();
 
     assert_eq!(first, second);
     assert_eq!(first.dimensions(), (64, 48));

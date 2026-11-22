@@ -1295,7 +1295,6 @@ pub fn generate_local_map_with_layout(
     map
 }
 
-
 /// Generate an open outdoor map from the location's sampled macro-geography.
 ///
 /// Authored layouts and established saved maps use their own geometry paths.
@@ -1354,7 +1353,9 @@ pub fn generate_local_map_with_surface(
         .filter(|position| *position != map.entry)
         .collect::<Vec<_>>();
     reachable.sort_by(|left, right| {
-        right.x.cmp(&left.x)
+        right
+            .x
+            .cmp(&left.x)
             .then_with(|| {
                 left.y
                     .abs_diff(preferred_discovery_y)

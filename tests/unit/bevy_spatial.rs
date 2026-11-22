@@ -65,7 +65,13 @@ fn moving_sprite_depth_tracks_continuous_ground_position() {
 
 #[test]
 fn ground_terrain_never_occludes_actors_at_different_map_depths() {
-    for terrain in [Terrain::Floor, Terrain::Ash, Terrain::Rubble, Terrain::Sand, Terrain::Water] {
+    for terrain in [
+        Terrain::Floor,
+        Terrain::Ash,
+        Terrain::Rubble,
+        Terrain::Sand,
+        Terrain::Water,
+    ] {
         for actor_position in [
             Vec2::new(0.5, 0.5),
             Vec2::new(6.5, 7.5),
@@ -2088,11 +2094,16 @@ fn spatial_material_palette_distinguishes_stone_and_wood_props() {
     );
 }
 
-
 #[test]
 fn water_and_sand_reuse_the_existing_ground_art_with_distinct_material_tints() {
-    assert_eq!(terrain_image_index(Terrain::Sand), terrain_image_index(Terrain::Floor));
-    assert_eq!(terrain_image_index(Terrain::Water), terrain_image_index(Terrain::Floor));
+    assert_eq!(
+        terrain_image_index(Terrain::Sand),
+        terrain_image_index(Terrain::Floor)
+    );
+    assert_eq!(
+        terrain_image_index(Terrain::Water),
+        terrain_image_index(Terrain::Floor)
+    );
     assert_ne!(
         terrain_tint(Terrain::Sand, true, None),
         terrain_tint(Terrain::Water, true, None)

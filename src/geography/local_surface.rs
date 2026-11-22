@@ -79,8 +79,7 @@ impl LocalSurfaceMap {
         let radius_y = if radius_x == 0 {
             0
         } else {
-            let scaled = (u64::from(radius_x) * u64::from(tile_height)
-                + u64::from(tile_width) / 2)
+            let scaled = (u64::from(radius_x) * u64::from(tile_height) + u64::from(tile_width) / 2)
                 / u64::from(tile_width);
             scaled.clamp(1, u64::from(u16::MAX)) as u16
         };
@@ -157,8 +156,11 @@ impl LocalSurfaceMap {
 
 fn sample_axis(center: i64, radius: u16) -> Option<Vec<i64>> {
     let radius = i64::from(radius);
-    let count = (usize::try_from(radius).ok()?.saturating_mul(2).saturating_add(1))
-        .min(MAX_SAMPLES_PER_AXIS);
+    let count = (usize::try_from(radius)
+        .ok()?
+        .saturating_mul(2)
+        .saturating_add(1))
+    .min(MAX_SAMPLES_PER_AXIS);
     if count == 1 {
         return Some(vec![center]);
     }

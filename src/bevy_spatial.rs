@@ -32,10 +32,9 @@ use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_cave_connections, configure_map_frontiers,
     configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout,
-    generate_local_map_with_surface,
-    ExplorationSession, GridPosition, LocalMap, LocalMapConfig, MapExit, MapExitVisualKind,
-    MapRouteDestination, SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind,
-    SpatialPropKind, Terrain,
+    generate_local_map_with_surface, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
+    MapExit, MapExitVisualKind, MapRouteDestination, SpatialDiscoveryDefinition,
+    SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind, Terrain,
 };
 use crate::spatial_animation::{
     PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,
@@ -664,8 +663,8 @@ pub(crate) fn enter(
             height: map.height,
         })
         .unwrap_or_else(|| local_map_config_for_layout(location.spatial_layout.as_deref()));
-    let generic_outdoor = location.spatial_layout.is_none()
-        && existing_map.is_none_or(|map| map.layout_id.is_none());
+    let generic_outdoor =
+        location.spatial_layout.is_none() && existing_map.is_none_or(|map| map.layout_id.is_none());
     let surface = if generic_outdoor {
         location_surface(game, location.id, map_config)
     } else {
@@ -675,12 +674,7 @@ pub(crate) fn enter(
         existing.clone()
     } else {
         let mut generated = if let Some(surface) = surface.as_ref() {
-            generate_local_map_with_surface(
-                world_seed,
-                location_id.clone(),
-                map_config,
-                surface,
-            )
+            generate_local_map_with_surface(world_seed, location_id.clone(), map_config, surface)
         } else {
             generate_local_map_with_layout(
                 world_seed,
@@ -3677,7 +3671,6 @@ fn local_map_config_for_layout(layout: Option<&str>) -> LocalMapConfig {
     }
 }
 
-
 fn location_surface(
     game: &GameState,
     location_id: EntityId,
@@ -3710,10 +3703,7 @@ fn location_surface(
     )
 }
 
-fn surface_biome_at(
-    surface: Option<&LocalSurfaceMap>,
-    position: GridPosition,
-) -> Option<Biome> {
+fn surface_biome_at(surface: Option<&LocalSurfaceMap>, position: GridPosition) -> Option<Biome> {
     surface
         .and_then(|surface| surface.sample_at_tile(position.x, position.y))
         .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
@@ -3771,7 +3761,7 @@ fn terrain_depth(terrain: Terrain, tile_center: Vec2) -> f32 {
     match terrain {
         Terrain::Floor | Terrain::Ash | Terrain::Rubble | Terrain::Sand | Terrain::Water => {
             GROUND_TERRAIN_DEPTH
-        },
+        }
         // A wall top's ground-contact line is the tile center. Adjacent cells
         // can share the same ground depth in this projection; favor the actor on
         // that tie so the full top diamond does not hide a laterally adjacent player.

@@ -1663,7 +1663,6 @@ fn map_exit_visual_kind_distinguishes_surface_profiles_frontiers_and_cave_links(
     }
 }
 
-
 #[test]
 fn water_is_impassable_while_sand_remains_walkable() {
     assert!(!Terrain::Water.is_walkable());
@@ -1700,7 +1699,10 @@ fn geography_shaped_outdoor_maps_are_open_and_keep_the_discovery_reachable() {
     );
 
     assert_eq!(map.generator_version, LOCAL_MAP_GENERATOR_VERSION);
-    assert!(map.props.is_empty(), "open wilderness should not get indoor furniture");
+    assert!(
+        map.props.is_empty(),
+        "open wilderness should not get indoor furniture"
+    );
     assert!(map.is_walkable(map.entry));
     assert!(has_walkable_path(
         &map,
