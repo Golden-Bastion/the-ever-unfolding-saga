@@ -29,7 +29,8 @@ use crate::interaction_actions::{
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_cave_connections, configure_map_frontiers,
-    configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout, ExplorationSession,
+    configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout,
+    ExplorationSession,
     GridPosition, LocalMap, LocalMapConfig, MapExit, MapRouteDestination,
     SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind,
     Terrain,
@@ -672,7 +673,8 @@ pub(crate) fn enter(
     // passages retain their IDs and positions; newly added routes append exits.
     configure_map_routes(&mut map, &map_routes);
     configure_map_frontiers(&mut map, &map_frontiers);
-    let cave_targets = crate::geography::caves::connection_targets_for_location(&game.world, location.id);
+    let cave_targets =
+        crate::geography::caves::connection_targets_for_location(&game.world, location.id);
     configure_map_cave_connections(&mut map, &cave_targets, &map_routes);
     if !location.dangerous {
         let prototype_poi_id = format!("{location_id}.poi.initial_discovery");
@@ -2214,10 +2216,17 @@ fn render_spatial_screen(
         );
         let exit_position = map_to_world(exit_grid, Some(map));
         if let Some(image) = assets.passage_image.clone() {
+            let color = match exit.cave_target.as_ref().map(|target| target.kind) {
+                Some(crate::geography::caves::CaveConnectionKind::SurfaceEntrance) => Color::srgb(0.62, 0.48, 0.34),
+                Some(crate::geography::caves::CaveConnectionKind::VerticalShaft) => Color::srgb(0.55, 0.58, 0.62),
+                Some(crate::geography::caves::CaveConnectionKind::HorizontalPassage) => Color::srgb(0.68, 0.62, 0.50),
+                None => Color::WHITE,
+            };
             commands.spawn((
                 SpatialWorldEntity,
                 Sprite {
                     image,
+                    color,
                     custom_size: Some(Vec2::new(24.0, 32.0)),
                     ..default()
                 },
