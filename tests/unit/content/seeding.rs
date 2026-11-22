@@ -17,6 +17,7 @@ fn seed_world_adds_missing_content_locations_and_repairs_metadata() {
                 name: "Test Location".into(),
                 description: "Location".into(),
                 dangerous: true,
+                archetype: Some(crate::geography::locations::LocationArchetype::Landmark),
                 exits: vec![],
                 scene_art: None,
                 scene_image: None,
