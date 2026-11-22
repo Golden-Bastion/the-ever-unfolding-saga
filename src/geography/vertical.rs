@@ -112,8 +112,10 @@ pub fn connection_for_cell(
     Some(VerticalConnection { id, upper, lower, kind })
 }
 
-/// Find vertical connections in a bounded square of cave network cells around
-/// a global coordinate. The radius is clamped to two cells (25 cells total).
+/// Find vertical connections adjacent to the queried layer in a bounded
+/// square of cave network cells. Underground queries include both the link
+/// descending from the current layer and the link ascending to the layer above.
+/// The radius is clamped to two cells (25 cells per layer pair).
 pub fn connections_near(
     world_seed: u64,
     ruleset_version: u32,
@@ -126,20 +128,29 @@ pub fn connections_near(
     let radius = i64::from(radius_cells.min(2));
     let cell_x = coordinate.x.div_euclid(underground::NETWORK_CELL_SAMPLES);
     let cell_y = coordinate.y.div_euclid(underground::NETWORK_CELL_SAMPLES);
+    let upper_strata = if coordinate.stratum == 0 {
+        vec![0]
+    } else {
+        vec![coordinate.stratum + 1, coordinate.stratum]
+    };
     let mut connections = Vec::new();
-    for dy in -radius..=radius {
-        for dx in -radius..=radius {
-            let (Some(x), Some(y)) = (cell_x.checked_add(dx), cell_y.checked_add(dy)) else {
-                continue;
-            };
-            if let Some(connection) = connection_for_cell(
-                world_seed, ruleset_version, x, y, coordinate.stratum,
-            ) {
-                connections.push(connection);
+    for upper_stratum in upper_strata {
+        for dy in -radius..=radius {
+            for dx in -radius..=radius {
+                let (Some(x), Some(y)) = (cell_x.checked_add(dx), cell_y.checked_add(dy)) else {
+                    continue;
+                };
+                if let Some(connection) = connection_for_cell(
+                    world_seed, ruleset_version, x, y, upper_stratum,
+                ) {
+                    connections.push(connection);
+                }
             }
         }
     }
-    connections.sort_by_key(|connection| (connection.upper.x, connection.upper.y));
+    connections.sort_by_key(|connection| {
+        (connection.upper.stratum, connection.upper.x, connection.upper.y)
+    });
     connections
 }
 
