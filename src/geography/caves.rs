@@ -68,6 +68,47 @@ fn cave_location_key(anchor: MacroCoordinate) -> String {
     format!("location.cave.{}.{}.{}", anchor.stratum, anchor.x, anchor.y)
 }
 
+fn neighboring_chamber_center(
+    seed: u64,
+    ruleset: u32,
+    cell_x: i64,
+    cell_y: i64,
+    stratum: i32,
+) -> Option<MacroCoordinate> {
+    const RADIUS: i64 = 12;
+    const STEP: i64 = 3;
+    let base_x = cell_x
+        .checked_mul(underground::NETWORK_CELL_SAMPLES)?
+        .checked_add(underground::NETWORK_CELL_SAMPLES / 2)?;
+    let base_y = cell_y
+        .checked_mul(underground::NETWORK_CELL_SAMPLES)?
+        .checked_add(underground::NETWORK_CELL_SAMPLES / 2)?;
+    let mut offset_y = -RADIUS;
+    while offset_y <= RADIUS {
+        let mut offset_x = -RADIUS;
+        while offset_x <= RADIUS {
+            let coordinate = MacroCoordinate::in_stratum(
+                base_x.checked_add(offset_x)?,
+                base_y.checked_add(offset_y)?,
+                stratum,
+            );
+            if let Some(center) = underground::sample_underground(seed, ruleset, coordinate)
+                .and_then(|sample| sample.network_cell())
+            {
+                if center.x.div_euclid(underground::NETWORK_CELL_SAMPLES) == cell_x
+                    && center.y.div_euclid(underground::NETWORK_CELL_SAMPLES) == cell_y
+                    && center.stratum == stratum
+                {
+                    return Some(center);
+                }
+            }
+            offset_x += STEP;
+        }
+        offset_y += STEP;
+    }
+    None
+}
+
 fn horizontal_target_id(first: MacroCoordinate, second: MacroCoordinate) -> String {
     let (first, second) =
         if (first.stratum, first.x, first.y) <= (second.stratum, second.x, second.y) {
@@ -144,24 +185,27 @@ pub fn connection_targets_for_location(
             if sample.connections() & bit == 0 {
                 continue;
             }
-            let Some(x) = chamber
+            let Some(cell_x) = chamber
                 .x
-                .checked_add(dx * underground::NETWORK_CELL_SAMPLES)
+                .div_euclid(underground::NETWORK_CELL_SAMPLES)
+                .checked_add(dx)
             else {
                 continue;
             };
-            let Some(y) = chamber
+            let Some(cell_y) = chamber
                 .y
-                .checked_add(dy * underground::NETWORK_CELL_SAMPLES)
+                .div_euclid(underground::NETWORK_CELL_SAMPLES)
+                .checked_add(dy)
             else {
                 continue;
             };
-            let neighbor_sample = underground::sample_underground(
+            let Some(neighbor) = neighboring_chamber_center(
                 seed,
                 ruleset,
-                MacroCoordinate::in_stratum(x, y, chamber.stratum),
-            );
-            let Some(neighbor) = neighbor_sample.and_then(|value| value.network_cell()) else {
+                cell_x,
+                cell_y,
+                chamber.stratum,
+            ) else {
                 continue;
             };
             targets.push(CaveConnectionTarget {
