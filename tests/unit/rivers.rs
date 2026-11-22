@@ -164,6 +164,7 @@ fn truncated_accumulation_is_explicit_and_preserves_confirmed_channels() {
     assert!(sample.accumulation().is_truncated());
     assert!(!sample.accumulation().is_complete());
     assert!(sample.is_channel());
+    assert_eq!(sample.width_class(), RiverWidthClass::VeryWide);
 }
 
 #[test]
