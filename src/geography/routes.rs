@@ -864,7 +864,7 @@ fn find_lake_bank_boundary(
     dry_coordinate: MacroCoordinate,
 ) -> Option<RiverPosition> {
     let wet_sample = waterbodies::sample_surface(world_seed, ruleset_version, wet_coordinate)?;
-    if wet_sample.id(world_seed, ruleset_version) != lake_id {
+    if wet_sample.id(world_seed, ruleset_version).as_str() != lake_id {
         return None;
     }
     if !terrain::sample_surface(world_seed, ruleset_version, dry_coordinate)?.is_land()
@@ -889,7 +889,7 @@ fn find_lake_bank_boundary(
             break;
         }
         match waterbodies::sample_surface(world_seed, ruleset_version, midpoint) {
-            Some(sample) if sample.id(world_seed, ruleset_version) == lake_id => {
+            Some(sample) if sample.id(world_seed, ruleset_version).as_str() == lake_id => {
                 wet = midpoint;
             }
             Some(_) => return None,
@@ -947,7 +947,7 @@ fn push_river_crossing(
     }
 }
 
-/// Classify broad water features while reusing bounded river accumulation for
+/// Classify non-lake surface water while reusing bounded river accumulation for
 /// each coarse watershed cell. Confirmed river channels are only used as a broad
 /// candidate signal here; exact route crossings come from local bank geometry.
 fn sample_route_water(
