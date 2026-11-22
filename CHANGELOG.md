@@ -4,6 +4,17 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.27: Physical local river crossings
+
+- Added renderer-neutral `Ford` and `Bridge` terrain types that are walkable through the existing collision/pathfinding queries.
+- Newly generated geography-backed outdoor maps group connected river tiles and choose at most one deterministic, complete cardinal crossing per component. The shortest valid span is preferred; channels without two walkable banks inside the local map remain impassable.
+- Narrow/medium river spans become fords; wide/very-wide spans become bridges, matching the route crossing width thresholds. Ocean and lake water are never treated as river channels.
+- Render fords with the existing rubble texture and bridges with the existing floor texture, using distinct discovered/undiscovered provisional stone and wood tints.
+- Advance `LOCAL_MAP_GENERATOR_VERSION` from 10 to 11. Existing saved maps and authored layouts are not regenerated.
+- Add automated coverage for crossing selection, width mapping, deterministic results, walkable paths, missing-bank rejection, and renderer material/depth handling.
+- Exact placement at persisted macro route-bank coordinates, route-specific infrastructure state, ferry presentation, and dedicated artwork remain future work.
+- Bump Rust and Android metadata to 0.53.27.
+
 ### v0.53.26: Local river channels and exact route-bank intersections
 
 - Added deterministic curved river channel segments derived from the existing downstream watershed links. Adjacent segments share exact coarse-cell endpoints, keeping connected channels continuous across region and local-map boundaries.
