@@ -599,6 +599,7 @@ fn classify_crossings(
     path: &[MacroCoordinate],
 ) -> Vec<RouteCrossing> {
     let mut crossings = Vec::new();
+    let mut previous_water_crossing: Option<(RouteCrossingKind, Option<RiverId>)> = None;
     for (index, coordinate) in path.iter().enumerate() {
         let Some(surface) = terrain::sample_surface(world_seed, ruleset_version, *coordinate)
         else {
@@ -623,56 +624,74 @@ fn classify_crossings(
         }
         let Some(water) = hydrology::sample_surface(world_seed, ruleset_version, *coordinate)
         else {
+            previous_water_crossing = None;
             continue;
         };
         match water.kind() {
-            SurfaceWaterKind::Ocean => push_crossing(
-                &mut crossings,
-                *coordinate,
-                RouteCrossingKind::Ocean,
-                infrastructure_for_water(RouteCrossingKind::Ocean, None),
-                None,
-                None,
-                None,
-            ),
-            SurfaceWaterKind::Lake(_) => push_crossing(
-                &mut crossings,
-                *coordinate,
-                RouteCrossingKind::Lake,
-                infrastructure_for_water(RouteCrossingKind::Lake, None),
-                None,
-                None,
-                None,
-            ),
-            SurfaceWaterKind::River(river) => {
-                // One contiguous river run is one physical crossing. Trace only
-                // its first sampled cell so route sampling remains bounded.
-                if crossings
-                    .last()
-                    .is_some_and(|last| last.kind == RouteCrossingKind::River)
-                {
-                    continue;
+            SurfaceWaterKind::Ocean => {
+                let key = (RouteCrossingKind::Ocean, None);
+                if previous_water_crossing != Some(key) {
+                    push_crossing(
+                        &mut crossings,
+                        *coordinate,
+                        key.0,
+                        infrastructure_for_water(key.0, None),
+                        None,
+                        None,
+                        None,
+                    );
                 }
-                let river_width = river.width_class();
-                push_crossing(
-                    &mut crossings,
-                    *coordinate,
-                    RouteCrossingKind::River,
-                    infrastructure_for_water(RouteCrossingKind::River, Some(river_width)),
-                    river.network_id(world_seed, ruleset_version),
-                    Some(river_width),
-                    river.flow_direction(world_seed, ruleset_version),
-                );
+                previous_water_crossing = Some(key);
             }
-            SurfaceWaterKind::UnresolvedRiver(_) => push_crossing(
-                &mut crossings,
-                *coordinate,
-                RouteCrossingKind::UnresolvedWater,
-                infrastructure_for_water(RouteCrossingKind::UnresolvedWater, None),
-                None,
-                None,
-                None,
-            ),
+            SurfaceWaterKind::Lake(_) => {
+                let key = (RouteCrossingKind::Lake, None);
+                if previous_water_crossing != Some(key) {
+                    push_crossing(
+                        &mut crossings,
+                        *coordinate,
+                        key.0,
+                        infrastructure_for_water(key.0, None),
+                        None,
+                        None,
+                        None,
+                    );
+                }
+                previous_water_crossing = Some(key);
+            }
+            SurfaceWaterKind::River(river) => {
+                // A continuous stretch of one river is one physical crossing.
+                // Mountain markers do not interrupt water-feature continuity.
+                let river_id = river.network_id(world_seed, ruleset_version);
+                let key = (RouteCrossingKind::River, river_id);
+                if previous_water_crossing != Some(key) {
+                    let river_width = river.width_class();
+                    push_crossing(
+                        &mut crossings,
+                        *coordinate,
+                        key.0,
+                        infrastructure_for_water(key.0, Some(river_width)),
+                        river_id,
+                        Some(river_width),
+                        river.flow_direction(world_seed, ruleset_version),
+                    );
+                }
+                previous_water_crossing = Some(key);
+            }
+            SurfaceWaterKind::UnresolvedRiver(_) => {
+                let key = (RouteCrossingKind::UnresolvedWater, None);
+                if previous_water_crossing != Some(key) {
+                    push_crossing(
+                        &mut crossings,
+                        *coordinate,
+                        key.0,
+                        infrastructure_for_water(key.0, None),
+                        None,
+                        None,
+                        None,
+                    );
+                }
+                previous_water_crossing = Some(key);
+            }
         }
     }
     crossings
