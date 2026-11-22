@@ -294,7 +294,10 @@ fn generated_route_crossings_capture_river_identity_width_and_flow() {
             RouteInfrastructure::Bridge
         }
     );
-
+    let encoded = serde_json::to_value(&crossing).unwrap();
+    let decoded: crate::geography::routes::RouteCrossing =
+        serde_json::from_value(encoded).unwrap();
+    assert_eq!(decoded, crossing);
 }
 
 #[test]
