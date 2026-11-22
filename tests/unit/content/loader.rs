@@ -27,6 +27,29 @@ fn empty_mod_content() -> CampaignContent {
 }
 
 #[test]
+fn legacy_location_content_defaults_authored_exit_sides_to_empty() {
+    let legacy = serde_json::json!({"id":"location.legacy","name":"Legacy","description":"Older content.","dangerous":false,"exits":["location.other"]});
+    let location: LocationContent = serde_json::from_value(legacy).expect("legacy content should deserialize");
+    assert!(location.exit_sides.is_empty());
+}
+
+#[test]
+fn authored_exit_side_must_reference_a_declared_exit() {
+    let mut content = default_campaign_content();
+    let location = content.world.locations.iter_mut().find(|v| v.id == "location.ashen_gate").unwrap();
+    location.exit_sides.insert("location.not_an_exit".into(), crate::spatial::MapExitSide::East);
+    assert!(content.validate().iter().any(|issue| issue.contains("location.not_an_exit") && issue.contains("does not declare that exit")));
+}
+
+#[test]
+fn authored_exit_side_accepts_a_declared_destination() {
+    let mut content = default_campaign_content();
+    let location = content.world.locations.iter_mut().find(|v| v.id == "location.ashen_gate").unwrap();
+    location.exit_sides.insert("location.hollow_market".into(), crate::spatial::MapExitSide::East);
+    assert!(!content.validate().iter().any(|issue| issue.contains("location.ashen_gate") && issue.contains("location.hollow_market")));
+}
+
+#[test]
 fn mods_extend_and_override_character_parts_by_stable_id() {
     let mut base = default_campaign_content();
     base.character_parts.clear();
@@ -273,6 +296,7 @@ fn mod_events_can_reference_definitions_from_other_mods() {
         spatial_layout: None,
         geography: None,
         spatial_discoveries: Vec::new(),
+        exit_sides: Default::default(),
     });
     definitions_mod.factions.push(FactionContent {
         id: "faction.later-ward".into(),
@@ -590,6 +614,7 @@ fn location_archetype_mod_overrides_preserve_omitted_base_values() {
         spatial_layout: None,
         geography: None,
         spatial_discoveries: Vec::new(),
+        exit_sides: Default::default(),
     });
     merge_campaign_content(&mut base, legacy_mod);
 
@@ -617,6 +642,7 @@ fn location_archetype_mod_overrides_preserve_omitted_base_values() {
         spatial_layout: None,
         geography: None,
         spatial_discoveries: Vec::new(),
+        exit_sides: Default::default(),
     });
     merge_campaign_content(&mut base, override_mod);
 
