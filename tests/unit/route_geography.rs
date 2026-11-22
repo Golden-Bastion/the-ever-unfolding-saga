@@ -226,7 +226,6 @@ fn water_crossings_distinguish_fords_bridges_ferries_and_impassable_water() {
 #[test]
 fn generated_route_crossings_capture_river_identity_width_and_flow() {
     use crate::geography::hydrology::{self, SurfaceWaterKind};
-    use crate::geography::rivers;
     use crate::geography::routes::{
         classify_crossings, RouteCrossingKind, RouteInfrastructure,
     };
@@ -269,7 +268,7 @@ fn generated_route_crossings_capture_river_identity_width_and_flow() {
                         .filter(|crossing| crossing.kind == RouteCrossingKind::River)
                         .collect::<Vec<_>>();
                     if river_crossings.len() == 1 {
-                        return Some((river, river_crossings[0].clone(), seed));
+                        return Some((river, (*river_crossings[0]).clone(), seed));
                     }
                 }
             }
@@ -296,8 +295,6 @@ fn generated_route_crossings_capture_river_identity_width_and_flow() {
         }
     );
 
-    // The path coordinates above all represent one channel stretch, not three crossings.
-    let _ = rivers::MAX_RIVER_NETWORK_STEPS;
 }
 
 #[test]
