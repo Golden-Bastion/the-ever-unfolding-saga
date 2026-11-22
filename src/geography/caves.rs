@@ -68,10 +68,7 @@ fn cave_location_key(anchor: MacroCoordinate) -> String {
     format!("location.cave.{}.{}.{}", anchor.stratum, anchor.x, anchor.y)
 }
 
-fn horizontal_target_id(
-    first: MacroCoordinate,
-    second: MacroCoordinate,
-) -> String {
+fn horizontal_target_id(first: MacroCoordinate, second: MacroCoordinate) -> String {
     let (first, second) =
         if (first.stratum, first.x, first.y) <= (second.stratum, second.x, second.y) {
             (first, second)
@@ -147,10 +144,16 @@ pub fn connection_targets_for_location(
             if sample.connections() & bit == 0 {
                 continue;
             }
-            let Some(x) = chamber.x.checked_add(dx * underground::NETWORK_CELL_SAMPLES) else {
+            let Some(x) = chamber
+                .x
+                .checked_add(dx * underground::NETWORK_CELL_SAMPLES)
+            else {
                 continue;
             };
-            let Some(y) = chamber.y.checked_add(dy * underground::NETWORK_CELL_SAMPLES) else {
+            let Some(y) = chamber
+                .y
+                .checked_add(dy * underground::NETWORK_CELL_SAMPLES)
+            else {
                 continue;
             };
             let neighbor_sample = underground::sample_underground(
@@ -170,44 +173,54 @@ pub fn connection_targets_for_location(
         }
 
         for connection in vertical::connections_near(seed, ruleset, chamber, 2) {
-            let (source_endpoint, destination_endpoint) = if connection.upper.stratum == chamber.stratum {
-                (connection.upper, connection.lower)
-            } else if connection.lower.stratum == chamber.stratum {
-                (connection.lower, connection.upper)
-            } else {
-                continue;
-            };
-            let Some(source_chamber) = underground::sample_underground(
-                seed,
-                ruleset,
-                source_endpoint,
-            )
-            .and_then(|value| value.network_cell())
+            let (source_endpoint, destination_endpoint) =
+                if connection.upper.stratum == chamber.stratum {
+                    (connection.upper, connection.lower)
+                } else if connection.lower.stratum == chamber.stratum {
+                    (connection.lower, connection.upper)
+                } else {
+                    continue;
+                };
+            let Some(source_chamber) =
+                underground::sample_underground(seed, ruleset, source_endpoint)
+                    .and_then(|value| value.network_cell())
             else {
                 continue;
             };
             if source_chamber != chamber {
                 continue;
             }
-            let (destination, destination_location_id, kind) = if destination_endpoint.stratum == 0 {
+            let (destination, destination_location_id, kind) = if destination_endpoint.stratum == 0
+            {
                 let route_id = format!("route.cave.vertical.{:016x}", connection.id);
-                let existing = world.route_by_id(&route_id)
+                let existing = world
+                    .route_by_id(&route_id)
                     .and_then(|route| route.destination_from(source_location_id));
                 if let Some(destination_id) = existing {
-                    let Some(surface_anchor) = world.location_geography.iter()
+                    let Some(surface_anchor) = world
+                        .location_geography
+                        .iter()
                         .find(|record| record.location_id == destination_id)
-                        .map(|record| record.anchor) else { continue; };
-                    (surface_anchor, Some(destination_id), CaveConnectionKind::SurfaceEntrance)
+                        .map(|record| record.anchor)
+                    else {
+                        continue;
+                    };
+                    (
+                        surface_anchor,
+                        Some(destination_id),
+                        CaveConnectionKind::SurfaceEntrance,
+                    )
                 } else {
-                    (destination_endpoint, None, CaveConnectionKind::SurfaceEntrance)
+                    (
+                        destination_endpoint,
+                        None,
+                        CaveConnectionKind::SurfaceEntrance,
+                    )
                 }
             } else {
-                let Some(destination) = underground::sample_underground(
-                    seed,
-                    ruleset,
-                    destination_endpoint,
-                )
-                .and_then(|value| value.network_cell())
+                let Some(destination) =
+                    underground::sample_underground(seed, ruleset, destination_endpoint)
+                        .and_then(|value| value.network_cell())
                 else {
                     continue;
                 };
@@ -276,8 +289,10 @@ pub fn materialize_connection(
         {
             return Err(CaveMaterializationError::IdentityConflict);
         }
-        let region_id = world.location_by_id(location_id)
-            .ok_or(CaveMaterializationError::IdentityConflict)?.region_id;
+        let region_id = world
+            .location_by_id(location_id)
+            .ok_or(CaveMaterializationError::IdentityConflict)?
+            .region_id;
         return Ok(CaveMaterialization {
             region_id,
             location_id,
@@ -348,20 +363,28 @@ pub fn materialize_connection(
                 )
             },
             region_id,
-            dangerous: anchor.stratum != 0 && (coordinate_seed(seed, world.geography_ruleset_version, anchor) & 3) != 0,
+            dangerous: anchor.stratum != 0
+                && (coordinate_seed(seed, world.geography_ruleset_version, anchor) & 3) != 0,
             corpse_ids: Vec::new(),
             exits: Vec::new(),
             spatial_layout: None,
         });
-        world.regions.iter_mut().find(|region| region.id == region_id)
-            .expect("cave region was just resolved").location_ids.push(id);
+        world
+            .regions
+            .iter_mut()
+            .find(|region| region.id == region_id)
+            .expect("cave region was just resolved")
+            .location_ids
+            .push(id);
         world.location_geography.push(LocationGeographyRecord {
             location_id: id,
             stable_key: stable_key.clone(),
             anchor,
             footprint_radius_samples: 0,
         });
-        world.location_geography.sort_by_key(|record| record.location_id);
+        world
+            .location_geography
+            .sort_by_key(|record| record.location_id);
         id
     });
 
@@ -372,9 +395,17 @@ pub fn materialize_connection(
         RouteDirection::Bidirectional,
     )) {
         if created_location {
-            world.locations.retain(|location| location.id != location_id);
-            world.location_geography.retain(|record| record.location_id != location_id);
-            if let Some(region) = world.regions.iter_mut().find(|region| region.id == region_id) {
+            world
+                .locations
+                .retain(|location| location.id != location_id);
+            world
+                .location_geography
+                .retain(|record| record.location_id != location_id);
+            if let Some(region) = world
+                .regions
+                .iter_mut()
+                .find(|region| region.id == region_id)
+            {
                 region.location_ids.retain(|id| *id != location_id);
             }
         }

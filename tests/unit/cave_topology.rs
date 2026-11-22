@@ -1,4 +1,6 @@
-use crate::geography::caves::{connection_targets_for_location, materialize_connection, CaveConnectionKind};
+use crate::geography::caves::{
+    connection_targets_for_location, materialize_connection, CaveConnectionKind,
+};
 use crate::geography::MacroCoordinate;
 use crate::model::{Location, LocationGeographyRecord, Region, World, WorldMode};
 
@@ -40,7 +42,8 @@ fn surface_shaft_materializes_one_persistent_cave_chamber_and_route() {
         for y in (-64..=64).step_by(16) {
             for x in (-64..=64).step_by(16) {
                 let world = surface_world(seed, MacroCoordinate::new(x, y));
-                if let Some(target) = connection_targets_for_location(&world, 3).into_iter()
+                if let Some(target) = connection_targets_for_location(&world, 3)
+                    .into_iter()
                     .find(|target| target.kind == CaveConnectionKind::SurfaceEntrance)
                 {
                     found = Some((world, target));
@@ -49,15 +52,23 @@ fn surface_shaft_materializes_one_persistent_cave_chamber_and_route() {
             }
         }
     }
-    let (mut world, target) = found.expect("search window should contain a deterministic surface shaft");
+    let (mut world, target) =
+        found.expect("search window should contain a deterministic surface shaft");
     let first = materialize_connection(&mut world, 3, &target).unwrap();
     assert!(first.created_location);
     assert!(first.created_region);
-    assert_eq!(world.location_geography.iter()
-        .find(|record| record.location_id == first.location_id).unwrap().anchor,
-        target.destination_anchor);
+    assert_eq!(
+        world
+            .location_geography
+            .iter()
+            .find(|record| record.location_id == first.location_id)
+            .unwrap()
+            .anchor,
+        target.destination_anchor
+    );
     assert_eq!(target.destination_anchor.stratum, -1);
-    assert!(world.route_by_id(&first.route_id)
+    assert!(world
+        .route_by_id(&first.route_id)
         .is_some_and(|route| route.connects(3, first.location_id)));
 
     let second = materialize_connection(&mut world, 3, &target).unwrap();
@@ -65,7 +76,14 @@ fn surface_shaft_materializes_one_persistent_cave_chamber_and_route() {
     assert_eq!(first.route_id, second.route_id);
     assert!(!second.created_location);
     assert!(!second.created_region);
-    assert_eq!(world.locations.iter().filter(|location| location.id == first.location_id).count(), 1);
+    assert_eq!(
+        world
+            .locations
+            .iter()
+            .filter(|location| location.id == first.location_id)
+            .count(),
+        1
+    );
 
     let return_target = connection_targets_for_location(&world, first.location_id)
         .into_iter()
@@ -85,7 +103,9 @@ fn cave_chamber_targets_are_stable_and_only_follow_real_passages() {
             for y in (-128..=128).step_by(16) {
                 for x in (-128..=128).step_by(16) {
                     let anchor = MacroCoordinate::in_stratum(x, y, stratum);
-                    let Some(sample) = crate::geography::underground::sample_underground(seed, 2, anchor) else {
+                    let Some(sample) =
+                        crate::geography::underground::sample_underground(seed, 2, anchor)
+                    else {
                         continue;
                     };
                     let Some(chamber) = sample.network_cell() else {
@@ -98,7 +118,10 @@ fn cave_chamber_targets_are_stable_and_only_follow_real_passages() {
                     world.regions[0].coordinate = Some(chamber.region_and_local().0);
                     world.locations[0].name = "Cave".into();
                     world.location_geography[0].anchor = chamber;
-                    world.location_geography[0].stable_key = format!("location.cave.{}.{}.{}", chamber.stratum, chamber.x, chamber.y);
+                    world.location_geography[0].stable_key = format!(
+                        "location.cave.{}.{}.{}",
+                        chamber.stratum, chamber.x, chamber.y
+                    );
                     found = Some((world, chamber));
                     break 'search;
                 }
@@ -108,17 +131,29 @@ fn cave_chamber_targets_are_stable_and_only_follow_real_passages() {
     let (world, chamber) = found.expect("search window should contain a connected cave chamber");
     let targets = connection_targets_for_location(&world, 3);
     assert!(!targets.is_empty());
-    assert!(targets.iter().all(|target| target.destination_anchor.stratum < 0));
-    assert!(targets.iter().any(|target| target.kind == CaveConnectionKind::HorizontalPassage));
+    assert!(targets
+        .iter()
+        .all(|target| target.destination_anchor.stratum < 0));
+    assert!(targets
+        .iter()
+        .any(|target| target.kind == CaveConnectionKind::HorizontalPassage));
     assert_eq!(targets, connection_targets_for_location(&world, 3));
-    assert_eq!(targets.iter().filter(|target| target.destination_anchor == chamber).count(), 0);
+    assert_eq!(
+        targets
+            .iter()
+            .filter(|target| target.destination_anchor == chamber)
+            .count(),
+        0
+    );
 
-    let horizontal = targets.iter()
+    let horizontal = targets
+        .iter()
         .find(|target| target.kind == CaveConnectionKind::HorizontalPassage)
         .unwrap();
     let mut world = world;
     let materialized = materialize_connection(&mut world, 3, horizontal).unwrap();
     assert!(materialized.created_location);
-    assert!(world.route_by_id(&materialized.route_id)
+    assert!(world
+        .route_by_id(&materialized.route_id)
         .is_some_and(|route| route.connects(3, materialized.location_id)));
 }
