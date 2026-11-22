@@ -631,6 +631,9 @@ fn classify_crossings(
     let mut crossings = Vec::new();
     let mut river_samples = HashMap::new();
     let mut river_geometry = RiverGeometryCache::default();
+    // Keep shore checks independent from route-segment queries, whose bounded
+    // cache may already be near capacity on a long route.
+    let mut lake_shore_river_geometry = RiverGeometryCache::default();
     let mut previous_water_crossing: Option<(RouteCrossingKind, Option<RiverId>)> = None;
     let mut active_lake: Option<ActiveLakeCrossing> = None;
 
@@ -644,7 +647,7 @@ fn classify_crossings(
                     &mut crossings,
                     active,
                     Some(*coordinate),
-                    &mut river_geometry,
+                    &mut lake_shore_river_geometry,
                 );
                 previous_water_crossing = None;
             }
@@ -701,7 +704,7 @@ fn classify_crossings(
                         &mut crossings,
                         active,
                         Some(*coordinate),
-                        &mut river_geometry,
+                        &mut lake_shore_river_geometry,
                     );
                 }
 
@@ -712,7 +715,7 @@ fn classify_crossings(
                         &lake_id,
                         *coordinate,
                         path[previous_index],
-                        &mut river_geometry,
+                        &mut lake_shore_river_geometry,
                     )
                 });
                 let crossing_index = crossings.len();
@@ -747,7 +750,7 @@ fn classify_crossings(
                 &mut crossings,
                 active,
                 Some(*coordinate),
-                &mut river_geometry,
+                &mut lake_shore_river_geometry,
             );
             previous_water_crossing = None;
         }
@@ -815,7 +818,7 @@ fn classify_crossings(
             &mut crossings,
             active,
             None,
-            &mut river_geometry,
+            &mut lake_shore_river_geometry,
         );
     }
     crossings
