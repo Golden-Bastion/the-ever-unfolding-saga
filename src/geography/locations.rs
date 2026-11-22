@@ -123,7 +123,7 @@ pub fn ensure_location_geography(world: &mut World, content: Option<&CampaignCon
             .unwrap_or(DEFAULT_FOOTPRINT_RADIUS_SAMPLES)
             .min(32);
         let archetype = authored_location
-            .map(|entry| entry.archetype)
+            .and_then(|entry| entry.archetype)
             .unwrap_or_default();
 
         let anchor = authored_anchor.unwrap_or_else(|| {
@@ -355,7 +355,7 @@ fn choose_anchor(
             } else {
                 base_score
             };
-            if best.is_none_or(|(best_score, _)| score > best_score) {
+            if best.map_or(true, |(best_score, _)| score > best_score) {
                 best = Some((score, coordinate));
             }
         }
@@ -380,7 +380,7 @@ fn anchor_candidate_score(
     freshwater_nearby: bool,
     local_relief_q16: u32,
 ) -> i64 {
-    let land_and_footprint = (1_i64 << 40) + if full_footprint { 1_i64 << 24 } else { 0 };
+    let land_and_footprint = (1_i64 << 40) + if full_footprint { 1_i64 << 34 } else { 0 };
     let elevation = i64::from(elevation_q16);
     let ridge = i64::from(ridge_strength_q16);
     let relief = i64::from(local_relief_q16);
