@@ -1,4 +1,5 @@
 use super::*;
+use crate::geography::{terrain, MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
 
 #[test]
 fn same_seed_and_location_generate_identical_maps() {
@@ -1659,5 +1660,60 @@ fn map_exit_visual_kind_distinguishes_surface_profiles_frontiers_and_cave_links(
             kind,
         });
         assert_eq!(cave_exit.visual_kind(), expected);
+    }
+}
+
+
+#[test]
+fn water_is_impassable_while_sand_remains_walkable() {
+    assert!(!Terrain::Water.is_walkable());
+    assert!(!Terrain::Wall.is_walkable());
+    assert!(Terrain::Sand.is_walkable());
+    assert!(Terrain::Floor.is_walkable());
+}
+
+#[test]
+fn geography_shaped_outdoor_maps_are_open_and_keep_the_discovery_reachable() {
+    let seed = 73;
+    let anchor = (-64..=64)
+        .flat_map(|y| (-64..=64).map(move |x| MacroCoordinate::new(x, y)))
+        .find(|coordinate| {
+            terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate)
+                .is_some_and(|sample| sample.is_land())
+        })
+        .expect("test seed should have a land sample");
+
+    let surface = LocalSurfaceMap::sample_location(
+        seed,
+        GEOGRAPHY_RULESET_VERSION,
+        anchor,
+        0,
+        DEFAULT_MAP_WIDTH,
+        DEFAULT_MAP_HEIGHT,
+    )
+    .unwrap();
+    let map = generate_local_map_with_surface(
+        seed,
+        "location.open_wilderness",
+        LocalMapConfig::default(),
+        &surface,
+    );
+
+    assert_eq!(map.generator_version, LOCAL_MAP_GENERATOR_VERSION);
+    assert!(map.props.is_empty(), "open wilderness should not get indoor furniture");
+    assert!(map.is_walkable(map.entry));
+    assert!(has_walkable_path(
+        &map,
+        map.entry,
+        map.points_of_interest[0].position
+    ));
+    for y in 1..map.height - 1 {
+        for x in 1..map.width - 1 {
+            assert_ne!(
+                map.terrain_at(GridPosition { x, y }),
+                Some(Terrain::Wall),
+                "generic outdoor terrain should not retain random room walls"
+            );
+        }
     }
 }

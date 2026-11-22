@@ -22,6 +22,7 @@ use crate::bevy_presentation::{
 };
 use crate::geography::climate::{self, Biome};
 use crate::geography::frontier;
+use crate::geography::local_surface::LocalSurfaceMap;
 use crate::geography::routes::{RouteHeading, RouteProfile};
 use crate::input::InputEvent;
 use crate::interaction_actions::{
@@ -31,6 +32,7 @@ use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_cave_connections, configure_map_frontiers,
     configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout,
+    generate_local_map_with_surface,
     ExplorationSession, GridPosition, LocalMap, LocalMapConfig, MapExit, MapExitVisualKind,
     MapRouteDestination, SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind,
     SpatialPropKind, Terrain,
@@ -232,6 +234,7 @@ pub(crate) struct SpatialExplorationState {
     last_threat_available: Option<bool>,
     last_world_time: Option<(u32, u32)>,
     biome: Option<Biome>,
+    surface: Option<LocalSurfaceMap>,
 }
 
 impl SpatialExplorationState {
@@ -456,6 +459,7 @@ pub(crate) fn start_sandbox_playtest(
     state.interaction_wheel = None;
     state.sandbox_mode = true;
     state.biome = None;
+    state.surface = None;
     state.location_notice = None;
     state.location_notice_remaining_seconds = 0.0;
     state.message =
@@ -648,20 +652,42 @@ pub(crate) fn enter(
         .map(|generation| generation.seed)
         .unwrap_or(game.world.id);
 
-    let mut map = if let Some(existing) = game
+    let existing_map = game
         .world
         .local_maps
         .iter()
-        .find(|map| map.location_id == location_id)
-    {
+        .find(|map| map.location_id == location_id);
+    let map_config = existing_map
+        .map(|map| LocalMapConfig {
+            width: map.width,
+            height: map.height,
+        })
+        .unwrap_or_else(|| local_map_config_for_layout(location.spatial_layout.as_deref()));
+    let generic_outdoor = location.spatial_layout.is_none()
+        && existing_map.is_none_or(|map| map.layout_id.is_none());
+    let surface = if generic_outdoor {
+        location_surface(game, location.id, map_config)
+    } else {
+        None
+    };
+    let mut map = if let Some(existing) = existing_map {
         existing.clone()
     } else {
-        let mut generated = generate_local_map_with_layout(
-            world_seed,
-            location_id.clone(),
-            local_map_config_for_layout(location.spatial_layout.as_deref()),
-            location.spatial_layout.as_deref(),
-        );
+        let mut generated = if let Some(surface) = surface.as_ref() {
+            generate_local_map_with_surface(
+                world_seed,
+                location_id.clone(),
+                map_config,
+                surface,
+            )
+        } else {
+            generate_local_map_with_layout(
+                world_seed,
+                location_id.clone(),
+                map_config,
+                location.spatial_layout.as_deref(),
+            )
+        };
         configure_map_routes(&mut generated, &map_routes);
 
         let discoveries = game
@@ -695,6 +721,7 @@ pub(crate) fn enter(
     } else {
         location_biome(game, location.id)
     };
+    state.surface = surface;
     // Reconcile every authoritative route into an existing map. Established
     // passages retain their IDs and positions; newly added routes append exits.
     configure_map_routes(&mut map, &map_routes);
@@ -2057,7 +2084,8 @@ fn update_spatial_world(
             if sprite.image != desired {
                 sprite.image = desired;
             }
-            sprite.color = terrain_tint(terrain, map.is_tile_discovered(tile.0), state.biome);
+            let biome = surface_biome_at(state.surface.as_ref(), tile.0).or(state.biome);
+            sprite.color = terrain_tint(terrain, map.is_tile_discovered(tile.0), biome);
         }
     }
     for (side, mut sprite) in &mut wall_sides {
@@ -2183,7 +2211,8 @@ fn render_spatial_screen(
                 let mut tile_sprite = Sprite::from_image(image);
                 tile_sprite.custom_size =
                     Some(Vec2::new(TILE_HALF_WIDTH * 2.0, TILE_HALF_HEIGHT * 2.0));
-                tile_sprite.color = terrain_tint(terrain, discovered, state.biome);
+                let biome = surface_biome_at(state.surface.as_ref(), position).or(state.biome);
+                tile_sprite.color = terrain_tint(terrain, discovered, biome);
                 commands.spawn((
                     SpatialWorldEntity,
                     SpatialTile(position),
@@ -3580,7 +3609,7 @@ fn update_spatial_control_feedback(
 
 fn terrain_image_index(terrain: Terrain) -> usize {
     match terrain {
-        Terrain::Floor => 0,
+        Terrain::Floor | Terrain::Sand | Terrain::Water => 0,
         Terrain::Ash => 1,
         Terrain::Rubble => 2,
         Terrain::Wall => 3,
@@ -3621,6 +3650,10 @@ fn terrain_tint(terrain: Terrain, discovered: bool, biome: Option<Biome>) -> Col
     }
 
     match (terrain, discovered) {
+        (Terrain::Sand, true) => Color::srgb(0.83, 0.70, 0.47),
+        (Terrain::Sand, false) => Color::srgb(0.34, 0.27, 0.18),
+        (Terrain::Water, true) => Color::srgb(0.34, 0.57, 0.70),
+        (Terrain::Water, false) => Color::srgb(0.10, 0.19, 0.29),
         (Terrain::Floor, true) => Color::srgb(0.86, 0.78, 0.64),
         (Terrain::Ash, true) => Color::srgb(0.69, 0.72, 0.75),
         (Terrain::Rubble, true) => Color::srgb(0.78, 0.68, 0.54),
@@ -3641,6 +3674,48 @@ fn local_map_config_for_layout(layout: Option<&str>) -> LocalMapConfig {
         },
         _ => LocalMapConfig::default(),
     }
+}
+
+
+fn location_surface(
+    game: &GameState,
+    location_id: EntityId,
+    map_config: LocalMapConfig,
+) -> Option<LocalSurfaceMap> {
+    let geography = game
+        .world
+        .location_geography
+        .iter()
+        .find(|record| record.location_id == location_id)?;
+    let generation = game.world.generation;
+    let world_seed = game
+        .world
+        .geography_seed
+        .or_else(|| generation.map(|metadata| metadata.seed))
+        .unwrap_or(game.world.id);
+    let ruleset_version = game.world.geography_ruleset_version.max(
+        generation
+            .map(|metadata| metadata.geography_ruleset_version)
+            .unwrap_or(0),
+    );
+
+    LocalSurfaceMap::sample_location(
+        world_seed,
+        ruleset_version,
+        geography.anchor,
+        geography.footprint_radius_samples,
+        map_config.width,
+        map_config.height,
+    )
+}
+
+fn surface_biome_at(
+    surface: Option<&LocalSurfaceMap>,
+    position: GridPosition,
+) -> Option<Biome> {
+    surface
+        .and_then(|surface| surface.sample_at_tile(position.x, position.y))
+        .map(|sample| sample.biome())
 }
 
 fn location_biome(game: &GameState, location_id: EntityId) -> Option<Biome> {
@@ -3692,7 +3767,9 @@ fn depth_for(position: Vec2) -> f32 {
 /// participate in the painter's order with actors and other world objects.
 fn terrain_depth(terrain: Terrain, tile_center: Vec2) -> f32 {
     match terrain {
-        Terrain::Floor | Terrain::Ash | Terrain::Rubble => GROUND_TERRAIN_DEPTH,
+        Terrain::Floor | Terrain::Ash | Terrain::Rubble | Terrain::Sand | Terrain::Water => {
+            GROUND_TERRAIN_DEPTH
+        },
         // A wall top's ground-contact line is the tile center. Adjacent cells
         // can share the same ground depth in this projection; favor the actor on
         // that tie so the full top diamond does not hide a laterally adjacent player.

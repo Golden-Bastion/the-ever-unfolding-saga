@@ -8,10 +8,11 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::geography::caves::CaveConnectionTarget;
 use crate::geography::frontier::{FrontierDirection, FrontierTarget};
+use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 8;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 9;
 pub const DEFAULT_MAP_WIDTH: u16 = 64;
 pub const DEFAULT_MAP_HEIGHT: u16 = 48;
 const MIN_MAP_DIMENSION: u16 = 8;
@@ -24,12 +25,14 @@ pub enum Terrain {
     Floor,
     Ash,
     Rubble,
+    Sand,
+    Water,
     Wall,
 }
 
 impl Terrain {
     pub fn is_walkable(self) -> bool {
-        !matches!(self, Self::Wall)
+        !matches!(self, Self::Wall | Self::Water)
     }
 }
 
@@ -1290,6 +1293,93 @@ pub fn generate_local_map_with_layout(
         _ => {}
     }
     map
+}
+
+
+/// Generate an open outdoor map from the location's sampled macro-geography.
+///
+/// Authored layouts and established saved maps use their own geometry paths.
+/// This function only affects a newly generated generic outdoor map. It keeps
+/// the perimeter wall, replaces prototype room obstacles with broad terrain,
+/// removes indoor furniture props, and relocates the entry/discovery point into
+/// the same reachable land component when water divides the footprint.
+pub fn generate_local_map_with_surface(
+    world_seed: u64,
+    location_id: impl Into<String>,
+    config: LocalMapConfig,
+    surface: &LocalSurfaceMap,
+) -> LocalMap {
+    let mut map = generate_local_map(world_seed, location_id, config);
+    let fallback = map.clone();
+    map.props.clear();
+
+    for y in 1..map.height.saturating_sub(1) {
+        for x in 1..map.width.saturating_sub(1) {
+            let terrain = surface
+                .sample_at_tile(x, y)
+                .map(local_surface_terrain)
+                .unwrap_or(Terrain::Floor);
+            let index = usize::from(y) * usize::from(map.width) + usize::from(x);
+            map.terrain[index] = terrain;
+        }
+    }
+
+    let mut walkable = (1..map.height.saturating_sub(1))
+        .flat_map(|y| (1..map.width.saturating_sub(1)).map(move |x| GridPosition { x, y }))
+        .filter(|position| map.is_walkable(*position))
+        .collect::<Vec<_>>();
+    if walkable.is_empty() {
+        return fallback;
+    }
+
+    let preferred_entry = GridPosition {
+        x: 1,
+        y: map.height / 2,
+    };
+    walkable.sort_by_key(|position| {
+        let dx = i32::from(position.x) - i32::from(preferred_entry.x);
+        let dy = i32::from(position.y) - i32::from(preferred_entry.y);
+        (dx * dx + dy * dy, position.x, position.y)
+    });
+    map.entry = walkable[0];
+
+    let preferred_discovery_y = map
+        .points_of_interest
+        .first()
+        .map(|point| point.position.y)
+        .unwrap_or(map.height / 2);
+    let mut reachable = reachable_walkable_tiles(&map)
+        .into_iter()
+        .filter(|position| *position != map.entry)
+        .collect::<Vec<_>>();
+    reachable.sort_by(|left, right| {
+        right.x.cmp(&left.x)
+            .then_with(|| {
+                left.y
+                    .abs_diff(preferred_discovery_y)
+                    .cmp(&right.y.abs_diff(preferred_discovery_y))
+            })
+            .then_with(|| left.y.cmp(&right.y))
+    });
+    if let Some(discovery) = map.points_of_interest.first_mut() {
+        discovery.position = reachable.first().copied().unwrap_or(map.entry);
+    }
+
+    map
+}
+
+fn local_surface_terrain(sample: crate::geography::local_surface::LocalSurfaceSample) -> Terrain {
+    match sample.water() {
+        SurfaceWaterFeature::Ocean | SurfaceWaterFeature::Lake => Terrain::Water,
+        SurfaceWaterFeature::Land => match sample.biome() {
+            crate::geography::climate::Biome::Coast | crate::geography::climate::Biome::Desert => {
+                Terrain::Sand
+            }
+            crate::geography::climate::Biome::Alpine => Terrain::Rubble,
+            _ if sample.is_mountain_barrier() => Terrain::Rubble,
+            _ => Terrain::Floor,
+        },
+    }
 }
 
 /// Overlay the first authored room template. The chamber is intentionally

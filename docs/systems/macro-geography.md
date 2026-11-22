@@ -6,21 +6,23 @@ The macro-geography module defines renderer-independent world coordinates and de
 
 ## Current visual realization
 
-**The existence of a generated geography feature does not mean that feature is fully drawn in the game.** The v0.53 macro-geography systems remain authoritative, deterministic world data. The spatial renderer now samples the current location's persisted macro anchor and climate biome, then applies a provisional biome-specific tint to local-map floor tiles. This is the first visible connection between macro-geography and local exploration; it is a presentation hint, not a second terrain model.
+**The existence of a generated geography feature does not mean that feature is fully drawn in the game.** The v0.53 macro-geography systems remain authoritative, deterministic world data. The spatial renderer now projects each generic outdoor location's persisted macro anchor and footprint into a bounded sample grid, resampled across local-map tile dimensions. It uses the authoritative terrain, climate, and inland-lake samplers to create open land, impassable ocean/lake water, sandy coast/desert areas, and rocky alpine/strong-ridge areas. Per-tile biome shading follows the same projection. The local projection is a presentation derivative, not a second terrain model or a fixed macro-sample-to-tile conversion.
 
 What is visible today is:
 
-- The spatial scene has its existing local-map floor, ash, rubble, wall, pillar, and table imagery, with the provisional material palette introduced in v0.53.21. Floor tiles now receive a biome-specific tint from the location anchor (ocean, coast, desert, grassland, temperate forest, taiga, tundra, or alpine). Other material types retain their existing material palette.
+- New generic outdoor maps use open land rather than random room-like obstacle walls. Ocean and inland-lake samples are rendered as blocked water; coast/desert areas use sand; strong mountain ridges and alpine samples use rocky rubble; other land remains walkable floor.
+- Water and sand currently reuse the existing floor image with separate discovered/undiscovered tints. Existing ash, rubble, wall, pillar, and table presentation remains available for authored interiors and other content.
+- Per-tile biome tinting is selected from the projected location footprint, so a local map can show more than the biome at its anchor.
 - The spatial scene presents the existing sky and celestial cycle from world time, plus player and available actor sprites.
 - Route/frontier passages and cave transitions have semantic categories and provisional renderer tints. They still use generic passage imagery rather than a complete set of dedicated route, entrance, shaft, and tunnel assets; those needs are tracked in [#491](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/491).
 - Cave topology is connected to reachable local-map transitions, but the generated chamber network is not yet rendered as a continuous or geographically detailed underground landscape.
 - Location archetypes affect deterministic placement only. They do not currently give settlements, wilderness locations, or landmarks distinct visual layouts or environmental art.
 
-The biome tint makes broad climate regions visually distinguishable, but it does not yet render macro elevation, mountain silhouettes, shoreline shapes, rivers, lakes, vegetation, or underground geology as actual landscape features. The World Map also remains an interim route-graph presentation, not a rendered continuous geographic map.
+This is still a coarse first pass. The current water classification draws ocean and inland-lake coverage, but not fine shoreline transitions. River classification currently describes a 64×64-macro-sample watershed cell rather than a local channel centre-line, so it is deliberately not painted as a river ribbon. Vegetation, detailed mountain silhouettes, dedicated terrain/water art, and underground geology remain outstanding. The World Map also remains an interim route-graph presentation, not a rendered continuous geographic map.
 
 New outdoor local maps now default to 64×48 tiles instead of the prototype's 24×16. Compact interiors remain smaller where appropriate; the authored shrine chamber uses 32×24. World Lab offers 64×48, 80×56, and 96×64 presets. Existing saved maps keep their dimensions and geometry; changing defaults never resizes a player's established map. This is an initial scale increase, not the final target. Outdoor areas should eventually take several minutes to cross, and regions must be substantially larger than one local map. See [world scale and travel](../design/world-scale-and-travel.md).
 
-The next presentation stage is to turn macro elevation, mountain ridges, shorelines, rivers, lakes, and underground structure into coherent landscape composition and then supply region-appropriate terrain, vegetation, water, mountain, and underground assets. Keep this presentation layer downstream of the renderer-neutral geography model; it must not become a second source of terrain, route, or water truth.
+The next presentation stage is to refine the coarse water/land projection into coherent shoreline and elevation composition, add a higher-resolution river centre-line suitable for local maps and route crossings, then supply region-appropriate terrain, vegetation, water, mountain, and underground assets. Keep this presentation layer downstream of the renderer-neutral geography model; it must not become a second source of terrain, route, or water truth.
 
 Implemented in v0.53.1:
 

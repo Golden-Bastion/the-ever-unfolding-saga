@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.24: Geography-shaped outdoor local maps
+
+- Added a bounded renderer-neutral projection from persisted location macro-geography footprints into local-map terrain. Macro samples are resampled across the local tile grid; no one-to-one macro-sample/tile conversion is assumed.
+- New generic outdoor maps now use open terrain shaped by the sampled geography: ocean and inland lakes become impassable water, coast/desert become sand, and alpine/strong ridge areas become rocky rubble. Random indoor walls and furniture props are removed from these wilderness maps.
+- Entry and initial discovery placement use the same reachable land component, so water cannot strand a newly generated character or discovery.
+- Existing saved maps and authored spatial layouts are unchanged. Existing generic maps may use the projection for per-tile biome shading, but their stored terrain is not regenerated.
+- Water/sand currently reuse the existing floor texture with provisional material tints. Fine river centre-lines, bridges/ford artwork, vegetation, detailed mountain silhouettes, and dedicated shoreline/water assets remain future visual work.
+- Added automated coverage for deterministic bounded footprint sampling, aspect-ratio-aware resampling, surface/underground boundaries, outdoor reachability, water collision, and new material presentation.
+- Bumped Rust and Android metadata to 0.53.24.
+
 ### v0.53.23: Authored local-map connection-side preferences
 
 - Added optional `exit_sides` mappings to authored locations, keyed by stable destination content IDs and supporting north/east/south/west.

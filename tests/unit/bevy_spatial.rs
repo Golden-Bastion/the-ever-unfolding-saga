@@ -65,7 +65,7 @@ fn moving_sprite_depth_tracks_continuous_ground_position() {
 
 #[test]
 fn ground_terrain_never_occludes_actors_at_different_map_depths() {
-    for terrain in [Terrain::Floor, Terrain::Ash, Terrain::Rubble] {
+    for terrain in [Terrain::Floor, Terrain::Ash, Terrain::Rubble, Terrain::Sand, Terrain::Water] {
         for actor_position in [
             Vec2::new(0.5, 0.5),
             Vec2::new(6.5, 7.5),
@@ -2013,6 +2013,8 @@ fn spatial_material_palette_distinguishes_existing_terrain_types() {
         terrain_tint(Terrain::Floor, true, None),
         terrain_tint(Terrain::Ash, true, None),
         terrain_tint(Terrain::Rubble, true, None),
+        terrain_tint(Terrain::Sand, true, None),
+        terrain_tint(Terrain::Water, true, None),
         terrain_tint(Terrain::Wall, true, None),
     ];
     for (index, color) in discovered.iter().enumerate() {
@@ -2023,6 +2025,8 @@ fn spatial_material_palette_distinguishes_existing_terrain_types() {
         terrain_tint(Terrain::Floor, false, None),
         terrain_tint(Terrain::Ash, false, None),
         terrain_tint(Terrain::Rubble, false, None),
+        terrain_tint(Terrain::Sand, false, None),
+        terrain_tint(Terrain::Water, false, None),
         terrain_tint(Terrain::Wall, false, None),
     ];
     for (index, color) in undiscovered.iter().enumerate() {
@@ -2081,5 +2085,24 @@ fn spatial_material_palette_distinguishes_stone_and_wood_props() {
     assert_ne!(
         spatial_prop_tint(SpatialPropKind::Table, true),
         spatial_prop_tint(SpatialPropKind::Table, false)
+    );
+}
+
+
+#[test]
+fn water_and_sand_reuse_the_existing_ground_art_with_distinct_material_tints() {
+    assert_eq!(terrain_image_index(Terrain::Sand), terrain_image_index(Terrain::Floor));
+    assert_eq!(terrain_image_index(Terrain::Water), terrain_image_index(Terrain::Floor));
+    assert_ne!(
+        terrain_tint(Terrain::Sand, true, None),
+        terrain_tint(Terrain::Water, true, None)
+    );
+    assert_ne!(
+        terrain_tint(Terrain::Sand, false, None),
+        terrain_tint(Terrain::Water, false, None)
+    );
+    assert_eq!(
+        terrain_depth(Terrain::Water, Vec2::new(2.5, 3.5)),
+        GROUND_TERRAIN_DEPTH
     );
 }
