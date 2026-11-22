@@ -355,9 +355,15 @@ impl CampaignContent {
         for location in &self.world.locations {
             for (target_id, _) in &location.exit_sides {
                 if target_id.trim().is_empty() {
-                    issues.push(format!("location {} has an authored exit side with an empty destination ID", location.id));
+                    issues.push(format!(
+                        "location {} has an authored exit side with an empty destination ID",
+                        location.id
+                    ));
                 } else if !location.exits.iter().any(|exit| exit == target_id) {
-                    issues.push(format!("location {} assigns an exit side to {} but does not declare that exit", location.id, target_id));
+                    issues.push(format!(
+                        "location {} assigns an exit side to {} but does not declare that exit",
+                        location.id, target_id
+                    ));
                 }
             }
             for discovery in &location.spatial_discoveries {
