@@ -28,8 +28,8 @@ use crate::interaction_actions::{
 };
 use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
-    apply_authored_spatial_discoveries, configure_map_frontiers, configure_map_routes,
-    ensure_spatial_entity_placements, generate_local_map_with_layout, ExplorationSession,
+    apply_authored_spatial_discoveries, configure_map_cave_connections, configure_map_frontiers,
+    configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout, ExplorationSession,
     GridPosition, LocalMap, LocalMapConfig, MapExit, MapRouteDestination,
     SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind,
     Terrain,
@@ -672,6 +672,8 @@ pub(crate) fn enter(
     // passages retain their IDs and positions; newly added routes append exits.
     configure_map_routes(&mut map, &map_routes);
     configure_map_frontiers(&mut map, &map_frontiers);
+    let cave_targets = crate::geography::caves::connection_targets_for_location(&game.world, location.id);
+    configure_map_cave_connections(&mut map, &cave_targets, &map_routes);
     if !location.dangerous {
         let prototype_poi_id = format!("{location_id}.poi.initial_discovery");
         map.points_of_interest
@@ -1649,12 +1651,13 @@ fn use_map_exit(
                     (
                         exit.route_id.clone(),
                         exit.frontier.clone(),
+                        exit.cave_target.clone(),
                         exit_interaction_available(map, state.position, exit),
                     )
                 })
         });
 
-    let Some((route_id, frontier_target, passage_available)) = selected_passage else {
+    let Some((route_id, frontier_target, cave_target, passage_available)) = selected_passage else {
         state.message = Some("Move closer to the passage and find a clear approach.".to_string());
         state.dirty = true;
         return;
@@ -1666,6 +1669,46 @@ fn use_map_exit(
     }
 
     if target_location_id == 0 {
+        if let Some(cave_target) = cave_target {
+            sync_spatial_to_game(state, lifecycle);
+            let materialized = lifecycle.session.as_mut().map(|session| {
+                crate::geography::caves::materialize_connection(
+                    &mut session.state.world,
+                    source_location_id,
+                    &cave_target,
+                )
+            });
+            let Some(Ok(materialized)) = materialized else {
+                state.message = Some("That cave connection is no longer valid.".to_string());
+                state.dirty = true;
+                return;
+            };
+            let Some(map) = state.maps.get_mut(&expected_map_id) else {
+                state.message = Some("The current local map is unavailable.".to_string());
+                state.dirty = true;
+                return;
+            };
+            let Some(exit) = map.exits.iter_mut().find(|exit| exit.id == exit_id) else {
+                state.message = Some("The cave entrance could not be located.".to_string());
+                state.dirty = true;
+                return;
+            };
+            exit.route_id = Some(materialized.route_id.clone());
+            exit.target_location_id = materialized.location_id;
+            sync_spatial_to_game(state, lifecycle);
+            if let Err(message) = travel_to_location(
+                state,
+                lifecycle,
+                navigation,
+                materialized.location_id,
+                Some(&materialized.route_id),
+                "The cave connection could not be entered.",
+            ) {
+                state.message = Some(message.to_string());
+                state.dirty = true;
+            }
+            return;
+        }
         let Some(frontier_target) = frontier_target else {
             state.message = Some("That passage has no valid frontier destination.".to_string());
             state.dirty = true;
