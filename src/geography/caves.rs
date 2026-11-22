@@ -24,6 +24,9 @@ pub struct CaveConnectionTarget {
     /// Stable identity independent of world entity allocation order.
     pub id: String,
     pub destination_anchor: MacroCoordinate,
+    /// Existing endpoint when a reverse vertical link leads to an already materialized location.
+    #[serde(default)]
+    pub destination_location_id: Option<u64>,
     pub kind: CaveConnectionKind,
 }
 
@@ -33,7 +36,11 @@ impl CaveConnectionTarget {
     }
 
     pub fn location_key(&self) -> String {
-        cave_location_key(self.destination_anchor)
+        if self.destination_anchor.stratum == 0 {
+            format!("location.cave_entrance.{}.{}", self.destination_anchor.x, self.destination_anchor.y)
+        } else {
+            cave_location_key(self.destination_anchor)
+        }
     }
 }
 
@@ -112,6 +119,7 @@ pub fn connection_targets_for_location(
             targets.push(CaveConnectionTarget {
                 id: format!("vertical.{:016x}", connection.id),
                 destination_anchor: chamber,
+                destination_location_id: None,
                 kind: CaveConnectionKind::SurfaceEntrance,
             });
         }
@@ -153,6 +161,7 @@ pub fn connection_targets_for_location(
             targets.push(CaveConnectionTarget {
                 id: horizontal_target_id(seed, ruleset, chamber, neighbor),
                 destination_anchor: neighbor,
+                destination_location_id: None,
                 kind: CaveConnectionKind::HorizontalPassage,
             });
         }
@@ -173,20 +182,28 @@ pub fn connection_targets_for_location(
             if source_chamber != chamber {
                 continue;
             }
-            let destination = if destination_endpoint.stratum == 0 {
-                continue;
+            let (destination, destination_location_id, kind) = if destination_endpoint.stratum == 0 {
+                let route_id = format!("route.cave.vertical.{:016x}", connection.id);
+                let existing = world.route_by_id(&route_id)
+                    .and_then(|route| route.destination_from(source_location_id));
+                if let Some(destination_id) = existing {
+                    let Some(surface_anchor) = world.location_geography.iter()
+                        .find(|record| record.location_id == destination_id)
+                        .map(|record| record.anchor) else { continue; };
+                    (surface_anchor, Some(destination_id), CaveConnectionKind::SurfaceEntrance)
+                } else {
+                    (destination_endpoint, None, CaveConnectionKind::SurfaceEntrance)
+                }
             } else {
                 let Some(destination) = underground::sample_underground(seed, ruleset, destination_endpoint)
-                    .and_then(|value| value.network_cell())
-                else {
-                    continue;
-                };
-                destination
+                    .and_then(|value| value.network_cell()) else { continue; };
+                (destination, None, CaveConnectionKind::VerticalShaft)
             };
             targets.push(CaveConnectionTarget {
                 id: format!("vertical.{:016x}", connection.id),
                 destination_anchor: destination,
-                kind: CaveConnectionKind::VerticalShaft,
+                destination_location_id,
+                kind,
             });
         }
     }
@@ -213,10 +230,10 @@ pub fn materialize_connection(
     let route_id = target.route_id();
     let stable_key = target.location_key();
 
-    let existing_location_id = world.location_geography
+    let existing_location_id = target.destination_location_id.or_else(|| world.location_geography
         .iter()
         .find(|record| record.stable_key == stable_key)
-        .map(|record| record.location_id);
+        .map(|record| record.location_id));
 
     if let Some(route) = world.route_by_id(&route_id) {
         let Some(location_id) = existing_location_id else {
@@ -276,10 +293,10 @@ pub fn materialize_connection(
         let anchor = target.destination_anchor;
         world.locations.push(Location {
             id,
-            name: format!("Cavern Chamber ({}, {})", anchor.x, anchor.y),
-            description: format!("A natural chamber deep beneath the surface (stratum {}).", anchor.stratum),
+            name: if anchor.stratum == 0 { format!("Hidden Cave Entrance ({}, {})", anchor.x, anchor.y) } else { format!("Cavern Chamber ({}, {})", anchor.x, anchor.y) },
+            description: if anchor.stratum == 0 { "A concealed opening in the earth leads into the cave network.".to_string() } else { format!("A natural chamber deep beneath the surface (stratum {}).", anchor.stratum) },
             region_id,
-            dangerous: (coordinate_seed(seed, world.geography_ruleset_version, anchor) & 3) != 0,
+            dangerous: anchor.stratum != 0 && (coordinate_seed(seed, world.geography_ruleset_version, anchor) & 3) != 0,
             corpse_ids: Vec::new(),
             exits: Vec::new(),
             spatial_layout: None,
