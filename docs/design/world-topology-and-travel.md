@@ -12,6 +12,8 @@ Create a persistent, extensible world in which the player can optionally explore
 
 The world should be able to expand beyond its initial frontier without generating or simulating every possible region up front.
 
+The spatial scale must remain meaningful: outdoor areas should take several minutes to cross, locations may contain multiple connected local areas, and regions must represent far more distance than a single local map. See [World Scale and Travel](world-scale-and-travel.md) for the scale hierarchy and implementation constraints. The current 64×48 local-map default is only an initial increase, not the final target.
+
 ## Settled design decisions
 
 ### 1. Two levels of geography

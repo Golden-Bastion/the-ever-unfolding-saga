@@ -24,6 +24,21 @@ fn expanded_spatial_health_header_is_reserved_in_the_camera_viewport() {
 }
 
 #[test]
+fn local_map_dimensions_preserve_compact_shrine_interiors() {
+    assert_eq!(
+        local_map_config_for_layout(Some("shrine_chamber")),
+        LocalMapConfig {
+            width: 32,
+            height: 24,
+        }
+    );
+    assert_eq!(
+        local_map_config_for_layout(Some("ashen_gate_causeway")),
+        LocalMapConfig::default()
+    );
+}
+
+#[test]
 fn spatial_world_update_initializes_with_disjoint_sprite_queries() {
     let mut app = App::new();
     app.insert_resource(Time::<()>::default())
@@ -316,8 +331,8 @@ fn room_camera_follow_transitions_between_authored_rooms_smoothly() {
         Some("ashen_gate_causeway"),
     );
     let viewport = Vec2::new(240.0, 140.0);
-    let west_position = Vec2::new(2.5, 8.5);
-    let east_position = Vec2::new(18.5, 8.5);
+    let west_position = Vec2::new(2.5, 24.5);
+    let east_position = Vec2::new(40.5, 24.5);
     let west_world = map_to_world(west_position, Some(&map));
     let east_world = map_to_world(east_position, Some(&map));
 
@@ -1995,20 +2010,20 @@ fn interior_door_state_blocks_and_allows_continuous_grid_edge_crossing() {
 #[test]
 fn spatial_material_palette_distinguishes_existing_terrain_types() {
     let discovered = [
-        terrain_tint(Terrain::Floor, true),
-        terrain_tint(Terrain::Ash, true),
-        terrain_tint(Terrain::Rubble, true),
-        terrain_tint(Terrain::Wall, true),
+        terrain_tint(Terrain::Floor, true, None),
+        terrain_tint(Terrain::Ash, true, None),
+        terrain_tint(Terrain::Rubble, true, None),
+        terrain_tint(Terrain::Wall, true, None),
     ];
     for (index, color) in discovered.iter().enumerate() {
         assert!(discovered[index + 1..].iter().all(|other| other != color));
     }
 
     let undiscovered = [
-        terrain_tint(Terrain::Floor, false),
-        terrain_tint(Terrain::Ash, false),
-        terrain_tint(Terrain::Rubble, false),
-        terrain_tint(Terrain::Wall, false),
+        terrain_tint(Terrain::Floor, false, None),
+        terrain_tint(Terrain::Ash, false, None),
+        terrain_tint(Terrain::Rubble, false, None),
+        terrain_tint(Terrain::Wall, false, None),
     ];
     for (index, color) in undiscovered.iter().enumerate() {
         assert!(undiscovered[index + 1..].iter().all(|other| other != color));
@@ -2017,6 +2032,36 @@ fn spatial_material_palette_distinguishes_existing_terrain_types() {
     for (visible, obscured) in discovered.iter().zip(undiscovered.iter()) {
         assert_ne!(visible, obscured);
     }
+}
+
+#[test]
+fn biome_context_changes_visible_floor_palette_without_changing_other_materials() {
+    let biome_colors = [
+        Biome::Ocean,
+        Biome::Coast,
+        Biome::Desert,
+        Biome::Grassland,
+        Biome::TemperateForest,
+        Biome::Taiga,
+        Biome::Tundra,
+        Biome::Alpine,
+    ]
+    .map(|biome| terrain_tint(Terrain::Floor, true, Some(biome)));
+    for (index, color) in biome_colors.iter().enumerate() {
+        assert!(
+            biome_colors[index + 1..].iter().all(|other| other != color),
+            "each biome should have a distinct provisional floor tint"
+        );
+    }
+
+    assert_eq!(
+        terrain_tint(Terrain::Wall, true, Some(Biome::Desert)),
+        terrain_tint(Terrain::Wall, true, None)
+    );
+    assert_ne!(
+        terrain_tint(Terrain::Floor, true, Some(Biome::Desert)),
+        terrain_tint(Terrain::Floor, false, Some(Biome::Desert))
+    );
 }
 
 #[test]

@@ -23,6 +23,14 @@ This file records completed work in the current unreleased development line. Old
 - Clarified in the roadmap and macro-geography system documentation which generated geography features are currently visible and which still require local-map visual integration and dedicated assets.
 - Bumped Rust and Android metadata to 0.53.22.
 
+### Biome-aware local presentation and expanded exploration scale
+
+- Connected each location's persisted macro-geography anchor to its climate biome and applied distinct provisional floor tints in local exploration. Existing wall, ash, and rubble material treatments remain intact; this does not yet render actual water, vegetation, elevation, or mountain geometry.
+- Increased newly generated outdoor local maps from 24×16 to 64×48 tiles and expanded World Lab presets to 64×48, 80×56, and 96×64. Compact interiors remain smaller where appropriate (the authored shrine chamber uses 32×24). The local-map generator version advances; established saved maps are never resized or regenerated.
+- Adapted the Hollow Market layout's gate and stall placement to the larger map dimensions and increased procedural prop density for the expanded footprint.
+- Added a world-scale and travel design specification: outdoor traversal should take several minutes, regions must be much larger than individual local maps, and large spaces should eventually use bounded chunk streaming rather than simply slowing player movement.
+- Added automated coverage for the new map dimensions, path reachability, and biome-specific floor presentation.
+
 ### v0.53.21: Provisional spatial material palette
 
 - Added distinct, restrained material tints for existing floor, ash, rubble, and wall tiles, plus stone pillars and wooden tables.

@@ -8,6 +8,39 @@ fn same_seed_and_location_generate_identical_maps() {
 }
 
 #[test]
+fn shrine_chamber_layout_remains_available_on_compact_interior_maps() {
+    let map = generate_local_map_with_layout(
+        42,
+        "location.old_shrine",
+        LocalMapConfig {
+            width: 32,
+            height: 24,
+        },
+        Some("shrine_chamber"),
+    );
+
+    assert_eq!(map.layout_id.as_deref(), Some("shrine_chamber"));
+    assert_eq!((map.width, map.height), (32, 24));
+    assert_eq!(map.rooms.len(), 2);
+    assert!(map.validate_room_topology().is_ok());
+}
+
+#[test]
+fn default_local_maps_provide_a_substantially_larger_exploration_area() {
+    let map = generate_local_map(42, "location.large_wilderness", LocalMapConfig::default());
+
+    assert_eq!(map.width, 64);
+    assert_eq!(map.height, 48);
+    assert_eq!(map.generator_version, LOCAL_MAP_GENERATOR_VERSION);
+    assert!(map.terrain.len() >= 3_000);
+    assert!(has_walkable_path(
+        &map,
+        map.entry,
+        map.points_of_interest[0].position
+    ));
+}
+
+#[test]
 fn different_location_ids_generate_distinct_maps() {
     let a = generate_local_map(42, "location.old_shrine", LocalMapConfig::default());
     let b = generate_local_map(42, "location.ashen_gate", LocalMapConfig::default());
@@ -184,13 +217,13 @@ fn authored_gate_and_market_layouts_preserve_room_thresholds_and_exits() {
         (
             "location.ashen_gate",
             "ashen_gate_causeway",
-            12,
+            32,
             vec![101, 102],
         ),
         (
             "location.hollow_market",
             "hollow_market_square",
-            4,
+            12,
             vec![201, 202, 203],
         ),
     ] {

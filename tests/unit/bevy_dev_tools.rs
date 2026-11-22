@@ -261,7 +261,7 @@ fn world_lab_generation_is_reproducible_and_respects_selected_layout() {
     let repeated = generate_world_lab_map(options);
 
     assert_eq!(first, repeated);
-    assert_eq!((first.width, first.height), (40, 24));
+    assert_eq!((first.width, first.height), (96, 64));
     assert_eq!(first.layout_id.as_deref(), Some("shrine_chamber"));
 
     let different_seed = generate_world_lab_map(WorldLabOptions {

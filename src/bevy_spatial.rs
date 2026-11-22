@@ -20,6 +20,7 @@ use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId, UiButtonActivation,
 };
+use crate::geography::climate::{self, Biome};
 use crate::geography::frontier;
 use crate::geography::routes::{RouteHeading, RouteProfile};
 use crate::input::InputEvent;
@@ -230,6 +231,7 @@ pub(crate) struct SpatialExplorationState {
     player_animation: PlayerAnimation,
     last_threat_available: Option<bool>,
     last_world_time: Option<(u32, u32)>,
+    biome: Option<Biome>,
 }
 
 impl SpatialExplorationState {
@@ -453,6 +455,7 @@ pub(crate) fn start_sandbox_playtest(
     });
     state.interaction_wheel = None;
     state.sandbox_mode = true;
+    state.biome = None;
     state.location_notice = None;
     state.location_notice_remaining_seconds = 0.0;
     state.message =
@@ -587,6 +590,7 @@ pub(crate) fn enter(
 ) {
     state.sandbox_mode = false;
     let Some(location) = game.world.location_by_id(game.character.location_id) else {
+        state.biome = None;
         return;
     };
     let location_id = format!("location.{}", location.id);
@@ -655,7 +659,7 @@ pub(crate) fn enter(
         let mut generated = generate_local_map_with_layout(
             world_seed,
             location_id.clone(),
-            LocalMapConfig::default(),
+            local_map_config_for_layout(location.spatial_layout.as_deref()),
             location.spatial_layout.as_deref(),
         );
         configure_map_routes(&mut generated, &map_routes);
@@ -685,6 +689,11 @@ pub(crate) fn enter(
             .unwrap_or_default();
         apply_authored_spatial_discoveries(&mut generated, &discoveries);
         generated
+    };
+    state.biome = if map.layout_id.as_deref() == Some("shrine_chamber") {
+        None
+    } else {
+        location_biome(game, location.id)
     };
     // Reconcile every authoritative route into an existing map. Established
     // passages retain their IDs and positions; newly added routes append exits.
@@ -2048,11 +2057,15 @@ fn update_spatial_world(
             if sprite.image != desired {
                 sprite.image = desired;
             }
-            sprite.color = terrain_tint(terrain, map.is_tile_discovered(tile.0));
+            sprite.color = terrain_tint(terrain, map.is_tile_discovered(tile.0), state.biome);
         }
     }
     for (side, mut sprite) in &mut wall_sides {
-        sprite.color = terrain_tint(Terrain::Wall, map.is_tile_discovered(side.tile));
+        sprite.color = terrain_tint(
+            Terrain::Wall,
+            map.is_tile_discovered(side.tile),
+            state.biome,
+        );
     }
     for (mut transform, mut sprite) in &mut player {
         transform.translation.x = target.x;
@@ -2170,7 +2183,7 @@ fn render_spatial_screen(
                 let mut tile_sprite = Sprite::from_image(image);
                 tile_sprite.custom_size =
                     Some(Vec2::new(TILE_HALF_WIDTH * 2.0, TILE_HALF_HEIGHT * 2.0));
-                tile_sprite.color = terrain_tint(terrain, discovered);
+                tile_sprite.color = terrain_tint(terrain, discovered, state.biome);
                 commands.spawn((
                     SpatialWorldEntity,
                     SpatialTile(position),
@@ -3583,7 +3596,30 @@ fn spatial_environment_tint(time_points: u32) -> Option<Color> {
     }
 }
 
-fn terrain_tint(terrain: Terrain, discovered: bool) -> Color {
+fn terrain_tint(terrain: Terrain, discovered: bool, biome: Option<Biome>) -> Color {
+    if terrain == Terrain::Floor {
+        if let Some(biome) = biome {
+            return match (biome, discovered) {
+                (Biome::Ocean, true) => Color::srgb(0.42, 0.62, 0.72),
+                (Biome::Ocean, false) => Color::srgb(0.15, 0.25, 0.34),
+                (Biome::Coast, true) => Color::srgb(0.76, 0.73, 0.61),
+                (Biome::Coast, false) => Color::srgb(0.31, 0.31, 0.26),
+                (Biome::Desert, true) => Color::srgb(0.87, 0.72, 0.45),
+                (Biome::Desert, false) => Color::srgb(0.36, 0.28, 0.17),
+                (Biome::Grassland, true) => Color::srgb(0.65, 0.75, 0.48),
+                (Biome::Grassland, false) => Color::srgb(0.22, 0.31, 0.19),
+                (Biome::TemperateForest, true) => Color::srgb(0.48, 0.66, 0.43),
+                (Biome::TemperateForest, false) => Color::srgb(0.16, 0.26, 0.17),
+                (Biome::Taiga, true) => Color::srgb(0.48, 0.64, 0.61),
+                (Biome::Taiga, false) => Color::srgb(0.17, 0.27, 0.28),
+                (Biome::Tundra, true) => Color::srgb(0.72, 0.77, 0.77),
+                (Biome::Tundra, false) => Color::srgb(0.29, 0.33, 0.35),
+                (Biome::Alpine, true) => Color::srgb(0.67, 0.70, 0.75),
+                (Biome::Alpine, false) => Color::srgb(0.24, 0.27, 0.33),
+            };
+        }
+    }
+
     match (terrain, discovered) {
         (Terrain::Floor, true) => Color::srgb(0.86, 0.78, 0.64),
         (Terrain::Ash, true) => Color::srgb(0.69, 0.72, 0.75),
@@ -3594,6 +3630,39 @@ fn terrain_tint(terrain: Terrain, discovered: bool) -> Color {
         (Terrain::Rubble, false) => Color::srgb(0.31, 0.26, 0.20),
         (Terrain::Wall, false) => Color::srgb(0.24, 0.26, 0.29),
     }
+}
+
+fn local_map_config_for_layout(layout: Option<&str>) -> LocalMapConfig {
+    match layout {
+        // A chamber is an intentionally compact interior, not an outdoor region.
+        Some("shrine_chamber") => LocalMapConfig {
+            width: 32,
+            height: 24,
+        },
+        _ => LocalMapConfig::default(),
+    }
+}
+
+fn location_biome(game: &GameState, location_id: EntityId) -> Option<Biome> {
+    let anchor = game
+        .world
+        .location_geography
+        .iter()
+        .find(|record| record.location_id == location_id)?
+        .anchor;
+    let generation = game.world.generation;
+    let world_seed = game
+        .world
+        .geography_seed
+        .or_else(|| generation.map(|metadata| metadata.seed))
+        .unwrap_or(game.world.id);
+    let ruleset_version = game.world.geography_ruleset_version.max(
+        generation
+            .map(|metadata| metadata.geography_ruleset_version)
+            .unwrap_or(0),
+    );
+
+    climate::sample_surface(world_seed, ruleset_version, anchor).map(|sample| sample.biome())
 }
 
 fn spatial_prop_tint(kind: SpatialPropKind, discovered: bool) -> Color {
@@ -3608,7 +3677,7 @@ fn spatial_prop_tint(kind: SpatialPropKind, discovered: bool) -> Color {
 fn map_to_world(position: Vec2, map: Option<&LocalMap>) -> Vec2 {
     let (width, height) = map
         .map(|map| (f32::from(map.width), f32::from(map.height)))
-        .unwrap_or((24.0, 16.0));
+        .unwrap_or((64.0, 48.0));
     Vec2::new(
         (position.x - position.y - (width - height) * 0.5) * TILE_HALF_WIDTH,
         ((width + height) * 0.5 - position.x - position.y) * TILE_HALF_HEIGHT,

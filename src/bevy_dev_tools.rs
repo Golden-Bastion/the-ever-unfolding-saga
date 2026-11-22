@@ -68,7 +68,7 @@ const WORLD_LAB_EDITOR_ACTIONS: &[(&str, &str)] = &[
     ("back", "Back to World Lab"),
 ];
 
-const WORLD_LAB_SIZES: [(u16, u16); 3] = [(24, 16), (32, 20), (40, 24)];
+const WORLD_LAB_SIZES: [(u16, u16); 3] = [(64, 48), (80, 56), (96, 64)];
 
 fn lab_workspace_node() -> Node {
     Node {

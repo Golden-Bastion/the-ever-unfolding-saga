@@ -6,19 +6,21 @@ The macro-geography module defines renderer-independent world coordinates and de
 
 ## Current visual realization
 
-**The existence of a generated geography feature does not mean that feature is currently drawn in the game.** The v0.53 macro-geography systems produce authoritative, deterministic data for future world presentation and gameplay. The current spatial renderer still draws the established local-map terrain/prop catalogue; it does not yet sample macro elevation, mountain ridges, biome classifications, or surface-water coverage to create corresponding landscape tiles, terrain silhouettes, vegetation, rivers, or lakes.
+**The existence of a generated geography feature does not mean that feature is fully drawn in the game.** The v0.53 macro-geography systems remain authoritative, deterministic world data. The spatial renderer now samples the current location's persisted macro anchor and climate biome, then applies a provisional biome-specific tint to local-map floor tiles. This is the first visible connection between macro-geography and local exploration; it is a presentation hint, not a second terrain model.
 
-What is visible today is narrower:
+What is visible today is:
 
-- The spatial scene has its existing local-map floor, ash, rubble, wall, pillar, and table imagery, with the provisional material palette introduced in v0.53.21.
+- The spatial scene has its existing local-map floor, ash, rubble, wall, pillar, and table imagery, with the provisional material palette introduced in v0.53.21. Floor tiles now receive a biome-specific tint from the location anchor (ocean, coast, desert, grassland, temperate forest, taiga, tundra, or alpine). Other material types retain their existing material palette.
 - The spatial scene presents the existing sky and celestial cycle from world time, plus player and available actor sprites.
 - Route/frontier passages and cave transitions have semantic categories and provisional renderer tints. They still use generic passage imagery rather than a complete set of dedicated route, entrance, shaft, and tunnel assets; those needs are tracked in [#491](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/491).
 - Cave topology is connected to reachable local-map transitions, but the generated chamber network is not yet rendered as a continuous or geographically detailed underground landscape.
 - Location archetypes affect deterministic placement only. They do not currently give settlements, wilderness locations, or landmarks distinct visual layouts or environmental art.
 
-In particular, the current material palette is not biome rendering: a forest, desert, tundra, alpine region, river, or lake is not yet guaranteed to look different in local exploration because of its macro-geography classification. The World Map also remains an interim route-graph presentation, not a rendered continuous geographic map.
+The biome tint makes broad climate regions visually distinguishable, but it does not yet render macro elevation, mountain silhouettes, shoreline shapes, rivers, lakes, vegetation, or underground geology as actual landscape features. The World Map also remains an interim route-graph presentation, not a rendered continuous geographic map.
 
-The next presentation stage is to connect macro samples to local-map environmental composition and then supply coherent, region-appropriate terrain, vegetation, water, mountain, and underground assets. Keep this presentation layer downstream of the renderer-neutral geography model; it must not become a second source of terrain, route, or water truth.
+New outdoor local maps now default to 64×48 tiles instead of the prototype's 24×16. Compact interiors remain smaller where appropriate; the authored shrine chamber uses 32×24. World Lab offers 64×48, 80×56, and 96×64 presets. Existing saved maps keep their dimensions and geometry; changing defaults never resizes a player's established map. This is an initial scale increase, not the final target. Outdoor areas should eventually take several minutes to cross, and regions must be substantially larger than one local map. See [world scale and travel](../design/world-scale-and-travel.md).
+
+The next presentation stage is to turn macro elevation, mountain ridges, shorelines, rivers, lakes, and underground structure into coherent landscape composition and then supply region-appropriate terrain, vegetation, water, mountain, and underground assets. Keep this presentation layer downstream of the renderer-neutral geography model; it must not become a second source of terrain, route, or water truth.
 
 Implemented in v0.53.1:
 
@@ -193,7 +195,7 @@ Existing saves may deserialize without region coordinates, a geography seed, or 
 
 ## Boundaries and remaining work
 
-The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, deterministic vertical candidates, persistent individual cave-chamber locations/routes, and authored local-map connection-side preferences are implemented. Authored preferences select only a compass side; safe exact tile placement remains generated, reachable, centered, and deterministic. Existing passage positions remain authoritative. Environmental placement archetypes are implemented: settlements prefer flatter land near classified freshwater, wilderness locations retain broad land preferences, and landmarks favor elevated, geologically distinctive terrain. Dedicated route artwork is tracked under #491.
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, deterministic vertical candidates, and persistent individual cave-chamber locations/routes are implemented. Remaining geography/topology work is richer authored-location connection placement. Environmental placement archetypes are implemented: settlements prefer flatter land near classified freshwater, wilderness locations retain broad land preferences, and landmarks favor elevated, geologically distinctive terrain. Dedicated route artwork is tracked under #491.
 
 The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 
@@ -215,3 +217,5 @@ New location anchors use an authored `archetype` preference, defaulting to `wild
 - `landmark` favors higher elevation and stronger mountain-ridge character, allowing distinctive elevated sites.
 
 Land is required for generated candidates, and a full requested footprint is strongly preferred before archetype preferences are applied. These are deterministic ranking preferences, not hard biome restrictions or guarantees that a region contains every archetype's ideal terrain. Freshwater proximity uses the existing bounded hydrology sampler; no water state is added or persisted. Explicit authored anchors remain authoritative. Existing saved location anchors are never moved; the location-geography embedding version advances so older worlds that still lack anchors use the new placement policy when migrated.
+
+Authored local-map connection-side preferences are also implemented. They choose only a compass side; exact safe and reachable passage positions remain generated deterministically, and established passage positions remain authoritative.
