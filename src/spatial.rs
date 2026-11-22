@@ -157,9 +157,9 @@ impl SpatialProp {
     }
 }
 
-/// A physical passage at the edge of a local map. Its destination uses the
-/// persistent world location ID and is validated against the authoritative
-/// location graph before the existing travel rules are applied.
+/// A physical local-map transition. Ordinary routes occupy map edges; cave
+/// entrances and shafts occupy reachable interior tiles. Destinations are
+/// validated against the authoritative world graph before travel is applied.
 /// A canonical boundary between two cardinally adjacent map cells.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GridEdge {
@@ -274,7 +274,7 @@ pub struct LocalMap {
     /// Empty when loading a save created before interior doors were introduced.
     #[serde(default)]
     pub doors: Vec<SpatialDoor>,
-    /// Connected world locations reachable through physical map-edge passages.
+    /// Connected world locations reachable through physical edge or interior passages.
     /// Defaults empty when a map has no world-location passages.
     #[serde(default)]
     pub exits: Vec<MapExit>,
