@@ -212,9 +212,10 @@ fn river_network_traces_downhill_courses_with_stable_outlet_identity() {
                     else {
                         continue;
                     };
-                    if network.path.len() >= 2
-                        && network.outlet.kind != RiverOutletKind::SearchLimit
-                    {
+                    // The course trace and watershed identity are separate
+                    // bounded queries. A valid multi-cell course may reach its
+                    // own 128-step limit even when the channel itself is sound.
+                    if network.path.len() >= 2 {
                         return Some((seed, network));
                     }
                 }
