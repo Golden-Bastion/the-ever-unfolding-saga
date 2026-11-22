@@ -32,8 +32,7 @@ use crate::spatial::{
     configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout,
     ExplorationSession, GridPosition, LocalMap, LocalMapConfig, MapExit, MapExitVisualKind,
     MapRouteDestination, SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind,
-    SpatialPropKind,
-    Terrain,
+    SpatialPropKind, Terrain,
 };
 use crate::spatial_animation::{
     PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,

@@ -1502,8 +1502,7 @@ fn new_route_and_frontier_passages_prefer_centered_edge_positions() {
     assert_eq!(route_exit.position.x, route_map.width - 1);
     assert!((i32::from(route_exit.position.y) - i32::from(route_map.height / 2)).abs() <= 1);
 
-    let mut frontier_map =
-        generate_local_map(9_202, "location.10", LocalMapConfig::default());
+    let mut frontier_map = generate_local_map(9_202, "location.10", LocalMapConfig::default());
     frontier_map.terrain.fill(Terrain::Floor);
     frontier_map.props.clear();
     frontier_map.points_of_interest.clear();

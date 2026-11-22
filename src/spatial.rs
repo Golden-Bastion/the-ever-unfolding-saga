@@ -2234,11 +2234,7 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
             ],
         };
         let side_positions = compass_sides.map(|side| edge_positions_center_out(map, side));
-        let max_slots = side_positions
-            .iter()
-            .map(Vec::len)
-            .max()
-            .unwrap_or(0);
+        let max_slots = side_positions.iter().map(Vec::len).max().unwrap_or(0);
         let positions = (0..max_slots)
             .flat_map(|slot| {
                 side_positions
