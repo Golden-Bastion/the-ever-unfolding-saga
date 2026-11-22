@@ -1673,14 +1673,21 @@ fn water_is_impassable_while_sand_remains_walkable() {
 
 #[test]
 fn geography_shaped_outdoor_maps_are_open_and_keep_the_discovery_reachable() {
-    let seed = 73;
-    let anchor = (-64..=64)
-        .flat_map(|y| (-64..=64).map(move |x| MacroCoordinate::new(x, y)))
+    // Match the established continental-field fixture: this seed and broad,
+    // coarse scan are already verified to contain substantial land and ocean.
+    let seed = 7_321;
+    let anchor = (-32_768..32_768)
+        .step_by(1_024)
+        .flat_map(|y| {
+            (-32_768..32_768)
+                .step_by(1_024)
+                .map(move |x| MacroCoordinate::new(x, y))
+        })
         .find(|coordinate| {
             terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate)
                 .is_some_and(|sample| sample.is_land())
         })
-        .expect("test seed should have a land sample");
+        .expect("the continental-field fixture should contain a land sample");
 
     let surface = LocalSurfaceMap::sample_location(
         seed,
