@@ -1665,7 +1665,7 @@ fn map_exit_visual_kind_distinguishes_surface_profiles_frontiers_and_cave_links(
 }
 
 #[test]
-fn water_is_impassable_while_sand_remains_walkable() {
+fn water_and_walls_are_impassable_while_land_and_crossings_are_walkable() {
     assert!(!Terrain::Water.is_walkable());
     assert!(!Terrain::Wall.is_walkable());
     assert!(Terrain::Sand.is_walkable());
