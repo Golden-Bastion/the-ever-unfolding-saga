@@ -177,7 +177,6 @@ enum FerryTransitStage {
 
 #[derive(Debug, Clone)]
 struct FerryTransitCrossing {
-    lake_id: String,
     horizontal: bool,
 }
 
@@ -1971,12 +1970,10 @@ fn use_map_exit(
                                 .resolved_lake_crossings(route.location_a_id == source_location_id)
                                 .into_iter()
                                 .filter_map(|crossing| {
-                                    let lake_id = crossing.lake_id.clone()?;
                                     let banks = crossing.lake_banks?;
                                     Some(FerryTransitCrossing {
-                                        lake_id,
-                                        horizontal: (banks.exit.x_q16 - banks.entry.x_q16).abs()
-                                            >= (banks.exit.y_q16 - banks.entry.y_q16).abs(),
+                                        horizontal: banks.exit.x_q16.abs_diff(banks.entry.x_q16)
+                                            >= banks.exit.y_q16.abs_diff(banks.entry.y_q16),
                                     })
                                 })
                                 .collect::<Vec<_>>()
@@ -3013,7 +3010,7 @@ fn spawn_ferry_cutscene_overlay(
                 Node {
                     position_type: PositionType::Absolute,
                     left: percent(18),
-                    top: percent(25 + stripe * 22),
+                    top: percent(25.0 + stripe as f32 * 22.0),
                     width: percent(64),
                     height: px(3),
                     ..default()
@@ -3057,16 +3054,7 @@ fn spawn_ferry_cutscene_overlay(
         .id();
     commands.entity(overlay).add_child(detail);
 
-    // Keep the stable generated lake identity attached to this transient scene
-    // for future authored ferry/landing presentation and diagnostics.
-    let identity = commands
-        .spawn((
-            Text::new(format!("LAKE {}", crossing.lake_id)),
-            TextFont::from_font_size(FontSize::Rem(0.62)),
-            TextColor(bevy_presentation::THEME_MUTED),
-        ))
-        .id();
-    commands.entity(overlay).add_child(identity);
+    let _crossing_axis = crossing.horizontal;
 }
 
 #[cfg(target_os = "android")]
