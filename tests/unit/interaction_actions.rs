@@ -400,7 +400,7 @@ fn discovery_requires_passages_to_match_authoritative_route_records() {
 
 #[test]
 fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
-    use crate::geography::river_geometry::RiverPosition;
+    use crate::geography::river_geometry::{RiverPosition, RIVER_POSITION_SCALE};
     use crate::geography::routes::{
         LakeBankIntersection, RouteCrossing, RouteCrossingKind, RouteGeography,
         RouteInfrastructure, RoutePlanningStatus, RouteProfile,
@@ -434,8 +434,14 @@ fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
         river_banks: None,
         lake_id: Some("lake.interaction.fixture".into()),
         lake_banks: resolved.then_some(LakeBankIntersection {
-            entry: RiverPosition { x_q16: 8 * 65_536, y_q16: 12 * 65_536 },
-            exit: RiverPosition { x_q16: 9 * 65_536, y_q16: 12 * 65_536 },
+            entry: RiverPosition {
+                x_q16: 8 * RIVER_POSITION_SCALE,
+                y_q16: 12 * RIVER_POSITION_SCALE,
+            },
+            exit: RiverPosition {
+                x_q16: 9 * RIVER_POSITION_SCALE,
+                y_q16: 12 * RIVER_POSITION_SCALE,
+            },
         }),
     };
 
