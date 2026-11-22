@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BinaryHeap, HashMap};
 use serde::{Deserialize, Serialize};
 
 use super::hydrology::SurfaceWaterKind;
+use super::rivers::{self, RiverFlowDirection, RiverId, RiverWidthClass};
 use super::{hydrology, terrain, MacroCoordinate};
 use crate::model::World;
 
@@ -81,9 +82,13 @@ pub enum RouteCrossingKind {
 #[serde(rename_all = "snake_case")]
 pub enum RouteInfrastructure {
     None,
+    /// Legacy combined value retained for existing persisted route records.
     FordOrBridge,
+    Ford,
+    Bridge,
     Ferry,
     Survey,
+    Impassable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,6 +96,15 @@ pub struct RouteCrossing {
     pub coordinate: MacroCoordinate,
     pub kind: RouteCrossingKind,
     pub infrastructure: RouteInfrastructure,
+    /// Stable basin/outlet identity for confirmed river crossings.
+    #[serde(default)]
+    pub river_id: Option<RiverId>,
+    /// Relative channel width, derived from bounded contributing area.
+    #[serde(default)]
+    pub river_width: Option<RiverWidthClass>,
+    /// Flow direction at the crossing, useful when orienting future bridges.
+    #[serde(default)]
+    pub river_flow_direction: Option<RiverFlowDirection>,
 }
 
 /// Persisted, deterministic route geometry and the physical features it crosses.
@@ -596,6 +610,9 @@ fn classify_crossings(
                 *coordinate,
                 RouteCrossingKind::MountainPass,
                 RouteInfrastructure::None,
+                None,
+                None,
+                None,
             );
         }
 
@@ -608,20 +625,73 @@ fn classify_crossings(
         else {
             continue;
         };
-        let (kind, infrastructure) = match water.kind() {
-            SurfaceWaterKind::Ocean => (RouteCrossingKind::Ocean, RouteInfrastructure::Ferry),
-            SurfaceWaterKind::Lake(_) => (RouteCrossingKind::Lake, RouteInfrastructure::Ferry),
-            SurfaceWaterKind::River(_) => {
-                (RouteCrossingKind::River, RouteInfrastructure::FordOrBridge)
+        match water.kind() {
+            SurfaceWaterKind::Ocean => push_crossing(
+                &mut crossings,
+                *coordinate,
+                RouteCrossingKind::Ocean,
+                RouteInfrastructure::Impassable,
+                None,
+                None,
+                None,
+            ),
+            SurfaceWaterKind::Lake(_) => push_crossing(
+                &mut crossings,
+                *coordinate,
+                RouteCrossingKind::Lake,
+                RouteInfrastructure::Ferry,
+                None,
+                None,
+                None,
+            ),
+            SurfaceWaterKind::River(river) => {
+                // One contiguous river run is one physical crossing. Trace only
+                // its first sampled cell so route sampling remains bounded.
+                if crossings
+                    .last()
+                    .is_some_and(|last| last.kind == RouteCrossingKind::River)
+                {
+                    continue;
+                }
+                let network = rivers::trace_network(
+                    world_seed,
+                    ruleset_version,
+                    river.coarse_cell(),
+                );
+                let flow_direction = network
+                    .as_ref()
+                    .and_then(|network| network.path.first())
+                    .and_then(|point| point.flow_direction);
+                push_crossing(
+                    &mut crossings,
+                    *coordinate,
+                    RouteCrossingKind::River,
+                    river_infrastructure(river.width_class()),
+                    network.map(|network| network.id),
+                    Some(river.width_class()),
+                    flow_direction,
+                );
             }
-            SurfaceWaterKind::UnresolvedRiver(_) => (
+            SurfaceWaterKind::UnresolvedRiver(_) => push_crossing(
+                &mut crossings,
+                *coordinate,
                 RouteCrossingKind::UnresolvedWater,
                 RouteInfrastructure::Survey,
+                None,
+                None,
+                None,
             ),
-        };
-        push_crossing(&mut crossings, *coordinate, kind, infrastructure);
+        }
     }
     crossings
+}
+
+fn river_infrastructure(width: RiverWidthClass) -> RouteInfrastructure {
+    if width.is_fordable() {
+        RouteInfrastructure::Ford
+    } else {
+        RouteInfrastructure::Bridge
+    }
 }
 
 fn push_crossing(
@@ -629,14 +699,24 @@ fn push_crossing(
     coordinate: MacroCoordinate,
     kind: RouteCrossingKind,
     infrastructure: RouteInfrastructure,
+    river_id: Option<RiverId>,
+    river_width: Option<RiverWidthClass>,
+    river_flow_direction: Option<RiverFlowDirection>,
 ) {
-    if crossings.last().is_some_and(|last| last.kind == kind) {
+    let same_crossing = crossings.last().is_some_and(|last| {
+        last.kind == kind
+            && (kind != RouteCrossingKind::River || last.river_id == river_id)
+    });
+    if same_crossing {
         return;
     }
     crossings.push(RouteCrossing {
         coordinate,
         kind,
         infrastructure,
+        river_id,
+        river_width,
+        river_flow_direction,
     });
 }
 
