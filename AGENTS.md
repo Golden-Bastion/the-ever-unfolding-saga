@@ -110,18 +110,20 @@ A foundation should support foreseeable development without attempting to implem
 
 ## 7. Persistence and compatibility
 
-Saved games are part of the project's user-facing functionality.
+Compatibility protects player trust; it is not an obligation to preserve prototype history.
 
 When modifying persistent data:
 
-- Consider existing save compatibility.
-- Prefer explicit, versioned migrations when a format change requires them.
-- Avoid silently discarding data.
+- Consider save compatibility in the context of the project's release stage and the value of the data.
+- During prototyping and pre-release development, project-owned test saves, generated maps and worlds, placeholder content, and internal data may be reset, regenerated, or redesigned when that better serves the intended game.
+- Do not let prototype layouts, generated content, or old implementation details constrain the intended architecture or player experience.
+- Preserve or migrate meaningful player progress when proportionate and compatible with the intended design. Released and long-running campaigns deserve more care than disposable test data.
+- Prefer explicit, versioned migrations when migration is warranted. Use backups and clear warnings for intentional breaking changes when feasible.
+- Do not silently discard valuable player-owned data. When an intentional change invalidates data, state that clearly in documentation and the PR, and provide safe recovery or regeneration when practical.
 - Keep transient presentation state separate from persistent world and character state.
-- Ensure stable identifiers remain meaningful across save/load cycles.
+- Ensure stable identifiers remain meaningful where the corresponding content remains part of the intended game.
 
-Do not make breaking save-format changes casually.
-
+Backward compatibility is a means of protecting players, not an end in itself. A deliberate redesign or breaking change is acceptable when it is the soundest way to achieve the current product direction.
 ## 8. Gameplay and design constraints
 
 Keep the established design direction in mind when implementing gameplay systems:
