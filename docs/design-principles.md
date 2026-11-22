@@ -120,6 +120,10 @@ This document is the canonical record of the current product direction. It super
 93. **Fully offline-capable single-player.** The complete single-player experience—including core gameplay, simulation, and local saves—works without internet access. Connectivity may enable optional conveniences but must not be required for play.
 94. **Player-controlled updates.** Players decide when to download and install updates. Update delivery should respect that choice, avoid unexpectedly interrupting play, and work alongside save-compatibility safeguards.
 
+## IX. Product direction and prototype evolution
+
+95. **Vision over prototype preservation.** The intended game and player experience—not the current implementation—is the source of truth. Prototype-era code, data models, generated worlds and maps, placeholder assets, and technical decisions are provisional. Redesign, replace, regenerate, or discard them when they constrain the intended experience. Do not perpetuate a limitation merely because it already exists or because work has been invested in it. Preserve meaningful player progress when practical, but do not confuse that with preserving every prototype artifact. During pre-release development, resetting or regenerating project-owned prototype data is acceptable when it is the better path to the game we intend to build. Backward compatibility is a means to protect players, not a goal that outranks the vision; make consequential breaking changes deliberate and document their effects.
+
 ## How to apply these principles
 
 - Treat this document as the current product-direction authority when older prose conflicts with it.
