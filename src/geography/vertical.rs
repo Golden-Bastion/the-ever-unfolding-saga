@@ -50,9 +50,11 @@ pub fn connection_for_cell(
         return None;
     }
     let lower_stratum = upper_stratum.checked_sub(1)?;
-    let base_x = cell_x.checked_mul(underground::NETWORK_CELL_SAMPLES)?
+    let base_x = cell_x
+        .checked_mul(underground::NETWORK_CELL_SAMPLES)?
         .checked_add(underground::NETWORK_CELL_SAMPLES / 2)?;
-    let base_y = cell_y.checked_mul(underground::NETWORK_CELL_SAMPLES)?
+    let base_y = cell_y
+        .checked_mul(underground::NETWORK_CELL_SAMPLES)?
         .checked_add(underground::NETWORK_CELL_SAMPLES / 2)?;
     let kind = if upper_stratum == 0 {
         VerticalConnectionKind::SurfaceEntrance
@@ -75,16 +77,14 @@ pub fn connection_for_cell(
             };
             let upper = MacroCoordinate::in_stratum(x, y, upper_stratum);
             let lower = MacroCoordinate::in_stratum(x, y, lower_stratum);
-            let lower_open = underground::sample_underground(
-                world_seed, ruleset_version, lower,
-            ).is_some_and(|sample| sample.is_open());
+            let lower_open = underground::sample_underground(world_seed, ruleset_version, lower)
+                .is_some_and(|sample| sample.is_open());
             let upper_open = if upper_stratum == 0 {
                 terrain::sample_surface(world_seed, ruleset_version, upper)
                     .is_some_and(|sample| sample.is_land())
             } else {
-                underground::sample_underground(
-                    world_seed, ruleset_version, upper,
-                ).is_some_and(|sample| sample.is_open())
+                underground::sample_underground(world_seed, ruleset_version, upper)
+                    .is_some_and(|sample| sample.is_open())
             };
 
             if upper_open && lower_open {
@@ -104,12 +104,13 @@ pub fn connection_for_cell(
 
     let (_, lower) = best?;
     let upper = MacroCoordinate::in_stratum(lower.x, lower.y, upper_stratum);
-    let id = coordinate_seed(
-        world_seed,
-        ruleset_version ^ 0x5348_4146,
+    let id = coordinate_seed(world_seed, ruleset_version ^ 0x5348_4146, upper);
+    Some(VerticalConnection {
+        id,
         upper,
-    );
-    Some(VerticalConnection { id, upper, lower, kind })
+        lower,
+        kind,
+    })
 }
 
 /// Find vertical connections adjacent to the queried layer in a bounded
@@ -140,16 +141,20 @@ pub fn connections_near(
                 let (Some(x), Some(y)) = (cell_x.checked_add(dx), cell_y.checked_add(dy)) else {
                     continue;
                 };
-                if let Some(connection) = connection_for_cell(
-                    world_seed, ruleset_version, x, y, upper_stratum,
-                ) {
+                if let Some(connection) =
+                    connection_for_cell(world_seed, ruleset_version, x, y, upper_stratum)
+                {
                     connections.push(connection);
                 }
             }
         }
     }
     connections.sort_by_key(|connection| {
-        (connection.upper.stratum, connection.upper.x, connection.upper.y)
+        (
+            connection.upper.stratum,
+            connection.upper.x,
+            connection.upper.y,
+        )
     });
     connections
 }

@@ -6,9 +6,9 @@ fn surface_entrances_are_land_to_open_cave_and_deterministic() {
     let mut found = None;
     'search: for cell_y in -24..24 {
         for cell_x in -24..24 {
-            if let Some(connection) = connection_for_cell(
-                7_321, GEOGRAPHY_RULESET_VERSION, cell_x, cell_y, 0,
-            ) {
+            if let Some(connection) =
+                connection_for_cell(7_321, GEOGRAPHY_RULESET_VERSION, cell_x, cell_y, 0)
+            {
                 found = Some(connection);
                 break 'search;
             }
@@ -18,15 +18,31 @@ fn surface_entrances_are_land_to_open_cave_and_deterministic() {
     assert_eq!(entrance.kind, VerticalConnectionKind::SurfaceEntrance);
     assert_eq!(entrance.upper.stratum, 0);
     assert_eq!(entrance.lower.stratum, -1);
-    assert!(terrain::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, entrance.upper)
-        .unwrap().is_land());
-    assert!(underground::sample_underground(7_321, GEOGRAPHY_RULESET_VERSION, entrance.lower)
-        .unwrap().is_open());
+    assert!(
+        terrain::sample_surface(7_321, GEOGRAPHY_RULESET_VERSION, entrance.upper)
+            .unwrap()
+            .is_land()
+    );
+    assert!(
+        underground::sample_underground(7_321, GEOGRAPHY_RULESET_VERSION, entrance.lower)
+            .unwrap()
+            .is_open()
+    );
     assert_eq!(
         Some(entrance),
-        connection_for_cell(7_321, GEOGRAPHY_RULESET_VERSION,
-            entrance.upper.x.div_euclid(underground::NETWORK_CELL_SAMPLES),
-            entrance.upper.y.div_euclid(underground::NETWORK_CELL_SAMPLES), 0)
+        connection_for_cell(
+            7_321,
+            GEOGRAPHY_RULESET_VERSION,
+            entrance
+                .upper
+                .x
+                .div_euclid(underground::NETWORK_CELL_SAMPLES),
+            entrance
+                .upper
+                .y
+                .div_euclid(underground::NETWORK_CELL_SAMPLES),
+            0
+        )
     );
 }
 
@@ -35,9 +51,9 @@ fn inter_stratum_connections_join_adjacent_open_cave_layers() {
     let mut found = None;
     'search: for cell_y in -16..16 {
         for cell_x in -16..16 {
-            if let Some(connection) = connection_for_cell(
-                42, GEOGRAPHY_RULESET_VERSION, cell_x, cell_y, -1,
-            ) {
+            if let Some(connection) =
+                connection_for_cell(42, GEOGRAPHY_RULESET_VERSION, cell_x, cell_y, -1)
+            {
                 found = Some(connection);
                 break 'search;
             }
@@ -47,31 +63,35 @@ fn inter_stratum_connections_join_adjacent_open_cave_layers() {
     assert_eq!(shaft.kind, VerticalConnectionKind::InterStratum);
     assert_eq!(shaft.upper.stratum, -1);
     assert_eq!(shaft.lower.stratum, -2);
-    assert!(underground::sample_underground(42, GEOGRAPHY_RULESET_VERSION, shaft.upper)
-        .unwrap().is_open());
-    assert!(underground::sample_underground(42, GEOGRAPHY_RULESET_VERSION, shaft.lower)
-        .unwrap().is_open());
-    assert!(connections_near(
-        42,
-        GEOGRAPHY_RULESET_VERSION,
-        shaft.lower,
-        0,
-    )
-    .contains(&shaft), "the lower stratum must discover its upward connection");
+    assert!(
+        underground::sample_underground(42, GEOGRAPHY_RULESET_VERSION, shaft.upper)
+            .unwrap()
+            .is_open()
+    );
+    assert!(
+        underground::sample_underground(42, GEOGRAPHY_RULESET_VERSION, shaft.lower)
+            .unwrap()
+            .is_open()
+    );
+    assert!(
+        connections_near(42, GEOGRAPHY_RULESET_VERSION, shaft.lower, 0,).contains(&shaft),
+        "the lower stratum must discover its upward connection"
+    );
 }
 
 #[test]
 fn vertical_links_are_stable_and_never_skip_strata() {
     for upper_stratum in [0, -1, -2, -8] {
-        if let Some(connection) = connection_for_cell(
-            99, GEOGRAPHY_RULESET_VERSION, -3, 7, upper_stratum,
-        ) {
+        if let Some(connection) =
+            connection_for_cell(99, GEOGRAPHY_RULESET_VERSION, -3, 7, upper_stratum)
+        {
             assert_eq!(connection.upper.stratum, upper_stratum);
             assert_eq!(connection.lower.stratum, upper_stratum - 1);
             assert_eq!(
                 connection.id,
                 connection_for_cell(99, GEOGRAPHY_RULESET_VERSION, -3, 7, upper_stratum)
-                    .unwrap().id
+                    .unwrap()
+                    .id
             );
         }
     }
@@ -86,7 +106,12 @@ fn nearby_queries_are_bounded_and_order_independent() {
     let second = connections_near(7_321, GEOGRAPHY_RULESET_VERSION, origin, 2);
     assert_eq!(first, second);
     assert!(first.len() <= 50);
-    assert!(connections_near(7_321, GEOGRAPHY_RULESET_VERSION,
-        MacroCoordinate::new(0, 0), 1).iter()
-        .all(|connection| connection.upper.stratum == 0));
+    assert!(connections_near(
+        7_321,
+        GEOGRAPHY_RULESET_VERSION,
+        MacroCoordinate::new(0, 0),
+        1
+    )
+    .iter()
+    .all(|connection| connection.upper.stratum == 0));
 }
