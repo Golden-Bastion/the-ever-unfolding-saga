@@ -595,6 +595,7 @@ pub(crate) fn enter(
     state.sandbox_mode = false;
     let Some(location) = game.world.location_by_id(game.character.location_id) else {
         state.biome = None;
+        state.surface = None;
         return;
     };
     let location_id = format!("location.{}", location.id);
@@ -3715,6 +3716,7 @@ fn surface_biome_at(
 ) -> Option<Biome> {
     surface
         .and_then(|surface| surface.sample_at_tile(position.x, position.y))
+        .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
         .map(|sample| sample.biome())
 }
 
