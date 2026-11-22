@@ -7,7 +7,8 @@
 
 use super::{
     climate::{self, Biome},
-    river_geometry::{RiverGeometryCache, RiverPosition, RiverWidthClass},
+    river_geometry::{RiverGeometryCache, RiverPosition},
+    rivers::RiverWidthClass,
     terrain, waterbodies, MacroCoordinate,
 };
 
