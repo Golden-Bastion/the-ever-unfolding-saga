@@ -51,6 +51,13 @@ fn inter_stratum_connections_join_adjacent_open_cave_layers() {
         .unwrap().is_open());
     assert!(underground::sample_underground(42, GEOGRAPHY_RULESET_VERSION, shaft.lower)
         .unwrap().is_open());
+    assert!(connections_near(
+        42,
+        GEOGRAPHY_RULESET_VERSION,
+        shaft.lower,
+        0,
+    )
+    .contains(&shaft), "the lower stratum must discover its upward connection");
 }
 
 #[test]
@@ -78,7 +85,7 @@ fn nearby_queries_are_bounded_and_order_independent() {
     let first = connections_near(7_321, GEOGRAPHY_RULESET_VERSION, origin, u8::MAX);
     let second = connections_near(7_321, GEOGRAPHY_RULESET_VERSION, origin, 2);
     assert_eq!(first, second);
-    assert!(first.len() <= 25);
+    assert!(first.len() <= 50);
     assert!(connections_near(7_321, GEOGRAPHY_RULESET_VERSION,
         MacroCoordinate::new(0, 0), 1).iter()
         .all(|connection| connection.upper.stratum == 0));
