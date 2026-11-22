@@ -153,6 +153,14 @@ Implemented in v0.53.18:
 - Cave routes deliberately do not receive surface A* paths. The existing overland planner reports unsupported strata rather than inventing a surface corridor. Local-map shaft/entrance placement and interaction remain the next integration step; this stage changes persistent world topology only.
 - Generated cave geometry remains derived on demand. Only materialized locations, regions, and routes are persisted; repeated requests are idempotent and no world-sized scan or recursive network generation is performed.
 
+Implemented in v0.53.20:
+
+- New surface-route and frontier passages use center-out edge candidates. The first connection approaches near the middle of its selected side; additional connections spread symmetrically toward the corners. Existing saved passage IDs and positions are not relocated.
+- The placement order still honors the persisted macro route heading, deterministic compass-side fallback, and authored gate threshold waypoints. This improves the local connection point without pretending the coarse macro route path is detailed local-map road geometry.
+- `MapExit::visual_kind` derives a renderer-neutral category from the stored route profile, pending-frontier state, or cave target: trail, mountain pass, river/water crossing, mixed/uncertain/unclassified route, frontier, surface cave entrance, vertical shaft, or horizontal cave passage.
+- The Bevy spatial renderer maps those categories to restrained provisional tints while retaining one generic passage image. Dedicated physical route and cave assets are tracked in [#491](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/491); gameplay route identity and reachability do not depend on the art.
+- Local-map generator version 7 records the placement behavior change. Established maps are not regenerated and their existing passages remain untouched; only newly added passages use center-out placement.
+
 Implemented in v0.53.19:
 
 - `spatial::configure_map_cave_connections` converts the immediate cave targets for a location into physical interior map passages. Surface locations expose up to three nearest nearby entrances; cave chambers expose their immediate horizontal neighbors and adjacent-stratum shafts.
@@ -169,7 +177,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 ## Boundaries and remaining work
 
-The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, deterministic vertical candidates, and persistent individual cave-chamber locations/routes are implemented. Remaining geography/topology work is richer route-specific connection-point placement and visual treatment for all route types.
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, deterministic vertical candidates, and persistent individual cave-chamber locations/routes are implemented. Remaining geography/topology work is richer authored-location connection placement and environmental archetype constraints. Dedicated route artwork is tracked under #491.
 
 The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 

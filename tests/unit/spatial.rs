@@ -1292,6 +1292,15 @@ fn route_reconciliation_distributes_new_passages_round_robin_by_compass_side() {
         sides,
         vec!["east", "west", "north", "south", "east", "west"]
     );
+    let east_positions = map
+        .exits
+        .iter()
+        .filter(|exit| exit.position.x == map.width - 1)
+        .map(|exit| exit.position.y)
+        .collect::<Vec<_>>();
+    let center_y = 1 + (map.height - 3) / 2;
+    assert_eq!(east_positions[0], center_y);
+    assert!((i32::from(east_positions[1]) - i32::from(center_y)).abs() == 1);
 }
 
 #[test]
@@ -1465,4 +1474,132 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
         linked.exits[0].route_id.as_deref(),
         Some("route.cave.vertical.fixture.entrance")
     );
+}
+
+#[test]
+fn new_route_and_frontier_passages_prefer_centered_edge_positions() {
+    use crate::geography::frontier::{FrontierDirection, FrontierTarget};
+    use crate::geography::RegionCoordinate;
+    use crate::spatial::MapExitSide;
+
+    let mut route_map = generate_local_map(9_201, "location.10", LocalMapConfig::default());
+    route_map.terrain.fill(Terrain::Floor);
+    route_map.props.clear();
+    route_map.points_of_interest.clear();
+    route_map.interactables.clear();
+    route_map.encounters.clear();
+    configure_map_routes(
+        &mut route_map,
+        &[MapRouteDestination {
+            route_id: "route.centered.east".into(),
+            target_location_id: 20,
+            profile: None,
+            preferred_side: Some(MapExitSide::East),
+            frontier_id: None,
+        }],
+    );
+    let route_exit = &route_map.exits[0];
+    assert_eq!(route_exit.position.x, route_map.width - 1);
+    assert!((i32::from(route_exit.position.y) - i32::from(route_map.height / 2)).abs() <= 1);
+
+    let mut frontier_map = generate_local_map(9_202, "location.10", LocalMapConfig::default());
+    frontier_map.terrain.fill(Terrain::Floor);
+    frontier_map.props.clear();
+    frontier_map.points_of_interest.clear();
+    frontier_map.interactables.clear();
+    frontier_map.encounters.clear();
+    let frontier = FrontierTarget {
+        id: "frontier.centered.east".into(),
+        target_region: RegionCoordinate::new(1, 0),
+        direction: FrontierDirection::East,
+    };
+    configure_map_frontiers(&mut frontier_map, &[frontier]);
+    let frontier_exit = &frontier_map.exits[0];
+    assert_eq!(frontier_exit.position.x, frontier_map.width - 1);
+    assert!((i32::from(frontier_exit.position.y) - i32::from(frontier_map.height / 2)).abs() <= 1);
+}
+
+#[test]
+fn map_exit_visual_kind_distinguishes_surface_profiles_frontiers_and_cave_links() {
+    use crate::geography::caves::{CaveConnectionKind, CaveConnectionTarget};
+    use crate::geography::frontier::{FrontierDirection, FrontierTarget};
+    use crate::geography::routes::RouteProfile;
+    use crate::geography::{MacroCoordinate, RegionCoordinate};
+    use crate::spatial::MapExitVisualKind;
+
+    let make_exit = |profile| MapExit {
+        id: "location.10.exit".into(),
+        route_id: Some("route.test".into()),
+        route_profile: profile,
+        frontier: None,
+        cave_target: None,
+        position: GridPosition { x: 1, y: 1 },
+        target_location_id: 20,
+    };
+    assert_eq!(
+        make_exit(Some(RouteProfile::Trail)).visual_kind(),
+        MapExitVisualKind::Trail
+    );
+    assert_eq!(
+        make_exit(Some(RouteProfile::MountainPass)).visual_kind(),
+        MapExitVisualKind::MountainPass
+    );
+    assert_eq!(
+        make_exit(Some(RouteProfile::RiverCrossing)).visual_kind(),
+        MapExitVisualKind::RiverCrossing
+    );
+    assert_eq!(
+        make_exit(Some(RouteProfile::WaterCrossing)).visual_kind(),
+        MapExitVisualKind::WaterCrossing
+    );
+    assert_eq!(
+        make_exit(Some(RouteProfile::Mixed)).visual_kind(),
+        MapExitVisualKind::MixedRoute
+    );
+    assert_eq!(
+        make_exit(Some(RouteProfile::Inconclusive)).visual_kind(),
+        MapExitVisualKind::UncertainRoute
+    );
+    assert_eq!(
+        make_exit(None).visual_kind(),
+        MapExitVisualKind::UnclassifiedRoute
+    );
+
+    let mut frontier_exit = make_exit(None);
+    frontier_exit.route_id = None;
+    frontier_exit.target_location_id = 0;
+    frontier_exit.frontier = Some(FrontierTarget {
+        id: "frontier.test".into(),
+        target_region: RegionCoordinate::new(1, 0),
+        direction: FrontierDirection::East,
+    });
+    assert_eq!(frontier_exit.visual_kind(), MapExitVisualKind::Frontier);
+
+    for (kind, expected) in [
+        (
+            CaveConnectionKind::SurfaceEntrance,
+            MapExitVisualKind::CaveEntrance,
+        ),
+        (
+            CaveConnectionKind::VerticalShaft,
+            MapExitVisualKind::VerticalShaft,
+        ),
+        (
+            CaveConnectionKind::HorizontalPassage,
+            MapExitVisualKind::CavePassage,
+        ),
+    ] {
+        let mut cave_exit = make_exit(None);
+        cave_exit.cave_target = Some(CaveConnectionTarget {
+            id: "cave.visual.test".into(),
+            destination_anchor: MacroCoordinate {
+                x: 0,
+                y: 0,
+                stratum: -1,
+            },
+            destination_location_id: None,
+            kind,
+        });
+        assert_eq!(cave_exit.visual_kind(), expected);
+    }
 }
