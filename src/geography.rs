@@ -15,6 +15,7 @@ pub mod coast;
 pub mod depressions;
 pub mod frontier;
 pub mod hydrology;
+pub mod local_surface;
 pub mod locations;
 pub mod mountains;
 pub mod rivers;

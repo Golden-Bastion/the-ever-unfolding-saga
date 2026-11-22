@@ -676,6 +676,8 @@ fn world_lab_map_preview_with_all_holds(
                     Terrain::Floor => '.',
                     Terrain::Ash => ':',
                     Terrain::Rubble => '%',
+                    Terrain::Sand => ',',
+                    Terrain::Water => '~',
                     Terrain::Wall => '#',
                 }
             };
@@ -693,6 +695,8 @@ fn world_lab_terrain_name(terrain: Terrain) -> &'static str {
         Terrain::Floor => "Floor",
         Terrain::Ash => "Ash",
         Terrain::Rubble => "Rubble",
+        Terrain::Sand => "Sand",
+        Terrain::Water => "Water",
         Terrain::Wall => "Wall",
     }
 }
@@ -774,9 +778,11 @@ fn cycle_world_lab_terrain(state: &mut DeveloperToolsState, spatial: &mut Spatia
         return;
     };
     let next = match current {
-        Terrain::Floor => Terrain::Ash,
+        Terrain::Floor => Terrain::Sand,
+        Terrain::Sand => Terrain::Ash,
         Terrain::Ash => Terrain::Rubble,
-        Terrain::Rubble => Terrain::Wall,
+        Terrain::Rubble => Terrain::Water,
+        Terrain::Water => Terrain::Wall,
         Terrain::Wall => Terrain::Floor,
     };
     if map.set_terrain_for_editor(position, next) {

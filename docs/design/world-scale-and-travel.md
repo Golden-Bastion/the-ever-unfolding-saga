@@ -20,7 +20,7 @@ This is a scale requirement, not a request to make every interior enormous. A sh
 
 New outdoor local maps now default to 64×48 tiles, up from the prototype's 24×16. Compact interiors remain smaller where appropriate; the authored shrine chamber uses 32×24. World Lab exposes 64×48, 80×56, and 96×64 presets. The local-map generator version advances for the new dimensions and density, while saved maps retain their established dimensions, terrain, passages, actors, and discoveries.
 
-This is an initial increase, not the final scale target. The current renderer still creates a complete local-map scene rather than streaming a large world in chunks, and the current 64×48 dimensions do not by themselves guarantee the intended multi-minute outdoor traversal. Performance and camera behavior on Android must be measured before increasing the fully rendered tile budget further.
+This is an initial increase, not the final scale target. New generic outdoor maps now derive broad terrain from the location's persisted macro anchor and footprint. A bounded macro sample grid is resampled across local tile dimensions with aspect-ratio-aware sampling; macro samples are not treated as individual tiles or physical distance units. The projection currently distinguishes open land, ocean/lake water, sandy coast/desert, and rocky highlands. The current renderer still creates a complete local-map scene rather than streaming a large world in chunks, and the current 64×48 dimensions do not by themselves guarantee the intended multi-minute outdoor traversal. Performance and camera behavior on Android must be measured before increasing the fully rendered tile budget further.
 
 ## Scale hierarchy
 
