@@ -630,7 +630,7 @@ fn classify_crossings(
                 &mut crossings,
                 *coordinate,
                 RouteCrossingKind::Ocean,
-                RouteInfrastructure::Impassable,
+                infrastructure_for_water(RouteCrossingKind::Ocean, None),
                 None,
                 None,
                 None,
@@ -639,7 +639,7 @@ fn classify_crossings(
                 &mut crossings,
                 *coordinate,
                 RouteCrossingKind::Lake,
-                RouteInfrastructure::Ferry,
+                infrastructure_for_water(RouteCrossingKind::Lake, None),
                 None,
                 None,
                 None,
@@ -666,7 +666,7 @@ fn classify_crossings(
                     &mut crossings,
                     *coordinate,
                     RouteCrossingKind::River,
-                    river_infrastructure(river.width_class()),
+                    infrastructure_for_water(RouteCrossingKind::River, Some(river.width_class())),
                     network.map(|network| network.id),
                     Some(river.width_class()),
                     flow_direction,
@@ -676,7 +676,7 @@ fn classify_crossings(
                 &mut crossings,
                 *coordinate,
                 RouteCrossingKind::UnresolvedWater,
-                RouteInfrastructure::Survey,
+                infrastructure_for_water(RouteCrossingKind::UnresolvedWater, None),
                 None,
                 None,
                 None,
@@ -684,6 +684,21 @@ fn classify_crossings(
         }
     }
     crossings
+}
+
+fn infrastructure_for_water(
+    kind: RouteCrossingKind,
+    river_width: Option<RiverWidthClass>,
+) -> RouteInfrastructure {
+    match kind {
+        RouteCrossingKind::River => river_width
+            .map(river_infrastructure)
+            .unwrap_or(RouteInfrastructure::Survey),
+        RouteCrossingKind::Lake => RouteInfrastructure::Ferry,
+        RouteCrossingKind::Ocean => RouteInfrastructure::Impassable,
+        RouteCrossingKind::UnresolvedWater => RouteInfrastructure::Survey,
+        RouteCrossingKind::MountainPass => RouteInfrastructure::None,
+    }
 }
 
 fn river_infrastructure(width: RiverWidthClass) -> RouteInfrastructure {
