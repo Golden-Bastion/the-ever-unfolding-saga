@@ -1114,7 +1114,7 @@ fn map_exit_profile_defaults_when_loading_an_older_saved_passage() {
         route_id: None,
         route_profile: None,
         frontier: None,
-            cave_target: None,
+        cave_target: None,
         position: GridPosition {
             x: map.width - 1,
             y: 2,
@@ -1182,7 +1182,7 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
         route_id: Some("route.east".into()),
         route_profile: None,
         frontier: None,
-            cave_target: None,
+        cave_target: None,
         position,
         target_location_id: 20,
     };
@@ -1307,7 +1307,7 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
         route_id: None,
         route_profile: None,
         frontier: None,
-            cave_target: None,
+        cave_target: None,
         position,
         target_location_id: 20,
     });
@@ -1402,7 +1402,11 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
     let original_discoveries = map.points_of_interest.clone();
     let target = CaveConnectionTarget {
         id: "vertical.fixture.entrance".into(),
-        destination_anchor: MacroCoordinate { x: 120, y: -64, stratum: -1 },
+        destination_anchor: MacroCoordinate {
+            x: 120,
+            y: -64,
+            stratum: -1,
+        },
         destination_location_id: None,
         kind: CaveConnectionKind::SurfaceEntrance,
     };
@@ -1410,12 +1414,17 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
     configure_map_cave_connections(&mut map, std::slice::from_ref(&target), &[]);
     assert_eq!(map.exits.len(), 1);
     let entrance = map.exits[0].clone();
-    assert!(entrance.cave_target.as_ref().is_some_and(|value| value.id == target.id));
+    assert!(entrance
+        .cave_target
+        .as_ref()
+        .is_some_and(|value| value.id == target.id));
     assert_eq!(entrance.target_location_id, 0);
     assert!(entrance.position.x > 0 && entrance.position.x < map.width - 1);
     assert!(entrance.position.y > 0 && entrance.position.y < map.height - 1);
     assert!(map.is_walkable(entrance.position));
-    assert!(map.reachable_walkable_positions().contains(&entrance.position));
+    assert!(map
+        .reachable_walkable_positions()
+        .contains(&entrance.position));
 
     configure_map_cave_connections(&mut map, std::slice::from_ref(&target), &[]);
     assert_eq!(map.exits, vec![entrance.clone()]);
@@ -1439,7 +1448,10 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
     assert_eq!(map.exits[0].id, entrance.id);
     assert_eq!(map.exits[0].position, entrance.position);
     assert_eq!(map.exits[0].target_location_id, 99);
-    assert_eq!(map.exits[0].route_id.as_deref(), Some(route.route_id.as_str()));
+    assert_eq!(
+        map.exits[0].route_id.as_deref(),
+        Some(route.route_id.as_str())
+    );
 
     let mut linked = generate_local_map(8_194, "location.10", LocalMapConfig::default());
     linked.props.clear();
@@ -1449,5 +1461,8 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
     assert_eq!(linked.exits.len(), 1);
     assert_eq!(linked.exits[0].position, entrance.position);
     assert_eq!(linked.exits[0].target_location_id, 99);
-    assert_eq!(linked.exits[0].route_id.as_deref(), Some("route.cave.vertical.fixture.entrance"));
+    assert_eq!(
+        linked.exits[0].route_id.as_deref(),
+        Some("route.cave.vertical.fixture.entrance")
+    );
 }

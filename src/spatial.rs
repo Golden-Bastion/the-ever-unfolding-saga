@@ -636,7 +636,10 @@ impl LocalMap {
         if target.id.trim().is_empty()
             || exit.id.trim().is_empty()
             || exit.frontier.is_some()
-            || exit.route_id.as_ref().is_some_and(|id| id.trim().is_empty())
+            || exit
+                .route_id
+                .as_ref()
+                .is_some_and(|id| id.trim().is_empty())
             || (exit.target_location_id == 0 && exit.route_id.is_some())
             || source_id.is_some_and(|id| id == exit.target_location_id)
             || self.exits.iter().any(|existing| {
@@ -658,7 +661,10 @@ impl LocalMap {
                 && position.x < self.width.saturating_sub(1)
                 && position.y > 0
                 && position.y < self.height.saturating_sub(1)
-                && !self.exits.iter().any(|existing| existing.position == *position)
+                && !self
+                    .exits
+                    .iter()
+                    .any(|existing| existing.position == *position)
                 && !self
                     .points_of_interest
                     .iter()
@@ -705,11 +711,7 @@ impl LocalMap {
             for (dx, dy) in [(0_i32, -1_i32), (1, 0), (0, 1), (-1, 0)] {
                 let x = i32::from(position.x) + dx;
                 let y = i32::from(position.y) + dy;
-                if x < 0
-                    || y < 0
-                    || x >= i32::from(self.width)
-                    || y >= i32::from(self.height)
-                {
+                if x < 0 || y < 0 || x >= i32::from(self.width) || y >= i32::from(self.height) {
                     continue;
                 }
                 let next = GridPosition {
@@ -2066,7 +2068,9 @@ pub fn configure_map_cave_connections(
             frontier: None,
             cave_target: Some(target),
             position: map.entry,
-            target_location_id: established.map(|route| route.target_location_id).unwrap_or(0),
+            target_location_id: established
+                .map(|route| route.target_location_id)
+                .unwrap_or(0),
         };
         map.place_cave_exit(exit);
     }
@@ -2082,7 +2086,9 @@ pub fn configure_map_cave_connections(
 pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestination]) {
     let mut routes = destinations
         .iter()
-        .filter(|route| !route.route_id.trim().is_empty() && !route.route_id.starts_with("route.cave."))
+        .filter(|route| {
+            !route.route_id.trim().is_empty() && !route.route_id.starts_with("route.cave.")
+        })
         .cloned()
         .collect::<Vec<_>>();
     routes.sort_by(|left, right| left.route_id.cmp(&right.route_id));

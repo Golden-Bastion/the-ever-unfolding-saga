@@ -498,7 +498,7 @@ fn version_four_save_migrates_legacy_edges_and_passages_without_allocating_ids()
         route_id: None,
         route_profile: None,
         frontier: None,
-            cave_target: None,
+        cave_target: None,
         position: crate::spatial::GridPosition {
             x: map.width - 1,
             y: 1,

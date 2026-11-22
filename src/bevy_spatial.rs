@@ -30,8 +30,7 @@ use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_cave_connections, configure_map_frontiers,
     configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout,
-    ExplorationSession,
-    GridPosition, LocalMap, LocalMapConfig, MapExit, MapRouteDestination,
+    ExplorationSession, GridPosition, LocalMap, LocalMapConfig, MapExit, MapRouteDestination,
     SpatialDiscoveryDefinition, SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind,
     Terrain,
 };
