@@ -143,7 +143,11 @@ pub enum RiverFlowDirection {
     NorthWest,
 }
 
-/// One centre point in a traced river course.
+/// One representative centre point in a traced river course.
+///
+/// Its coordinate is the centre of a coarse watershed cell, not a locally
+/// resolved channel pixel or tile. The field provides connected macro-scale
+/// topology; a later presentation layer can refine it into riverbank geometry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RiverPathPoint {
     pub coordinate: MacroCoordinate,
@@ -162,9 +166,10 @@ pub struct RiverOutlet {
 
 /// A connected downstream course through the deterministic watershed graph.
 ///
-/// Tributary traces share an identity when they reach the same outlet. The
-/// path contains channel-cell centres in flow order; the final point records
-/// its next drainage coordinate even when that destination is a lake or ocean.
+/// This is one downstream course, not an eagerly materialized branching tree.
+/// Tributary traces share an identity when they reach the same outlet. The path
+/// contains representative channel-cell centres in flow order; the final point
+/// records its next drainage coordinate even when that destination is a lake or ocean.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RiverNetwork {
     pub id: RiverId,
