@@ -33,8 +33,8 @@ fn surface_entrances_are_land_to_open_cave_and_deterministic() {
 #[test]
 fn inter_stratum_connections_join_adjacent_open_cave_layers() {
     let mut found = None;
-    'search: for cell_y in -64..64 {
-        for cell_x in -64..64 {
+    'search: for cell_y in -16..16 {
+        for cell_x in -16..16 {
             if let Some(connection) = connection_for_cell(
                 42, GEOGRAPHY_RULESET_VERSION, cell_x, cell_y, -1,
             ) {
