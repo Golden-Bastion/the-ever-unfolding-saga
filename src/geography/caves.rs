@@ -47,7 +47,7 @@ impl CaveConnectionTarget {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaveMaterialization {
     pub region_id: u64,
     pub location_id: u64,
@@ -69,8 +69,6 @@ fn cave_location_key(anchor: MacroCoordinate) -> String {
 }
 
 fn horizontal_target_id(
-    seed: u64,
-    ruleset: u32,
     first: MacroCoordinate,
     second: MacroCoordinate,
 ) -> String {
@@ -80,9 +78,10 @@ fn horizontal_target_id(
         } else {
             (second, first)
         };
-    let hash = coordinate_seed(seed, ruleset ^ 0x4341_5648, first)
-        ^ coordinate_seed(seed, ruleset ^ 0x4341_5649, second);
-    format!("horizontal.{:016x}", hash)
+    format!(
+        "horizontal.{}.{}.{}.{}.{}",
+        first.stratum, first.x, first.y, second.x, second.y
+    )
 }
 
 /// Return the immediate cave connections available from one persisted location.
@@ -163,7 +162,7 @@ pub fn connection_targets_for_location(
                 continue;
             };
             targets.push(CaveConnectionTarget {
-                id: horizontal_target_id(seed, ruleset, chamber, neighbor),
+                id: horizontal_target_id(chamber, neighbor),
                 destination_anchor: neighbor,
                 destination_location_id: None,
                 kind: CaveConnectionKind::HorizontalPassage,
@@ -305,7 +304,10 @@ pub fn materialize_connection(
         let id = world.allocate_id();
         world.regions.push(Region {
             id,
-            name: format!("Underground Region ({}, {}, {})", destination_region.x, destination_region.y, destination_region.stratum),
+            name: format!(
+                "Cave Region ({}, {}, {})",
+                destination_region.x, destination_region.y, destination_region.stratum
+            ),
             description: "A region of the underground cave network.".to_string(),
             location_ids: Vec::new(),
             coordinate: Some(destination_region),
