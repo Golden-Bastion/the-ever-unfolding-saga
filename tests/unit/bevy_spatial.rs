@@ -1991,3 +1991,51 @@ fn interior_door_state_blocks_and_allows_continuous_grid_edge_crossing() {
     map.set_door_state(&door.id, crate::spatial::DoorState::Locked);
     assert!(!can_cross_position_edge(&map, from, to));
 }
+
+
+#[test]
+fn spatial_material_palette_distinguishes_existing_terrain_types() {
+    let discovered = [
+        terrain_tint(Terrain::Floor, true),
+        terrain_tint(Terrain::Ash, true),
+        terrain_tint(Terrain::Rubble, true),
+        terrain_tint(Terrain::Wall, true),
+    ];
+    for (index, color) in discovered.iter().enumerate() {
+        assert!(discovered[index + 1..].iter().all(|other| other != color));
+    }
+
+    let undiscovered = [
+        terrain_tint(Terrain::Floor, false),
+        terrain_tint(Terrain::Ash, false),
+        terrain_tint(Terrain::Rubble, false),
+        terrain_tint(Terrain::Wall, false),
+    ];
+    for (index, color) in undiscovered.iter().enumerate() {
+        assert!(undiscovered[index + 1..].iter().all(|other| other != color));
+    }
+
+    for (visible, obscured) in discovered.iter().zip(undiscovered.iter()) {
+        assert_ne!(visible, obscured);
+    }
+}
+
+#[test]
+fn spatial_material_palette_distinguishes_stone_and_wood_props() {
+    assert_ne!(
+        spatial_prop_tint(SpatialPropKind::Pillar, true),
+        spatial_prop_tint(SpatialPropKind::Table, true)
+    );
+    assert_ne!(
+        spatial_prop_tint(SpatialPropKind::Pillar, false),
+        spatial_prop_tint(SpatialPropKind::Table, false)
+    );
+    assert_ne!(
+        spatial_prop_tint(SpatialPropKind::Pillar, true),
+        spatial_prop_tint(SpatialPropKind::Pillar, false)
+    );
+    assert_ne!(
+        spatial_prop_tint(SpatialPropKind::Table, true),
+        spatial_prop_tint(SpatialPropKind::Table, false)
+    );
+}
