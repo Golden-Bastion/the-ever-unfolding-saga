@@ -12,6 +12,23 @@ fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
                 let Some(center) = watershed::cell_center(coarse_x, coarse_y) else {
                     continue;
                 };
+                let Some(terrain_sample) =
+                    terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, center)
+                else {
+                    continue;
+                };
+                if !terrain_sample.is_land()
+                    || watershed::downstream_cell(
+                        seed,
+                        GEOGRAPHY_RULESET_VERSION,
+                        coarse_x,
+                        coarse_y,
+                        terrain_sample.elevation_q16(),
+                    )
+                    .is_some()
+                {
+                    continue;
+                }
                 let Some(lake) =
                     waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, center)
                 else {
@@ -19,7 +36,7 @@ fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
                 };
                 let lake_id = lake.id(seed, GEOGRAPHY_RULESET_VERSION);
 
-                for (dx, dy) in [(1_i64, 0_i64), (0, 1)] {
+                for (dx, dy) in [(1_i64, 0_i64), (0, 1), (1, 1), (1, -1)] {
                     let find_dry_bank = |direction: i64| {
                         (1_i64..=128).find_map(|steps| {
                             let distance = steps * ROUTE_GRID_SPACING;
