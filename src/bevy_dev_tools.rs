@@ -678,7 +678,7 @@ fn world_lab_map_preview_with_all_holds(
                     Terrain::Rubble => '%',
                     Terrain::Sand => ',',
                     Terrain::Water => '~',
-                    Terrain::Ford => ':',
+                    Terrain::Ford => ';',
                     Terrain::Bridge => '=',
                     Terrain::Wall => '#',
                 }
