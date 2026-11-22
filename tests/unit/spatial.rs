@@ -1707,13 +1707,8 @@ fn geography_shaped_outdoor_maps_are_open_and_keep_the_discovery_reachable() {
         map.entry,
         map.points_of_interest[0].position
     ));
-    for y in 1..map.height - 1 {
-        for x in 1..map.width - 1 {
-            assert_ne!(
-                map.terrain_at(GridPosition { x, y }),
-                Some(Terrain::Wall),
-                "generic outdoor terrain should not retain random room walls"
-            );
-        }
-    }
+    assert!(
+        map.terrain.iter().all(|terrain| *terrain != Terrain::Wall),
+        "generic outdoor terrain should not retain random room walls or a masonry perimeter"
+    );
 }

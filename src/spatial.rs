@@ -1299,10 +1299,11 @@ pub fn generate_local_map_with_layout(
 /// Generate an open outdoor map from the location's sampled macro-geography.
 ///
 /// Authored layouts and established saved maps use their own geometry paths.
-/// This function only affects a newly generated generic outdoor map. It keeps
-/// the perimeter wall, replaces prototype room obstacles with broad terrain,
+/// This function only affects a newly generated generic outdoor map. It replaces
+/// prototype room obstacles and the artificial perimeter wall with broad terrain,
 /// removes indoor furniture props, and relocates the entry/discovery point into
-/// the same reachable land component when water divides the footprint.
+/// the same reachable land component when water divides the footprint. Map bounds
+/// remain hard movement limits; connected world routes provide physical exits.
 pub fn generate_local_map_with_surface(
     world_seed: u64,
     location_id: impl Into<String>,
@@ -1313,8 +1314,8 @@ pub fn generate_local_map_with_surface(
     let fallback = map.clone();
     map.props.clear();
 
-    for y in 1..map.height.saturating_sub(1) {
-        for x in 1..map.width.saturating_sub(1) {
+    for y in 0..map.height {
+        for x in 0..map.width {
             let terrain = surface
                 .sample_at_tile(x, y)
                 .map(local_surface_terrain)
