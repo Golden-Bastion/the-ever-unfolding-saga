@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
 
-use crate::geography::caves::{CaveConnectionKind, CaveConnectionTarget};
+use crate::geography::caves::CaveConnectionTarget;
 use crate::geography::frontier::{FrontierDirection, FrontierTarget};
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
