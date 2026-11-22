@@ -177,7 +177,7 @@ Existing saves deserialize without region coordinates. Their geography ruleset d
 
 ## Boundaries and remaining work
 
-The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, deterministic vertical candidates, and persistent individual cave-chamber locations/routes are implemented. Remaining geography/topology work is richer authored-location connection placement and environmental archetype constraints. Dedicated route artwork is tracked under #491.
+The macro-geography fields, underground cave networks, deterministic legacy embedding, persistent location anchors/footprints, bounded terrain-aware route paths, crossing profiles, route-aligned local-map passages, idempotent on-demand frontier materialization, deterministic vertical candidates, and persistent individual cave-chamber locations/routes are implemented. Remaining geography/topology work is richer authored-location connection placement. Environmental placement archetypes are implemented: settlements prefer flatter land near classified freshwater, wilderness locations retain broad land preferences, and landmarks favor elevated, geologically distinctive terrain. Dedicated route artwork is tracked under #491.
 
 The geography milestone does not require physically calibrated discharge, seasonal water balance, or simulated river/lake transport. The relative precipitation-weighted river index and deterministic connectivity are sufficient for terrain classification and route foundations. Seasonal rainfall, drought, and their consequences for settlements, crops, and travel belong to the time-driven world-simulation work rather than this geography layer.
 
@@ -189,3 +189,13 @@ Macro-geography coordinates are not:
 - A claim that legacy route graphs already match physical terrain.
 
 The 256 × 256 resolution describes macro samples per region chunk. It does not prescribe local-map dimensions, real-world kilometres, or a continuous terrain renderer.
+
+## Location placement archetypes
+
+New location anchors use an authored `archetype` preference, defaulting to `wilderness` for older campaign content and generated locations without an explicit type.
+
+- `settlement` ranks 128 deterministic land candidates toward lower-relief terrain, then checks at most the 24 strongest candidates for a classified river or inland lake at cardinal probes 128 macro samples away. This bounds the more expensive hydrology probes.
+- `wilderness` keeps broad environmental preferences and does not require proximity to water or low relief.
+- `landmark` favors higher elevation and stronger mountain-ridge character, allowing distinctive elevated sites.
+
+Land is required for generated candidates, and a full requested footprint is strongly preferred before archetype preferences are applied. These are deterministic ranking preferences, not hard biome restrictions or guarantees that a region contains every archetype's ideal terrain. Freshwater proximity uses the existing bounded hydrology sampler; no water state is added or persisted. Explicit authored anchors remain authoritative. Existing saved location anchors are never moved; the location-geography embedding version advances so older worlds that still lack anchors use the new placement policy when migrated.

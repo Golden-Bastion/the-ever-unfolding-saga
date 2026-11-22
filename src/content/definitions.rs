@@ -45,6 +45,9 @@ pub struct LocationContent {
     pub name: String,
     pub description: String,
     pub dangerous: bool,
+    /// Broad environmental preference used for deterministic macro placement.
+    #[serde(default)]
+    pub archetype: Option<crate::geography::locations::LocationArchetype>,
     #[serde(default)]
     pub exits: Vec<String>,
     #[serde(default)]

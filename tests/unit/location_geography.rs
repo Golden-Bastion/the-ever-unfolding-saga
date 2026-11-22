@@ -115,7 +115,7 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
             .collect::<Vec<_>>(),
         original_location_ids
     );
-    assert_eq!(first.geography_embedding_version, 1);
+    assert_eq!(first.geography_embedding_version, 2);
 }
 
 #[test]
@@ -209,4 +209,108 @@ fn generated_location_keys_and_anchors_do_not_depend_on_runtime_entity_ids() {
         .location_geography
         .iter()
         .all(|record| record.stable_key.starts_with("location.generated.")));
+}
+
+#[test]
+fn settlement_archetype_prefers_freshwater_and_flatter_ground() {
+    use crate::geography::locations::{anchor_candidate_score, LocationArchetype};
+
+    let without_water = anchor_candidate_score(
+        LocationArchetype::Settlement,
+        20_000,
+        10_000,
+        true,
+        false,
+        2_000,
+    );
+    let with_water = anchor_candidate_score(
+        LocationArchetype::Settlement,
+        20_000,
+        10_000,
+        true,
+        true,
+        2_000,
+    );
+    let rough_ground = anchor_candidate_score(
+        LocationArchetype::Settlement,
+        20_000,
+        10_000,
+        true,
+        false,
+        20_000,
+    );
+
+    let water_nearby_without_full_footprint = anchor_candidate_score(
+        LocationArchetype::Settlement,
+        20_000,
+        10_000,
+        false,
+        true,
+        2_000,
+    );
+
+    assert!(with_water > without_water);
+    assert!(without_water > rough_ground);
+    assert!(without_water > water_nearby_without_full_footprint);
+}
+
+#[test]
+fn landmark_archetype_prefers_elevated_distinctive_ground() {
+    use crate::geography::locations::{anchor_candidate_score, LocationArchetype};
+
+    let lowland = anchor_candidate_score(
+        LocationArchetype::Landmark,
+        5_000,
+        5_000,
+        true,
+        false,
+        1_000,
+    );
+    let highland = anchor_candidate_score(
+        LocationArchetype::Landmark,
+        40_000,
+        30_000,
+        true,
+        false,
+        1_000,
+    );
+
+    assert!(highland > lowland);
+}
+
+#[test]
+fn wilderness_archetype_keeps_broad_environmental_preferences() {
+    use crate::geography::locations::{anchor_candidate_score, LocationArchetype};
+
+    let baseline = anchor_candidate_score(
+        LocationArchetype::Wilderness,
+        20_000,
+        10_000,
+        true,
+        false,
+        0,
+    );
+    let unrelated_context = anchor_candidate_score(
+        LocationArchetype::Wilderness,
+        20_000,
+        10_000,
+        true,
+        true,
+        50_000,
+    );
+
+    assert_eq!(baseline, unrelated_context);
+}
+
+#[test]
+fn legacy_location_content_defaults_to_wilderness_archetype() {
+    let location: crate::content::LocationContent = serde_json::from_str(
+        r#"{"id":"location.legacy","name":"Legacy","description":"","dangerous":false}"#,
+    )
+    .unwrap();
+
+    assert_eq!(
+        location.archetype.unwrap_or_default(),
+        crate::geography::locations::LocationArchetype::Wilderness
+    );
 }
