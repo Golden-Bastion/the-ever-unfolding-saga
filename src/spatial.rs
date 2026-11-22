@@ -11,7 +11,7 @@ use crate::geography::frontier::{FrontierDirection, FrontierTarget};
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 6;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 7;
 pub const DEFAULT_MAP_WIDTH: u16 = 24;
 pub const DEFAULT_MAP_HEIGHT: u16 = 16;
 const MIN_MAP_DIMENSION: u16 = 8;
