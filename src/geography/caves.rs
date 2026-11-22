@@ -246,13 +246,24 @@ pub fn materialize_connection(
     let route_id = target.route_id();
     let stable_key = target.location_key();
 
-    let existing_location_id = target.destination_location_id.or_else(|| {
-        world
-            .location_geography
-            .iter()
-            .find(|record| record.stable_key == stable_key)
-            .map(|record| record.location_id)
-    });
+    let existing_location_id = target
+        .destination_location_id
+        .or_else(|| {
+            world
+                .location_geography
+                .iter()
+                .find(|record| record.stable_key == stable_key)
+                .map(|record| record.location_id)
+        })
+        .or_else(|| {
+            (target.destination_anchor.stratum == 0).then(|| {
+                world
+                    .location_geography
+                    .iter()
+                    .find(|record| record.anchor == target.destination_anchor)
+                    .map(|record| record.location_id)
+            })?
+        });
 
     if let Some(route) = world.route_by_id(&route_id) {
         let Some(location_id) = existing_location_id else {
