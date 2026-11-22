@@ -7,7 +7,7 @@ This file records completed work in the current unreleased development line. Old
 ### v0.53.22: Environmental location placement archetypes
 
 - Added optional authored `settlement`, `wilderness`, and `landmark` archetypes to location content. Older content defaults to wilderness.
-- Settlement placement favors flatter land and nearby classified rivers or inland lakes; landmark placement favors elevation and mountain-ridge character; wilderness placement retains broad environmental flexibility.
+- Settlement placement favors flatter land and nearby classified rivers or inland lakes, checking freshwater only among a bounded shortlist of 24 candidates; landmark placement favors elevation and mountain-ridge character; wilderness placement retains broad environmental flexibility.
 - Land and footprint validity remain primary, archetypes are preferences rather than hard biome constraints, and explicit authored anchors remain authoritative.
 - Advanced the location-geography embedding version. Existing persisted anchors are not moved; older worlds without anchors use the new policy when embedded.
 - Added automated coverage for archetype scoring and legacy content defaults.
