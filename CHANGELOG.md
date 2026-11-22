@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.17: Deterministic vertical cave connections
+
+- Added surface-to-first-stratum entrance candidates only where the surface sample is land and the corresponding underground sample is open cave space.
+- Added inter-stratum shaft candidates only where both immediately adjacent underground strata are open at the same global horizontal coordinate. Connections never skip layers.
+- Each cave network cell exposes at most one stable connection per adjacent layer pair. Candidate selection is coordinate-seeded and independent of region visitation order or runtime entity IDs.
+- Added bounded nearby queries, clamped to 25 cave cells, with no world scan, generated-state cache, or persisted cave geometry.
+- Added automated coverage for surface/underground validity, adjacent-stratum invariants, deterministic identity, negative coordinates, and bounded queries.
+- These are geography connection candidates, not yet authoritative world routes, generated cave locations, or local-map entrances. Those integrations remain follow-up work.
+
 ### v0.53.16: Deterministic on-demand frontier materialization
 
 - Added stable cardinal frontier target identities derived from a source location's persisted geography key and adjacent region coordinates. Listing or displaying a frontier does not generate a region or location.

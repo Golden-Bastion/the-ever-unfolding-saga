@@ -20,6 +20,7 @@ pub mod rivers;
 pub mod routes;
 pub mod terrain;
 pub mod underground;
+pub mod vertical;
 pub mod waterbodies;
 pub mod watershed;
 
