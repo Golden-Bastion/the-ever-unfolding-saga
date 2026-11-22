@@ -91,6 +91,11 @@ pub enum RouteInfrastructure {
     Impassable,
 }
 
+/// A macro-scale route/water crossing candidate.
+///
+/// River coordinates identify the sampled route point inside a channel-bearing
+/// watershed cell. Until higher-resolution river centre-lines are introduced,
+/// they are not guaranteed to be the exact point where the route meets a bank.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteCrossing {
     pub coordinate: MacroCoordinate,
