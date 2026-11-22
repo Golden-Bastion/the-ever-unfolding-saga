@@ -338,16 +338,14 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
                         // arithmetic retaining the curve's local tangent.
                         let span_q16 = i128::from(RIVER_POSITION_SCALE) * 16;
                         let normal_scale = i128::from(normal_scale);
-                        let Some(offset_x) = i64::try_from(
-                            -i128::from(dy) * span_q16 / normal_scale,
-                        )
-                        .ok() else {
+                        let Some(offset_x) =
+                            i64::try_from(-i128::from(dy) * span_q16 / normal_scale).ok()
+                        else {
                             continue;
                         };
-                        let Some(offset_y) = i64::try_from(
-                            i128::from(dx) * span_q16 / normal_scale,
-                        )
-                        .ok() else {
+                        let Some(offset_y) =
+                            i64::try_from(i128::from(dx) * span_q16 / normal_scale).ok()
+                        else {
                             continue;
                         };
                         let Some(start_position) = center.offset(-offset_x, -offset_y) else {
@@ -381,11 +379,8 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
                             continue;
                         }
 
-                        let crossings = classify_crossings(
-                            seed,
-                            GEOGRAPHY_RULESET_VERSION,
-                            &[start, end],
-                        );
+                        let crossings =
+                            classify_crossings(seed, GEOGRAPHY_RULESET_VERSION, &[start, end]);
                         if let Some(crossing) = crossings.into_iter().find(|crossing| {
                             crossing.kind == RouteCrossingKind::River
                                 && crossing.river_id == Some(segment.river_id())
