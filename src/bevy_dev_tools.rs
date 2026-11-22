@@ -678,6 +678,8 @@ fn world_lab_map_preview_with_all_holds(
                     Terrain::Rubble => '%',
                     Terrain::Sand => ',',
                     Terrain::Water => '~',
+                    Terrain::Ford => ';',
+                    Terrain::Bridge => '=',
                     Terrain::Wall => '#',
                 }
             };
@@ -697,6 +699,8 @@ fn world_lab_terrain_name(terrain: Terrain) -> &'static str {
         Terrain::Rubble => "Rubble",
         Terrain::Sand => "Sand",
         Terrain::Water => "Water",
+        Terrain::Ford => "Ford",
+        Terrain::Bridge => "Bridge",
         Terrain::Wall => "Wall",
     }
 }
@@ -782,7 +786,9 @@ fn cycle_world_lab_terrain(state: &mut DeveloperToolsState, spatial: &mut Spatia
         Terrain::Sand => Terrain::Ash,
         Terrain::Ash => Terrain::Rubble,
         Terrain::Rubble => Terrain::Water,
-        Terrain::Water => Terrain::Wall,
+        Terrain::Water => Terrain::Ford,
+        Terrain::Ford => Terrain::Bridge,
+        Terrain::Bridge => Terrain::Wall,
         Terrain::Wall => Terrain::Floor,
     };
     if map.set_terrain_for_editor(position, next) {

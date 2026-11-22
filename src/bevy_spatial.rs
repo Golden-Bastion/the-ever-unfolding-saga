@@ -3604,9 +3604,9 @@ fn update_spatial_control_feedback(
 
 fn terrain_image_index(terrain: Terrain) -> usize {
     match terrain {
-        Terrain::Floor | Terrain::Sand | Terrain::Water => 0,
+        Terrain::Floor | Terrain::Sand | Terrain::Water | Terrain::Bridge => 0,
         Terrain::Ash => 1,
-        Terrain::Rubble => 2,
+        Terrain::Rubble | Terrain::Ford => 2,
         Terrain::Wall => 3,
     }
 }
@@ -3649,6 +3649,10 @@ fn terrain_tint(terrain: Terrain, discovered: bool, biome: Option<Biome>) -> Col
         (Terrain::Sand, false) => Color::srgb(0.34, 0.27, 0.18),
         (Terrain::Water, true) => Color::srgb(0.34, 0.57, 0.70),
         (Terrain::Water, false) => Color::srgb(0.10, 0.19, 0.29),
+        (Terrain::Ford, true) => Color::srgb(0.67, 0.65, 0.58),
+        (Terrain::Ford, false) => Color::srgb(0.29, 0.29, 0.27),
+        (Terrain::Bridge, true) => Color::srgb(0.68, 0.49, 0.31),
+        (Terrain::Bridge, false) => Color::srgb(0.29, 0.20, 0.13),
         (Terrain::Floor, true) => Color::srgb(0.86, 0.78, 0.64),
         (Terrain::Ash, true) => Color::srgb(0.69, 0.72, 0.75),
         (Terrain::Rubble, true) => Color::srgb(0.78, 0.68, 0.54),
@@ -3759,9 +3763,13 @@ fn depth_for(position: Vec2) -> f32 {
 /// participate in the painter's order with actors and other world objects.
 fn terrain_depth(terrain: Terrain, tile_center: Vec2) -> f32 {
     match terrain {
-        Terrain::Floor | Terrain::Ash | Terrain::Rubble | Terrain::Sand | Terrain::Water => {
-            GROUND_TERRAIN_DEPTH
-        }
+        Terrain::Floor
+        | Terrain::Ash
+        | Terrain::Rubble
+        | Terrain::Sand
+        | Terrain::Water
+        | Terrain::Ford
+        | Terrain::Bridge => GROUND_TERRAIN_DEPTH,
         // A wall top's ground-contact line is the tile center. Adjacent cells
         // can share the same ground depth in this projection; favor the actor on
         // that tie so the full top diamond does not hide a laterally adjacent player.

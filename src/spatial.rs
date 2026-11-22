@@ -9,10 +9,11 @@ use std::collections::{HashSet, VecDeque};
 use crate::geography::caves::CaveConnectionTarget;
 use crate::geography::frontier::{FrontierDirection, FrontierTarget};
 use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
+use crate::geography::rivers::RiverWidthClass;
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 10;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 11;
 pub const DEFAULT_MAP_WIDTH: u16 = 64;
 pub const DEFAULT_MAP_HEIGHT: u16 = 48;
 const MIN_MAP_DIMENSION: u16 = 8;
@@ -27,6 +28,10 @@ pub enum Terrain {
     Rubble,
     Sand,
     Water,
+    /// A shallow, walkable ford laid across a narrow or medium local river channel.
+    Ford,
+    /// A walkable bridge laid across a wide or very wide local river channel.
+    Bridge,
     Wall,
 }
 
@@ -1324,6 +1329,14 @@ pub fn generate_local_map_with_surface(
         }
     }
 
+    // Keep macro-route requirements authoritative while making local river
+    // geography physically traversable wherever a complete crossing fits.
+    place_river_crossings(&mut map, |position| {
+        surface
+            .sample_at_tile(position.x, position.y)
+            .and_then(|sample| sample.river_width())
+    });
+
     let mut walkable = (1..map.height.saturating_sub(1))
         .flat_map(|y| (1..map.width.saturating_sub(1)).map(move |x| GridPosition { x, y }))
         .filter(|position| map.is_walkable(*position))
@@ -1368,6 +1381,243 @@ pub fn generate_local_map_with_surface(
     }
 
     map
+}
+
+/// Select one safe local crossing for each connected river-channel component.
+/// The shortest complete cardinal bank-to-bank run is preferred; ties are
+/// resolved by map coordinates and axis order. Lakes, ocean, partial channels,
+/// and channels that reach the map edge are never turned into crossings.
+fn place_river_crossings(
+    map: &mut LocalMap,
+    river_width_at: impl Fn(GridPosition) -> Option<RiverWidthClass>,
+) {
+    let width = usize::from(map.width);
+    let tile_count = width.saturating_mul(usize::from(map.height));
+    if width < 3 || map.height < 3 || map.terrain.len() != tile_count {
+        return;
+    }
+
+    let mut river_widths = vec![None; tile_count];
+    for y in 0..map.height {
+        for x in 0..map.width {
+            let position = GridPosition { x, y };
+            let index = usize::from(y) * width + usize::from(x);
+            if map.terrain[index] == Terrain::Water {
+                river_widths[index] = river_width_at(position);
+            }
+        }
+    }
+
+    // Diagonal contacts belong to one river component, but a traversable
+    // crossing itself must follow cardinal grid movement.
+    let mut component_ids = vec![None; tile_count];
+    let mut component_count = 0_usize;
+    for start in 0..tile_count {
+        if river_widths[start].is_none() || component_ids[start].is_some() {
+            continue;
+        }
+        component_ids[start] = Some(component_count);
+        let mut pending = VecDeque::from([start]);
+        while let Some(index) = pending.pop_front() {
+            let x = (index % width) as i32;
+            let y = (index / width) as i32;
+            for dy in -1_i32..=1 {
+                for dx in -1_i32..=1 {
+                    if dx == 0 && dy == 0 {
+                        continue;
+                    }
+                    let next_x = x + dx;
+                    let next_y = y + dy;
+                    if next_x < 0
+                        || next_y < 0
+                        || next_x >= i32::from(map.width)
+                        || next_y >= i32::from(map.height)
+                    {
+                        continue;
+                    }
+                    let next = next_y as usize * width + next_x as usize;
+                    if river_widths[next].is_some() && component_ids[next].is_none() {
+                        component_ids[next] = Some(component_count);
+                        pending.push_back(next);
+                    }
+                }
+            }
+        }
+        component_count += 1;
+    }
+    if component_count == 0 {
+        return;
+    }
+
+    let mut best = Vec::with_capacity(component_count);
+    best.resize_with(component_count, || None::<RiverCrossingCandidate>);
+
+    // Search horizontal bank-to-bank runs.
+    for y in 1..map.height.saturating_sub(1) {
+        let mut x = 2_u16;
+        while x < map.width.saturating_sub(1) {
+            let index = usize::from(y) * width + usize::from(x);
+            if river_widths[index].is_none() {
+                x += 1;
+                continue;
+            }
+            let bank_before = GridPosition { x: x - 1, y };
+            let before_index = usize::from(y) * width + usize::from(bank_before.x);
+            if river_widths[before_index].is_some() || !map.is_walkable(bank_before) {
+                while x < map.width.saturating_sub(1)
+                    && river_widths[usize::from(y) * width + usize::from(x)].is_some()
+                {
+                    x += 1;
+                }
+                continue;
+            }
+            let mut tiles = Vec::new();
+            while x < map.width.saturating_sub(1)
+                && river_widths[usize::from(y) * width + usize::from(x)].is_some()
+            {
+                tiles.push(GridPosition { x, y });
+                x += 1;
+            }
+            if x < map.width.saturating_sub(1) {
+                let bank_after = GridPosition { x, y };
+                consider_river_crossing(
+                    map,
+                    &river_widths,
+                    &component_ids,
+                    &mut best,
+                    tiles,
+                    (bank_before, bank_after),
+                    0,
+                );
+            }
+        }
+    }
+
+    // Search vertical bank-to-bank runs.
+    for x in 1..map.width.saturating_sub(1) {
+        let mut y = 2_u16;
+        while y < map.height.saturating_sub(1) {
+            let index = usize::from(y) * width + usize::from(x);
+            if river_widths[index].is_none() {
+                y += 1;
+                continue;
+            }
+            let bank_before = GridPosition { x, y: y - 1 };
+            let before_index = usize::from(bank_before.y) * width + usize::from(x);
+            if river_widths[before_index].is_some() || !map.is_walkable(bank_before) {
+                while y < map.height.saturating_sub(1)
+                    && river_widths[usize::from(y) * width + usize::from(x)].is_some()
+                {
+                    y += 1;
+                }
+                continue;
+            }
+            let mut tiles = Vec::new();
+            while y < map.height.saturating_sub(1)
+                && river_widths[usize::from(y) * width + usize::from(x)].is_some()
+            {
+                tiles.push(GridPosition { x, y });
+                y += 1;
+            }
+            if y < map.height.saturating_sub(1) {
+                let bank_after = GridPosition { x, y };
+                consider_river_crossing(
+                    map,
+                    &river_widths,
+                    &component_ids,
+                    &mut best,
+                    tiles,
+                    (bank_before, bank_after),
+                    1,
+                );
+            }
+        }
+    }
+
+    for candidate in best.into_iter().flatten() {
+        let terrain = match candidate.width {
+            RiverWidthClass::Narrow | RiverWidthClass::Medium => Terrain::Ford,
+            RiverWidthClass::Wide | RiverWidthClass::VeryWide => Terrain::Bridge,
+        };
+        for position in candidate.tiles {
+            map.terrain[usize::from(position.y) * width + usize::from(position.x)] = terrain;
+        }
+    }
+}
+
+#[derive(Debug)]
+struct RiverCrossingCandidate {
+    tiles: Vec<GridPosition>,
+    width: RiverWidthClass,
+    axis_order: u8,
+}
+
+fn consider_river_crossing(
+    map: &LocalMap,
+    river_widths: &[Option<RiverWidthClass>],
+    component_ids: &[Option<usize>],
+    best: &mut [Option<RiverCrossingCandidate>],
+    tiles: Vec<GridPosition>,
+    banks: (GridPosition, GridPosition),
+    axis_order: u8,
+) {
+    let (bank_before, bank_after) = banks;
+    if tiles.is_empty() || !map.is_walkable(bank_before) || !map.is_walkable(bank_after) {
+        return;
+    }
+    let width = usize::from(map.width);
+    let first = tiles[0];
+    let first_index = usize::from(first.y) * width + usize::from(first.x);
+    let Some(component_id) = component_ids[first_index] else {
+        return;
+    };
+    if tiles.iter().any(|position| {
+        component_ids[usize::from(position.y) * width + usize::from(position.x)]
+            != Some(component_id)
+    }) {
+        return;
+    }
+    let Some(crossing_width) = tiles
+        .iter()
+        .filter_map(|position| {
+            river_widths[usize::from(position.y) * width + usize::from(position.x)]
+        })
+        .max_by_key(|width| river_width_rank(*width))
+    else {
+        return;
+    };
+    let candidate = RiverCrossingCandidate {
+        tiles,
+        width: crossing_width,
+        axis_order,
+    };
+    let candidate_key = (
+        candidate.tiles.len(),
+        candidate.tiles[0].y,
+        candidate.tiles[0].x,
+        candidate.axis_order,
+    );
+    let replace = best[component_id].as_ref().is_none_or(|current| {
+        candidate_key
+            < (
+                current.tiles.len(),
+                current.tiles[0].y,
+                current.tiles[0].x,
+                current.axis_order,
+            )
+    });
+    if replace {
+        best[component_id] = Some(candidate);
+    }
+}
+
+fn river_width_rank(width: RiverWidthClass) -> u8 {
+    match width {
+        RiverWidthClass::Narrow => 0,
+        RiverWidthClass::Medium => 1,
+        RiverWidthClass::Wide => 2,
+        RiverWidthClass::VeryWide => 3,
+    }
 }
 
 fn local_surface_terrain(sample: crate::geography::local_surface::LocalSurfaceSample) -> Terrain {
