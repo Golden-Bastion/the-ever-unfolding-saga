@@ -1386,3 +1386,50 @@ fn pending_frontier_passages_are_idempotent_and_upgrade_in_place() {
     );
     assert_eq!(map.exits, established);
 }
+
+#[test]
+fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently() {
+    use crate::geography::caves::{CaveConnectionKind, CaveConnectionTarget};
+    use crate::geography::MacroCoordinate;
+
+    let mut map = generate_local_map(8_194, "location.10", LocalMapConfig::default());
+    map.props.clear();
+    map.interactables.clear();
+    map.encounters.clear();
+    let target = CaveConnectionTarget {
+        id: "vertical.fixture.entrance".into(),
+        destination_anchor: MacroCoordinate { x: 120, y: -64, stratum: -1 },
+        destination_location_id: None,
+        kind: CaveConnectionKind::SurfaceEntrance,
+    };
+
+    configure_map_cave_connections(&mut map, std::slice::from_ref(&target), &[]);
+    assert_eq!(map.exits.len(), 1);
+    let entrance = map.exits[0].clone();
+    assert!(entrance.cave_target.as_ref().is_some_and(|value| value.id == target.id));
+    assert_eq!(entrance.target_location_id, 0);
+    assert!(entrance.position.x > 0 && entrance.position.x < map.width - 1);
+    assert!(entrance.position.y > 0 && entrance.position.y < map.height - 1);
+    assert!(map.is_walkable(entrance.position));
+    assert!(map.reachable_walkable_positions().contains(&entrance.position));
+
+    configure_map_cave_connections(&mut map, std::slice::from_ref(&target), &[]);
+    assert_eq!(map.exits, vec![entrance.clone()]);
+    assert_eq!(map.generator_version, LOCAL_MAP_GENERATOR_VERSION);
+
+    let route = MapRouteDestination {
+        route_id: target.route_id(),
+        target_location_id: 99,
+        profile: None,
+        preferred_side: None,
+        frontier_id: None,
+    };
+    let mut linked = generate_local_map(8_194, "location.10", LocalMapConfig::default());
+    linked.props.clear();
+    linked.interactables.clear();
+    linked.encounters.clear();
+    configure_map_cave_connections(&mut linked, &[target], &[route]);
+    assert_eq!(linked.exits.len(), 1);
+    assert_eq!(linked.exits[0].target_location_id, 99);
+    assert_eq!(linked.exits[0].route_id.as_deref(), Some("route.cave.vertical.fixture.entrance"));
+}
