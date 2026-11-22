@@ -65,7 +65,7 @@ src/
 ├── bevy_interactions.rs     # NPC dialogue and remains-recovery screens
 ├── bevy_records.rs          # Character hub, record details, meditation, and journal flows
 ├── bevy_combat.rs           # combat presentation and interaction
-├── bevy_spatial.rs          # Bevy spatial exploration rendering, movement, camera, and controls
+├── bevy_spatial.rs          # Bevy spatial exploration rendering, movement, camera, controls, and transient ferry scenes
 ├── bevy_console.rs          # developer-console presentation and input
 ├── game.rs                  # gameplay module facade
 ├── game/
