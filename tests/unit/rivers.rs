@@ -232,6 +232,10 @@ fn river_network_trace_is_deterministic_and_preserves_downhill_links() {
         Some(network.clone())
     );
 
+    for pair in network.path.windows(2) {
+        assert_eq!(pair[0].downstream, Some(pair[1].coordinate));
+    }
+
     for point in &network.path {
         let sample = sample_surface(seed, GEOGRAPHY_RULESET_VERSION, point.coordinate)
             .expect("every traced point must be a valid surface sample");
