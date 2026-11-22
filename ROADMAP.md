@@ -5,12 +5,12 @@ This is the authoritative overview of unfinished work, current priorities, and p
 Completed work in the current development line belongs in [CHANGELOG.md](CHANGELOG.md); earlier completed work belongs in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md). Detailed design decisions live in [docs/design/](docs/design/README.md), while [system documentation](docs/systems/) describes current implementation behavior and boundaries.
 
 ## Current development line — v0.53.x: world topology and spatial-world expansion
-**Delivered in v0.53.22:** added data-driven `settlement`, `wilderness`, and `landmark` location placement archetypes. Settlement candidates favor flatter land and nearby classified freshwater; wilderness retains broad environmental flexibility; landmarks favor elevated, geologically distinctive terrain. Existing anchors and explicit authored coordinates remain unchanged, while legacy worlds without anchors adopt the new policy when embedded.
-
 
 **Repository version at this roadmap revision: 0.53.22.**
 
 **Goal:** extend the local spatial prototype into a persistent world whose connected locations and regions have coherent, deterministic foundations.
+
+**Delivered in v0.53.22:** added data-driven `settlement`, `wilderness`, and `landmark` location placement archetypes. Settlement candidates favor flatter land and nearby classified freshwater; wilderness retains broad environmental flexibility; landmarks favor elevated, geologically distinctive terrain. Existing anchors and explicit authored coordinates remain unchanged, while legacy worlds without anchors adopt the new policy when embedded.
 
 **Delivered in v0.53.21:** introduced a restrained material-led provisional palette for the existing local-map floor, ash, rubble, wall, pillar, and table sprites. Discovery shading remains distinct, and existing route/actor semantic tints are retained. This is a renderer-only interim treatment; biome-specific vegetation, water, and regional environmental colours await corresponding local-map terrain/art coverage.
 
