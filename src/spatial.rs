@@ -1449,7 +1449,8 @@ fn place_river_crossings(
         return;
     }
 
-    let mut best = vec![None::<RiverCrossingCandidate>; component_count];
+    let mut best = Vec::with_capacity(component_count);
+    best.resize_with(component_count, || None::<RiverCrossingCandidate>);
 
     // Search horizontal bank-to-bank runs.
     for y in 1..map.height.saturating_sub(1) {
