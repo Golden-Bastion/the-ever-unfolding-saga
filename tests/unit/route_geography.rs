@@ -1,5 +1,139 @@
-use crate::geography::routes::{assess_corridor, assess_world_route, MAX_CORRIDOR_SAMPLES};
+use crate::geography::routes::{
+    assess_corridor, assess_world_route, MAX_CORRIDOR_SAMPLES, ROUTE_GRID_SPACING,
+};
 use crate::geography::{MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
+
+fn find_lake_route_fixture() -> Option<(u64, String, Vec<MacroCoordinate>)> {
+    use crate::geography::{terrain, waterbodies, watershed};
+
+    for seed in 1..=24 {
+        for coarse_y in (-40..=-1).rev() {
+            for coarse_x in (-40..=-1).rev() {
+                let Some(center) = watershed::cell_center(coarse_x, coarse_y) else {
+                    continue;
+                };
+                let Some(terrain_sample) =
+                    terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, center)
+                else {
+                    continue;
+                };
+                if !terrain_sample.is_land()
+                    || watershed::downstream_cell(
+                        seed,
+                        GEOGRAPHY_RULESET_VERSION,
+                        coarse_x,
+                        coarse_y,
+                        terrain_sample.elevation_q16(),
+                    )
+                    .is_some()
+                {
+                    continue;
+                }
+                let Some(lake) =
+                    waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, center)
+                else {
+                    continue;
+                };
+                let lake_id = lake.id(seed, GEOGRAPHY_RULESET_VERSION);
+
+                for (dx, dy) in [(1_i64, 0_i64), (0, 1), (1, 1), (1, -1)] {
+                    let find_dry_bank = |direction: i64| {
+                        (1_i64..=128).find_map(|steps| {
+                            let distance = steps * ROUTE_GRID_SPACING;
+                            let coordinate = MacroCoordinate::new(
+                                center.x.checked_add(dx * distance * direction)?,
+                                center.y.checked_add(dy * distance * direction)?,
+                            );
+                            let is_dry_land = terrain::sample_surface(
+                                seed,
+                                GEOGRAPHY_RULESET_VERSION,
+                                coordinate,
+                            )
+                            .is_some_and(|sample| sample.is_land())
+                                && waterbodies::sample_surface(
+                                    seed,
+                                    GEOGRAPHY_RULESET_VERSION,
+                                    coordinate,
+                                )
+                                .is_none();
+                            is_dry_land.then_some((steps, coordinate))
+                        })
+                    };
+                    let Some((before_steps, start)) = find_dry_bank(-1) else {
+                        continue;
+                    };
+                    let Some((after_steps, _end)) = find_dry_bank(1) else {
+                        continue;
+                    };
+                    let total_steps = before_steps + after_steps;
+                    if total_steps + 1 > crate::geography::routes::MAX_ROUTE_PATH_POINTS as i64 {
+                        continue;
+                    }
+                    let path = (0..=total_steps)
+                        .map(|step| {
+                            MacroCoordinate::new(
+                                start.x + dx * step * ROUTE_GRID_SPACING,
+                                start.y + dy * step * ROUTE_GRID_SPACING,
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    let lake_points = path
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, coordinate)| {
+                            waterbodies::sample_surface(
+                                seed,
+                                GEOGRAPHY_RULESET_VERSION,
+                                *coordinate,
+                            )
+                            .is_some_and(|sample| {
+                                sample.id(seed, GEOGRAPHY_RULESET_VERSION) == lake_id
+                            })
+                            .then_some(index)
+                        })
+                        .collect::<Vec<_>>();
+                    let Some(first_lake_point) = lake_points.first().copied() else {
+                        continue;
+                    };
+                    let Some(last_lake_point) = lake_points.last().copied() else {
+                        continue;
+                    };
+                    if first_lake_point == 0 || last_lake_point + 1 >= path.len() {
+                        continue;
+                    }
+
+                    let mut river_cache =
+                        crate::geography::river_geometry::RiverGeometryCache::default();
+                    let shores = [path[first_lake_point - 1], path[last_lake_point + 1]];
+                    let has_two_dry_banks = shores.into_iter().all(|shore| {
+                        if !terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, shore)
+                            .is_some_and(|sample| sample.is_land())
+                            || waterbodies::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, shore)
+                                .is_some()
+                        {
+                            return false;
+                        }
+                        let Some(position) =
+                            crate::geography::river_geometry::RiverPosition::from_macro_coordinate(
+                                shore,
+                            )
+                        else {
+                            return false;
+                        };
+                        !river_cache
+                            .segments_near(seed, GEOGRAPHY_RULESET_VERSION, position)
+                            .iter()
+                            .any(|segment| segment.contains_position(position))
+                    });
+                    if has_two_dry_banks {
+                        return Some((seed, lake_id, path));
+                    }
+                }
+            }
+        }
+    }
+    None
+}
 
 #[test]
 fn corridor_assessment_is_deterministic_and_bounded() {
@@ -415,6 +549,80 @@ fn route_crossing_classifier_records_generated_bank_intersections() {
 }
 
 #[test]
+fn lake_route_crossings_record_stable_identity_and_both_shores() {
+    use crate::geography::routes::{
+        classify_crossings, LakeBankIntersection, RouteCrossingKind, RouteInfrastructure,
+    };
+
+    let (seed, expected_lake_id, path) =
+        find_lake_route_fixture().expect("expected a deterministic lake with two dry shores");
+    let crossings = classify_crossings(seed, GEOGRAPHY_RULESET_VERSION, &path);
+    let repeated = classify_crossings(seed, GEOGRAPHY_RULESET_VERSION, &path);
+    assert_eq!(crossings, repeated);
+
+    let crossing = crossings
+        .iter()
+        .find(|crossing| {
+            crossing.kind == RouteCrossingKind::Lake
+                && crossing.lake_id.as_deref() == Some(expected_lake_id.as_str())
+        })
+        .expect("the route should retain its crossed lake identity");
+    assert_eq!(crossing.infrastructure, RouteInfrastructure::Ferry);
+    let banks: LakeBankIntersection = crossing
+        .lake_banks
+        .expect("a land-to-land lake crossing should retain both exact shores");
+    assert_ne!(banks.entry, banks.exit);
+    assert_eq!(
+        crossing.coordinate,
+        banks
+            .midpoint()
+            .and_then(|position| position.rounded_macro_coordinate())
+            .expect("the crossing midpoint should be representable")
+    );
+}
+
+#[test]
+fn lake_bank_metadata_roundtrips_and_legacy_records_default_empty() {
+    use crate::geography::river_geometry::{RiverPosition, RIVER_POSITION_SCALE};
+    use crate::geography::routes::{
+        LakeBankIntersection, RouteCrossing, RouteCrossingKind, RouteInfrastructure,
+    };
+
+    let crossing = RouteCrossing {
+        coordinate: MacroCoordinate::new(128, 256),
+        kind: RouteCrossingKind::Lake,
+        infrastructure: RouteInfrastructure::Ferry,
+        river_id: None,
+        river_width: None,
+        river_flow_direction: None,
+        river_banks: None,
+        lake_id: Some("lake.128.256.stable".into()),
+        lake_banks: Some(LakeBankIntersection {
+            entry: RiverPosition {
+                x_q16: 128 * RIVER_POSITION_SCALE,
+                y_q16: 255 * RIVER_POSITION_SCALE + RIVER_POSITION_SCALE / 2,
+            },
+            exit: RiverPosition {
+                x_q16: 128 * RIVER_POSITION_SCALE,
+                y_q16: 257 * RIVER_POSITION_SCALE + RIVER_POSITION_SCALE / 2,
+            },
+        }),
+    };
+    let encoded = serde_json::to_value(&crossing).unwrap();
+    let decoded: RouteCrossing = serde_json::from_value(encoded).unwrap();
+    assert_eq!(decoded, crossing);
+
+    let legacy = serde_json::json!({
+        "coordinate": { "x": 32, "y": 64, "stratum": 0 },
+        "kind": "lake",
+        "infrastructure": "ferry"
+    });
+    let decoded: RouteCrossing = serde_json::from_value(legacy).unwrap();
+    assert_eq!(decoded.lake_id, None);
+    assert_eq!(decoded.lake_banks, None);
+}
+
+#[test]
 fn exact_river_bank_metadata_roundtrips_and_old_records_default_empty() {
     use crate::geography::river_geometry::{
         RiverBankIntersection, RiverPosition, RIVER_POSITION_SCALE,
@@ -442,6 +650,8 @@ fn exact_river_bank_metadata_roundtrips_and_old_records_default_empty() {
                 y_q16: 12 * RIVER_POSITION_SCALE + RIVER_POSITION_SCALE / 4,
             },
         }),
+        lake_id: None,
+        lake_banks: None,
     };
     let encoded = serde_json::to_value(&crossing).unwrap();
     let decoded: crate::geography::routes::RouteCrossing = serde_json::from_value(encoded).unwrap();
@@ -454,6 +664,8 @@ fn exact_river_bank_metadata_roundtrips_and_old_records_default_empty() {
     });
     let legacy: RouteCrossing = serde_json::from_value(legacy).unwrap();
     assert_eq!(legacy.river_banks, None);
+    assert_eq!(legacy.lake_id, None);
+    assert_eq!(legacy.lake_banks, None);
 }
 #[test]
 fn legacy_route_crossings_deserialize_without_river_metadata() {
@@ -472,6 +684,8 @@ fn legacy_route_crossings_deserialize_without_river_metadata() {
     assert_eq!(crossing.river_width, None);
     assert_eq!(crossing.river_flow_direction, None);
     assert_eq!(crossing.river_banks, None);
+    assert_eq!(crossing.lake_id, None);
+    assert_eq!(crossing.lake_banks, None);
 }
 
 #[test]
@@ -488,6 +702,8 @@ fn route_profiles_reflect_combined_terrain_crossing_requirements() {
         river_width: None,
         river_flow_direction: None,
         river_banks: None,
+        lake_id: None,
+        lake_banks: None,
     };
     assert_eq!(classify_profile(&[]), RouteProfile::Trail);
     assert_eq!(
