@@ -2030,15 +2030,11 @@ fn update_spatial_world(
             if sprite.image != desired {
                 sprite.image = desired;
             }
-            sprite.color = terrain_tint(map.is_tile_discovered(tile.0));
+            sprite.color = terrain_tint(terrain, map.is_tile_discovered(tile.0));
         }
     }
     for (side, mut sprite) in &mut wall_sides {
-        sprite.color = if map.is_tile_discovered(side.tile) {
-            Color::WHITE
-        } else {
-            terrain_tint(false)
-        };
+        sprite.color = terrain_tint(Terrain::Wall, map.is_tile_discovered(side.tile));
     }
     for (mut transform, mut sprite) in &mut player {
         transform.translation.x = target.x;
@@ -2156,7 +2152,7 @@ fn render_spatial_screen(
                 let mut tile_sprite = Sprite::from_image(image);
                 tile_sprite.custom_size =
                     Some(Vec2::new(TILE_HALF_WIDTH * 2.0, TILE_HALF_HEIGHT * 2.0));
-                tile_sprite.color = terrain_tint(discovered);
+                tile_sprite.color = terrain_tint(terrain, discovered);
                 commands.spawn((
                     SpatialWorldEntity,
                     SpatialTile(position),
@@ -2192,11 +2188,7 @@ fn render_spatial_screen(
         let projected = map_to_world(ground_position, Some(map));
         let mut sprite = Sprite::from_image(image);
         sprite.custom_size = Some(sprite_size);
-        sprite.color = if map.is_tile_discovered(prop.position) {
-            Color::WHITE
-        } else {
-            terrain_tint(false)
-        };
+        sprite.color = spatial_prop_tint(prop.kind, map.is_tile_discovered(prop.position));
         commands.spawn((
             SpatialWorldEntity,
             sprite,
@@ -3573,11 +3565,25 @@ fn spatial_environment_tint(time_points: u32) -> Option<Color> {
     }
 }
 
-fn terrain_tint(discovered: bool) -> Color {
-    if discovered {
-        Color::WHITE
-    } else {
-        Color::srgb(0.30, 0.28, 0.34)
+fn terrain_tint(terrain: Terrain, discovered: bool) -> Color {
+    match (terrain, discovered) {
+        (Terrain::Floor, true) => Color::srgb(0.86, 0.78, 0.64),
+        (Terrain::Ash, true) => Color::srgb(0.69, 0.72, 0.75),
+        (Terrain::Rubble, true) => Color::srgb(0.78, 0.68, 0.54),
+        (Terrain::Wall, true) => Color::srgb(0.64, 0.67, 0.70),
+        (Terrain::Floor, false) => Color::srgb(0.31, 0.28, 0.23),
+        (Terrain::Ash, false) => Color::srgb(0.25, 0.28, 0.31),
+        (Terrain::Rubble, false) => Color::srgb(0.31, 0.26, 0.20),
+        (Terrain::Wall, false) => Color::srgb(0.24, 0.26, 0.29),
+    }
+}
+
+fn spatial_prop_tint(kind: SpatialPropKind, discovered: bool) -> Color {
+    match (kind, discovered) {
+        (SpatialPropKind::Pillar, true) => Color::srgb(0.73, 0.77, 0.80),
+        (SpatialPropKind::Table, true) => Color::srgb(0.82, 0.68, 0.48),
+        (SpatialPropKind::Pillar, false) => Color::srgb(0.27, 0.30, 0.33),
+        (SpatialPropKind::Table, false) => Color::srgb(0.33, 0.27, 0.20),
     }
 }
 
