@@ -641,10 +641,15 @@ impl LocalMap {
             || source_id.is_some_and(|id| id == exit.target_location_id)
             || self.exits.iter().any(|existing| {
                 existing.id == exit.id
-                    || existing.cave_target.as_ref().is_some_and(|value| value.id == target.id)
+                    || existing
+                        .cave_target
+                        .as_ref()
+                        .is_some_and(|value| value.id == target.id)
                     || (existing.route_id.is_some() && existing.route_id == exit.route_id)
             })
-        { return false; }
+        {
+            return false;
+        }
 
         let mut reachable = self.reachable_walkable_positions();
         reachable.retain(|position| {
@@ -654,10 +659,22 @@ impl LocalMap {
                 && position.y > 0
                 && position.y < self.height.saturating_sub(1)
                 && !self.exits.iter().any(|existing| existing.position == *position)
-                && !self.points_of_interest.iter().any(|point| point.position == *position)
-                && !self.interactables.iter().any(|actor| actor.position == *position)
-                && !self.encounters.iter().any(|encounter| encounter.position == *position)
-                && !self.props.iter().any(|prop| prop.footprint_contains(*position, self.width))
+                && !self
+                    .points_of_interest
+                    .iter()
+                    .any(|point| point.position == *position)
+                && !self
+                    .interactables
+                    .iter()
+                    .any(|actor| actor.position == *position)
+                && !self
+                    .encounters
+                    .iter()
+                    .any(|encounter| encounter.position == *position)
+                && !self
+                    .props
+                    .iter()
+                    .any(|prop| prop.footprint_contains(*position, self.width))
         });
         let seed = target
             .id
@@ -688,9 +705,20 @@ impl LocalMap {
             for (dx, dy) in [(0_i32, -1_i32), (1, 0), (0, 1), (-1, 0)] {
                 let x = i32::from(position.x) + dx;
                 let y = i32::from(position.y) + dy;
-                if x < 0 || y < 0 || x >= i32::from(self.width) || y >= i32::from(self.height) { continue; }
-                let next = GridPosition { x: x as u16, y: y as u16 };
-                if self.is_walkable(next) && visited.insert(next) { queue.push_back(next); }
+                if x < 0
+                    || y < 0
+                    || x >= i32::from(self.width)
+                    || y >= i32::from(self.height)
+                {
+                    continue;
+                }
+                let next = GridPosition {
+                    x: x as u16,
+                    y: y as u16,
+                };
+                if self.is_walkable(next) && visited.insert(next) {
+                    queue.push_back(next);
+                }
             }
         }
         visited.into_iter().collect()
