@@ -1535,6 +1535,21 @@ fn authored_preferred_exit_side_controls_new_route_placement() {
 }
 
 #[test]
+fn authored_preferred_exit_side_controls_new_route_placement() {
+    use crate::spatial::MapExitSide;
+    let mut map = generate_local_map(9_203, "location.10", LocalMapConfig::default());
+    map.terrain.fill(Terrain::Floor);
+    map.props.clear(); map.points_of_interest.clear(); map.interactables.clear(); map.encounters.clear();
+    configure_map_routes(&mut map, &[MapRouteDestination {
+        route_id: "route.authored.side".into(), target_location_id: 20, profile: None,
+        preferred_side: Some(MapExitSide::West), frontier_id: None,
+    }]);
+    let exit = &map.exits[0];
+    assert_eq!(exit.position.x, 0);
+    assert!((i32::from(exit.position.y) - i32::from(map.height / 2)).abs() <= 1);
+}
+
+#[test]
 fn map_exit_visual_kind_distinguishes_surface_profiles_frontiers_and_cave_links() {
     use crate::geography::caves::{CaveConnectionKind, CaveConnectionTarget};
     use crate::geography::frontier::{FrontierDirection, FrontierTarget};
