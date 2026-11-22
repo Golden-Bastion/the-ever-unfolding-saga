@@ -2027,7 +2027,7 @@ pub fn configure_map_cave_connections(
 pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestination]) {
     let mut routes = destinations
         .iter()
-        .filter(|route| !route.route_id.trim().is_empty())
+        .filter(|route| !route.route_id.trim().is_empty() && !route.route_id.starts_with("route.cave."))
         .cloned()
         .collect::<Vec<_>>();
     routes.sort_by(|left, right| left.route_id.cmp(&right.route_id));
