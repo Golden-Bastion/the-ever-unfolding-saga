@@ -1678,9 +1678,9 @@ fn water_and_walls_are_impassable_while_land_and_crossings_are_walkable() {
 fn local_river_crossings_are_deterministic_walkable_and_width_appropriate() {
     fn crossing_map(width: RiverWidthClass) -> LocalMap {
         let config = LocalMapConfig {
-        width: 16,
-        height: 12,
-    };
+            width: 16,
+            height: 12,
+        };
         let mut map = generate_local_map(73, "location.river_crossing_test", config);
         map.props.clear();
         map.terrain.fill(Terrain::Water);
