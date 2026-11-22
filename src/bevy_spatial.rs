@@ -22,7 +22,7 @@ use crate::bevy_presentation::{
 };
 use crate::geography::climate::{self, Biome};
 use crate::geography::frontier;
-use crate::geography::local_surface::LocalSurfaceMap;
+use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
 use crate::geography::routes::{RouteHeading, RouteProfile};
 use crate::input::InputEvent;
 use crate::interaction_actions::{
