@@ -109,6 +109,9 @@ fn merge_world_locations(base: &mut Vec<LocationContent>, incoming: Vec<Location
             if location.geography.is_none() {
                 location.geography = existing.geography.clone();
             }
+            if location.archetype.is_none() {
+                location.archetype = existing.archetype;
+            }
         }
         merge_vec_by_key(base, vec![location], |entry| entry.id.clone());
     }
