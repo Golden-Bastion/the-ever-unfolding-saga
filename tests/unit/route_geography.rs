@@ -1110,4 +1110,16 @@ fn route_terrain_penalties_distinguish_open_country_from_difficult_biomes() {
         landscape_travel_penalty_percent(RouteLandscapeKind::Mountain),
         35
     );
+    assert_eq!(
+        landscape_travel_penalty_percent(RouteLandscapeKind::Coast),
+        10
+    );
+    assert_eq!(
+        landscape_travel_penalty_percent(RouteLandscapeKind::Valley),
+        0
+    );
+    assert_eq!(
+        landscape_travel_penalty_percent(RouteLandscapeKind::Water),
+        0
+    );
 }
