@@ -633,8 +633,8 @@ fn update_route_transit(
         }
     }
 
-    for (boat_visual, mut node) in &mut boat {
-        if boat_visual.0 {
+    for (marker_visual, mut node) in &mut boat {
+        if marker_visual.0 {
             node.left = percent(progress * 100.0);
         } else {
             node.top = percent(progress * 100.0);
@@ -654,7 +654,7 @@ fn update_route_transit(
             &mut navigation,
             transit.target_location_id,
             Some(&transit.route_id),
-            "The ferry route could not be completed.",
+            "The route crossing could not be completed.",
         ) {
             state.message = Some(message.to_string());
             state.dirty = true;
@@ -2979,7 +2979,9 @@ fn spawn_route_transit_overlay(commands: &mut Commands, parent: Entity, transit:
             },
             BackgroundColor(match crossing.kind {
                 RouteTransitKind::Ferry => Color::srgb(0.055, 0.16, 0.23),
-                RouteTransitKind::Ford | RouteTransitKind::Bridge => Color::srgb(0.045, 0.12, 0.15),
+                RouteTransitKind::Ford | RouteTransitKind::Bridge => {
+                    Color::srgb(0.045, 0.12, 0.15)
+                },
             }),
             BorderColor::all(Color::srgb(0.16, 0.30, 0.34)),
         ))
@@ -3054,10 +3056,26 @@ fn spawn_route_transit_overlay(commands: &mut Commands, parent: Entity, transit:
             let bridge = commands.spawn((
                 Node {
                     position_type: PositionType::Absolute,
-                    left: if crossing.horizontal { percent(24) } else { percent(43) },
-                    top: if crossing.horizontal { percent(42) } else { percent(18) },
-                    width: if crossing.horizontal { percent(52) } else { percent(14) },
-                    height: if crossing.horizontal { px(22) } else { percent(64) },
+                    left: if crossing.horizontal {
+                        percent(24)
+                    } else {
+                        percent(43)
+                    },
+                    top: if crossing.horizontal {
+                        percent(42)
+                    } else {
+                        percent(18)
+                    },
+                    width: if crossing.horizontal {
+                        percent(52)
+                    } else {
+                        percent(14)
+                    },
+                    height: if crossing.horizontal {
+                        px(22)
+                    } else {
+                        percent(64)
+                    },
                     border: UiRect::all(px(2)),
                     ..default()
                 },
@@ -3071,10 +3089,26 @@ fn spawn_route_transit_overlay(commands: &mut Commands, parent: Entity, transit:
                 let stone = commands.spawn((
                     Node {
                         position_type: PositionType::Absolute,
-                        left: if crossing.horizontal { percent(27.0 + step as f32 * 15.0) } else { percent(43) },
-                        top: if crossing.horizontal { percent(43) } else { percent(22.0 + step as f32 * 15.0) },
-                        width: if crossing.horizontal { percent(9) } else { percent(14) },
-                        height: if crossing.horizontal { px(14) } else { percent(9) },
+                        left: if crossing.horizontal {
+                            percent(27.0 + step as f32 * 15.0)
+                        } else {
+                            percent(43)
+                        },
+                        top: if crossing.horizontal {
+                            percent(43)
+                        } else {
+                            percent(22.0 + step as f32 * 15.0)
+                        },
+                        width: if crossing.horizontal {
+                            percent(9)
+                        } else {
+                            percent(14)
+                        },
+                        height: if crossing.horizontal {
+                            px(14)
+                        } else {
+                            percent(9)
+                        },
                         border_radius: BorderRadius::MAX,
                         ..default()
                     },
@@ -3093,15 +3127,27 @@ fn spawn_route_transit_overlay(commands: &mut Commands, parent: Entity, transit:
         SpatialTransitMarker(crossing.horizontal),
         Node {
             position_type: PositionType::Absolute,
-            left: if crossing.horizontal { percent(marker_progress) } else { percent(42) },
-            top: if crossing.horizontal { percent(42) } else { percent(marker_progress) },
+            left: if crossing.horizontal {
+                percent(marker_progress)
+            } else {
+                percent(42)
+            },
+            top: if crossing.horizontal {
+                percent(42)
+            } else {
+                percent(marker_progress)
+            },
             width: px(if is_ferry { 52 } else { 16 }),
             height: px(if is_ferry { 18 } else { 16 }),
             border_radius: BorderRadius::MAX,
             border: UiRect::all(px(1)),
             ..default()
         },
-        BackgroundColor(if is_ferry { Color::srgb(0.35, 0.22, 0.12) } else { Color::srgb(0.78, 0.68, 0.43) }),
+        BackgroundColor(if is_ferry {
+            Color::srgb(0.35, 0.22, 0.12)
+        } else {
+            Color::srgb(0.78, 0.68, 0.43)
+        }),
         BorderColor::all(Color::srgb(0.72, 0.57, 0.34)),
     )).id();
     commands.entity(water).add_child(marker);

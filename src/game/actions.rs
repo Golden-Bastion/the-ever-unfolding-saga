@@ -33,11 +33,20 @@ pub(crate) fn has_location_travel_route(
         return false;
     }
     let route_is_traversable = |route: &crate::model::WorldRoute| {
-        route.geography.as_ref().map_or(true, |geography| geography.travel_block_reason().is_none())
+        route.geography.as_ref().map_or(true, |geography| {
+            geography.travel_block_reason().is_none()
+        })
     };
     match route_id {
-        Some(id) => state.world.route_by_id(id).is_some_and(|route| route.allows_travel(source_id, target_id) && route_is_traversable(route)),
-        None => state.world.routes_from(source_id).any(|(route, destination)| destination == target_id && route_is_traversable(route)),
+        Some(id) => state.world.route_by_id(id).is_some_and(|route| {
+            route.allows_travel(source_id, target_id) && route_is_traversable(route)
+        }),
+        None => state
+            .world
+            .routes_from(source_id)
+            .any(|(route, destination)| {
+                destination == target_id && route_is_traversable(route)
+            }),
     }
 }
 
@@ -108,7 +117,11 @@ pub(crate) fn find_known_travel_path(
         let mut exits = state
             .world
             .routes_from(source_id)
-            .filter(|(route, _)| route.geography.as_ref().map_or(true, |geography| geography.travel_block_reason().is_none()))
+            .filter(|(route, _)| {
+                route.geography.as_ref().map_or(true, |geography| {
+                    geography.travel_block_reason().is_none()
+                })
+            })
             .map(|(route, destination_id)| (route.id.as_str(), destination_id))
             .collect::<Vec<_>>();
         exits.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(right.0)));

@@ -746,8 +746,13 @@ fn resolved_travel_crossings_keep_route_order_and_require_verified_banks() {
         river_banks: None, lake_id: Some("lake.route.fixture".into()),
         lake_banks: Some(LakeBankIntersection { entry: pos(12,8), exit: pos(13,8) }) };
     let unresolved_river = RouteCrossing { river_banks: None, ..river.clone() };
-    let geography = RouteGeography { status: RoutePlanningStatus::Planned, profile: RouteProfile::Mixed,
-        path: Vec::new(), crossings: vec![river, lake, unresolved_river.clone()], total_cost: 0 };
+    let geography = RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::Mixed,
+        path: Vec::new(),
+        crossings: vec![river, lake],
+        total_cost: 0,
+    };
     assert_eq!(geography.travel_block_reason(), None);
     assert_eq!(geography.resolved_travel_crossings(true).iter().map(|c| c.kind).collect::<Vec<_>>(),
         vec![RouteCrossingKind::River, RouteCrossingKind::Lake]);

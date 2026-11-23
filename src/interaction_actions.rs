@@ -250,11 +250,15 @@ pub(crate) fn discover_available_interactions(
                 .world
                 .location_by_id(exit.target_location_id)
                 .map(|location| location.name.clone());
-            let route_geography = exit.route_id.as_deref()
+            let route_geography = exit
+                .route_id
+                .as_deref()
                 .and_then(|route_id| game.world.route_by_id(route_id))
                 .and_then(|route| route.geography.as_ref());
             let destination = destination_name.as_deref().unwrap_or("unknown destination");
-            if let Some(reason) = route_geography.and_then(|geography| geography.travel_block_reason()) {
+            if let Some(reason) = route_geography
+                .and_then(|geography| geography.travel_block_reason())
+            {
                 format!("Unavailable: {reason}")
             } else if route_geography.is_some_and(|geography| geography.has_resolved_lake_crossing()) {
                 format!("Board ferry to {destination}")
