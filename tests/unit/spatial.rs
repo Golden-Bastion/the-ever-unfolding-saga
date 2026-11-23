@@ -1994,6 +1994,8 @@ fn distinct_route_bank_midpoints_create_distinct_crossings_on_one_river_componen
             },
         );
         map.terrain.fill(Terrain::Floor);
+        // Keep generated prop footprints from invalidating the synthetic bank tiles.
+        map.props.clear();
         let river_x = map.width / 2;
         for y in 2..map.height - 2 {
             map.terrain[usize::from(y) * usize::from(map.width) + usize::from(river_x)] =
