@@ -300,9 +300,7 @@ fn route_distance_cost(path: &[MacroCoordinate]) -> u64 {
 
 fn landscape_travel_penalty_percent(kind: RouteLandscapeKind) -> u64 {
     match kind {
-        RouteLandscapeKind::Grassland
-        | RouteLandscapeKind::Valley
-        | RouteLandscapeKind::Water => 0,
+        RouteLandscapeKind::Grassland | RouteLandscapeKind::Valley | RouteLandscapeKind::Water => 0,
         RouteLandscapeKind::Coast => 10,
         RouteLandscapeKind::Forest => 15,
         RouteLandscapeKind::Desert => 20,
