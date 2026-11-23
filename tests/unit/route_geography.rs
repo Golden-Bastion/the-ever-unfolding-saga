@@ -982,9 +982,7 @@ fn route_landscape_samples_are_bounded_deterministic_and_follow_travel_direction
 
     let mut unplanned = geography.clone();
     unplanned.status = RoutePlanningStatus::SearchLimit;
-    assert!(
-        unplanned
-            .landscape_samples(42, GEOGRAPHY_RULESET_VERSION, true)
-            .is_empty()
-    );
+    assert!(unplanned
+        .landscape_samples(42, GEOGRAPHY_RULESET_VERSION, true)
+        .is_empty());
 }
