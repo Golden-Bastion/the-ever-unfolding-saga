@@ -1227,11 +1227,7 @@ fn authored_q16_passage_anchors_reach_both_ends_of_the_playable_edge() {
     use crate::spatial::MapExitSide;
 
     for (side, offset_q16, expected) in [
-        (
-            MapExitSide::North,
-            0,
-            GridPosition { x: 1, y: 0 },
-        ),
+        (MapExitSide::North, 0, GridPosition { x: 1, y: 0 }),
         (
             MapExitSide::South,
             u16::MAX,
@@ -1241,7 +1237,8 @@ fn authored_q16_passage_anchors_reach_both_ends_of_the_playable_edge() {
             },
         ),
     ] {
-        let mut map = generate_local_map(826, "location.authored_anchor", LocalMapConfig::default());
+        let mut map =
+            generate_local_map(826, "location.authored_anchor", LocalMapConfig::default());
         map.terrain.fill(Terrain::Floor);
         map.props.clear();
         map.points_of_interest.clear();
