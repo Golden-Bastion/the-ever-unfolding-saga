@@ -2092,6 +2092,19 @@ fn use_map_exit(
         return;
     }
 
+    let valid_connection = lifecycle.session.as_ref().is_some_and(|session| {
+        crate::game::actions::has_location_route_connection(
+            &session.state,
+            target_location_id,
+            route_id.as_deref(),
+        )
+    });
+    if !valid_connection {
+        state.message = Some("That passage no longer leads to a connected location.".to_string());
+        state.dirty = true;
+        return;
+    }
+
     let blocked_reason = route_id.as_deref().and_then(|id| {
         lifecycle
             .session
