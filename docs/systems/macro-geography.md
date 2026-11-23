@@ -15,6 +15,7 @@ What is visible today is:
 - Per-tile biome tinting is selected from the projected location footprint, so a local map can show more than the biome at its anchor.
 - The spatial scene presents the existing sky and celestial cycle from world time, plus player and available actor sprites.
 - Route/frontier passages and cave transitions have semantic categories and provisional renderer tints. They still use generic passage imagery rather than a complete set of dedicated route, entrance, shaft, and tunnel assets; those needs are tracked in [#491](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/491).
+- Physically using a geography-backed route now presents a short, direction-aware terrain panorama sampled from its persisted macro path. Up to 16 evenly spaced samples distinguish water, coast, desert, forest/taiga, tundra, open country, relative valleys, and mountain terrain with colored blocky silhouettes. This is transient presentation; resolved river and lake crossing scenes still follow it, and known-route fast travel skips the panorama.
 - Cave topology is connected to reachable local-map transitions, but the generated chamber network is not yet rendered as a continuous or geographically detailed underground landscape.
 - Location archetypes affect deterministic placement only. They do not currently give settlements, wilderness locations, or landmarks distinct visual layouts or environmental art.
 

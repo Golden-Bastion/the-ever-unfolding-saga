@@ -66,6 +66,10 @@ A route that crosses an inland lake should expose a physical ferry landing at th
 
 The crossing scene consumes the exact persisted lake identity and shore pair. It must not invent a dock in an endpoint local map when the macro crossing lies elsewhere, and it must not fabricate shore positions when geography cannot resolve both banks. Provisional colored shapes are acceptable until dedicated landing, boat, and water artwork exists. The sequence is transient presentation; world-route identity and travel remain authoritative. Known-route fast travel can continue to skip the local cutscene.
 
+#### Terrain-aware physical route journeys
+
+Using a geography-backed physical route begins with a brief, transient panorama derived from the persisted macro path in the direction travelled. A bounded set of up to 16 evenly spaced samples distinguishes broad water, coast, desert, forest, tundra, grassland, valley, and mountain environments using colored placeholder shapes. It gives the player a readable impression of the landscape between local areas without creating a seamless global map or a second travel simulation. Any resolved ford, bridge, or ferry crossing scene follows the panorama and continues to use its exact persisted crossing geometry. Known-route fast travel skips these presentation scenes.
+
 ### 4. Keep fast travel alongside spatial travel
 
 The design retains fast travel as a convenience, rather than forcing players to physically repeat every journey.
