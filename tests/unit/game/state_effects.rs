@@ -94,7 +94,7 @@ fn action_time_advancement_preserves_partial_continuous_minutes() {
 }
 
 #[test]
-fn continuous_minutes_roll_over_the_day_at_midnight() {
+fn continuous_minutes_roll_over_at_the_existing_day_boundary() {
     let mut state = crate::model::create_new_state(
         "Midnight Clock",
         WorldMode::New,
