@@ -1991,6 +1991,7 @@ fn spatial_clock_advances_one_world_minute_per_five_real_seconds() {
     );
     let initial_points = game.world.time_points;
 
+    // No movement input is involved: simply remaining on the map advances time.
     for _ in 0..4 {
         advance_spatial_clock(&mut spatial, &mut game, 1.0);
     }
@@ -2000,7 +2001,10 @@ fn spatial_clock_advances_one_world_minute_per_five_real_seconds() {
     assert_eq!(game.world.minutes_into_time_point, 1);
     assert_eq!(game.world.time_points, initial_points);
     assert_eq!(
-        crate::game::time::clock_display(game.world.time_points, game.world.minutes_into_time_point),
+        crate::game::time::clock_display(
+            game.world.time_points,
+            game.world.minutes_into_time_point,
+        ),
         "08:01"
     );
 
@@ -2010,26 +2014,129 @@ fn spatial_clock_advances_one_world_minute_per_five_real_seconds() {
     assert_eq!(game.world.time_points, initial_points + 1);
     assert_eq!(game.world.minutes_into_time_point, 0);
     assert_eq!(
-        crate::game::time::clock_display(game.world.time_points, game.world.minutes_into_time_point),
+        crate::game::time::clock_display(
+            game.world.time_points,
+            game.world.minutes_into_time_point,
+        ),
         "10:00"
     );
 }
 
 #[test]
 fn spatial_clock_requires_active_unpaused_campaign_exploration() {
-    let active = || should_advance_spatial_clock(
-        Some(ScreenId::SpatialExploration), true, true, false, false, false, false, false, false,
-    );
+    let active = || {
+        should_advance_spatial_clock(
+            Some(ScreenId::SpatialExploration),
+            true,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+        )
+    };
     assert!(active());
-    assert!(!should_advance_spatial_clock(Some(ScreenId::Character), true, true, false, false, false, false, false, false));
-    assert!(!should_advance_spatial_clock(Some(ScreenId::SpatialExploration), false, true, false, false, false, false, false, false));
-    assert!(!should_advance_spatial_clock(Some(ScreenId::SpatialExploration), true, false, false, false, false, false, false, false));
-    assert!(!should_advance_spatial_clock(Some(ScreenId::SpatialExploration), true, true, true, false, false, false, false, false));
-    assert!(!should_advance_spatial_clock(Some(ScreenId::SpatialExploration), true, true, false, true, false, false, false, false));
-    assert!(!should_advance_spatial_clock(Some(ScreenId::SpatialExploration), true, true, false, false, true, false, false, false));
-    assert!(!should_advance_spatial_clock(Some(ScreenId::SpatialExploration), true, true, false, false, false, true, false, false));
-    assert!(!should_advance_spatial_clock(Some(ScreenId::SpatialExploration), true, true, false, false, false, false, true, false));
-    assert!(!should_advance_spatial_clock(Some(ScreenId::SpatialExploration), true, true, false, false, false, false, false, true));
+    assert!(!should_advance_spatial_clock(
+        Some(ScreenId::Character),
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+    ));
+    assert!(!should_advance_spatial_clock(
+        Some(ScreenId::SpatialExploration),
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+    ));
+    assert!(!should_advance_spatial_clock(
+        Some(ScreenId::SpatialExploration),
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+    ));
+    assert!(!should_advance_spatial_clock(
+        Some(ScreenId::SpatialExploration),
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+    ));
+    assert!(!should_advance_spatial_clock(
+        Some(ScreenId::SpatialExploration),
+        true,
+        true,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+    ));
+    assert!(!should_advance_spatial_clock(
+        Some(ScreenId::SpatialExploration),
+        true,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+    ));
+    assert!(!should_advance_spatial_clock(
+        Some(ScreenId::SpatialExploration),
+        true,
+        true,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+    ));
+    assert!(!should_advance_spatial_clock(
+        Some(ScreenId::SpatialExploration),
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+    ));
+    assert!(!should_advance_spatial_clock(
+        Some(ScreenId::SpatialExploration),
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+    ));
 }
 
 #[test]
@@ -2068,16 +2175,16 @@ fn celestial_art_regions_reject_non_landscape_images() {
 
 #[test]
 fn sky_visual_uses_dedicated_celestial_art_instead_of_icon_names() {
-    assert_eq!(sky_visual(3).celestial, CelestialBody::Sun);
-    assert_eq!(sky_visual(10).celestial, CelestialBody::Moon);
+    assert_eq!(sky_visual_at(3, 0).celestial, CelestialBody::Sun);
+    assert_eq!(sky_visual_at(10, 0).celestial, CelestialBody::Moon);
 }
 
 #[test]
 fn sky_visual_keeps_distinct_night_dawn_day_and_dusk_states() {
-    let night = sky_visual(0);
-    let dawn = sky_visual(1);
-    let day = sky_visual(4);
-    let dusk = sky_visual(7);
+    let night = sky_visual_at(0, 0);
+    let dawn = sky_visual_at(1, 0);
+    let day = sky_visual_at(4, 0);
+    let dusk = sky_visual_at(7, 0);
 
     assert!(matches!(night.celestial, CelestialBody::Moon));
     assert!(!night.warm_horizon);
@@ -2093,14 +2200,14 @@ fn sky_visual_keeps_distinct_night_dawn_day_and_dusk_states() {
 #[test]
 fn spatial_time_visuals_cycle_across_the_full_world_clock() {
     for time_points in 0..12 {
-        let sky = sky_visual(time_points);
+        let sky = sky_visual_at(time_points, 0);
         assert!(sky.celestial_x.is_finite());
         assert!(sky.celestial_y.is_finite());
         assert!((0.0..=100.0).contains(&sky.celestial_x));
         assert!((0.0..=100.0).contains(&sky.celestial_y));
     }
-    assert_eq!(sky_visual(0).background, sky_visual(12).background);
-    assert_eq!(sky_visual(3).celestial_x, sky_visual(15).celestial_x);
+    assert_eq!(sky_visual_at(0, 0).background, sky_visual_at(12, 0).background);
+    assert_eq!(sky_visual_at(3, 0).celestial_x, sky_visual_at(15, 0).celestial_x);
 }
 
 #[test]
