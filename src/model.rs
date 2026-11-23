@@ -70,6 +70,130 @@ pub struct WaterbodyModification {
     pub properties: BTreeMap<String, String>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum InfrastructureKind {
+    Road,
+    Trail,
+    Ford,
+    Bridge,
+    Ferry,
+    MountainPass,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum InfrastructureConstruction {
+    #[default]
+    Natural,
+    Planned,
+    UnderConstruction,
+    Built,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum InfrastructureCondition {
+    #[default]
+    Operational,
+    Degraded,
+    Closed,
+    Destroyed,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum InfrastructureAccess {
+    #[default]
+    Public,
+    PermissionRequired,
+    Private,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InfrastructureOwner {
+    pub kind: InfrastructureOwnerKind,
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum InfrastructureOwnerKind {
+    Faction,
+    Settlement,
+    Character,
+    Organization,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RouteInfrastructureRecord {
+    pub id: String,
+    pub route_id: String,
+    #[serde(default)]
+    pub crossing_index: Option<u16>,
+    pub kind: InfrastructureKind,
+    #[serde(default)]
+    pub construction: InfrastructureConstruction,
+    #[serde(default)]
+    pub condition: InfrastructureCondition,
+    #[serde(default)]
+    pub owner: Option<InfrastructureOwner>,
+    #[serde(default)]
+    pub access: InfrastructureAccess,
+}
+
+impl RouteInfrastructureRecord {
+    pub fn is_available(&self) -> bool {
+        let construction_allows_use = matches!(
+            self.construction,
+            InfrastructureConstruction::Natural | InfrastructureConstruction::Built
+        );
+        let requires_built = matches!(
+            self.kind,
+            InfrastructureKind::Bridge | InfrastructureKind::Ferry
+        );
+        construction_allows_use
+            && (!requires_built || self.construction == InfrastructureConstruction::Built)
+            && matches!(
+                self.condition,
+                InfrastructureCondition::Operational | InfrastructureCondition::Degraded
+            )
+            && self.access == InfrastructureAccess::Public
+    }
+
+    pub fn unavailable_reason(&self) -> Option<&'static str> {
+        if matches!(
+            self.construction,
+            InfrastructureConstruction::Planned | InfrastructureConstruction::UnderConstruction
+        ) {
+            return Some("This infrastructure is not finished yet.");
+        }
+        if matches!(
+            self.kind,
+            InfrastructureKind::Bridge | InfrastructureKind::Ferry
+        ) && self.construction != InfrastructureConstruction::Built
+        {
+            return Some("This crossing has not been constructed.");
+        }
+        match self.condition {
+            InfrastructureCondition::Closed => {
+                return Some("This infrastructure is currently closed.");
+            }
+            InfrastructureCondition::Destroyed => {
+                return Some("This infrastructure has been destroyed.");
+            }
+            InfrastructureCondition::Operational | InfrastructureCondition::Degraded => {}
+        }
+        match self.access {
+            InfrastructureAccess::PermissionRequired => {
+                Some("This infrastructure requires permission to use.")
+            }
+            InfrastructureAccess::Private => Some("This infrastructure is private."),
+            InfrastructureAccess::Public => None,
+        }
+    }
+}
+
 impl WorldRoute {
     pub fn new(
         id: impl Into<String>,
@@ -199,6 +323,9 @@ pub struct World {
     /// Explicit changes to deterministically generated lakes and other waterbodies.
     #[serde(default)]
     pub waterbody_modifications: Vec<WaterbodyModification>,
+    /// Persistent infrastructure state; absent from older saves by default.
+    #[serde(default)]
+    pub route_infrastructure: Vec<RouteInfrastructureRecord>,
     pub history: Vec<HistoryEntry>,
     /// Current two-hour world-time slot (12 slots per day).
     #[serde(default)]
@@ -531,6 +658,7 @@ impl World {
             surveyed_region_ids: Vec::new(),
             cartography_version: 1,
             waterbody_modifications: Vec::new(),
+            route_infrastructure: Vec::new(),
             history: Vec::new(),
             time_points: 3,
             minutes_into_time_point: 0,
@@ -624,6 +752,8 @@ impl World {
         let removed = self.routes.len() != original_len;
         if removed {
             self.discovered_route_ids.retain(|id| id != route_id);
+            self.route_infrastructure
+                .retain(|record| record.route_id != route_id);
             self.rebuild_location_exit_cache();
         }
         removed
@@ -646,6 +776,8 @@ impl World {
                 .collect::<Vec<_>>();
             self.discovered_route_ids
                 .retain(|id| remaining_route_ids.contains(id));
+            self.route_infrastructure
+                .retain(|record| remaining_route_ids.contains(&record.route_id));
             self.rebuild_location_exit_cache();
         }
         removed
@@ -701,6 +833,122 @@ impl World {
 
     pub fn route_by_id(&self, route_id: &str) -> Option<&WorldRoute> {
         self.routes.iter().find(|route| route.id == route_id)
+    }
+
+    pub fn infrastructure_by_id(&self, infrastructure_id: &str) -> Option<&RouteInfrastructureRecord> {
+        self.route_infrastructure
+            .iter()
+            .find(|record| record.id == infrastructure_id)
+    }
+
+    pub fn infrastructure_for_route(
+        &self,
+        route_id: &str,
+    ) -> impl Iterator<Item = &RouteInfrastructureRecord> {
+        self.route_infrastructure
+            .iter()
+            .filter(move |record| record.route_id == route_id)
+    }
+
+    pub fn add_route_infrastructure(&mut self, record: RouteInfrastructureRecord) -> bool {
+        if record.id.trim().is_empty()
+            || record.route_id.trim().is_empty()
+            || self.infrastructure_by_id(&record.id).is_some()
+        {
+            return false;
+        }
+        let Some(route) = self.route_by_id(&record.route_id) else {
+            return false;
+        };
+        let expected_crossing = match record.kind {
+            InfrastructureKind::Road | InfrastructureKind::Trail => {
+                if record.crossing_index.is_some() {
+                    return false;
+                }
+                None
+            }
+            InfrastructureKind::Ford | InfrastructureKind::Bridge => {
+                Some(crate::geography::routes::RouteCrossingKind::River)
+            }
+            InfrastructureKind::Ferry => {
+                Some(crate::geography::routes::RouteCrossingKind::Lake)
+            }
+            InfrastructureKind::MountainPass => {
+                Some(crate::geography::routes::RouteCrossingKind::MountainPass)
+            }
+        };
+        if let Some(expected_kind) = expected_crossing {
+            let Some(index) = record.crossing_index.map(usize::from) else {
+                return false;
+            };
+            let Some(crossing) = route
+                .geography
+                .as_ref()
+                .and_then(|geography| geography.crossings.get(index))
+            else {
+                return false;
+            };
+            if crossing.kind != expected_kind {
+                return false;
+            }
+        }
+        self.route_infrastructure.push(record);
+        self.route_infrastructure
+            .sort_by(|left, right| left.id.cmp(&right.id));
+        true
+    }
+
+    pub fn remove_route_infrastructure(&mut self, infrastructure_id: &str) -> bool {
+        let original_len = self.route_infrastructure.len();
+        self.route_infrastructure
+            .retain(|record| record.id != infrastructure_id);
+        self.route_infrastructure.len() != original_len
+    }
+
+    pub fn route_travel_block_reason(&self, route_id: &str) -> Option<&'static str> {
+        let route = self.route_by_id(route_id)?;
+        let geography = route.geography.as_ref();
+        if let Some(reason) = geography.and_then(|item| item.travel_block_reason()) {
+            return Some(reason);
+        }
+
+        if let Some(geography) = geography {
+            for (index, crossing) in geography.crossings.iter().enumerate() {
+                let required_kind = match crossing.infrastructure {
+                    crate::geography::routes::RouteInfrastructure::Bridge => {
+                        Some(InfrastructureKind::Bridge)
+                    }
+                    crate::geography::routes::RouteInfrastructure::Ferry => {
+                        Some(InfrastructureKind::Ferry)
+                    }
+                    _ => None,
+                };
+                let Some(required_kind) = required_kind else {
+                    continue;
+                };
+                let index = u16::try_from(index).ok();
+                let has_available_record = self.route_infrastructure.iter().any(|record| {
+                    record.route_id == route_id
+                        && record.crossing_index == index
+                        && record.kind == required_kind
+                        && record.is_available()
+                });
+                if !has_available_record {
+                    return Some(match required_kind {
+                        InfrastructureKind::Bridge => {
+                            "This route requires a constructed, publicly available bridge."
+                        }
+                        InfrastructureKind::Ferry => {
+                            "This route requires an operational, publicly available ferry."
+                        }
+                        _ => unreachable!(),
+                    });
+                }
+            }
+        }
+
+        self.infrastructure_for_route(route_id)
+            .find_map(RouteInfrastructureRecord::unavailable_reason)
     }
 
     pub fn routes_from(
