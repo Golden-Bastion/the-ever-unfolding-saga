@@ -82,7 +82,8 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
             name: "Crossroads".to_string(),
             region_name: "Ashen Vale".to_string(),
             ..Default::default()
-        }),
+        }),        current_region_overview: vec!["Forest".into(), "Mountain ridges".into()],
+
         nodes: vec![
             crate::presentation::WorldMapNodeView {
                 location: crate::presentation::LocationView {
