@@ -81,7 +81,7 @@ pub(crate) fn has_location_travel_route(
 
 /// Whether the campaign has established this location as visited.
 ///
-/// Persistent local maps are authoritative. For saves made before local maps
+/// The current location and persistent local maps are authoritative. For saves made before local maps
 /// were persisted in the world, recover visited destinations from the retained
 /// travel history of the current character and its recorded predecessors.
 pub(crate) fn has_visited_location(state: &GameState, location_id: EntityId) -> bool {
