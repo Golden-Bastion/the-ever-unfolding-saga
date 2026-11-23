@@ -2280,7 +2280,7 @@ fn travel_to_location(
 ) -> Result<(), &'static str> {
     sync_spatial_to_game(state, lifecycle);
     let destination_map_id = format!("location.{target_location_id}");
-    let Some((old_turn, source_location_id, destination_map_existed, valid_route)) =
+    let Some((old_turn, source_location_id, destination_map_existed)) =
         lifecycle.session.as_ref().map(|session| {
             (
                 session.state.character.turn,
@@ -2291,26 +2291,48 @@ fn travel_to_location(
                     .local_maps
                     .iter()
                     .any(|map| map.location_id == destination_map_id),
-                crate::game::actions::has_location_travel_route(
-                    &session.state,
-                    target_location_id,
-                    route_id,
-                ),
             )
         })
     else {
         return Err("The current world session is unavailable.");
     };
+    let selected_route_id = route_id.map(str::to_string).or_else(|| {
+        lifecycle.session.as_ref().and_then(|session| {
+            session
+                .state
+                .world
+                .routes_from(source_location_id)
+                .filter(|(route, destination)| {
+                    *destination == target_location_id
+                        && route
+                            .geography
+                            .as_ref()
+                            .is_none_or(|geography| geography.travel_block_reason().is_none())
+                })
+                .map(|(route, _)| route.id.clone())
+                .min()
+        })
+    });
+    let Some(selected_route_id) = selected_route_id else {
+        return Err(invalid_route_message);
+    };
+    let valid_route = lifecycle.session.as_ref().is_some_and(|session| {
+        crate::game::actions::has_location_travel_route(
+            &session.state,
+            target_location_id,
+            Some(&selected_route_id),
+        )
+    });
     if !valid_route {
         return Err(invalid_route_message);
     }
 
     let travel_result = lifecycle.session.as_mut().map(|session| {
-        if let Some(route_id) = route_id {
-            crate::game::actions::travel_via_route(&mut session.state, target_location_id, route_id)
-        } else {
-            crate::game::actions::travel_to(&mut session.state, target_location_id)
-        }
+        crate::game::actions::travel_via_route(
+            &mut session.state,
+            target_location_id,
+            &selected_route_id,
+        )
     });
     match travel_result {
         Some(Ok(())) => {}
