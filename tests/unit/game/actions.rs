@@ -341,6 +341,48 @@ fn fast_travel_prefers_a_longer_hop_count_when_its_total_time_is_lower() {
 }
 
 #[test]
+fn least_time_fast_travel_selects_the_exact_cheapest_parallel_route() {
+    use crate::geography::routes::{RouteGeography, RoutePlanningStatus, RouteProfile};
+    use crate::geography::MacroCoordinate;
+
+    let (mut game, middle_id, _) = fast_travel_fixture(false, true, true);
+    game.world.geography_seed = None;
+    game.world.generation = None;
+    let source_id = game.character.location_id;
+    let slower_route_id = game
+        .world
+        .routes_from(source_id)
+        .find(|(_, destination)| *destination == middle_id)
+        .map(|(route, _)| route.id.clone())
+        .expect("fixture route");
+    game.world
+        .routes
+        .iter_mut()
+        .find(|route| route.id == slower_route_id)
+        .unwrap()
+        .geography = Some(RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::Trail,
+        path: vec![MacroCoordinate::new(0, 0), MacroCoordinate::new(160, 0)],
+        crossings: Vec::new(),
+        total_cost: 500,
+    });
+    assert!(game.world.add_route(WorldRoute::new(
+        "route.zzz.fast",
+        source_id,
+        middle_id,
+        RouteDirection::Bidirectional,
+    )));
+    game.world.mark_route_discovered("route.zzz.fast");
+
+    let path = super::find_known_travel_route_path(&game, middle_id)
+        .expect("the known parallel route should be available");
+    assert_eq!(path.len(), 1);
+    assert_eq!(path[0].route_id, "route.zzz.fast");
+    assert_eq!(path[0].time_points, 2);
+}
+
+#[test]
 fn fast_travel_requires_each_route_to_be_discovered() {
     let (mut game, _, destination_id) = fast_travel_fixture(false, true, true);
     game.world.discovered_route_ids.clear();
