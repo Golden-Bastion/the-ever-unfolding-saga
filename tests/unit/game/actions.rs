@@ -133,6 +133,61 @@ fn unsupported_route_crossings_block_direct_and_fast_travel() {
     assert_eq!(game.world.time_points, time);
 }
 
+#[test]
+fn route_infrastructure_access_is_shared_by_direct_and_fast_travel() {
+    use crate::model::{
+        InfrastructureAccess, InfrastructureCondition, InfrastructureConstruction,
+        InfrastructureKind, RouteInfrastructureRecord,
+    };
+
+    let (mut game, middle_id, destination_id) = fast_travel_fixture(false, true, true);
+    let source_id = game.character.location_id;
+    let route_id = game
+        .world
+        .routes_from(source_id)
+        .find(|(_, destination)| *destination == middle_id)
+        .map(|(route, _)| route.id.clone())
+        .expect("fixture route should exist");
+
+    assert!(game
+        .world
+        .add_route_infrastructure(RouteInfrastructureRecord {
+            id: "infrastructure.private-road.test".into(),
+            route_id: route_id.clone(),
+            crossing_index: None,
+            kind: InfrastructureKind::Road,
+            construction: InfrastructureConstruction::Built,
+            condition: InfrastructureCondition::Operational,
+            owner: Some(crate::model::InfrastructureOwner {
+                kind: crate::model::InfrastructureOwnerKind::Faction,
+                id: "faction.test".into(),
+            }),
+            access: InfrastructureAccess::Private,
+        }));
+
+    assert!(!has_location_travel_route(
+        &game,
+        middle_id,
+        Some(&route_id)
+    ));
+    assert!(!game
+        .world
+        .can_travel_via_route(&route_id, source_id, middle_id));
+    assert!(!game.world.can_travel_between(source_id, middle_id));
+    assert!(find_known_travel_path(&game, destination_id).is_none());
+
+    game.world.route_infrastructure[0].access = InfrastructureAccess::Public;
+    assert!(has_location_travel_route(&game, middle_id, Some(&route_id)));
+    assert!(game
+        .world
+        .can_travel_via_route(&route_id, source_id, middle_id));
+    assert!(game.world.can_travel_between(source_id, middle_id));
+    assert_eq!(
+        find_known_travel_path(&game, destination_id),
+        Some(vec![middle_id, destination_id])
+    );
+}
+
 fn fast_travel_fixture(
     dangerous_middle: bool,
     destination_known: bool,

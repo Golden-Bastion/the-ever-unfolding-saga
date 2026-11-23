@@ -1,5 +1,348 @@
 use super::*;
 
+fn infrastructure_test_world() -> World {
+    let mut world = World::new("Infrastructure", WorldMode::New);
+    world.regions.push(Region {
+        id: 2,
+        name: "Region".into(),
+        description: String::new(),
+        location_ids: vec![3, 4],
+        coordinate: None,
+    });
+    for (id, name) in [(3, "Start"), (4, "End")] {
+        world.locations.push(Location {
+            id,
+            name: name.into(),
+            description: String::new(),
+            region_id: 2,
+            dangerous: false,
+            corpse_ids: Vec::new(),
+            exits: Vec::new(),
+            spatial_layout: None,
+        });
+    }
+    assert!(world.add_route(WorldRoute::new(
+        "route.infrastructure.test",
+        3,
+        4,
+        RouteDirection::Bidirectional,
+    )));
+    world
+}
+
+#[test]
+fn unowned_built_operational_public_infrastructure_is_available() {
+    let mut world = infrastructure_test_world();
+    let record = RouteInfrastructureRecord {
+        id: "infrastructure.road.test".into(),
+        route_id: "route.infrastructure.test".into(),
+        crossing_index: None,
+        kind: InfrastructureKind::Road,
+        construction: InfrastructureConstruction::Built,
+        condition: InfrastructureCondition::Operational,
+        owner: None,
+        access: InfrastructureAccess::Public,
+    };
+
+    assert!(record.is_available());
+    assert_eq!(record.unavailable_reason(), None);
+    assert!(world.add_route_infrastructure(record));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        None
+    );
+    assert_eq!(
+        world
+            .infrastructure_by_id("infrastructure.road.test")
+            .and_then(|record| record.owner.as_ref()),
+        None
+    );
+}
+
+#[test]
+fn infrastructure_condition_and_access_control_route_availability() {
+    let mut world = infrastructure_test_world();
+    let mut record = RouteInfrastructureRecord {
+        id: "infrastructure.trail.test".into(),
+        route_id: "route.infrastructure.test".into(),
+        crossing_index: None,
+        kind: InfrastructureKind::Trail,
+        construction: InfrastructureConstruction::Natural,
+        condition: InfrastructureCondition::Degraded,
+        owner: Some(InfrastructureOwner {
+            kind: InfrastructureOwnerKind::Faction,
+            id: "faction.ash-wardens".into(),
+        }),
+        access: InfrastructureAccess::Public,
+    };
+    assert!(world.add_route_infrastructure(record.clone()));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        None,
+        "degraded infrastructure remains usable"
+    );
+
+    record.condition = InfrastructureCondition::Closed;
+    assert!(world.remove_route_infrastructure(&record.id));
+    assert!(world.add_route_infrastructure(record.clone()));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        Some("This infrastructure is currently closed.")
+    );
+
+    record.condition = InfrastructureCondition::Operational;
+    record.access = InfrastructureAccess::PermissionRequired;
+    assert!(world.remove_route_infrastructure(&record.id));
+    assert!(world.add_route_infrastructure(record.clone()));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        Some("This infrastructure requires permission to use.")
+    );
+
+    record.access = InfrastructureAccess::Private;
+    assert!(world.remove_route_infrastructure(&record.id));
+    assert!(world.add_route_infrastructure(record.clone()));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        Some("This infrastructure is private.")
+    );
+
+    record.access = InfrastructureAccess::Public;
+    record.construction = InfrastructureConstruction::UnderConstruction;
+    assert!(world.remove_route_infrastructure(&record.id));
+    assert!(world.add_route_infrastructure(record));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        Some("This infrastructure is not finished yet.")
+    );
+}
+
+#[test]
+fn bridge_crossing_requires_a_built_available_infrastructure_record() {
+    use crate::geography::river_geometry::{RiverBankIntersection, RiverPosition};
+    use crate::geography::routes::{
+        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus,
+        RouteProfile,
+    };
+    use crate::geography::MacroCoordinate;
+
+    let mut world = infrastructure_test_world();
+    world.routes[0].geography = Some(RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::RiverCrossing,
+        path: Vec::new(),
+        crossings: vec![RouteCrossing {
+            coordinate: MacroCoordinate::new(32, 64),
+            kind: RouteCrossingKind::River,
+            infrastructure: RouteInfrastructure::Bridge,
+            river_id: None,
+            river_width: None,
+            river_flow_direction: None,
+            river_banks: Some(RiverBankIntersection {
+                entry: RiverPosition { x_q16: 0, y_q16: 0 },
+                exit: RiverPosition {
+                    x_q16: 65_536,
+                    y_q16: 0,
+                },
+            }),
+            lake_id: None,
+            lake_banks: None,
+        }],
+        total_cost: 0,
+    });
+
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        Some("This route requires a constructed bridge.")
+    );
+
+    let mut record = RouteInfrastructureRecord {
+        id: "infrastructure.bridge.test".into(),
+        route_id: "route.infrastructure.test".into(),
+        crossing_index: Some(0),
+        kind: InfrastructureKind::Bridge,
+        construction: InfrastructureConstruction::Natural,
+        condition: InfrastructureCondition::Operational,
+        owner: None,
+        access: InfrastructureAccess::Public,
+    };
+    assert!(world.add_route_infrastructure(record.clone()));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        Some("This infrastructure has not been constructed.")
+    );
+
+    assert!(world.remove_route_infrastructure(&record.id));
+    record.construction = InfrastructureConstruction::Built;
+    assert!(world.add_route_infrastructure(record));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        None
+    );
+
+    world.route_infrastructure[0].condition = InfrastructureCondition::Destroyed;
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        Some("This infrastructure has been destroyed.")
+    );
+}
+
+#[test]
+fn verified_natural_fords_do_not_require_owned_or_built_infrastructure() {
+    use crate::geography::river_geometry::{RiverBankIntersection, RiverPosition};
+    use crate::geography::routes::{
+        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus,
+        RouteProfile,
+    };
+    use crate::geography::MacroCoordinate;
+
+    let mut world = infrastructure_test_world();
+    world.routes[0].geography = Some(RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::RiverCrossing,
+        path: Vec::new(),
+        crossings: vec![RouteCrossing {
+            coordinate: MacroCoordinate::new(32, 64),
+            kind: RouteCrossingKind::River,
+            infrastructure: RouteInfrastructure::Ford,
+            river_id: None,
+            river_width: None,
+            river_flow_direction: None,
+            river_banks: Some(RiverBankIntersection {
+                entry: RiverPosition { x_q16: 0, y_q16: 0 },
+                exit: RiverPosition {
+                    x_q16: 65_536,
+                    y_q16: 0,
+                },
+            }),
+            lake_id: None,
+            lake_banks: None,
+        }],
+        total_cost: 0,
+    });
+
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        None
+    );
+    assert!(world.add_route_infrastructure(RouteInfrastructureRecord {
+        id: "infrastructure.ford.test".into(),
+        route_id: "route.infrastructure.test".into(),
+        crossing_index: Some(0),
+        kind: InfrastructureKind::Ford,
+        construction: InfrastructureConstruction::Natural,
+        condition: InfrastructureCondition::Operational,
+        owner: None,
+        access: InfrastructureAccess::Public,
+    }));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        None
+    );
+}
+
+#[test]
+fn lake_route_requires_an_explicit_operational_ferry_service() {
+    use crate::geography::river_geometry::{RiverPosition, RIVER_POSITION_SCALE};
+    use crate::geography::routes::{
+        LakeBankIntersection, RouteCrossing, RouteCrossingKind, RouteGeography,
+        RouteInfrastructure, RoutePlanningStatus, RouteProfile,
+    };
+    use crate::geography::MacroCoordinate;
+
+    let mut world = infrastructure_test_world();
+    world.routes[0].geography = Some(RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::WaterCrossing,
+        path: Vec::new(),
+        crossings: vec![RouteCrossing {
+            coordinate: MacroCoordinate::new(32, 64),
+            kind: RouteCrossingKind::Lake,
+            infrastructure: RouteInfrastructure::Ferry,
+            river_id: None,
+            river_width: None,
+            river_flow_direction: None,
+            river_banks: None,
+            lake_id: Some("lake.infrastructure.test".into()),
+            lake_banks: Some(LakeBankIntersection {
+                entry: RiverPosition {
+                    x_q16: 32 * RIVER_POSITION_SCALE,
+                    y_q16: 63 * RIVER_POSITION_SCALE,
+                },
+                exit: RiverPosition {
+                    x_q16: 32 * RIVER_POSITION_SCALE,
+                    y_q16: 65 * RIVER_POSITION_SCALE,
+                },
+            }),
+        }],
+        total_cost: 0,
+    });
+
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        Some("This route requires a constructed ferry service.")
+    );
+    assert!(world.add_route_infrastructure(RouteInfrastructureRecord {
+        id: "infrastructure.ferry.test".into(),
+        route_id: "route.infrastructure.test".into(),
+        crossing_index: Some(0),
+        kind: InfrastructureKind::Ferry,
+        construction: InfrastructureConstruction::Built,
+        condition: InfrastructureCondition::Operational,
+        owner: None,
+        access: InfrastructureAccess::Public,
+    }));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        None
+    );
+}
+
+#[test]
+fn infrastructure_records_round_trip_and_default_empty_for_older_world_saves() {
+    let mut world = infrastructure_test_world();
+    world.add_route_infrastructure(RouteInfrastructureRecord {
+        id: "infrastructure.trail.legacy".into(),
+        route_id: "route.infrastructure.test".into(),
+        crossing_index: None,
+        kind: InfrastructureKind::Trail,
+        construction: InfrastructureConstruction::Natural,
+        condition: InfrastructureCondition::Operational,
+        owner: None,
+        access: InfrastructureAccess::Public,
+    });
+    let encoded = serde_json::to_value(&world).unwrap();
+    let restored: World = serde_json::from_value(encoded.clone()).unwrap();
+    assert_eq!(restored.route_infrastructure, world.route_infrastructure);
+
+    let mut legacy = encoded;
+    legacy
+        .as_object_mut()
+        .unwrap()
+        .remove("route_infrastructure");
+    let restored: World = serde_json::from_value(legacy)
+        .expect("older world saves must default to no explicit infrastructure records");
+    assert!(restored.route_infrastructure.is_empty());
+}
+
+#[test]
+fn removing_a_route_also_removes_its_infrastructure_records() {
+    let mut world = infrastructure_test_world();
+    assert!(world.add_route_infrastructure(RouteInfrastructureRecord {
+        id: "infrastructure.trail.removed".into(),
+        route_id: "route.infrastructure.test".into(),
+        crossing_index: None,
+        kind: InfrastructureKind::Trail,
+        construction: InfrastructureConstruction::Natural,
+        condition: InfrastructureCondition::Operational,
+        owner: None,
+        access: InfrastructureAccess::Public,
+    }));
+
+    assert!(world.remove_route("route.infrastructure.test"));
+    assert!(world.route_infrastructure.is_empty());
+}
+
 #[test]
 fn world_history_is_bounded_to_recent_entries() {
     let mut state = create_new_state(

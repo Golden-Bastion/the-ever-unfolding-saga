@@ -445,6 +445,7 @@ fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
         }),
     };
 
+    let mut resolved_route_id = None;
     for (name, resolved) in [("Resolved Ferry", true), ("Unresolved Crossing", false)] {
         let destination_id = game.world.allocate_id();
         game.world.locations.push(crate::model::Location {
@@ -472,6 +473,9 @@ fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
             total_cost: 0,
         });
         assert!(game.world.add_route(route));
+        if resolved {
+            resolved_route_id = Some(route_id.clone());
+        }
         map.exits.push(MapExit {
             id: format!("exit.{destination_id}"),
             route_id: Some(route_id),
@@ -484,6 +488,31 @@ fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
     }
 
     let player = (f32::from(map.entry.x) + 0.5, f32::from(map.entry.y) + 0.5);
+    let labels = discover_available_interactions(&map, &game, player)
+        .into_iter()
+        .map(|interaction| interaction.label)
+        .collect::<Vec<_>>();
+    assert!(labels.iter().any(|label| {
+        label.starts_with("Unavailable: This route requires a constructed ferry service")
+    }));
+    assert!(labels
+        .iter()
+        .any(|label| label.starts_with("Unavailable: The lake crossing needs verified shores")));
+
+    let resolved_route_id = resolved_route_id.expect("resolved ferry route should be registered");
+    assert!(game
+        .world
+        .add_route_infrastructure(crate::model::RouteInfrastructureRecord {
+            id: "infrastructure.ferry.interaction.fixture".into(),
+            route_id: resolved_route_id,
+            crossing_index: Some(0),
+            kind: crate::model::InfrastructureKind::Ferry,
+            construction: crate::model::InfrastructureConstruction::Built,
+            condition: crate::model::InfrastructureCondition::Operational,
+            owner: None,
+            access: crate::model::InfrastructureAccess::Public,
+        }));
+
     let labels = discover_available_interactions(&map, &game, player)
         .into_iter()
         .map(|interaction| interaction.label)
