@@ -143,10 +143,7 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
         .props
         .iter()
         .any(|prop| prop.id == "prop.legacy.pillar"));
-    assert_eq!(
-        first.local_maps[0].exits[0].id,
-        "location.10.exit.11"
-    );
+    assert_eq!(first.local_maps[0].exits[0].id, "location.10.exit.11");
     assert_eq!(
         first
             .regions
@@ -201,11 +198,14 @@ fn authored_location_anchors_are_applied_once_and_then_remain_authoritative() {
         .find(|record| record.location_id == 10)
         .expect("authored location should receive a geography record");
     assert_eq!(record.stable_key, "location.content.location.authored.a");
-    assert_eq!(record.anchor, crate::geography::MacroCoordinate::new(12, 18));
+    assert_eq!(
+        record.anchor,
+        crate::geography::MacroCoordinate::new(12, 18)
+    );
     assert_eq!(record.footprint_radius_samples, 7);
 
-    let changed_content: crate::content::CampaignContent = serde_json::from_value(
-        serde_json::json!({
+    let changed_content: crate::content::CampaignContent =
+        serde_json::from_value(serde_json::json!({
             "version": 1,
             "world": {
                 "region": {
@@ -226,9 +226,8 @@ fn authored_location_anchors_are_applied_once_and_then_remain_authoritative() {
                     }
                 ]
             }
-        }),
-    )
-    .expect("updated authored campaign geography should deserialize");
+        }))
+        .expect("updated authored campaign geography should deserialize");
 
     ensure_location_geography(&mut world, Some(&changed_content));
 
@@ -238,7 +237,10 @@ fn authored_location_anchors_are_applied_once_and_then_remain_authoritative() {
         .find(|record| record.location_id == 10)
         .expect("established authored location should retain its geography record");
     assert_eq!(record.stable_key, "location.content.location.authored.a");
-    assert_eq!(record.anchor, crate::geography::MacroCoordinate::new(12, 18));
+    assert_eq!(
+        record.anchor,
+        crate::geography::MacroCoordinate::new(12, 18)
+    );
     assert_eq!(record.footprint_radius_samples, 7);
 }
 
