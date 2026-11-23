@@ -4601,22 +4601,31 @@ fn advance_spatial_world_clock(
     );
 }
 
+#[derive(SystemParam)]
+struct SpatialTimePresentationQueries<'w, 's> {
+    atmosphere: Query<
+        'w,
+        's,
+        &'static mut BackgroundColor,
+        (With<SpatialAtmosphere>, Without<SpatialSkyPanel>),
+    >,
+    sky_panels: Query<
+        'w,
+        's,
+        (Entity, &'static mut SpatialSkyPanel, &'static mut BackgroundColor),
+        Without<SpatialAtmosphere>,
+    >,
+    horizons: Query<'w, 's, &'static mut Node, With<SpatialSkyHorizon>>,
+    readouts: Query<'w, 's, &'static mut Text, With<SpatialTimeReadout>>,
+}
+
 fn sync_spatial_time_presentation(
     mut commands: Commands,
     lifecycle: Res<LifecycleState>,
     navigation: Res<NavigationState>,
     celestial_art: Res<CelestialArtAssets>,
     mut state: ResMut<SpatialExplorationState>,
-    mut atmosphere: Query<
-        &mut BackgroundColor,
-        (With<SpatialAtmosphere>, Without<SpatialSkyPanel>),
-    >,
-    mut sky_panels: Query<
-        (Entity, &mut SpatialSkyPanel, &mut BackgroundColor),
-        Without<SpatialAtmosphere>,
-    >,
-    mut horizons: Query<&mut Node, With<SpatialSkyHorizon>>,
-    mut readouts: Query<&mut Text, With<SpatialTimeReadout>>,
+    mut queries: SpatialTimePresentationQueries<'_, '_>,
 ) {
     if state.sandbox_mode
         || lifecycle.phase != LifecyclePhase::Complete
@@ -4641,23 +4650,23 @@ fn sync_spatial_time_presentation(
     let sky = sky_visual_at(time_points, minutes_into_time_point);
 
     let atmosphere_tint = spatial_environment_tint(time_points).unwrap_or(Color::NONE);
-    for mut background in &mut atmosphere {
+    for mut background in &mut queries.atmosphere {
         background.0 = atmosphere_tint;
     }
-    for mut node in &mut horizons {
+    for mut node in &mut queries.horizons {
         node.display = if sky.warm_horizon {
             Display::Flex
         } else {
             Display::None
         };
     }
-    for mut readout in &mut readouts {
+    for mut readout in &mut queries.readouts {
         *readout = Text::new(crate::game::time::clock_display(
             time_points,
             minutes_into_time_point,
         ));
     }
-    for (panel, mut visual, mut background) in &mut sky_panels {
+    for (panel, mut visual, mut background) in &mut queries.sky_panels {
         background.0 = sky.background;
         if let Some(previous) = visual.celestial_visual.take() {
             commands.entity(previous).despawn();
