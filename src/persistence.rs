@@ -311,7 +311,9 @@ fn normalize_loaded_game(mut game: GameState, save_file_version: u32) -> GameSta
             .strip_prefix("location.")
             .and_then(|value| value.parse::<u64>().ok());
         if let Some(region_id) = location_id.and_then(|id| {
-            game.world.location_by_id(id).map(|location| location.region_id)
+            game.world
+                .location_by_id(id)
+                .map(|location| location.region_id)
         }) {
             game.world.mark_region_surveyed(region_id);
         }

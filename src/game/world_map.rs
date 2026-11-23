@@ -138,7 +138,12 @@ fn region_overview(state: &GameState, region_id: u64) -> Vec<String> {
     if !state.world.is_region_surveyed(region_id) {
         return Vec::new();
     }
-    let Some(region) = state.world.regions.iter().find(|region| region.id == region_id) else {
+    let Some(region) = state
+        .world
+        .regions
+        .iter()
+        .find(|region| region.id == region_id)
+    else {
         return Vec::new();
     };
     let Some(coordinate) = region.coordinate else {
@@ -152,7 +157,10 @@ fn region_overview(state: &GameState, region_id: u64) -> Vec<String> {
         return Vec::new();
     };
     let ruleset = if state.world.geography_ruleset_version == 0 {
-        state.world.generation.map_or(0, |generation| generation.geography_ruleset_version)
+        state
+            .world
+            .generation
+            .map_or(0, |generation| generation.geography_ruleset_version)
     } else {
         state.world.geography_ruleset_version
     };
@@ -163,7 +171,8 @@ fn region_overview(state: &GameState, region_id: u64) -> Vec<String> {
             let Some(sample) = coordinate.global_sample(x, y) else {
                 continue;
             };
-            let Some(climate) = crate::geography::climate::sample_surface(seed, ruleset, sample) else {
+            let Some(climate) = crate::geography::climate::sample_surface(seed, ruleset, sample)
+            else {
                 continue;
             };
             let label = match climate.biome() {

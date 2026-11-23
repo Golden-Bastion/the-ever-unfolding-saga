@@ -650,7 +650,10 @@ impl World {
     pub fn mark_route_discovered(&mut self, route_id: impl Into<String>) -> bool {
         let route_id = route_id.into();
         if self.route_by_id(&route_id).is_none()
-            || self.discovered_route_ids.iter().any(|known| known == &route_id)
+            || self
+                .discovered_route_ids
+                .iter()
+                .any(|known| known == &route_id)
         {
             return false;
         }
@@ -664,7 +667,9 @@ impl World {
         if self.route_by_id(route_id).is_none() {
             return false;
         }
-        self.discovered_route_ids.iter().any(|known| known == route_id)
+        self.discovered_route_ids
+            .iter()
+            .any(|known| known == route_id)
             || self.local_maps.iter().any(|map| {
                 map.exits.iter().any(|exit| {
                     exit.route_id.as_deref() == Some(route_id)

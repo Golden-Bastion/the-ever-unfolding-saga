@@ -82,8 +82,14 @@ fn compressed_save_round_trips() {
     assert_eq!(loaded.character.turn, 7);
     assert_eq!(loaded.character.name, "Tester");
     assert_eq!(loaded.world.event_cooldowns, state.world.event_cooldowns);
-    assert_eq!(loaded.world.discovered_route_ids, state.world.discovered_route_ids);
-    assert_eq!(loaded.world.surveyed_region_ids, state.world.surveyed_region_ids);
+    assert_eq!(
+        loaded.world.discovered_route_ids,
+        state.world.discovered_route_ids
+    );
+    assert_eq!(
+        loaded.world.surveyed_region_ids,
+        state.world.surveyed_region_ids
+    );
     assert_eq!(loaded.world.local_maps, vec![map.clone()]);
     assert!(loaded.world.local_maps[0].points_of_interest[0].interacted);
     assert!(loaded.world.local_maps[0].is_tile_discovered(map.entry));
@@ -143,13 +149,21 @@ fn legacy_cartography_migration_preserves_known_travel_between_visited_locations
         exits: Vec::new(),
         spatial_layout: None,
     });
-    state.world.location_by_id_mut(source_id).unwrap().exits.push(destination_id);
+    state
+        .world
+        .location_by_id_mut(source_id)
+        .unwrap()
+        .exits
+        .push(destination_id);
     state.world.migrate_legacy_exits();
-    state.world.local_maps.push(crate::spatial::generate_local_map(
-        7,
-        format!("location.{source_id}"),
-        crate::spatial::LocalMapConfig::default(),
-    ));
+    state
+        .world
+        .local_maps
+        .push(crate::spatial::generate_local_map(
+            7,
+            format!("location.{source_id}"),
+            crate::spatial::LocalMapConfig::default(),
+        ));
     let route_id = format!(
         "route.compat.legacy.{}.{}",
         source_id.min(destination_id),

@@ -278,7 +278,11 @@ fn discovering_a_local_passage_reveals_its_route_but_not_other_connections() {
 
     let hidden = build_view(&state);
     assert_eq!(
-        hidden.nodes.iter().map(|node| node.location.id).collect::<Vec<_>>(),
+        hidden
+            .nodes
+            .iter()
+            .map(|node| node.location.id)
+            .collect::<Vec<_>>(),
         vec![10]
     );
 
@@ -286,7 +290,11 @@ fn discovering_a_local_passage_reveals_its_route_but_not_other_connections() {
     state.world.local_maps[0] = map;
     let revealed = build_view(&state);
     assert_eq!(
-        revealed.nodes.iter().map(|node| node.location.id).collect::<Vec<_>>(),
+        revealed
+            .nodes
+            .iter()
+            .map(|node| node.location.id)
+            .collect::<Vec<_>>(),
         vec![10, 11]
     );
     assert_eq!(revealed.routes.len(), 1);
@@ -470,7 +478,10 @@ fn unrelated_travel_history_does_not_mark_a_location_as_visited() {
     state
         .world
         .record_history(3, "A band of hunters traveled to Old Shrine.");
-    state.world.discovered_route_ids.push("route.compat.legacy.10.11".into());
+    state
+        .world
+        .discovered_route_ids
+        .push("route.compat.legacy.10.11".into());
 
     let view = build_view(&state);
     let old_shrine = view
