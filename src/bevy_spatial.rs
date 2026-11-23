@@ -1526,6 +1526,29 @@ fn sync_spatial_to_game(state: &SpatialExplorationState, lifecycle: &mut Lifecyc
     } else {
         game_session.state.world.local_maps.push(map.clone());
     }
+    if let Some(location_id) = map
+        .location_id
+        .strip_prefix("location.")
+        .and_then(|value| value.parse::<u64>().ok())
+    {
+        if let Some(region_id) = game_session
+            .state
+            .world
+            .location_by_id(location_id)
+            .map(|location| location.region_id)
+        {
+            game_session.state.world.mark_region_surveyed(region_id);
+        }
+    }
+    let discovered_routes = map
+        .exits
+        .iter()
+        .filter(|exit| map.is_tile_discovered(exit.position))
+        .filter_map(|exit| exit.route_id.clone())
+        .collect::<Vec<_>>();
+    for route_id in discovered_routes {
+        game_session.state.world.mark_route_discovered(route_id);
+    }
     if game_session.state.character.exploration_session.as_ref() != Some(session) {
         game_session.state.character.exploration_session = Some(session.clone());
     }
