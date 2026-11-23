@@ -113,13 +113,21 @@ fn continuous_minutes_roll_over_at_the_existing_day_boundary() {
 }
 
 #[test]
-fn old_world_saves_default_the_new_minute_offset_to_zero() {
-    let world = crate::model::World::new("Legacy Clock", WorldMode::New);
-    let mut value = serde_json::to_value(world).unwrap();
-    value.as_object_mut().unwrap().remove("minutes_into_time_point");
+fn world_minute_offset_round_trips_and_legacy_saves_default_to_zero() {
+    let mut world = crate::model::World::new("Minute Clock", WorldMode::New);
+    world.minutes_into_time_point = 47;
 
-    let restored: crate::model::World = serde_json::from_value(value).unwrap();
-    assert_eq!(restored.minutes_into_time_point, 0);
+    let value = serde_json::to_value(&world).unwrap();
+    let restored: crate::model::World = serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(restored.minutes_into_time_point, 47);
+
+    let mut legacy_value = value;
+    legacy_value
+        .as_object_mut()
+        .unwrap()
+        .remove("minutes_into_time_point");
+    let legacy: crate::model::World = serde_json::from_value(legacy_value).unwrap();
+    assert_eq!(legacy.minutes_into_time_point, 0);
 }
 
 #[test]
