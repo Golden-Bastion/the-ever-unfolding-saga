@@ -46,15 +46,15 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         .iter()
         .filter(|location| location.id != current.id && is_explored(location.id))
         .filter_map(|location| {
-            known_travel_tree.path_to(location.id).map(|path| {
-                WorldMapDestinationView {
+            known_travel_tree
+                .path_to(location.id)
+                .map(|path| WorldMapDestinationView {
                     location: location_view(state, location, &campaign),
                     route_steps: path.len(),
                     travel_time_points: path
                         .iter()
                         .fold(0_u32, |total, hop| total.saturating_add(hop.time_points)),
-                }
-            })
+                })
         })
         .collect::<Vec<_>>();
     fast_travel_destinations.sort_by(|left, right| {
