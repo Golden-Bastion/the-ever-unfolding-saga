@@ -35,8 +35,7 @@ use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_cave_connections, configure_map_frontiers,
     configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout,
     generate_local_map_with_surface_and_crossings, ExplorationSession, GridPosition, LocalMap,
-    LocalMapConfig,
-    MapExit, MapExitVisualKind, MapRouteDestination, SpatialDiscoveryDefinition,
+    LocalMapConfig, MapExit, MapExitVisualKind, MapRouteDestination, SpatialDiscoveryDefinition,
     SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind, Terrain,
 };
 use crate::spatial_animation::{
@@ -815,15 +814,15 @@ pub(crate) fn enter(
             if authored_side.is_some() {
                 continue;
             }
-            let Some((geography, from_a)) = game
-                .world
-                .route_by_id(&map_route.route_id)
-                .and_then(|route| {
-                    route
-                        .geography
-                        .as_ref()
-                        .map(|geography| (geography, route.location_a_id == location.id))
-                })
+            let Some((geography, from_a)) =
+                game.world
+                    .route_by_id(&map_route.route_id)
+                    .and_then(|route| {
+                        route
+                            .geography
+                            .as_ref()
+                            .map(|geography| (geography, route.location_a_id == location.id))
+                    })
             else {
                 continue;
             };
@@ -2274,10 +2273,7 @@ fn travel_to_location(
             .and_then(|route| {
                 let geography = route.geography.as_ref()?;
                 let from_a = route.location_a_id == target_location_id;
-                state
-                    .surface
-                    .as_ref()?
-                    .route_edge(&geography.path, from_a)
+                state.surface.as_ref()?.route_edge(&geography.path, from_a)
             });
         let preferred_side = preferred_edge.map(|edge| match edge.side {
             crate::geography::local_surface::LocalSurfaceEdgeSide::North => {
@@ -2312,10 +2308,7 @@ fn travel_to_location(
             }
         });
         if let Some(position) = arrival {
-            state.position = Vec2::new(
-                f32::from(position.x) + 0.5,
-                f32::from(position.y) + 0.5,
-            );
+            state.position = Vec2::new(f32::from(position.x) + 0.5, f32::from(position.y) + 0.5);
             state.dirty = true;
         }
     }
@@ -4319,9 +4312,7 @@ fn route_local_river_crossing_targets(
         .world
         .routes
         .iter()
-        .filter(|route| {
-            route.location_a_id == location_id || route.location_b_id == location_id
-        })
+        .filter(|route| route.location_a_id == location_id || route.location_b_id == location_id)
         .flat_map(|route| {
             let from_a = route.location_a_id == location_id;
             route
@@ -4334,7 +4325,10 @@ fn route_local_river_crossing_targets(
         .filter_map(|crossing| {
             let midpoint = crossing.river_banks?.midpoint()?;
             let tile = surface.tile_for_position(midpoint)?;
-            Some(GridPosition { x: tile.x, y: tile.y })
+            Some(GridPosition {
+                x: tile.x,
+                y: tile.y,
+            })
         })
         .collect::<Vec<_>>();
     targets.sort_by_key(|position| (position.y, position.x));

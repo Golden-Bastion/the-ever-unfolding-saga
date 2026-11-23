@@ -2556,8 +2556,8 @@ fn edge_positions_near_offset(
 ) -> Vec<GridPosition> {
     let mut positions = edge_positions_center_out(map, side);
     let count = positions.len().saturating_sub(1);
-    let offset = (u32::from(offset_q16) * count as u32 + u32::from(u16::MAX) / 2)
-        / u32::from(u16::MAX);
+    let offset =
+        (u32::from(offset_q16) * count as u32 + u32::from(u16::MAX) / 2) / u32::from(u16::MAX);
     let target = 1 + offset as u16;
     positions.sort_by_key(|position| {
         let coordinate = match side {
@@ -3072,7 +3072,10 @@ fn water_safe_passage_corridor(
             if x < 0 || y < 0 || x >= i32::from(map.width) || y >= i32::from(map.height) {
                 continue;
             }
-            let next = GridPosition { x: x as u16, y: y as u16 };
+            let next = GridPosition {
+                x: x as u16,
+                y: y as u16,
+            };
             let is_start_or_goal = next == exit || next == map.entry;
             if !is_start_or_goal
                 && (next.x == 0
@@ -3165,7 +3168,10 @@ fn walkable_arrival_path(
             if x < 0 || y < 0 || x >= i32::from(map.width) || y >= i32::from(map.height) {
                 continue;
             }
-            let next = GridPosition { x: x as u16, y: y as u16 };
+            let next = GridPosition {
+                x: x as u16,
+                y: y as u16,
+            };
             let is_start_or_goal = next == start_position || next == map.entry;
             if !is_start_or_goal
                 && (next.x == 0
@@ -3214,9 +3220,18 @@ fn corridor_tile_reserved(
     map.exits
         .iter()
         .any(|exit| Some(exit.id.as_str()) != ignored_exit_id && exit.position == position)
-        || map.points_of_interest.iter().any(|point| point.position == position)
-        || map.interactables.iter().any(|actor| actor.position == position)
-        || map.encounters.iter().any(|encounter| encounter.position == position)
+        || map
+            .points_of_interest
+            .iter()
+            .any(|point| point.position == position)
+        || map
+            .interactables
+            .iter()
+            .any(|actor| actor.position == position)
+        || map
+            .encounters
+            .iter()
+            .any(|encounter| encounter.position == position)
         || map
             .props
             .iter()

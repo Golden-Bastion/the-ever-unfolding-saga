@@ -1286,7 +1286,10 @@ fn physical_passage_travel_keeps_spatial_mode_and_restores_destination_map() {
         destination_key
     );
     let destination_map = &spatial.maps[&destination_key];
-    let route_id = exit.route_id.as_deref().expect("physical passage should identify its route");
+    let route_id = exit
+        .route_id
+        .as_deref()
+        .expect("physical passage should identify its route");
     let expected_arrival = destination_map
         .route_arrival_position(route_id, source_location_id, None, None)
         .unwrap_or(destination_map.entry);

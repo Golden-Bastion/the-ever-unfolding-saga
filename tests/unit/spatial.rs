@@ -1270,14 +1270,12 @@ fn route_arrivals_use_reciprocal_passages_or_the_nearest_reachable_projected_edg
     };
     for x in 0..one_way.width {
         one_way.terrain[usize::from(x)] = Terrain::Wall;
-        let south = usize::from(one_way.height - 1) * usize::from(one_way.width)
-            + usize::from(x);
+        let south = usize::from(one_way.height - 1) * usize::from(one_way.width) + usize::from(x);
         one_way.terrain[south] = Terrain::Wall;
     }
     for y in 0..one_way.height {
         one_way.terrain[usize::from(y) * usize::from(one_way.width)] = Terrain::Wall;
-        let east = usize::from(y) * usize::from(one_way.width)
-            + usize::from(one_way.width - 1);
+        let east = usize::from(y) * usize::from(one_way.width) + usize::from(one_way.width - 1);
         one_way.terrain[east] = Terrain::Wall;
     }
     one_way.terrain[usize::from(one_way.entry.y) * usize::from(one_way.width)
@@ -1906,7 +1904,10 @@ fn route_bank_midpoints_select_the_nearest_feasible_local_river_crossing() {
     let mut map = generate_local_map(
         74,
         "location.route_bank_preference",
-        LocalMapConfig { width: 32, height: 24 },
+        LocalMapConfig {
+            width: 32,
+            height: 24,
+        },
     );
     map.terrain.fill(Terrain::Floor);
     let river_x = map.width / 2;

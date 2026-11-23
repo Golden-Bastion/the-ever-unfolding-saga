@@ -34,18 +34,23 @@ fn route_edge_projection_uses_the_exact_aspect_corrected_footprint_boundary() {
 
     let anchor = MacroCoordinate::new(1_237, -842);
     let surface =
-        LocalSurfaceMap::sample_location(41, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48)
-            .unwrap();
+        LocalSurfaceMap::sample_location(41, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48).unwrap();
 
     let east = surface
-        .route_edge(&[anchor, MacroCoordinate::new(anchor.x + 32, anchor.y + 8)], true)
+        .route_edge(
+            &[anchor, MacroCoordinate::new(anchor.x + 32, anchor.y + 8)],
+            true,
+        )
         .unwrap();
     assert_eq!(east.side, LocalSurfaceEdgeSide::East);
     assert_eq!(east.offset_q16, 43_690);
 
     // A 64×48 map is wider than it is tall, so this diagonal leaves the south edge first.
     let south = surface
-        .route_edge(&[anchor, MacroCoordinate::new(anchor.x + 32, anchor.y + 32)], true)
+        .route_edge(
+            &[anchor, MacroCoordinate::new(anchor.x + 32, anchor.y + 32)],
+            true,
+        )
         .unwrap();
     assert_eq!(south.side, LocalSurfaceEdgeSide::South);
     assert_eq!(south.offset_q16, 57_343);
@@ -72,8 +77,7 @@ fn route_edge_projection_uses_the_exact_aspect_corrected_footprint_boundary() {
 fn exact_macro_positions_project_to_local_tiles_and_reject_outside_points() {
     let anchor = MacroCoordinate::new(-17, 23);
     let surface =
-        LocalSurfaceMap::sample_location(41, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48)
-            .unwrap();
+        LocalSurfaceMap::sample_location(41, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48).unwrap();
     let center = RiverPosition {
         x_q16: anchor.x * crate::geography::river_geometry::RIVER_POSITION_SCALE,
         y_q16: anchor.y * crate::geography::river_geometry::RIVER_POSITION_SCALE,

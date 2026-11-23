@@ -232,7 +232,10 @@ impl LocalSurfaceMap {
         let next = if from_anchor_a {
             path.iter().copied().find(|point| *point != self.anchor)?
         } else {
-            path.iter().rev().copied().find(|point| *point != self.anchor)?
+            path.iter()
+                .rev()
+                .copied()
+                .find(|point| *point != self.anchor)?
         };
         let dx = i128::from(next.x) - i128::from(self.anchor.x);
         let dy = i128::from(next.y) - i128::from(self.anchor.y);
@@ -254,11 +257,7 @@ impl LocalSurfaceMap {
                 } else {
                     LocalSurfaceEdgeSide::West
                 },
-                offset_q16: normalized_edge_offset_q16(
-                    dy * radius_x,
-                    abs_dx,
-                    self.radius_y,
-                )?,
+                offset_q16: normalized_edge_offset_q16(dy * radius_x, abs_dx, self.radius_y)?,
             })
         } else {
             Some(LocalSurfaceEdge {
@@ -267,11 +266,7 @@ impl LocalSurfaceMap {
                 } else {
                     LocalSurfaceEdgeSide::North
                 },
-                offset_q16: normalized_edge_offset_q16(
-                    dx * radius_y,
-                    abs_dy,
-                    self.radius_x,
-                )?,
+                offset_q16: normalized_edge_offset_q16(dx * radius_y, abs_dy, self.radius_x)?,
             })
         }
     }
@@ -368,12 +363,7 @@ fn normalized_edge_offset_q16(
     u16::try_from(scaled.clamp(0, i128::from(u16::MAX))).ok()
 }
 
-fn coordinate_to_tile(
-    position_q16: i64,
-    anchor: i64,
-    radius: u16,
-    dimension: u16,
-) -> Option<u16> {
+fn coordinate_to_tile(position_q16: i64, anchor: i64, radius: u16, dimension: u16) -> Option<u16> {
     if dimension == 0 {
         return None;
     }
@@ -390,7 +380,10 @@ fn coordinate_to_tile(
         return None;
     }
     let span = radius_q16.checked_mul(2)?;
-    let tile = position.checked_sub(minimum)?.checked_mul(i128::from(dimension))? / span;
+    let tile = position
+        .checked_sub(minimum)?
+        .checked_mul(i128::from(dimension))?
+        / span;
     u16::try_from(tile.clamp(0, i128::from(dimension - 1))).ok()
 }
 
