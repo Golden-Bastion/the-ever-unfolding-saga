@@ -313,7 +313,7 @@ pub(crate) fn travel_via_route(
 #[cfg(test)]
 pub(crate) fn travel_to(state: &mut GameState, target_id: EntityId) -> std::io::Result<()> {
     let source_id = state.character.location_id;
-    let route = state
+    let selected_route = state
         .world
         .routes_from(source_id)
         .filter(|(route, destination)| {
@@ -328,7 +328,7 @@ pub(crate) fn travel_to(state: &mut GameState, target_id: EntityId) -> std::io::
                 "Travel requires a world route that permits travel to the destination.",
             )
         })?;
-    apply_route_travel(state, target_id, route.1)
+    apply_route_travel(state, target_id, selected_route.1)
 }
 
 fn apply_route_travel(
