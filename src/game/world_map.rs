@@ -5,7 +5,7 @@
 //! visits recoverable from retained character-lineage travel history and their exits.
 //! Presentation code arranges these stable identities.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::model::{GameState, Location, QuestObjectiveKind};
 use crate::presentation::{
@@ -27,19 +27,13 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
 
     let mut visible_ids = HashSet::from([current.id]);
     if let Some(destination_id) = tracked_destination_id {
-        // An explicitly tracked objective is character-known information, so
-        // its destination may appear even beyond the ordinary explored frontier.
+        // Tracking is character-known information, independent of world cartography.
         visible_ids.insert(destination_id);
     }
-    for location in &state.world.locations {
-        if location.id == current.id || is_explored(location.id) {
-            visible_ids.insert(location.id);
-            visible_ids.extend(
-                state
-                    .world
-                    .routes_from(location.id)
-                    .map(|(_, destination_id)| destination_id),
-            );
+    for route in &state.world.routes {
+        if state.world.is_route_discovered(&route.id) {
+            visible_ids.insert(route.location_a_id);
+            visible_ids.insert(route.location_b_id);
         }
     }
     visible_ids.retain(|id| state.world.location_by_id(*id).is_some());
@@ -84,10 +78,10 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
                 region_id: location.region_id,
                 explored: location.id == current.id || is_explored(location.id),
                 current: location.id == current.id,
-                reachable: crate::game::actions::has_location_travel_route(
-                    state,
-                    location.id,
-                    None,
+                reachable: state.world.routes_from(state.character.location_id).any(
+                    |(route, destination)| {
+                        destination == location.id && state.world.is_route_discovered(&route.id)
+                    },
                 ),
                 fast_travel_index: fast_travel.map(|(index, _)| index),
                 fast_travel_steps: fast_travel.map(|(_, steps)| steps),
@@ -96,11 +90,11 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         .collect();
 
     let mut route_directions = std::collections::BTreeMap::<(u64, u64), (bool, bool)>::new();
-    for source in &state.world.locations {
-        if source.id != current.id && !is_explored(source.id) {
+    for route in &state.world.routes {
+        if !state.world.is_route_discovered(&route.id) {
             continue;
         }
-        for (route, _) in state.world.routes_from(source.id) {
+        {
             let a = route.location_a_id;
             let b = route.location_b_id;
             let directions = route_directions.entry((a, b)).or_insert((false, false));
@@ -134,10 +128,72 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
 
     WorldMapView {
         current_location,
+        current_region_overview: region_overview(state, current.region_id),
         nodes,
         routes,
         fast_travel_destinations,
     }
+}
+
+fn region_overview(state: &GameState, region_id: u64) -> Vec<String> {
+    if !state.world.is_region_surveyed(region_id) {
+        return Vec::new();
+    }
+    let Some(region) = state.world.regions.iter().find(|region| region.id == region_id) else {
+        return Vec::new();
+    };
+    let Some(coordinate) = region.coordinate else {
+        return Vec::new();
+    };
+    let seed = state
+        .world
+        .geography_seed
+        .or_else(|| state.world.generation.map(|generation| generation.seed));
+    let Some(seed) = seed else {
+        return Vec::new();
+    };
+    let ruleset = if state.world.geography_ruleset_version == 0 {
+        state.world.generation.map_or(0, |generation| generation.geography_ruleset_version)
+    } else {
+        state.world.geography_ruleset_version
+    };
+
+    let mut features = BTreeMap::<&'static str, usize>::new();
+    for y in [32, 96, 160, 224] {
+        for x in [32, 96, 160, 224] {
+            let Some(sample) = coordinate.global_sample(x, y) else {
+                continue;
+            };
+            let Some(climate) = crate::geography::climate::sample_surface(seed, ruleset, sample) else {
+                continue;
+            };
+            let label = match climate.biome() {
+                crate::geography::climate::Biome::Ocean => "Ocean",
+                crate::geography::climate::Biome::Coast => "Coast",
+                crate::geography::climate::Biome::Desert => "Desert",
+                crate::geography::climate::Biome::Grassland => "Open country",
+                crate::geography::climate::Biome::TemperateForest => "Forest",
+                crate::geography::climate::Biome::Taiga => "Taiga",
+                crate::geography::climate::Biome::Tundra => "Tundra",
+                crate::geography::climate::Biome::Alpine => "Highlands",
+            };
+            *features.entry(label).or_default() += 1;
+            if crate::geography::terrain::sample_surface(seed, ruleset, sample)
+                .is_some_and(|terrain| terrain.is_mountain_barrier())
+            {
+                *features.entry("Mountain ridges").or_default() += 1;
+            }
+        }
+    }
+
+    let mut overview = features.into_iter().collect::<Vec<_>>();
+    overview.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(right.0)));
+    overview
+        .into_iter()
+        .filter(|(_, count)| *count >= 2)
+        .take(4)
+        .map(|(label, _)| label.to_string())
+        .collect()
 }
 
 fn tracked_quest_destination_id(
