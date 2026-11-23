@@ -154,6 +154,9 @@ fn region_overview(state: &GameState, region_id: u64) -> Vec<String> {
     let Some(coordinate) = region.coordinate else {
         return Vec::new();
     };
+    if coordinate.stratum != 0 {
+        return vec!["Underground".to_string()];
+    }
     let seed = state
         .world
         .geography_seed
