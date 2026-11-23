@@ -13,7 +13,7 @@ use crate::geography::rivers::RiverWidthClass;
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 12;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 13;
 pub const DEFAULT_MAP_WIDTH: u16 = 64;
 pub const DEFAULT_MAP_HEIGHT: u16 = 48;
 const MIN_MAP_DIMENSION: u16 = 8;
@@ -1481,9 +1481,10 @@ pub fn generate_local_map_with_surface_and_crossings(
     map
 }
 
-/// Select one safe local crossing for each connected river-channel component.
-/// The shortest complete cardinal bank-to-bank run is preferred; ties are
-/// resolved by map coordinates and axis order. Lakes, ocean, partial channels,
+/// Select a safe local crossing for each distinct route target on a river component.
+/// Each target prefers its nearest complete cardinal bank-to-bank run. Intersecting
+/// spans keep both runs and share their common tiles. Components
+/// without route targets retain one generic crossing. Lakes, ocean, partial channels,
 /// and channels that reach the map edge are never turned into crossings.
 fn place_river_crossings(
     map: &mut LocalMap,
@@ -1556,8 +1557,14 @@ fn place_river_crossings(
         preferred_crossings,
     );
 
-    let mut best = Vec::with_capacity(component_count);
-    best.resize_with(component_count, || None::<RiverCrossingCandidate>);
+    let mut best = preferred_by_component
+        .iter()
+        .map(|targets| {
+            (0..targets.len().max(1))
+                .map(|_| None::<RiverCrossingCandidate>)
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
     let mut crossing_search = RiverCrossingSearch {
         map,
         river_widths: &river_widths,
@@ -1632,13 +1639,21 @@ fn place_river_crossings(
         }
     }
 
-    for candidate in best.into_iter().flatten() {
-        let terrain = match candidate.width {
-            RiverWidthClass::Narrow | RiverWidthClass::Medium => Terrain::Ford,
-            RiverWidthClass::Wide | RiverWidthClass::VeryWide => Terrain::Bridge,
-        };
-        for position in candidate.tiles {
-            map.terrain[usize::from(position.y) * width + usize::from(position.x)] = terrain;
+    for component_candidates in best {
+        for candidate in component_candidates.into_iter().flatten() {
+            let crossing_terrain = match candidate.width {
+                RiverWidthClass::Narrow | RiverWidthClass::Medium => Terrain::Ford,
+                RiverWidthClass::Wide | RiverWidthClass::VeryWide => Terrain::Bridge,
+            };
+            for position in candidate.tiles {
+                let index = usize::from(position.y) * width + usize::from(position.x);
+                let tile = &mut map.terrain[index];
+                // Distinct crossings may meet on a narrow bend. Keep every
+                // selected bank-to-bank span, and never downgrade a bridge.
+                if *tile != Terrain::Bridge || crossing_terrain == Terrain::Bridge {
+                    *tile = crossing_terrain;
+                }
+            }
         }
     }
 }
@@ -1655,8 +1670,8 @@ struct RiverCrossingSearch<'a> {
     map: &'a LocalMap,
     river_widths: &'a [Option<RiverWidthClass>],
     component_ids: &'a [Option<usize>],
-    best: &'a mut [Option<RiverCrossingCandidate>],
-    preferred_by_component: &'a [Option<GridPosition>],
+    best: &'a mut [Vec<Option<RiverCrossingCandidate>>],
+    preferred_by_component: &'a [Vec<GridPosition>],
 }
 
 impl RiverCrossingSearch<'_> {
@@ -1694,34 +1709,67 @@ impl RiverCrossingSearch<'_> {
         else {
             return;
         };
-        let preference_distance = self
+
+        let preferred_targets = self
             .preferred_by_component
             .get(component_id)
-            .copied()
-            .flatten()
-            .map(|target| {
-                tiles
-                    .iter()
-                    .map(|position| {
-                        let dx = i32::from(position.x) - i32::from(target.x);
-                        let dy = i32::from(position.y) - i32::from(target.y);
-                        (dx * dx + dy * dy) as u32
-                    })
-                    .min()
-                    .unwrap_or(u32::MAX)
-            });
+            .cloned()
+            .unwrap_or_default();
+        if preferred_targets.is_empty() {
+            self.consider_for_target(component_id, 0, tiles, crossing_width, axis_order, None);
+        } else {
+            for (target_index, target) in preferred_targets.into_iter().enumerate() {
+                self.consider_for_target(
+                    component_id,
+                    target_index,
+                    tiles.clone(),
+                    crossing_width,
+                    axis_order,
+                    Some(target),
+                );
+            }
+        }
+    }
+
+    fn consider_for_target(
+        &mut self,
+        component_id: usize,
+        target_index: usize,
+        tiles: Vec<GridPosition>,
+        width: RiverWidthClass,
+        axis_order: u8,
+        target: Option<GridPosition>,
+    ) {
+        let preference_distance = target.map(|target| {
+            tiles
+                .iter()
+                .map(|position| {
+                    let dx = i32::from(position.x) - i32::from(target.x);
+                    let dy = i32::from(position.y) - i32::from(target.y);
+                    (dx * dx + dy * dy) as u32
+                })
+                .min()
+                .unwrap_or(u32::MAX)
+        });
         let candidate = RiverCrossingCandidate {
             tiles,
-            width: crossing_width,
+            width,
             axis_order,
             preference_distance,
         };
         let candidate_key = river_crossing_candidate_key(&candidate);
-        let replace = self.best[component_id]
+        let Some(best) = self
+            .best
+            .get_mut(component_id)
+            .and_then(|candidates| candidates.get_mut(target_index))
+        else {
+            return;
+        };
+        let replace = best
             .as_ref()
             .is_none_or(|current| candidate_key < river_crossing_candidate_key(current));
         if replace {
-            self.best[component_id] = Some(candidate);
+            *best = Some(candidate);
         }
     }
 }
@@ -1746,10 +1794,9 @@ fn preferred_river_crossings_by_component(
     map_width: u16,
     map_height: u16,
     preferred_crossings: &[GridPosition],
-) -> Vec<Option<GridPosition>> {
+) -> Vec<Vec<GridPosition>> {
     let width = usize::from(map_width);
-    let mut selected = vec![None; component_count];
-    let mut selected_key = vec![None::<(u32, u16, u16)>; component_count];
+    let mut selected = vec![Vec::new(); component_count];
     let mut targets = preferred_crossings.to_vec();
     targets.sort_by_key(|position| (position.y, position.x));
     targets.dedup();
@@ -1778,13 +1825,14 @@ fn preferred_river_crossings_by_component(
                 }
             }
         }
-        if let Some((distance, _, _, component_id)) = nearest {
-            let key = (distance, target.y, target.x);
-            if selected_key[component_id].is_none_or(|current| key < current) {
-                selected_key[component_id] = Some(key);
-                selected[component_id] = Some(target);
-            }
+        if let Some((_, _, _, component_id)) = nearest {
+            selected[component_id].push(target);
         }
+    }
+
+    for targets in &mut selected {
+        targets.sort_by_key(|position| (position.y, position.x));
+        targets.dedup();
     }
     selected
 }

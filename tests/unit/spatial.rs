@@ -1983,6 +1983,88 @@ fn route_bank_midpoints_select_the_nearest_feasible_local_river_crossing() {
 }
 
 #[test]
+fn distinct_route_bank_midpoints_create_distinct_crossings_on_one_river_component() {
+    fn crossing_map(targets: &[GridPosition]) -> LocalMap {
+        let mut map = generate_local_map(
+            75,
+            "location.multiple_route_bank_targets",
+            LocalMapConfig {
+                width: 32,
+                height: 24,
+            },
+        );
+        map.terrain.fill(Terrain::Floor);
+        let river_x = map.width / 2;
+        for y in 2..map.height - 2 {
+            map.terrain[usize::from(y) * usize::from(map.width) + usize::from(river_x)] =
+                Terrain::Water;
+        }
+
+        let map_height = map.height;
+        place_river_crossings(
+            &mut map,
+            |position| {
+                (position.x == river_x && (2..map_height - 2).contains(&position.y))
+                    .then_some(RiverWidthClass::Narrow)
+            },
+            targets,
+        );
+        map
+    }
+
+    let river_x = 16;
+    let northern_target = GridPosition { x: river_x, y: 6 };
+    let southern_target = GridPosition { x: river_x, y: 17 };
+    let forward = crossing_map(&[northern_target, southern_target]);
+    let reversed = crossing_map(&[southern_target, northern_target]);
+    let duplicated = crossing_map(&[
+        northern_target,
+        southern_target,
+        northern_target,
+        southern_target,
+    ]);
+
+    assert_eq!(forward.terrain, reversed.terrain);
+    assert_eq!(forward.terrain, duplicated.terrain);
+    assert_eq!(forward.terrain_at(northern_target), Some(Terrain::Ford));
+    assert_eq!(forward.terrain_at(southern_target), Some(Terrain::Ford));
+    assert!(has_walkable_path(
+        &forward,
+        GridPosition {
+            x: 2,
+            y: northern_target.y
+        },
+        GridPosition {
+            x: 29,
+            y: northern_target.y
+        },
+    ));
+    assert!(has_walkable_path(
+        &forward,
+        GridPosition {
+            x: 2,
+            y: southern_target.y
+        },
+        GridPosition {
+            x: 29,
+            y: southern_target.y
+        },
+    ));
+    assert_eq!(
+        forward
+            .terrain
+            .iter()
+            .filter(|terrain| **terrain == Terrain::Ford)
+            .count(),
+        2
+    );
+    assert_eq!(
+        forward.terrain_at(GridPosition { x: river_x, y: 11 }),
+        Some(Terrain::Water)
+    );
+}
+
+#[test]
 fn local_river_crossings_are_deterministic_walkable_and_width_appropriate() {
     fn crossing_map(width: RiverWidthClass) -> LocalMap {
         let config = LocalMapConfig {
