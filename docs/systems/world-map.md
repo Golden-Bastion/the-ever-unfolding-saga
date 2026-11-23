@@ -10,7 +10,7 @@ The first version intentionally avoids a geographic map projection. It visualize
 - Locations with established persistent local maps are shown as explored.
 - A route and its destination appear only after the corresponding local passage tile has been physically uncovered. Merely visiting a location does not reveal every exit or the locations beyond them.
 - Connections are derived from authoritative `World.routes` records and filtered through persistent route-discovery state. Each route has a stable identity, two canonical location endpoints, and explicit bidirectional or one-way direction; separate routes may connect the same pair of locations. `Location.exits` is only a transient adjacency projection and is not saved.
-- The map does not reveal unrelated unvisited locations or pretend that map nodes have geographical distance, direction, terrain, or scale.
+- Node positions are a temporary graph layout, not geographical distance, direction, terrain, or scale; unrelated unvisited locations remain hidden.
 - The current region and current location are shown explicitly above the graph. Region names are also attached to their location nodes.
 - Locations with established local maps are previously visited places. These are the only destinations eligible for fast travel.
 - The map marks a visited destination as fast-travelable only when a shortest directed path exists from the current location using physically discovered routes that permit travel in that direction and whose intermediate locations have also been visited.
@@ -49,6 +49,7 @@ The graph is presented inside a clipped two-dimensional viewport. Its pan and zo
 ## Final geography boundary
 
 The current screen remains an interim topological route graph with a broad regional terrain summary. The persistent macro-geography foundation now drives terrain projection for new outdoor local maps and terrain-aware route planning, but a geography-backed world/region map is still future work: it needs an explicit map-scale projection and cartographic presentation derived from coherent geography, location placement, and route data. It is not a visual reskin of the current graph. Its requirements and boundaries are specified in [World Topology, Local Exploration, and Hybrid Travel](../design/world-topology-and-travel.md), and the root [roadmap](../../ROADMAP.md) sequences the remaining work.
+
 ## Replacement strategy
 
 Keep the current division between:
