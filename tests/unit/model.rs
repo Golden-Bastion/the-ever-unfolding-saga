@@ -191,8 +191,8 @@ fn bridge_crossing_requires_a_built_available_infrastructure_record() {
 fn verified_natural_fords_do_not_require_owned_or_built_infrastructure() {
     use crate::geography::river_geometry::{RiverBankIntersection, RiverPosition};
     use crate::geography::routes::{
-        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure,
-        RoutePlanningStatus, RouteProfile,
+        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus,
+        RouteProfile,
     };
     use crate::geography::MacroCoordinate;
 
@@ -210,7 +210,10 @@ fn verified_natural_fords_do_not_require_owned_or_built_infrastructure() {
             river_flow_direction: None,
             river_banks: Some(RiverBankIntersection {
                 entry: RiverPosition { x_q16: 0, y_q16: 0 },
-                exit: RiverPosition { x_q16: 65_536, y_q16: 0 },
+                exit: RiverPosition {
+                    x_q16: 65_536,
+                    y_q16: 0,
+                },
             }),
             lake_id: None,
             lake_banks: None,
