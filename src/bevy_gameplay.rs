@@ -715,6 +715,21 @@ fn render_world_map_content(
             format!("CURRENT REGION  |  {}", current.region_name),
         );
         bevy_presentation::spawn_label(commands, panel, current.name.clone());
+        if !view.current_region_overview.is_empty() {
+            bevy_presentation::spawn_muted_label(
+                commands,
+                panel,
+                format!(
+                    "REGIONAL LANDSCAPE  |  {}",
+                    view.current_region_overview.join(" · ")
+                ),
+            );
+            bevy_presentation::spawn_muted_label(
+                commands,
+                panel,
+                "Broad terrain is known; local routes and landmarks still require exploration.",
+            );
+        }
     } else {
         bevy_presentation::spawn_muted_label(
             commands,
