@@ -45,10 +45,11 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         .iter()
         .filter(|location| location.id != current.id && is_explored(location.id))
         .filter_map(|location| {
-            crate::game::actions::find_known_travel_path(state, location.id).map(|path| {
+            crate::game::actions::find_known_travel_route_path(state, location.id).map(|path| {
                 WorldMapDestinationView {
                     location: location_view(state, location, &campaign),
                     route_steps: path.len(),
+                    travel_time_points: path.iter().map(|hop| hop.time_points).sum(),
                 }
             })
         })
@@ -63,7 +64,16 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
     let fast_travel_indices = fast_travel_destinations
         .iter()
         .enumerate()
-        .map(|(index, destination)| (destination.location.id, (index, destination.route_steps)))
+        .map(|(index, destination)| {
+            (
+                destination.location.id,
+                (
+                    index,
+                    destination.route_steps,
+                    destination.travel_time_points,
+                ),
+            )
+        })
         .collect::<HashMap<_, _>>();
 
     let nodes = state
@@ -90,7 +100,8 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
                     },
                 ),
                 fast_travel_index: fast_travel.map(|(index, _)| index),
-                fast_travel_steps: fast_travel.map(|(_, steps)| steps),
+                fast_travel_steps: fast_travel.map(|(_, steps, _)| steps),
+                fast_travel_time_points: fast_travel.map(|(_, _, time)| time),
             }
         })
         .collect();
