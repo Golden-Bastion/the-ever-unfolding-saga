@@ -38,6 +38,8 @@ fn compressed_save_round_trips() {
     map.points_of_interest[0].interacted = true;
     map.set_terrain(map.entry, crate::spatial::Terrain::Rubble);
     state.world.local_maps.push(map.clone());
+    state.world.discovered_route_ids = vec!["route.test.known".into()];
+    state.world.surveyed_region_ids = state.world.regions.iter().map(|region| region.id).collect();
     state.character.exploration_session = Some(crate::spatial::ExplorationSession {
         location_id: map.location_id.clone(),
         position: map.entry,
@@ -75,6 +77,8 @@ fn compressed_save_round_trips() {
     assert_eq!(loaded.character.turn, 7);
     assert_eq!(loaded.character.name, "Tester");
     assert_eq!(loaded.world.event_cooldowns, state.world.event_cooldowns);
+    assert_eq!(loaded.world.discovered_route_ids, state.world.discovered_route_ids);
+    assert_eq!(loaded.world.surveyed_region_ids, state.world.surveyed_region_ids);
     assert_eq!(loaded.world.local_maps, vec![map.clone()]);
     assert!(loaded.world.local_maps[0].points_of_interest[0].interacted);
     assert!(loaded.world.local_maps[0].is_tile_discovered(map.entry));
