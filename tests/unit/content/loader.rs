@@ -38,6 +38,7 @@ fn legacy_location_content_defaults_authored_exit_sides_to_empty() {
     let location: LocationContent =
         serde_json::from_value(legacy).expect("legacy content should deserialize");
     assert!(location.exit_sides.is_empty());
+    assert!(location.exit_placements.is_empty());
 }
 
 #[test]
@@ -59,7 +60,48 @@ fn authored_exit_side_must_reference_a_declared_exit() {
 }
 
 #[test]
-fn authored_exit_side_accepts_a_declared_destination() {
+fn base_campaign_uses_normalized_authored_passage_anchors() {
+    let content = default_campaign_content();
+    let gate = content
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id == "location.ashen_gate")
+        .unwrap();
+
+    assert_eq!(
+        gate.exit_preference("location.hollow_market"),
+        Some((crate::spatial::MapExitSide::East, Some(32_768)))
+    );
+    assert_eq!(
+        gate.exit_preference("location.charred_watchtower"),
+        Some((crate::spatial::MapExitSide::North, Some(16_384)))
+    );
+}
+
+#[test]
+fn authored_exit_placement_must_reference_a_declared_exit() {
+    let mut content = default_campaign_content();
+    let location = content
+        .world
+        .locations
+        .iter_mut()
+        .find(|location| location.id == "location.ashen_gate")
+        .unwrap();
+    location.exit_placements.insert(
+        "location.not_an_exit".into(),
+        AuthoredExitPlacementContent {
+            side: crate::spatial::MapExitSide::East,
+            offset_q16: 32_768,
+        },
+    );
+    assert!(content.validate().iter().any(|issue| {
+        issue.contains("location.not_an_exit") && issue.contains("does not declare that exit")
+    }));
+}
+
+#[test]
+fn authored_exit_placement_overrides_a_declared_legacy_side() {
     let mut content = default_campaign_content();
     let location = content
         .world
@@ -69,7 +111,42 @@ fn authored_exit_side_accepts_a_declared_destination() {
         .unwrap();
     location.exit_sides.insert(
         "location.hollow_market".into(),
+        crate::spatial::MapExitSide::West,
+    );
+    location.exit_placements.insert(
+        "location.hollow_market".into(),
+        AuthoredExitPlacementContent {
+            side: crate::spatial::MapExitSide::East,
+            offset_q16: 49_152,
+        },
+    );
+    assert_eq!(
+        location.exit_preference("location.hollow_market"),
+        Some((crate::spatial::MapExitSide::East, Some(49_152)))
+    );
+    assert!(!content.validate().iter().any(|issue| {
+        issue.contains("location.ashen_gate") && issue.contains("location.hollow_market")
+    }));
+}
+
+#[test]
+fn authored_exit_side_remains_a_legacy_fallback() {
+    let mut content = default_campaign_content();
+    let location = content
+        .world
+        .locations
+        .iter_mut()
+        .find(|location| location.id == "location.ashen_gate")
+        .unwrap();
+    location.exit_placements.clear();
+    location.exit_sides.insert(
+        "location.hollow_market".into(),
         crate::spatial::MapExitSide::East,
+    );
+
+    assert_eq!(
+        location.exit_preference("location.hollow_market"),
+        Some((crate::spatial::MapExitSide::East, None))
     );
     assert!(!content.validate().iter().any(|issue| {
         issue.contains("location.ashen_gate") && issue.contains("location.hollow_market")
@@ -324,6 +401,7 @@ fn mod_events_can_reference_definitions_from_other_mods() {
         geography: None,
         spatial_discoveries: Vec::new(),
         exit_sides: Default::default(),
+        exit_placements: Default::default(),
     });
     definitions_mod.factions.push(FactionContent {
         id: "faction.later-ward".into(),
@@ -642,6 +720,7 @@ fn location_archetype_mod_overrides_preserve_omitted_base_values() {
         geography: None,
         spatial_discoveries: Vec::new(),
         exit_sides: Default::default(),
+        exit_placements: Default::default(),
     });
     merge_campaign_content(&mut base, legacy_mod);
 
@@ -670,6 +749,7 @@ fn location_archetype_mod_overrides_preserve_omitted_base_values() {
         geography: None,
         spatial_discoveries: Vec::new(),
         exit_sides: Default::default(),
+        exit_placements: Default::default(),
     });
     merge_campaign_content(&mut base, override_mod);
 

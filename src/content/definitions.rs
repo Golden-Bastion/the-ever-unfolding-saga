@@ -39,6 +39,13 @@ pub struct RegionContent {
     pub description: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AuthoredExitPlacementContent {
+    pub side: crate::spatial::MapExitSide,
+    /// Normalized position along the playable edge axis (0 = first tile, 65535 = last).
+    pub offset_q16: u16,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocationContent {
     pub id: String,
@@ -50,10 +57,14 @@ pub struct LocationContent {
     pub archetype: Option<crate::geography::locations::LocationArchetype>,
     #[serde(default)]
     pub exits: Vec<String>,
-    /// Preferred local-map edge for each authored destination content ID.
-    /// Omitted entries retain geography-derived and deterministic placement.
+    /// Legacy side-only local-map edge preferences keyed by destination content ID.
+    /// `exit_placements` takes precedence when both fields contain the same destination.
     #[serde(default)]
     pub exit_sides: HashMap<String, crate::spatial::MapExitSide>,
+    /// Exact normalized local-map edge anchors keyed by destination content ID.
+    /// These take precedence over side-only `exit_sides` entries.
+    #[serde(default)]
+    pub exit_placements: HashMap<String, AuthoredExitPlacementContent>,
     #[serde(default)]
     pub scene_art: Option<String>,
     /// Runtime-loaded image reference, resolved from data/assets or a mod asset directory.
@@ -68,6 +79,25 @@ pub struct LocationContent {
     /// Stable, authored discoveries placed on newly generated local maps.
     #[serde(default)]
     pub spatial_discoveries: Vec<SpatialDiscoveryContent>,
+}
+
+impl LocationContent {
+    /// Resolve an authored outgoing passage preference, preferring a normalized
+    /// edge anchor while retaining side-only content as a legacy fallback.
+    pub fn exit_preference(
+        &self,
+        destination_content_id: &str,
+    ) -> Option<(crate::spatial::MapExitSide, Option<u16>)> {
+        self.exit_placements
+            .get(destination_content_id)
+            .map(|placement| (placement.side, Some(placement.offset_q16)))
+            .or_else(|| {
+                self.exit_sides
+                    .get(destination_content_id)
+                    .copied()
+                    .map(|side| (side, None))
+            })
+    }
 }
 
 /// Optional authored macro-geographic placement for a location.
@@ -353,15 +383,19 @@ impl CampaignContent {
             .collect::<HashMap<_, _>>();
 
         for location in &self.world.locations {
-            for target_id in location.exit_sides.keys() {
+            for target_id in location
+                .exit_sides
+                .keys()
+                .chain(location.exit_placements.keys())
+            {
                 if target_id.trim().is_empty() {
                     issues.push(format!(
-                        "location {} has an authored exit side with an empty destination ID",
+                        "location {} has a passage placement with an empty destination ID",
                         location.id
                     ));
                 } else if !location.exits.iter().any(|exit| exit == target_id) {
                     issues.push(format!(
-                        "location {} assigns an exit side to {} but does not declare that exit",
+                        "location {} assigns a passage placement to {} but does not declare that exit",
                         location.id, target_id
                     ));
                 }

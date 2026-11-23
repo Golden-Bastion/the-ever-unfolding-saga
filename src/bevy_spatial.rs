@@ -774,7 +774,7 @@ pub(crate) fn enter(
             let profile = geography
                 .map(|geography| geography.profile)
                 .filter(|profile| *profile != RouteProfile::Unavailable);
-            let authored_preferred_side = game.campaign_content.as_ref().and_then(|content| {
+            let authored_preference = game.campaign_content.as_ref().and_then(|content| {
                 let source = content
                     .world
                     .locations
@@ -786,9 +786,9 @@ pub(crate) fn enter(
                     .locations
                     .iter()
                     .find(|entry| entry.name == target_name)?;
-                source.exit_sides.get(&target.id).copied()
+                source.exit_preference(&target.id)
             });
-            let preferred_side = authored_preferred_side.or_else(|| {
+            let preferred_side = authored_preference.map(|(side, _)| side).or_else(|| {
                 geography
                     .and_then(|geography| {
                         geography.heading_from(route.location_a_id == location.id)
@@ -805,7 +805,7 @@ pub(crate) fn enter(
                 target_location_id,
                 profile,
                 preferred_side,
-                preferred_edge_offset_q16: None,
+                preferred_edge_offset_q16: authored_preference.and_then(|(_, offset)| offset),
                 frontier_id: route
                     .id
                     .strip_prefix("route.")
@@ -844,7 +844,7 @@ pub(crate) fn enter(
         .unwrap_or_default();
     if let Some(surface) = surface.as_ref() {
         for map_route in &mut map_routes {
-            let authored_side = game.campaign_content.as_ref().and_then(|content| {
+            let authored_preference = game.campaign_content.as_ref().and_then(|content| {
                 let source = content
                     .world
                     .locations
@@ -860,9 +860,9 @@ pub(crate) fn enter(
                     .locations
                     .iter()
                     .find(|entry| entry.name == target_name)?;
-                source.exit_sides.get(&target.id).copied()
+                source.exit_preference(&target.id)
             });
-            if authored_side.is_some() {
+            if authored_preference.is_some() {
                 continue;
             }
             let Some((geography, from_a)) =

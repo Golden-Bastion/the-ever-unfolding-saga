@@ -36,9 +36,15 @@
         "scene_art": "   |||||||\n  /|_____|\\\\\n  ||     ||\n  ||  _  ||\n  ||_| |_||\n    /   \\\n",
         "scene_image": "locations/ashen_gate.png",
         "archetype": "landmark",
-        "exit_sides": {
-          "location.hollow_market": "east",
-          "location.charred_watchtower": "north"
+        "exit_placements": {
+          "location.hollow_market": {
+            "side": "east",
+            "offset_q16": 32768
+          },
+          "location.charred_watchtower": {
+            "side": "north",
+            "offset_q16": 16384
+          }
         }
       },
       {

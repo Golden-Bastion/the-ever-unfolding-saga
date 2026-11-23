@@ -4,6 +4,14 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.36: Authored local passage anchors
+
+- Added per-destination authored local-map passage placements using a compass edge and normalized Q16 offset, avoiding dimension-specific tile coordinates.
+- New passages resolve to the nearest valid, reachable tile on the authored edge; normalized placements override legacy side-only `exit_sides` preferences, which remain supported as a fallback.
+- Updated Ashen Gate campaign content to demonstrate exact normalized edge anchors and added validation/coverage for declared destinations, preference precedence, legacy defaults, and both ends of the playable edge.
+- Established passage IDs and positions remain unchanged; no save-format or local-map generator version change is required.
+- Bumped Rust and Android metadata to 0.53.36.
+
 ### v0.53.35: Active spatial world clock
 
 - Added a continuous campaign clock during active local exploration at one in-game minute per five real-world seconds, including while the player stands still.
