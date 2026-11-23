@@ -58,10 +58,7 @@ pub(crate) fn has_location_travel_route(
     route_id: Option<&str>,
 ) -> bool {
     let route_is_traversable = |route: &crate::model::WorldRoute| {
-        route
-            .geography
-            .as_ref()
-            .is_none_or(|geography| geography.travel_block_reason().is_none())
+        state.world.route_travel_block_reason(&route.id).is_none()
     };
     let source_id = state.character.location_id;
     if state.world.location_by_id(source_id).is_none()
@@ -212,10 +209,7 @@ pub(crate) fn known_travel_route_tree(state: &GameState) -> KnownTravelRouteTree
             .routes_from(source_id)
             .filter(|(route, destination)| {
                 state.world.is_route_discovered(&route.id)
-                    && route
-                        .geography
-                        .as_ref()
-                        .is_none_or(|geography| geography.travel_block_reason().is_none())
+                    && state.world.route_travel_block_reason(&route.id).is_none()
                     && state.world.location_by_id(*destination).is_some()
                     && has_visited_location(state, *destination)
             })
