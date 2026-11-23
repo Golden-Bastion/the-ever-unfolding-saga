@@ -192,6 +192,12 @@ fn fast_travel_fixture(
         .expect("starting location should still exist")
         .exits = vec![middle_id];
     game.world.migrate_legacy_exits();
+    game.world.discovered_route_ids = game
+        .world
+        .routes
+        .iter()
+        .map(|route| route.id.clone())
+        .collect();
 
     game.world.local_maps.push(known_map(middle_id));
     if destination_known {
@@ -221,6 +227,15 @@ fn known_map(location_id: u64) -> LocalMap {
         interactables: Vec::new(),
         encounters: Vec::new(),
     }
+}
+
+#[test]
+fn fast_travel_does_not_infer_route_knowledge_from_two_visited_endpoints() {
+    let (mut game, _, destination_id) = fast_travel_fixture(false, true, true);
+    game.world.discovered_route_ids.clear();
+
+    assert!(find_known_travel_path(&game, destination_id).is_none());
+    assert!(fast_travel_to(&mut game, destination_id).is_err());
 }
 
 #[test]
