@@ -617,7 +617,6 @@ fn update_route_transit(
     let mut completed = false;
     let mut rebuild_scene = false;
     let mut progress = 0.15_f32;
-    let mut marker_horizontal = true;
     if let Some(transit) = state.route_transit.as_mut() {
         let delta = time.delta_secs();
         let delta_seconds = if delta.is_finite() {
@@ -647,7 +646,6 @@ fn update_route_transit(
             }
         } else if let Some(crossing) = transit.crossings.get(transit.crossing_index) {
             transit.elapsed_seconds += delta_seconds;
-            marker_horizontal = crossing.horizontal;
             let elapsed = transit.elapsed_seconds;
             let stage = if elapsed < ROUTE_APPROACH_SECONDS {
                 RouteTransitStage::Boarding
@@ -678,7 +676,7 @@ fn update_route_transit(
     }
 
     for (marker_visual, mut node) in &mut boat {
-        if marker_horizontal {
+        if marker_visual.0 {
             node.left = percent(progress * 100.0);
         } else {
             node.top = percent(progress * 100.0);
@@ -3121,7 +3119,7 @@ fn render_spatial_screen(
 fn route_landscape_label(kind: RouteLandscapeKind) -> &'static str {
     match kind {
         RouteLandscapeKind::Water => "Water",
-        RouteLandscapeKind::Mountain => "Mountain pass",
+        RouteLandscapeKind::Mountain => "Mountains",
         RouteLandscapeKind::Forest => "Forest",
         RouteLandscapeKind::Valley => "Valley",
         RouteLandscapeKind::Desert => "Desert",
@@ -3171,7 +3169,7 @@ fn spawn_route_journey_shape(
     height_px: f32,
     color: Color,
 ) {
-    let mut node = Node {
+    let node = Node {
         position_type: PositionType::Absolute,
         left: percent(left_percent),
         bottom: px(bottom_px),
