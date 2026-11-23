@@ -1,7 +1,7 @@
 use super::landscape_travel_penalty_percent;
 use crate::geography::routes::{
     assess_corridor, assess_world_route, RouteCrossing, RouteCrossingKind, RouteGeography,
-    RouteInfrastructure, RoutePlanningStatus, RouteProfile, RouteLandscapeKind,
+    RouteInfrastructure, RouteLandscapeKind, RoutePlanningStatus, RouteProfile,
     MAX_CORRIDOR_SAMPLES, ROUTE_GRID_SPACING,
 };
 use crate::geography::{MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
@@ -989,7 +989,6 @@ fn route_landscape_samples_are_bounded_deterministic_and_follow_travel_direction
         .landscape_samples(42, GEOGRAPHY_RULESET_VERSION, true)
         .is_empty());
 }
-
 
 #[test]
 fn route_travel_estimate_separates_distance_from_planner_terrain_cost() {

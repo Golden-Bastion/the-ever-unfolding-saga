@@ -285,7 +285,11 @@ fn route_distance_cost(path: &[MacroCoordinate]) -> u64 {
         let dy = u128::from(pair[0].y.abs_diff(pair[1].y));
         let major = dx.max(dy);
         let minor = dx.min(dy);
-        total.saturating_add(major.saturating_mul(100).saturating_add(minor.saturating_mul(41)))
+        total.saturating_add(
+            major
+                .saturating_mul(100)
+                .saturating_add(minor.saturating_mul(41)),
+        )
     });
     let cost = numerator.div_ceil(ROUTE_GRID_SPACING as u128);
     u64::try_from(cost)
@@ -295,9 +299,7 @@ fn route_distance_cost(path: &[MacroCoordinate]) -> u64 {
 
 fn landscape_travel_penalty_percent(kind: RouteLandscapeKind) -> u64 {
     match kind {
-        RouteLandscapeKind::Grassland | RouteLandscapeKind::Valley | RouteLandscapeKind::Water => {
-            0
-        }
+        RouteLandscapeKind::Grassland | RouteLandscapeKind::Valley | RouteLandscapeKind::Water => 0,
         RouteLandscapeKind::Coast => 10,
         RouteLandscapeKind::Forest => 15,
         RouteLandscapeKind::Desert => 20,

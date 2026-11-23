@@ -927,9 +927,7 @@ fn render_world_map_graph(
             } else {
                 "route steps"
             };
-            let duration = format_world_travel_duration(
-                node.fast_travel_time_points.unwrap_or(2),
-            );
+            let duration = format_world_travel_duration(node.fast_travel_time_points.unwrap_or(2));
             let detail = format!(
                 "{} | FAST TRAVEL | {} {} | {}",
                 node.location.region_name, steps, route_label, duration

@@ -51,7 +51,6 @@ fn advancing_time_applies_generated_world_evolution() {
     assert!(!state.world.location_by_id(target_id).unwrap().dangerous);
 }
 
-
 #[test]
 fn large_elapsed_time_advances_wrap_the_clock_without_integer_overflow() {
     let mut state = crate::model::create_new_state(

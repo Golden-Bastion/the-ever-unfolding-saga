@@ -291,7 +291,6 @@ fn meditation_is_hidden_when_unsafe() {
     assert!(!pause_actions_from(true, false).contains(&PauseAction::Meditate));
 }
 
-
 #[test]
 fn world_map_travel_duration_uses_two_hour_time_points() {
     assert_eq!(format_world_travel_duration(1), "~2h");

@@ -209,11 +209,13 @@ pub(crate) fn find_known_travel_route_path(
             let should_update = match distances.get(&next_id).copied() {
                 None => true,
                 Some(existing) if next_cost < existing => true,
-                Some(existing) if next_cost == existing => previous
-                    .get(&next_id)
-                    .is_none_or(|(previous_id, previous_route, _)| {
-                        candidate_predecessor < (*previous_id, previous_route.clone())
-                    }),
+                Some(existing) if next_cost == existing => {
+                    previous
+                        .get(&next_id)
+                        .is_none_or(|(previous_id, previous_route, _)| {
+                            candidate_predecessor < (*previous_id, previous_route.clone())
+                        })
+                }
                 _ => false,
             };
             if !should_update {

@@ -49,9 +49,9 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
                 WorldMapDestinationView {
                     location: location_view(state, location, &campaign),
                     route_steps: path.len(),
-                    travel_time_points: path.iter().fold(0_u32, |total, hop| {
-                        total.saturating_add(hop.time_points)
-                    }),
+                    travel_time_points: path
+                        .iter()
+                        .fold(0_u32, |total, hop| total.saturating_add(hop.time_points)),
                 }
             })
         })
