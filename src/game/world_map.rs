@@ -101,7 +101,7 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
                                 .is_none_or(|geography| geography.travel_block_reason().is_none())
                     },
                 ),
-                fast_travel_index: fast_travel.map(|(index, _)| index),
+                fast_travel_index: fast_travel.map(|(index, _, _)| index),
                 fast_travel_steps: fast_travel.map(|(_, steps, _)| steps),
                 fast_travel_time_points: fast_travel.map(|(_, _, time)| time),
             }
