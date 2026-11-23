@@ -844,10 +844,10 @@ impl World {
             .find(|record| record.id == infrastructure_id)
     }
 
-    pub fn infrastructure_for_route(
-        &self,
-        route_id: &str,
-    ) -> impl Iterator<Item = &RouteInfrastructureRecord> {
+    pub fn infrastructure_for_route<'a>(
+        &'a self,
+        route_id: &'a str,
+    ) -> impl Iterator<Item = &'a RouteInfrastructureRecord> + 'a {
         self.route_infrastructure
             .iter()
             .filter(move |record| record.route_id == route_id)
