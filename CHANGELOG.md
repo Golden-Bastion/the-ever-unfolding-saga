@@ -4,6 +4,12 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### Spatial-first interaction documentation alignment
+
+- Removed obsolete dashboard-era descriptions of optional location-level Explore actions and detached direct actions from the topology and spatial-gameplay design specifications.
+- Clarified that locations are experienced through spatial local areas, nearby NPC interactions such as Talk are contextual, future Trade belongs in that same in-world interaction flow, and Meditation remains in the spatial pause menu under its existing safety rules.
+- Removed the obsolete exploration-policy and local-exploration-availability tasks from the v0.53.x remaining-work roadmap.
+
 ### v0.53.37: Route-specific local river crossings
 
 - Projected persisted river-bank midpoint targets now select their own nearest feasible local ford/bridge spans, including multiple route crossings on one connected river component.
