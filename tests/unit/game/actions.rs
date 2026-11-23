@@ -239,6 +239,15 @@ fn fast_travel_does_not_infer_route_knowledge_from_two_visited_endpoints() {
 }
 
 #[test]
+fn fast_travel_requires_each_route_to_be_discovered() {
+    let (mut game, _, destination_id) = fast_travel_fixture(false, true, true);
+    game.world.discovered_route_ids.clear();
+
+    assert!(find_known_travel_path(&game, destination_id).is_none());
+    assert!(fast_travel_to(&mut game, destination_id).is_err());
+}
+
+#[test]
 fn fast_travel_follows_the_shortest_known_route_and_applies_normal_travel_per_hop() {
     let (mut game, middle_id, destination_id) = fast_travel_fixture(false, true, true);
     let initial_turn = game.character.turn;
