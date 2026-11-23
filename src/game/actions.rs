@@ -294,7 +294,7 @@ pub(crate) fn fast_travel_to(
     let mut traveled = Vec::with_capacity(path.len());
     for hop in path {
         let previous_turn = state.character.turn;
-        travel_via_route(state, hop.location_id, &hop.route_id)?;
+        travel_via_route_with_duration(state, hop.location_id, &hop.route_id, hop.time_points)?;
         traveled.push(hop.location_id);
 
         let arrival_event =
@@ -328,6 +328,21 @@ pub(crate) fn travel_via_route(
         }
         route_travel_time_points(state, route)
     };
+    travel_via_route_with_duration(state, target_id, route_id, duration)
+}
+
+fn travel_via_route_with_duration(
+    state: &mut GameState,
+    target_id: EntityId,
+    route_id: &str,
+    duration: u32,
+) -> std::io::Result<()> {
+    if !has_location_travel_route(state, target_id, Some(route_id)) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Travel requires the selected route to connect the current location and destination.",
+        ));
+    }
     apply_route_travel(state, target_id, duration)?;
     state.world.mark_route_discovered(route_id.to_string());
     Ok(())
