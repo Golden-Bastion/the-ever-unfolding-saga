@@ -4612,7 +4612,11 @@ struct SpatialTimePresentationQueries<'w, 's> {
     sky_panels: Query<
         'w,
         's,
-        (Entity, &'static mut SpatialSkyPanel, &'static mut BackgroundColor),
+        (
+            Entity,
+            &'static mut SpatialSkyPanel,
+            &'static mut BackgroundColor,
+        ),
         Without<SpatialAtmosphere>,
     >,
     horizons: Query<'w, 's, &'static mut Node, With<SpatialSkyHorizon>>,
