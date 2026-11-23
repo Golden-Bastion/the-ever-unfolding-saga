@@ -4,6 +4,12 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### Established-world compatibility regression coverage
+
+- Strengthened the legacy geography embedding fixture with saved terrain edits, tile discoveries, discovered/interacted points of interest, persistent props, and an established passage; the migration must leave the complete local map unchanged.
+- Added coverage proving authored location IDs and exact macro-geographic anchors are applied when first embedded and are not moved by later content changes.
+- Expanded assertions for stable route identity, endpoints, direction, history, runtime IDs, and the `next_id` boundary. No migration behavior or save format was changed.
+
 ### Spatial-first interaction documentation alignment
 
 - Removed obsolete dashboard-era descriptions of optional location-level Explore actions and detached direct actions from the topology and spatial-gameplay design specifications.

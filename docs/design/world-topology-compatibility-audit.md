@@ -235,3 +235,15 @@ On entry, local-map generator version 6 reconciliation adds missing cave transit
 The local-map reconciliation work now appends newly discovered graph routes to established maps without regenerating their terrain or relocating existing passages. New ordinary route and frontier passages prefer the center of their chosen map edge, then distribute additional connections outward. The placement order still follows the persisted macro route heading when available and respects authored gate thresholds. The local-map generator version is now 7; this records the changed placement policy but does not trigger full map regeneration.
 
 `MapExit::visual_kind` derives semantic presentation from the route profile, pending frontier target, or cave connection kind. The Bevy renderer currently applies restrained category tints using the existing generic passage image. These are provisional visual distinctions only. Dedicated artwork for trails/roads, mountain passes, river and water crossings, gates, bridges, docks, cave entrances, shafts, and chamber passages is tracked in [#491](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/491). Route identity, reachability, and interaction remain owned by the world graph and renderer-neutral spatial model.
+
+
+## Compatibility regression coverage — current v0.53.x state
+
+The original audit above is a historical snapshot; the implementation follow-ups record the topology work delivered since that snapshot. The established-world preservation contract is now backed by focused automated coverage in addition to the implementation:
+
+- `tests/unit/location_geography.rs` verifies deterministic legacy region embedding, preservation of region/location runtime IDs and the `next_id` boundary, stable route identity/endpoints/direction, history retention, and exact preservation of populated saved local maps.
+- The legacy-map fixture includes a terrain edit, discovered tile, discovered/interacted point of interest, persistent prop, and an established passage. Geography embedding must leave the entire `LocalMap` value unchanged.
+- Authored geography coverage verifies that a content-defined stable location ID, exact surface anchor, and footprint are applied when no saved anchor exists, then remain authoritative if later content proposes a different anchor.
+- Existing route migration and passage reconciliation tests continue to cover idempotence, non-allocating route migration, preservation of passage IDs/positions, additive new passages, and in-place upgrades.
+
+These tests do not promise that all prototype data or generated layouts are immutable. They protect established player/world-owned state and stable references while allowing deliberate, versioned redesigns of disposable or obsolete generated data. Future topology migrations and reconciliation paths must add similarly focused preservation tests for the state they touch.

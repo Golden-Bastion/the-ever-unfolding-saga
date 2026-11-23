@@ -51,11 +51,35 @@ fn legacy_world() -> World {
     ));
     world.record_history(3, "A memory from before geography embedding.");
     world.next_id = 30;
-    world.local_maps.push(crate::spatial::generate_local_map(
+    let mut established_map = crate::spatial::generate_local_map(
         77,
         "location.10",
         crate::spatial::LocalMapConfig::default(),
-    ));
+    );
+    established_map.set_terrain(established_map.entry, crate::spatial::Terrain::Rubble);
+    established_map.mark_tile_discovered(established_map.entry);
+    if let Some(poi) = established_map.points_of_interest.first_mut() {
+        poi.discovered = true;
+        poi.interacted = true;
+    }
+    established_map.props.push(crate::spatial::SpatialProp {
+        id: "prop.legacy.pillar".into(),
+        kind: crate::spatial::SpatialPropKind::Pillar,
+        position: crate::spatial::GridPosition { x: 3, y: 3 },
+    });
+    established_map.exits.push(crate::spatial::MapExit {
+        id: "location.10.exit.11".into(),
+        route_id: None,
+        route_profile: None,
+        frontier: None,
+        cave_target: None,
+        position: crate::spatial::GridPosition {
+            x: established_map.width - 1,
+            y: 2,
+        },
+        target_location_id: 11,
+    });
+    world.local_maps.push(established_map);
     world
 }
 
@@ -94,11 +118,32 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
     assert_eq!(first.location_geography, second.location_geography);
     assert_eq!(first.next_id, 30);
     assert_eq!(first.routes.len(), 1);
+    assert_eq!(first.routes[0].id, "route.legacy");
+    assert_eq!(first.routes[0].location_a_id, 10);
+    assert_eq!(first.routes[0].location_b_id, 11);
+    assert_eq!(
+        first.routes[0].direction,
+        crate::model::RouteDirection::Bidirectional
+    );
     assert_eq!(first.history.len(), original_history.len());
     assert_eq!(first.history[0].id, original_history[0].id);
     assert_eq!(first.history[0].turn, original_history[0].turn);
     assert_eq!(first.history[0].text, original_history[0].text);
     assert_eq!(first.local_maps, original_maps);
+    assert_eq!(
+        first.local_maps[0].terrain_at(first.local_maps[0].entry),
+        Some(crate::spatial::Terrain::Rubble)
+    );
+    assert!(first.local_maps[0].is_tile_discovered(first.local_maps[0].entry));
+    assert!(first.local_maps[0]
+        .points_of_interest
+        .iter()
+        .any(|poi| poi.discovered && poi.interacted));
+    assert!(first.local_maps[0]
+        .props
+        .iter()
+        .any(|prop| prop.id == "prop.legacy.pillar"));
+    assert_eq!(first.local_maps[0].exits[0].id, "location.10.exit.11");
     assert_eq!(
         first
             .regions
@@ -116,6 +161,87 @@ fn legacy_embedding_is_deterministic_and_preserves_world_identity() {
         original_location_ids
     );
     assert_eq!(first.geography_embedding_version, 2);
+}
+
+#[test]
+fn authored_location_anchors_are_applied_once_and_then_remain_authoritative() {
+    let mut world = legacy_world();
+    let authored: crate::content::CampaignContent = serde_json::from_value(serde_json::json!({
+        "version": 1,
+        "world": {
+            "region": {
+                "id": "region.authored",
+                "name": "Authored Region",
+                "description": ""
+            },
+            "locations": [
+                {
+                    "id": "location.authored.a",
+                    "name": "A",
+                    "description": "",
+                    "dangerous": false,
+                    "geography": {
+                        "anchor": { "x": 12, "y": 18, "stratum": 0 },
+                        "footprint_radius_samples": 7
+                    }
+                }
+            ]
+        }
+    }))
+    .expect("minimal authored campaign geography should deserialize");
+
+    ensure_location_geography(&mut world, Some(&authored));
+
+    let record = world
+        .location_geography
+        .iter()
+        .find(|record| record.location_id == 10)
+        .expect("authored location should receive a geography record");
+    assert_eq!(record.stable_key, "location.content.location.authored.a");
+    assert_eq!(
+        record.anchor,
+        crate::geography::MacroCoordinate::new(12, 18)
+    );
+    assert_eq!(record.footprint_radius_samples, 7);
+
+    let changed_content: crate::content::CampaignContent =
+        serde_json::from_value(serde_json::json!({
+            "version": 1,
+            "world": {
+                "region": {
+                    "id": "region.authored",
+                    "name": "Authored Region",
+                    "description": ""
+                },
+                "locations": [
+                    {
+                        "id": "location.authored.a",
+                        "name": "A",
+                        "description": "",
+                        "dangerous": false,
+                        "geography": {
+                            "anchor": { "x": 40, "y": 50, "stratum": 0 },
+                            "footprint_radius_samples": 12
+                        }
+                    }
+                ]
+            }
+        }))
+        .expect("updated authored campaign geography should deserialize");
+
+    ensure_location_geography(&mut world, Some(&changed_content));
+
+    let record = world
+        .location_geography
+        .iter()
+        .find(|record| record.location_id == 10)
+        .expect("established authored location should retain its geography record");
+    assert_eq!(record.stable_key, "location.content.location.authored.a");
+    assert_eq!(
+        record.anchor,
+        crate::geography::MacroCoordinate::new(12, 18)
+    );
+    assert_eq!(record.footprint_radius_samples, 7);
 }
 
 #[test]
