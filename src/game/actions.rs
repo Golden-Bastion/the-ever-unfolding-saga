@@ -197,8 +197,28 @@ pub(crate) fn fast_travel_to(
 
     let mut traveled = Vec::with_capacity(path.len());
     for location_id in path {
+        let route_id = state
+            .world
+            .routes_from(state.character.location_id)
+            .filter(|(route, destination)| {
+                *destination == location_id
+                    && state.world.is_route_discovered(&route.id)
+                    && route
+                        .geography
+                        .as_ref()
+                        .is_none_or(|geography| geography.travel_block_reason().is_none())
+            })
+            .map(|(route, _)| route.id.as_str())
+            .min()
+            .map(str::to_string)
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Fast travel requires a discovered route for every hop.",
+                )
+            })?;
         let previous_turn = state.character.turn;
-        travel_to(state, location_id)?;
+        travel_via_route(state, location_id, &route_id)?;
         traveled.push(location_id);
 
         let arrival_event =
