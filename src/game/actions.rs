@@ -318,11 +318,6 @@ pub(crate) fn travel_to(state: &mut GameState, target_id: EntityId) -> std::io::
             *destination == target_id
                 && has_location_travel_route(state, target_id, Some(&route.id))
         })
-        .min_by(|(left, _), (right, _)| {
-            route_travel_time_points(state, left)
-                .cmp(&route_travel_time_points(state, right))
-                .then_with(|| left.id.cmp(&right.id))
-        })
         .map(|(route, _)| (route.id.clone(), route_travel_time_points(state, route)))
         .min_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(&right.0)))
         .ok_or_else(|| {
