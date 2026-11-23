@@ -2146,3 +2146,50 @@ fn water_and_sand_reuse_the_existing_ground_art_with_distinct_material_tints() {
         GROUND_TERRAIN_DEPTH
     );
 }
+
+
+#[test]
+fn route_landscape_placeholder_palette_distinguishes_every_environment() {
+    let kinds = [
+        RouteLandscapeKind::Water,
+        RouteLandscapeKind::Mountain,
+        RouteLandscapeKind::Forest,
+        RouteLandscapeKind::Valley,
+        RouteLandscapeKind::Desert,
+        RouteLandscapeKind::Coast,
+        RouteLandscapeKind::Tundra,
+        RouteLandscapeKind::Grassland,
+    ];
+    let colors = kinds.map(route_landscape_color);
+    for (index, color) in colors.iter().enumerate() {
+        assert!(
+            colors[index + 1..].iter().all(|other| other != color),
+            "route landscape categories must remain visually distinguishable"
+        );
+    }
+    assert_eq!(
+        route_landscape_summary(&[
+            RouteLandscapeSample {
+                coordinate: crate::geography::MacroCoordinate::ORIGIN,
+                kind: RouteLandscapeKind::Forest,
+                elevation_q16: 0,
+            },
+            RouteLandscapeSample {
+                coordinate: crate::geography::MacroCoordinate::new(32, 0),
+                kind: RouteLandscapeKind::Forest,
+                elevation_q16: 0,
+            },
+            RouteLandscapeSample {
+                coordinate: crate::geography::MacroCoordinate::new(64, 0),
+                kind: RouteLandscapeKind::Valley,
+                elevation_q16: -1_000,
+            },
+            RouteLandscapeSample {
+                coordinate: crate::geography::MacroCoordinate::new(96, 0),
+                kind: RouteLandscapeKind::Water,
+                elevation_q16: -2_000,
+            },
+        ]),
+        "Forest / Valley / Water"
+    );
+}

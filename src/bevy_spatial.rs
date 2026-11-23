@@ -24,7 +24,8 @@ use crate::geography::climate::{self, Biome};
 use crate::geography::frontier;
 use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
 use crate::geography::routes::{
-    RouteCrossingKind, RouteHeading, RouteInfrastructure, RouteProfile,
+    RouteCrossingKind, RouteHeading, RouteInfrastructure, RouteLandscapeKind,
+    RouteLandscapeSample, RouteProfile,
 };
 use crate::input::InputEvent;
 use crate::interaction_actions::{
@@ -68,6 +69,7 @@ const SPATIAL_HEADER_ROW_HEIGHT_PX: f32 = 64.0;
 const SPATIAL_HEALTH_GAUGE_HEIGHT_PX: f32 = 20.0;
 const LOCATION_NOTICE_DURATION_SECONDS: f32 = 4.0;
 const ROUTE_CROSSING_DURATION_SECONDS: f32 = 3.8;
+const ROUTE_JOURNEY_DURATION_SECONDS: f32 = 3.2;
 const ROUTE_APPROACH_SECONDS: f32 = 0.8;
 const ROUTE_EXIT_START_SECONDS: f32 = 3.0;
 const CAMERA_DEAD_ZONE_FRACTION: f32 = 0.15;
@@ -191,10 +193,17 @@ struct RouteTransitCrossing {
 }
 
 #[derive(Debug, Clone)]
+struct RouteJourney {
+    samples: Vec<RouteLandscapeSample>,
+    elapsed_seconds: f32,
+}
+
+#[derive(Debug, Clone)]
 struct RouteTransit {
     target_location_id: EntityId,
     route_id: String,
     destination_name: String,
+    journey: Option<RouteJourney>,
     crossings: Vec<RouteTransitCrossing>,
     crossing_index: usize,
     elapsed_seconds: f32,
@@ -608,39 +617,64 @@ fn update_route_transit(
     let mut completed = false;
     let mut rebuild_scene = false;
     let mut progress = 0.15_f32;
+    let mut marker_horizontal = true;
     if let Some(transit) = state.route_transit.as_mut() {
         let delta = time.delta_secs();
-        if delta.is_finite() {
-            transit.elapsed_seconds += delta.max(0.0);
-        }
-        let elapsed = transit.elapsed_seconds;
-        let stage = if elapsed < ROUTE_APPROACH_SECONDS {
-            RouteTransitStage::Boarding
-        } else if elapsed < ROUTE_EXIT_START_SECONDS {
-            RouteTransitStage::Crossing
-        } else {
-            RouteTransitStage::Landing
-        };
-        if stage != transit.stage {
-            transit.stage = stage;
-            rebuild_scene = true;
-        }
-        progress = 0.15 + (elapsed / ROUTE_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 0.70;
-        if elapsed >= ROUTE_CROSSING_DURATION_SECONDS {
-            transit.crossing_index += 1;
-            transit.elapsed_seconds = 0.0;
-            transit.stage = RouteTransitStage::Boarding;
-            if transit.crossing_index >= transit.crossings.len() {
-                completed = true;
+        let delta_seconds = if delta.is_finite() { delta.max(0.0) } else { 0.0 };
+
+        if transit.journey.is_some() {
+            let journey_finished = if let Some(journey) = transit.journey.as_mut() {
+                journey.elapsed_seconds += delta_seconds;
+                progress = 0.15
+                    + (journey.elapsed_seconds / ROUTE_JOURNEY_DURATION_SECONDS).clamp(0.0, 1.0)
+                        * 0.70;
+                journey.elapsed_seconds >= ROUTE_JOURNEY_DURATION_SECONDS
             } else {
-                rebuild_scene = true;
-                progress = 0.15;
+                false
+            };
+            if journey_finished {
+                transit.journey = None;
+                transit.elapsed_seconds = 0.0;
+                if transit.crossings.is_empty() {
+                    completed = true;
+                } else {
+                    rebuild_scene = true;
+                }
             }
+        } else if let Some(crossing) = transit.crossings.get(transit.crossing_index) {
+            transit.elapsed_seconds += delta_seconds;
+            marker_horizontal = crossing.horizontal;
+            let elapsed = transit.elapsed_seconds;
+            let stage = if elapsed < ROUTE_APPROACH_SECONDS {
+                RouteTransitStage::Boarding
+            } else if elapsed < ROUTE_EXIT_START_SECONDS {
+                RouteTransitStage::Crossing
+            } else {
+                RouteTransitStage::Landing
+            };
+            if stage != transit.stage {
+                transit.stage = stage;
+                rebuild_scene = true;
+            }
+            progress = 0.15 + (elapsed / ROUTE_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 0.70;
+            if elapsed >= ROUTE_CROSSING_DURATION_SECONDS {
+                transit.crossing_index += 1;
+                transit.elapsed_seconds = 0.0;
+                transit.stage = RouteTransitStage::Boarding;
+                if transit.crossing_index >= transit.crossings.len() {
+                    completed = true;
+                } else {
+                    rebuild_scene = true;
+                    progress = 0.15;
+                }
+            }
+        } else {
+            completed = true;
         }
     }
 
     for (marker_visual, mut node) in &mut boat {
-        if marker_visual.0 {
+        if marker_horizontal {
             node.left = percent(progress * 100.0);
         } else {
             node.top = percent(progress * 100.0);
@@ -2085,7 +2119,24 @@ fn use_map_exit(
             })
         })
         .unwrap_or_default();
-    if !route_crossings.is_empty() {
+    let route_journey = route_id.as_deref().and_then(|route_id| {
+        lifecycle.session.as_ref().and_then(|session| {
+            let world = &session.state.world;
+            let route = world.route_by_id(route_id)?;
+            let geography = route.geography.as_ref()?;
+            let world_seed = world.geography_seed?;
+            let samples = geography.landscape_samples(
+                world_seed,
+                world.geography_ruleset_version,
+                route.location_a_id == source_location_id,
+            );
+            (!samples.is_empty()).then_some(RouteJourney {
+                samples,
+                elapsed_seconds: 0.0,
+            })
+        })
+    });
+    if !route_crossings.is_empty() || route_journey.is_some() {
         let Some(route_id) = route_id else {
             return;
         };
@@ -2099,6 +2150,7 @@ fn use_map_exit(
             target_location_id,
             route_id: route_id.clone(),
             destination_name,
+            journey: route_journey,
             crossings: route_crossings,
             crossing_index: 0,
             elapsed_seconds: 0.0,
@@ -3053,9 +3105,225 @@ fn render_spatial_screen(
         crate::bevy_gameplay::GameplayMenuScreen::Closed => {}
     }
     if let Some(transit) = state.route_transit.as_ref() {
-        spawn_route_transit_overlay(&mut commands, root, transit);
+        if let Some(journey) = transit.journey.as_ref() {
+            spawn_route_journey_overlay(&mut commands, root, transit, journey);
+        } else {
+            spawn_route_transit_overlay(&mut commands, root, transit);
+        }
     }
     state.dirty = false;
+}
+
+fn route_landscape_label(kind: RouteLandscapeKind) -> &'static str {
+    match kind {
+        RouteLandscapeKind::Water => "Water",
+        RouteLandscapeKind::Mountain => "Mountain pass",
+        RouteLandscapeKind::Forest => "Forest",
+        RouteLandscapeKind::Valley => "Valley",
+        RouteLandscapeKind::Desert => "Desert",
+        RouteLandscapeKind::Coast => "Coast",
+        RouteLandscapeKind::Tundra => "Tundra",
+        RouteLandscapeKind::Grassland => "Open country",
+    }
+}
+
+fn route_landscape_summary(samples: &[RouteLandscapeSample]) -> String {
+    let mut labels = Vec::new();
+    for sample in samples {
+        let label = route_landscape_label(sample.kind);
+        if labels.last().copied() != Some(label) {
+            labels.push(label);
+        }
+        if labels.len() == 5 {
+            break;
+        }
+    }
+    if labels.is_empty() { "Open country".to_string() } else { labels.join(" / ") }
+}
+
+fn route_landscape_color(kind: RouteLandscapeKind) -> Color {
+    match kind {
+        RouteLandscapeKind::Water => Color::srgb(0.045, 0.19, 0.25),
+        RouteLandscapeKind::Mountain => Color::srgb(0.31, 0.33, 0.35),
+        RouteLandscapeKind::Forest => Color::srgb(0.08, 0.22, 0.14),
+        RouteLandscapeKind::Valley => Color::srgb(0.22, 0.34, 0.20),
+        RouteLandscapeKind::Desert => Color::srgb(0.50, 0.37, 0.20),
+        RouteLandscapeKind::Coast => Color::srgb(0.42, 0.35, 0.23),
+        RouteLandscapeKind::Tundra => Color::srgb(0.43, 0.47, 0.48),
+        RouteLandscapeKind::Grassland => Color::srgb(0.29, 0.37, 0.20),
+    }
+}
+
+fn spawn_route_journey_shape(
+    commands: &mut Commands,
+    parent: Entity,
+    left_percent: f32,
+    bottom_px: f32,
+    width_percent: f32,
+    height_px: f32,
+    color: Color,
+    rounded: bool,
+) {
+    let mut node = Node {
+        position_type: PositionType::Absolute,
+        left: percent(left_percent),
+        bottom: px(bottom_px),
+        width: percent(width_percent),
+        height: px(height_px),
+        ..default()
+    };
+    if rounded {
+        node.border_radius = BorderRadius::MAX;
+    }
+    let shape = commands.spawn((node, BackgroundColor(color))).id();
+    commands.entity(parent).add_child(shape);
+}
+
+fn spawn_route_journey_overlay(
+    commands: &mut Commands,
+    parent: Entity,
+    transit: &RouteTransit,
+    journey: &RouteJourney,
+) {
+    let overlay = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(0),
+                top: px(0),
+                width: percent(100),
+                height: percent(100),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                row_gap: px(14),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.018, 0.025, 0.027, 0.98)),
+            ZIndex(20),
+        ))
+        .id();
+    commands.entity(parent).add_child(overlay);
+
+    for (value, font_size, color) in [
+        ("THE ROAD AHEAD".to_string(), 1.2, bevy_presentation::THEME_TEXT),
+        (format!("Toward {}", transit.destination_name), 0.9, bevy_presentation::THEME_MUTED),
+    ] {
+        let label = commands
+            .spawn((
+                Text::new(value),
+                TextFont::from_font_size(FontSize::Rem(font_size)),
+                TextColor(color),
+            ))
+            .id();
+        commands.entity(overlay).add_child(label);
+    }
+
+    let scene = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Relative,
+                width: percent(88),
+                height: px(184),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.055, 0.075, 0.075)),
+            BorderColor::all(Color::srgb(0.24, 0.29, 0.27)),
+        ))
+        .id();
+    commands.entity(overlay).add_child(scene);
+
+    spawn_route_journey_shape(commands, scene, 0.0, 142.0, 100.0, 1.0, Color::srgb(0.17, 0.22, 0.21), false);
+    spawn_route_journey_shape(commands, scene, 0.0, 0.0, 100.0, 19.0, Color::srgb(0.07, 0.095, 0.085), false);
+
+    let sample_count = journey.samples.len().max(1);
+    let slot_width = 100.0 / sample_count as f32;
+    for (index, sample) in journey.samples.iter().enumerate() {
+        let left = index as f32 * slot_width;
+        let elevation = (sample.elevation_q16.clamp(0, 65_536) as f32 / 65_536.0) * 22.0;
+        let base_height = match sample.kind {
+            RouteLandscapeKind::Water => 40.0,
+            RouteLandscapeKind::Mountain => 96.0,
+            RouteLandscapeKind::Forest => 54.0,
+            RouteLandscapeKind::Valley => 31.0,
+            RouteLandscapeKind::Desert => 39.0,
+            RouteLandscapeKind::Coast => 34.0,
+            RouteLandscapeKind::Tundra => 48.0,
+            RouteLandscapeKind::Grassland => 38.0,
+        };
+        let height = base_height + elevation;
+        spawn_route_journey_shape(commands, scene, left, 19.0, slot_width + 0.25, height, route_landscape_color(sample.kind), false);
+
+        match sample.kind {
+            RouteLandscapeKind::Mountain => {
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.12, 19.0, slot_width * 0.28, height + 31.0, Color::srgb(0.40, 0.42, 0.43), false);
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.59, 19.0, slot_width * 0.25, height + 13.0, Color::srgb(0.23, 0.25, 0.27), false);
+            }
+            RouteLandscapeKind::Forest => {
+                let trunk_width = (slot_width * 0.10).max(0.7);
+                for tree in 0..2 {
+                    let tree_left = left + slot_width * (0.25 + tree as f32 * 0.43);
+                    spawn_route_journey_shape(commands, scene, tree_left + slot_width * 0.08, 19.0, trunk_width, 24.0, Color::srgb(0.23, 0.16, 0.10), false);
+                    spawn_route_journey_shape(commands, scene, tree_left, 40.0, slot_width * 0.28, 28.0, Color::srgb(0.10, 0.30, 0.17), true);
+                }
+            }
+            RouteLandscapeKind::Valley => {
+                spawn_route_journey_shape(commands, scene, left, 19.0, slot_width * 0.30, 22.0, Color::srgb(0.34, 0.42, 0.24), false);
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.70, 19.0, slot_width * 0.30, 22.0, Color::srgb(0.31, 0.40, 0.23), false);
+            }
+            RouteLandscapeKind::Water => {
+                spawn_route_journey_shape(commands, scene, left, 39.0, slot_width, 3.0, Color::srgb(0.17, 0.39, 0.45), false);
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.20, 53.0, slot_width * 0.55, 2.0, Color::srgb(0.25, 0.48, 0.51), false);
+            }
+            RouteLandscapeKind::Desert => {
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.05, 26.0, slot_width * 0.88, 18.0, Color::srgb(0.63, 0.48, 0.27), true);
+            }
+            RouteLandscapeKind::Coast => {
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.48, 19.0, slot_width * 0.52, 18.0, Color::srgb(0.06, 0.20, 0.26), false);
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.48, 37.0, slot_width * 0.52, 2.0, Color::srgb(0.18, 0.40, 0.44), false);
+            }
+            RouteLandscapeKind::Tundra => {
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.14, 19.0, slot_width * 0.30, 30.0, Color::srgb(0.60, 0.64, 0.63), false);
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.56, 19.0, slot_width * 0.31, 23.0, Color::srgb(0.51, 0.57, 0.58), false);
+            }
+            RouteLandscapeKind::Grassland => {
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.25, 19.0, 1.2, 12.0, Color::srgb(0.43, 0.48, 0.27), false);
+                spawn_route_journey_shape(commands, scene, left + slot_width * 0.67, 19.0, 1.0, 9.0, Color::srgb(0.43, 0.48, 0.27), false);
+            }
+        }
+    }
+
+    spawn_route_journey_shape(commands, scene, 4.0, 8.0, 92.0, 3.0, Color::srgb(0.42, 0.34, 0.22), false);
+    let progress = 15.0
+        + (journey.elapsed_seconds / ROUTE_JOURNEY_DURATION_SECONDS).clamp(0.0, 1.0) * 70.0;
+    let traveler = commands
+        .spawn((
+            SpatialTransitMarker(true),
+            Node {
+                position_type: PositionType::Absolute,
+                left: percent(progress),
+                bottom: px(2),
+                width: px(15),
+                height: px(15),
+                border_radius: BorderRadius::MAX,
+                border: UiRect::all(px(1)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.83, 0.68, 0.42)),
+            BorderColor::all(Color::srgb(0.95, 0.84, 0.62)),
+        ))
+        .id();
+    commands.entity(scene).add_child(traveler);
+
+    let summary = commands
+        .spawn((
+            Text::new(route_landscape_summary(&journey.samples)),
+            TextLayout::new(Justify::Center, LineBreak::WordOrCharacter),
+            TextFont::from_font_size(FontSize::Rem(0.9)),
+            TextColor(bevy_presentation::THEME_TEXT),
+        ))
+        .id();
+    commands.entity(overlay).add_child(summary);
 }
 
 fn spawn_route_transit_overlay(commands: &mut Commands, parent: Entity, transit: &RouteTransit) {

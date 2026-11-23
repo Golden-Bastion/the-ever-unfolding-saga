@@ -936,3 +936,36 @@ fn route_profiles_reflect_combined_terrain_crossing_requirements() {
         RouteProfile::Inconclusive
     );
 }
+
+
+#[test]
+fn route_landscape_samples_are_bounded_deterministic_and_follow_travel_direction() {
+    use crate::geography::routes::{
+        RouteGeography, RouteLandscapeSample, RoutePlanningStatus, RouteProfile,
+        MAX_ROUTE_LANDSCAPE_SAMPLES,
+    };
+
+    let path = (0..64)
+        .map(|index| MacroCoordinate::new(i64::from(index) * ROUTE_GRID_SPACING, 0))
+        .collect::<Vec<_>>();
+    let geography = RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::Trail,
+        path: path.clone(),
+        crossings: Vec::new(),
+        total_cost: 0,
+    };
+
+    let forward = geography.landscape_samples(42, GEOGRAPHY_RULESET_VERSION, true);
+    let repeated = geography.landscape_samples(42, GEOGRAPHY_RULESET_VERSION, true);
+    let reverse = geography.landscape_samples(42, GEOGRAPHY_RULESET_VERSION, false);
+
+    assert!(!forward.is_empty());
+    assert!(forward.len() <= MAX_ROUTE_LANDSCAPE_SAMPLES);
+    assert_eq!(forward.len(), MAX_ROUTE_LANDSCAPE_SAMPLES);
+    assert_eq!(forward, repeated);
+    assert_eq!(forward.first().map(|sample: &RouteLandscapeSample| sample.coordinate), path.first().copied());
+    assert_eq!(forward.last().map(|sample| sample.coordinate), path.last().copied());
+    assert_eq!(reverse.first().map(|sample| sample.coordinate), path.last().copied());
+    assert_eq!(reverse.last().map(|sample| sample.coordinate), path.first().copied());
+}

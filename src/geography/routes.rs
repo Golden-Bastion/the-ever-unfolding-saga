@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, BinaryHeap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
+use super::climate::{self, Biome};
 use super::hydrology::SurfaceWaterKind;
 use super::river_geometry::{RiverBankIntersection, RiverGeometryCache, RiverPosition};
 use super::rivers::{self, RiverFlowDirection, RiverId, RiverWidthClass};
@@ -12,6 +13,8 @@ use super::{hydrology, terrain, waterbodies, watershed, MacroCoordinate};
 use crate::model::World;
 
 pub const MAX_CORRIDOR_SAMPLES: usize = 16;
+/// Maximum number of representative geography samples in a physical route scene.
+pub const MAX_ROUTE_LANDSCAPE_SAMPLES: usize = 16;
 pub const ROUTE_GRID_SPACING: i64 = 32;
 pub const MAX_ROUTE_SEARCH_NODES: usize = 4_096;
 pub const MAX_ROUTE_GRID_DISTANCE: i32 = 96;
@@ -52,6 +55,27 @@ pub enum RouteProfile {
     WaterCrossing,
     Mixed,
     Inconclusive,
+}
+
+/// Broad environment categories used only by physical-travel presentation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RouteLandscapeKind {
+    Water,
+    Mountain,
+    Forest,
+    Valley,
+    Desert,
+    Coast,
+    Tundra,
+    Grassland,
+}
+
+/// One bounded, direction-aware sample of the persisted macro route.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RouteLandscapeSample {
+    pub coordinate: MacroCoordinate,
+    pub kind: RouteLandscapeKind,
+    pub elevation_q16: i32,
 }
 
 /// Result of trying to construct a land-based route between two surface anchors.
@@ -211,6 +235,83 @@ impl RouteGeography {
         } else {
             crossings.rev().collect()
         }
+    }
+
+    /// Sample the persisted route at evenly spaced positions for a short physical-travel scene.
+    ///
+    /// The returned samples follow the selected travel direction and are capped independently
+    /// of route length. They are transient presentation data; they are never persisted.
+    pub fn landscape_samples(
+        &self,
+        world_seed: u64,
+        ruleset_version: u32,
+        from_a: bool,
+    ) -> Vec<RouteLandscapeSample> {
+        if self.path.len() < 2 {
+            return Vec::new();
+        }
+
+        let path_len = self.path.len();
+        let sample_count = path_len.min(MAX_ROUTE_LANDSCAPE_SAMPLES);
+        let mut samples = Vec::with_capacity(sample_count);
+        for sample_index in 0..sample_count {
+            let forward_index = sample_index * (path_len - 1) / (sample_count - 1);
+            let path_index = if from_a { forward_index } else { path_len - 1 - forward_index };
+            let coordinate = self.path[path_index];
+            let Some(terrain_sample) = terrain::sample_surface(world_seed, ruleset_version, coordinate) else {
+                continue;
+            };
+
+            let kind = match hydrology::sample_surface(world_seed, ruleset_version, coordinate)
+                .map(|sample| sample.kind())
+            {
+                Some(
+                    SurfaceWaterKind::Ocean
+                    | SurfaceWaterKind::Lake(_)
+                    | SurfaceWaterKind::River(_)
+                    | SurfaceWaterKind::UnresolvedRiver(_),
+                ) => RouteLandscapeKind::Water,
+                _ => {
+                    let biome = climate::sample_surface(world_seed, ruleset_version, coordinate)
+                        .map(|sample| sample.biome())
+                        .unwrap_or(Biome::Grassland);
+                    if terrain_sample.is_mountain_barrier() || biome == Biome::Alpine {
+                        RouteLandscapeKind::Mountain
+                    } else {
+                        match biome {
+                            Biome::TemperateForest | Biome::Taiga => RouteLandscapeKind::Forest,
+                            Biome::Desert => RouteLandscapeKind::Desert,
+                            Biome::Coast => RouteLandscapeKind::Coast,
+                            Biome::Tundra => RouteLandscapeKind::Tundra,
+                            Biome::Ocean => RouteLandscapeKind::Water,
+                            Biome::Grassland => RouteLandscapeKind::Grassland,
+                            Biome::Alpine => RouteLandscapeKind::Mountain,
+                        }
+                    }
+                }
+            };
+            samples.push(RouteLandscapeSample {
+                coordinate,
+                kind,
+                elevation_q16: terrain_sample.elevation_q16(),
+            });
+        }
+
+        // A local low point between two higher open-land samples is presented as a valley.
+        // This is a visual cue only; it does not change route cost or geography.
+        for index in 1..samples.len().saturating_sub(1) {
+            let current = samples[index];
+            if current.kind == RouteLandscapeKind::Grassland
+                && samples[index - 1].kind == RouteLandscapeKind::Grassland
+                && samples[index + 1].kind == RouteLandscapeKind::Grassland
+                && current.elevation_q16.saturating_add(4_096) < samples[index - 1].elevation_q16
+                && current.elevation_q16.saturating_add(4_096) < samples[index + 1].elevation_q16
+            {
+                samples[index].kind = RouteLandscapeKind::Valley;
+            }
+        }
+
+        samples
     }
 
     /// Return a reason when explicit route geography cannot currently be crossed.

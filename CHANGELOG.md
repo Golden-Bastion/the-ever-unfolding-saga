@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.32: Terrain-aware physical route journeys
+
+- Physical use of a geography-backed route now begins with a short transient panorama derived from its persisted macro path and viewed in the direction travelled.
+- The renderer samples at most 16 evenly spaced path positions and distinguishes water, coast, desert, forest/taiga, tundra, open country, relative valleys, and mountain terrain with colored placeholder silhouettes.
+- Exact resolved river ford, bridge, and lake ferry scenes continue after the terrain panorama. Known-route fast travel remains unchanged and skips the physical-travel presentation.
+- Added automated coverage for bounded deterministic sampling, forward/reverse ordering, and distinct landscape placeholder categories.
+- No save-format, macro-geography ruleset, or local-map generator version change is required.
+- Bumped Rust and Android metadata to 0.53.32.
+
 ### v0.53.31: Macro-route connections meet local geography
 
 - New outdoor-map route exits use the first/last persisted macro-route segment to intersect the location's aspect-ratio-aware footprint. New exits are placed deterministically near that exact normalized edge position; authored compass-side overrides and established passage positions remain authoritative.
