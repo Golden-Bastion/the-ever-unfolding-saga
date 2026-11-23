@@ -11,7 +11,7 @@ This file records completed work in the current unreleased development line. Old
 - Built bridges and ferry services now require matching, operational, public infrastructure records before physical travel or known-route fast travel can use their crossings. Natural fords and mountain passes remain possible without constructed records; legacy combined river crossings retain their prior behavior. Older saves default to an empty registry, so previously traversable bridge/ferry requirements now remain blocked until explicit infrastructure records are supplied rather than treating old route metadata as proof of construction.
 - Unified infrastructure availability checks across passage interactions, physical travel, World Map reachability, and known-route pathfinding. Removing a route also removes its dependent infrastructure records.
 - Added backward-compatible empty defaults for older saves and automated coverage for persistence, unowned infrastructure, access/condition states, bridge/ferry requirements, route cleanup, and direct/fast-travel consistency. No save-format version bump is required.
-- Construction interfaces, maintenance/repair, ownership transfers, and permission resolution remain future work.
+- Construction interfaces/material costs, maintenance/repair, ownership transfers, and permission resolution are deferred to v0.55.x so they can reuse the shared resource/inventory/work and social/authority foundations; see the topology, livelihoods, and social-influence design records.
 
 ### Established-world compatibility regression coverage
 
