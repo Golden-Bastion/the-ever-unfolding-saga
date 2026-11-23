@@ -34,8 +34,8 @@ use crate::model::{Condition, EntityId, ExplorationPosition, GameState};
 use crate::spatial::{
     apply_authored_spatial_discoveries, configure_map_cave_connections, configure_map_frontiers,
     configure_map_routes, ensure_spatial_entity_placements, generate_local_map_with_layout,
-    generate_local_map_with_surface, ExplorationSession, GridPosition, LocalMap, LocalMapConfig,
-    MapExit, MapExitVisualKind, MapRouteDestination, SpatialDiscoveryDefinition,
+    generate_local_map_with_surface_and_crossings, ExplorationSession, GridPosition, LocalMap,
+    LocalMapConfig, MapExit, MapExitVisualKind, MapRouteDestination, SpatialDiscoveryDefinition,
     SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind, Terrain,
 };
 use crate::spatial_animation::{
@@ -715,7 +715,7 @@ pub(crate) fn enter(
     };
     let location_id = format!("location.{}", location.id);
     let map_frontiers = frontier::frontier_targets_for_location(&game.world, location.id);
-    let map_routes = game
+    let mut map_routes = game
         .world
         .routes_from(location.id)
         .map(|(route, target_location_id)| {
@@ -754,6 +754,7 @@ pub(crate) fn enter(
                 target_location_id,
                 profile,
                 preferred_side,
+                preferred_edge_offset_q16: None,
                 frontier_id: route
                     .id
                     .strip_prefix("route.")
@@ -786,11 +787,75 @@ pub(crate) fn enter(
     } else {
         None
     };
+    let preferred_river_crossings = surface
+        .as_ref()
+        .map(|surface| route_local_river_crossing_targets(game, location.id, surface))
+        .unwrap_or_default();
+    if let Some(surface) = surface.as_ref() {
+        for map_route in &mut map_routes {
+            let authored_side = game.campaign_content.as_ref().and_then(|content| {
+                let source = content
+                    .world
+                    .locations
+                    .iter()
+                    .find(|entry| entry.name == location.name)?;
+                let target_name = game
+                    .world
+                    .location_by_id(map_route.target_location_id)?
+                    .name
+                    .as_str();
+                let target = content
+                    .world
+                    .locations
+                    .iter()
+                    .find(|entry| entry.name == target_name)?;
+                source.exit_sides.get(&target.id).copied()
+            });
+            if authored_side.is_some() {
+                continue;
+            }
+            let Some((geography, from_a)) =
+                game.world
+                    .route_by_id(&map_route.route_id)
+                    .and_then(|route| {
+                        route
+                            .geography
+                            .as_ref()
+                            .map(|geography| (geography, route.location_a_id == location.id))
+                    })
+            else {
+                continue;
+            };
+            if let Some(edge) = surface.route_edge(&geography.path, from_a) {
+                map_route.preferred_side = Some(match edge.side {
+                    crate::geography::local_surface::LocalSurfaceEdgeSide::North => {
+                        crate::spatial::MapExitSide::North
+                    }
+                    crate::geography::local_surface::LocalSurfaceEdgeSide::East => {
+                        crate::spatial::MapExitSide::East
+                    }
+                    crate::geography::local_surface::LocalSurfaceEdgeSide::South => {
+                        crate::spatial::MapExitSide::South
+                    }
+                    crate::geography::local_surface::LocalSurfaceEdgeSide::West => {
+                        crate::spatial::MapExitSide::West
+                    }
+                });
+                map_route.preferred_edge_offset_q16 = Some(edge.offset_q16);
+            }
+        }
+    }
     let mut map = if let Some(existing) = existing_map {
         existing.clone()
     } else {
         let mut generated = if let Some(surface) = surface.as_ref() {
-            generate_local_map_with_surface(world_seed, location_id.clone(), map_config, surface)
+            generate_local_map_with_surface_and_crossings(
+                world_seed,
+                location_id.clone(),
+                map_config,
+                surface,
+                &preferred_river_crossings,
+            )
         } else {
             generate_local_map_with_layout(
                 world_seed,
@@ -1933,6 +1998,7 @@ fn use_map_exit(
                     target_location_id: materialized.location_id,
                     profile,
                     preferred_side,
+                    preferred_edge_offset_q16: None,
                     frontier_id: Some(frontier_target.id.clone()),
                 }],
             );
@@ -2136,16 +2202,26 @@ fn travel_to_location(
     invalid_route_message: &'static str,
 ) -> Result<(), &'static str> {
     sync_spatial_to_game(state, lifecycle);
-    let Some((old_turn, valid_route)) = lifecycle.session.as_ref().map(|session| {
-        (
-            session.state.character.turn,
-            crate::game::actions::has_location_travel_route(
-                &session.state,
-                target_location_id,
-                route_id,
-            ),
-        )
-    }) else {
+    let destination_map_id = format!("location.{target_location_id}");
+    let Some((old_turn, source_location_id, destination_map_existed, valid_route)) =
+        lifecycle.session.as_ref().map(|session| {
+            (
+                session.state.character.turn,
+                session.state.character.location_id,
+                session
+                    .state
+                    .world
+                    .local_maps
+                    .iter()
+                    .any(|map| map.location_id == destination_map_id),
+                crate::game::actions::has_location_travel_route(
+                    &session.state,
+                    target_location_id,
+                    route_id,
+                ),
+            )
+        })
+    else {
         return Err("The current world session is unavailable.");
     };
     if !valid_route {
@@ -2189,6 +2265,53 @@ fn travel_to_location(
     }
 
     enter(state, game_state, navigation);
+    if let Some(route_id) = route_id {
+        let preferred_edge = lifecycle
+            .session
+            .as_ref()
+            .and_then(|session| session.state.world.route_by_id(route_id))
+            .and_then(|route| {
+                let geography = route.geography.as_ref()?;
+                let from_a = route.location_a_id == target_location_id;
+                state.surface.as_ref()?.route_edge(&geography.path, from_a)
+            });
+        let preferred_side = preferred_edge.map(|edge| match edge.side {
+            crate::geography::local_surface::LocalSurfaceEdgeSide::North => {
+                crate::spatial::MapExitSide::North
+            }
+            crate::geography::local_surface::LocalSurfaceEdgeSide::East => {
+                crate::spatial::MapExitSide::East
+            }
+            crate::geography::local_surface::LocalSurfaceEdgeSide::South => {
+                crate::spatial::MapExitSide::South
+            }
+            crate::geography::local_surface::LocalSurfaceEdgeSide::West => {
+                crate::spatial::MapExitSide::West
+            }
+        });
+        let preferred_offset = preferred_edge.map(|edge| edge.offset_q16);
+        let arrival = state.maps.get_mut(&destination_map_id).and_then(|map| {
+            if destination_map_existed {
+                map.route_arrival_position(
+                    route_id,
+                    source_location_id,
+                    preferred_side,
+                    preferred_offset,
+                )
+            } else {
+                map.prepare_route_arrival_position(
+                    route_id,
+                    source_location_id,
+                    preferred_side,
+                    preferred_offset,
+                )
+            }
+        });
+        if let Some(position) = arrival {
+            state.position = Vec2::new(f32::from(position.x) + 0.5, f32::from(position.y) + 0.5);
+            state.dirty = true;
+        }
+    }
     if let Some(outcome) = arrival_outcome {
         state.message = Some(outcome);
         state.dirty = true;
@@ -4178,6 +4301,39 @@ fn location_surface(
         map_config.width,
         map_config.height,
     )
+}
+
+fn route_local_river_crossing_targets(
+    game: &GameState,
+    location_id: EntityId,
+    surface: &LocalSurfaceMap,
+) -> Vec<GridPosition> {
+    let mut targets = game
+        .world
+        .routes
+        .iter()
+        .filter(|route| route.location_a_id == location_id || route.location_b_id == location_id)
+        .flat_map(|route| {
+            let from_a = route.location_a_id == location_id;
+            route
+                .geography
+                .as_ref()
+                .into_iter()
+                .flat_map(move |geography| geography.resolved_travel_crossings(from_a))
+        })
+        .filter(|crossing| crossing.kind == RouteCrossingKind::River)
+        .filter_map(|crossing| {
+            let midpoint = crossing.river_banks?.midpoint()?;
+            let tile = surface.tile_for_position(midpoint)?;
+            Some(GridPosition {
+                x: tile.x,
+                y: tile.y,
+            })
+        })
+        .collect::<Vec<_>>();
+    targets.sort_by_key(|position| (position.y, position.x));
+    targets.dedup();
+    targets
 }
 
 fn surface_biome_at(surface: Option<&LocalSurfaceMap>, position: GridPosition) -> Option<Biome> {

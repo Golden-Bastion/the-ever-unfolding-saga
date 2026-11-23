@@ -1245,6 +1245,13 @@ fn physical_passage_travel_keeps_spatial_mode_and_restores_destination_map() {
         .find(|exit| exit.target_location_id == destination_id)
         .expect("source map should contain the connected passage")
         .clone();
+    let source_location_id = lifecycle
+        .session
+        .as_ref()
+        .unwrap()
+        .state
+        .character
+        .location_id;
     let source_entry = spatial.maps[&source_key].entry;
     spatial
         .maps
@@ -1278,11 +1285,19 @@ fn physical_passage_travel_keeps_spatial_mode_and_restores_destination_map() {
         spatial.session.as_ref().unwrap().location_id,
         destination_key
     );
+    let destination_map = &spatial.maps[&destination_key];
+    let route_id = exit
+        .route_id
+        .as_deref()
+        .expect("physical passage should identify its route");
+    let expected_arrival = destination_map
+        .route_arrival_position(route_id, source_location_id, None, None)
+        .unwrap_or(destination_map.entry);
     assert_eq!(
         spatial.position,
         Vec2::new(
-            f32::from(spatial.maps[&destination_key].entry.x) + 0.5,
-            f32::from(spatial.maps[&destination_key].entry.y) + 0.5,
+            f32::from(expected_arrival.x) + 0.5,
+            f32::from(expected_arrival.y) + 0.5,
         )
     );
     assert!(spatial.maps[&destination_key]

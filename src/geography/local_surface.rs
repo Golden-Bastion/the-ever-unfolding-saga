@@ -23,6 +23,29 @@ pub enum SurfaceWaterFeature {
     Lake,
 }
 
+/// The side where a macro route leaves a location's rectangular surface footprint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LocalSurfaceEdgeSide {
+    North,
+    East,
+    South,
+    West,
+}
+
+/// Exact normalized position along a local-map edge, in the inclusive Q16 range 0..=65535.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LocalSurfaceEdge {
+    pub side: LocalSurfaceEdgeSide,
+    pub offset_q16: u16,
+}
+
+/// A tile coordinate in a projected local surface map.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LocalSurfaceTile {
+    pub x: u16,
+    pub y: u16,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LocalSurfaceSample {
     biome: Biome,
@@ -57,6 +80,9 @@ impl LocalSurfaceSample {
 /// A broad macro sample grid plus a tile-resolution river footprint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalSurfaceMap {
+    anchor: MacroCoordinate,
+    radius_x: u16,
+    radius_y: u16,
     tile_width: u16,
     tile_height: u16,
     sample_width: u16,
@@ -132,6 +158,9 @@ impl LocalSurfaceMap {
 
         let tile_count = usize::from(tile_width) * usize::from(tile_height);
         let mut result = Self {
+            anchor,
+            radius_x,
+            radius_y,
             tile_width,
             tile_height,
             sample_width,
@@ -177,6 +206,88 @@ impl LocalSurfaceMap {
 
     pub const fn dimensions(&self) -> (u16, u16) {
         (self.tile_width, self.tile_height)
+    }
+
+    /// Project the first route segment leaving this location onto its actual footprint edge.
+    ///
+    /// Route paths are stored from endpoint A to endpoint B. The supplied endpoint
+    /// must match this surface map's persisted location anchor; legacy or malformed
+    /// paths safely fall back to their older compass-heading placement.
+    pub fn route_edge(
+        &self,
+        path: &[MacroCoordinate],
+        from_anchor_a: bool,
+    ) -> Option<LocalSurfaceEdge> {
+        if self.radius_x == 0 || self.radius_y == 0 {
+            return None;
+        }
+        let endpoint = if from_anchor_a {
+            path.first().copied()?
+        } else {
+            path.last().copied()?
+        };
+        if endpoint != self.anchor {
+            return None;
+        }
+        let next = if from_anchor_a {
+            path.iter().copied().find(|point| *point != self.anchor)?
+        } else {
+            path.iter()
+                .rev()
+                .copied()
+                .find(|point| *point != self.anchor)?
+        };
+        let dx = i128::from(next.x) - i128::from(self.anchor.x);
+        let dy = i128::from(next.y) - i128::from(self.anchor.y);
+        let abs_dx = dx.abs();
+        let abs_dy = dy.abs();
+        if abs_dx == 0 && abs_dy == 0 {
+            return None;
+        }
+
+        let radius_x = i128::from(self.radius_x);
+        let radius_y = i128::from(self.radius_y);
+        // Compare ray parameters without division. Exact corner hits resolve to
+        // the east/west side, matching the existing compass-heading tie-break.
+        let hits_vertical_edge = radius_x * abs_dy <= radius_y * abs_dx;
+        if hits_vertical_edge {
+            Some(LocalSurfaceEdge {
+                side: if dx > 0 {
+                    LocalSurfaceEdgeSide::East
+                } else {
+                    LocalSurfaceEdgeSide::West
+                },
+                offset_q16: normalized_edge_offset_q16(dy * radius_x, abs_dx, self.radius_y)?,
+            })
+        } else {
+            Some(LocalSurfaceEdge {
+                side: if dy > 0 {
+                    LocalSurfaceEdgeSide::South
+                } else {
+                    LocalSurfaceEdgeSide::North
+                },
+                offset_q16: normalized_edge_offset_q16(dx * radius_y, abs_dy, self.radius_x)?,
+            })
+        }
+    }
+
+    /// Convert an exact global Q16 geography position to the local tile containing it.
+    /// Positions outside the footprint are rejected rather than clamped to an edge.
+    pub fn tile_for_position(&self, position: RiverPosition) -> Option<LocalSurfaceTile> {
+        Some(LocalSurfaceTile {
+            x: coordinate_to_tile(
+                position.x_q16,
+                self.anchor.x,
+                self.radius_x,
+                self.tile_width,
+            )?,
+            y: coordinate_to_tile(
+                position.y_q16,
+                self.anchor.y,
+                self.radius_y,
+                self.tile_height,
+            )?,
+        })
     }
 
     /// Dimensions of the bounded underlying macro-sample grid.
@@ -235,6 +346,45 @@ fn tile_center_position(
         y_q16: i64::try_from(i128::from(anchor.y) * i128::from(RIVER_POSITION_SCALE) + y_offset)
             .ok()?,
     })
+}
+
+fn normalized_edge_offset_q16(
+    offset_numerator: i128,
+    step_denominator: i128,
+    radius: u16,
+) -> Option<u16> {
+    if step_denominator <= 0 || radius == 0 {
+        return None;
+    }
+    let radius = i128::from(radius);
+    let denominator = step_denominator.checked_mul(radius)?.checked_mul(2)?;
+    let numerator = offset_numerator.checked_add(step_denominator.checked_mul(radius)?)?;
+    let scaled = numerator.checked_mul(i128::from(u16::MAX))? / denominator;
+    u16::try_from(scaled.clamp(0, i128::from(u16::MAX))).ok()
+}
+
+fn coordinate_to_tile(position_q16: i64, anchor: i64, radius: u16, dimension: u16) -> Option<u16> {
+    if dimension == 0 {
+        return None;
+    }
+    let scale = i128::from(super::river_geometry::RIVER_POSITION_SCALE);
+    let center = i128::from(anchor).checked_mul(scale)?;
+    let radius_q16 = i128::from(radius).checked_mul(scale)?;
+    if radius == 0 {
+        return (i128::from(position_q16) == center).then_some(dimension / 2);
+    }
+    let minimum = center.checked_sub(radius_q16)?;
+    let maximum = center.checked_add(radius_q16)?;
+    let position = i128::from(position_q16);
+    if position < minimum || position > maximum {
+        return None;
+    }
+    let span = radius_q16.checked_mul(2)?;
+    let tile = position
+        .checked_sub(minimum)?
+        .checked_mul(i128::from(dimension))?
+        / span;
+    u16::try_from(tile.clamp(0, i128::from(dimension - 1))).ok()
 }
 
 fn width_rank(width: RiverWidthClass) -> u8 {

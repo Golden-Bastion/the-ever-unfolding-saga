@@ -495,6 +495,7 @@ fn generate_world_lab_session(options: WorldLabOptions) -> (LocalMap, WorldLabSc
                 target_location_id,
                 profile,
                 preferred_side,
+                preferred_edge_offset_q16: None,
                 frontier_id: None,
             }
         })
