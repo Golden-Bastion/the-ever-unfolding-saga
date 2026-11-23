@@ -109,12 +109,8 @@ fn tracked_quest_marks_the_first_incomplete_visit_objective_and_reveals_its_loca
         .iter()
         .all(|route| route.from_id != 14 && route.to_id != 14));
     assert!(
-        !view
-            .nodes
-            .iter()
-            .find(|node| node.location.id == 11)
-            .unwrap()
-            .tracked_objective
+        !view.nodes.iter().any(|node| node.location.id == 11),
+        "unrelated undiscovered locations should remain hidden"
     );
 }
 
@@ -151,12 +147,8 @@ fn tracked_evidence_objective_resolves_to_the_location_that_owns_the_discovery()
             .tracked_objective
     );
     assert!(
-        !view
-            .nodes
-            .iter()
-            .find(|node| node.location.id == 12)
-            .unwrap()
-            .tracked_objective
+        !view.nodes.iter().any(|node| node.location.id == 12),
+        "unrelated undiscovered locations should remain hidden"
     );
 }
 
@@ -216,7 +208,7 @@ fn unresolved_tracked_objectives_do_not_guess_a_destination() {
 }
 
 #[test]
-fn map_shows_current_location_and_its_immediate_routes_without_revealing_the_world() {
+fn map_does_not_reveal_routes_before_their_local_passages_are_explored() {
     let state = test_state();
 
     let view = build_view(&state);
@@ -226,9 +218,12 @@ fn map_shows_current_location_and_its_immediate_routes_without_revealing_the_wor
         .iter()
         .map(|node| node.location.id)
         .collect::<Vec<_>>();
-    assert_eq!(ids, vec![10, 11, 12]);
+    assert_eq!(ids, vec![10]);
     assert!(view.nodes.iter().any(|node| node.current && node.explored));
-    assert!(view.nodes.iter().filter(|node| node.reachable).count() == 2);
+    assert_eq!(view.nodes.iter().filter(|node| node.reachable).count(), 0);
+    assert!(!ids.contains(&11));
+    assert!(!ids.contains(&12));
+    assert!(view.routes.is_empty());
     assert!(!ids.contains(&13));
     assert!(!ids.contains(&14));
     assert!(view.fast_travel_destinations.is_empty());
@@ -239,9 +234,89 @@ fn map_shows_current_location_and_its_immediate_routes_without_revealing_the_wor
 }
 
 #[test]
+fn broad_regional_overview_is_hidden_until_the_region_is_surveyed() {
+    let mut state = test_state();
+    state.world.geography_seed = Some(123);
+    state.world.geography_ruleset_version = crate::geography::GEOGRAPHY_RULESET_VERSION;
+    state.world.regions[0].coordinate = Some(crate::geography::RegionCoordinate::ORIGIN);
+
+    assert!(build_view(&state).current_region_overview.is_empty());
+
+    state.world.mark_region_surveyed(1);
+    let first = build_view(&state).current_region_overview;
+    let second = build_view(&state).current_region_overview;
+
+    assert!(!first.is_empty());
+    assert!(first.len() <= 4);
+    assert_eq!(first, second);
+}
+
+#[test]
+fn surveyed_underground_regions_are_identified_without_surface_biome_leakage() {
+    let mut state = test_state();
+    state.world.regions[0].coordinate =
+        Some(crate::geography::RegionCoordinate::in_stratum(0, 0, -1));
+    state.world.mark_region_surveyed(1);
+
+    assert_eq!(
+        build_view(&state).current_region_overview,
+        vec!["Underground".to_string()]
+    );
+}
+
+#[test]
+fn discovering_a_local_passage_reveals_its_route_but_not_other_connections() {
+    let mut state = test_state();
+    let mut map = explored_map(10);
+    let exit_position = GridPosition { x: 6, y: 6 };
+    map.exits.push(crate::spatial::MapExit {
+        id: "exit.to.shrine".into(),
+        route_id: Some("route.compat.legacy.10.11".into()),
+        route_profile: None,
+        frontier: None,
+        cave_target: None,
+        position: exit_position,
+        target_location_id: 11,
+    });
+    assert!(!map.is_tile_discovered(exit_position));
+    state.world.local_maps.push(map.clone());
+
+    let hidden = build_view(&state);
+    assert_eq!(
+        hidden
+            .nodes
+            .iter()
+            .map(|node| node.location.id)
+            .collect::<Vec<_>>(),
+        vec![10]
+    );
+
+    map.mark_tile_discovered(exit_position);
+    state.world.local_maps[0] = map;
+    let revealed = build_view(&state);
+    assert_eq!(
+        revealed
+            .nodes
+            .iter()
+            .map(|node| node.location.id)
+            .collect::<Vec<_>>(),
+        vec![10, 11]
+    );
+    assert_eq!(revealed.routes.len(), 1);
+    assert_eq!(
+        (revealed.routes[0].from_id, revealed.routes[0].to_id),
+        (10, 11)
+    );
+}
+
+#[test]
 fn explored_locations_extend_the_map_by_one_route_without_exposing_the_frontier_beyond_it() {
     let mut state = test_state();
     state.world.local_maps.push(explored_map(11));
+    state.world.discovered_route_ids = vec![
+        "route.compat.legacy.10.11".into(),
+        "route.compat.legacy.11.13".into(),
+    ];
 
     let view = build_view(&state);
 
@@ -250,7 +325,7 @@ fn explored_locations_extend_the_map_by_one_route_without_exposing_the_frontier_
         .iter()
         .map(|node| node.location.id)
         .collect::<Vec<_>>();
-    assert_eq!(ids, vec![10, 11, 12, 13]);
+    assert_eq!(ids, vec![10, 11, 13]);
     assert!(
         view.nodes
             .iter()
@@ -274,6 +349,10 @@ fn previously_visited_locations_become_fast_travel_targets_along_known_routes() 
     let mut state = test_state();
     state.world.local_maps.push(explored_map(11));
     state.world.local_maps.push(explored_map(13));
+    state.world.discovered_route_ids = vec![
+        "route.compat.legacy.10.11".into(),
+        "route.compat.legacy.11.13".into(),
+    ];
 
     let view = build_view(&state);
 
@@ -305,6 +384,10 @@ fn previously_visited_locations_become_fast_travel_targets_along_known_routes() 
 fn unvisited_frontier_locations_are_visible_but_not_fast_travel_targets() {
     let mut state = test_state();
     state.world.local_maps.push(explored_map(11));
+    state.world.discovered_route_ids = vec![
+        "route.compat.legacy.10.11".into(),
+        "route.compat.legacy.11.13".into(),
+    ];
 
     let view = build_view(&state);
     let frontier = view
@@ -324,6 +407,10 @@ fn retained_travel_history_recovers_legacy_visited_locations() {
     state
         .world
         .record_history(3, "Tester the Wanderer traveled to Old Shrine.");
+    state.world.discovered_route_ids = vec![
+        "route.compat.legacy.10.11".into(),
+        "route.compat.legacy.11.13".into(),
+    ];
 
     let view = build_view(&state);
     let old_shrine = view
@@ -362,6 +449,10 @@ fn retained_travel_history_recovers_visits_across_multiple_inheritance_generatio
     state
         .world
         .record_history(20, "Tester the Wanderer inherited the world.");
+    state.world.discovered_route_ids = vec![
+        "route.compat.legacy.10.11".into(),
+        "route.compat.legacy.11.13".into(),
+    ];
 
     let view = build_view(&state);
     let old_shrine = view
@@ -392,6 +483,10 @@ fn unrelated_travel_history_does_not_mark_a_location_as_visited() {
     state
         .world
         .record_history(3, "A band of hunters traveled to Old Shrine.");
+    state
+        .world
+        .discovered_route_ids
+        .push("route.compat.legacy.10.11".into());
 
     let view = build_view(&state);
     let old_shrine = view
@@ -408,6 +503,11 @@ fn unrelated_travel_history_does_not_mark_a_location_as_visited() {
 fn map_routes_are_derived_only_from_established_graph_edges() {
     let mut state = test_state();
     state.world.local_maps.push(explored_map(11));
+    state.world.discovered_route_ids = vec![
+        "route.compat.legacy.10.11".into(),
+        "route.compat.legacy.10.12".into(),
+        "route.compat.legacy.11.13".into(),
+    ];
 
     let view = build_view(&state);
     let mut routes = view
@@ -440,6 +540,7 @@ fn map_preserves_explicit_one_way_route_direction() {
         RouteDirection::AtoB,
     )));
     state.world.local_maps.push(explored_map(11));
+    state.world.mark_route_discovered("route.test.one_way");
 
     let view = build_view(&state);
     let route = view

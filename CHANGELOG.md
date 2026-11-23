@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.33: Hybrid world discovery
+
+- Added world-persistent regional surveys. Visiting a location reveals a broad overview of its region's deterministic macro-geography without exposing exact local terrain or landmarks.
+- Local route passages become known only when their exit tile enters the existing revealed-tile area. The World Map now hides undiscovered routes and their destinations.
+- Known-route fast travel requires every route in the path to be discovered, in addition to the existing visited-location and infrastructure requirements.
+- Added a one-time migration that preserves the previous known-route behavior for existing saves. New cartography state uses backward-compatible defaults; save format, geography ruleset, and local-map generator versions remain unchanged.
+- Added automated coverage for progressive passage revelation, route-gated fast travel, persistent cartography state, and legacy migration.
+- Bumped Rust and Android metadata to 0.53.33.
+
 ### v0.53.32: Terrain-aware physical route journeys
 
 - Physical use of a geography-backed route now begins with a short transient panorama derived from its persisted macro path and viewed in the direction travelled.

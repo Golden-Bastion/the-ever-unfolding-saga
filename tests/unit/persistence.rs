@@ -38,6 +38,13 @@ fn compressed_save_round_trips() {
     map.points_of_interest[0].interacted = true;
     map.set_terrain(map.entry, crate::spatial::Terrain::Rubble);
     state.world.local_maps.push(map.clone());
+    state.world.discovered_route_ids = state
+        .world
+        .routes
+        .first()
+        .map(|route| vec![route.id.clone()])
+        .unwrap_or_default();
+    state.world.surveyed_region_ids = state.world.regions.iter().map(|region| region.id).collect();
     state.character.exploration_session = Some(crate::spatial::ExplorationSession {
         location_id: map.location_id.clone(),
         position: map.entry,
@@ -75,6 +82,14 @@ fn compressed_save_round_trips() {
     assert_eq!(loaded.character.turn, 7);
     assert_eq!(loaded.character.name, "Tester");
     assert_eq!(loaded.world.event_cooldowns, state.world.event_cooldowns);
+    assert_eq!(
+        loaded.world.discovered_route_ids,
+        state.world.discovered_route_ids
+    );
+    assert_eq!(
+        loaded.world.surveyed_region_ids,
+        state.world.surveyed_region_ids
+    );
     assert_eq!(loaded.world.local_maps, vec![map.clone()]);
     assert!(loaded.world.local_maps[0].points_of_interest[0].interacted);
     assert!(loaded.world.local_maps[0].is_tile_discovered(map.entry));
@@ -110,6 +125,56 @@ fn compressed_save_round_trips() {
         "Mirror Lake"
     );
     fs::remove_dir_all(&dir).expect("temporary directory should be removed");
+}
+
+#[test]
+fn legacy_cartography_migration_preserves_known_travel_between_visited_locations() {
+    let mut state = create_new_state(
+        "Legacy Cartography",
+        WorldMode::New,
+        "Tester".to_string(),
+        "Cartographer".to_string(),
+    );
+    state.world.cartography_version = 0;
+    let source_id = state.character.location_id;
+    let source = state.world.location_by_id(source_id).unwrap().clone();
+    let destination_id = state.world.allocate_id();
+    state.world.locations.push(crate::model::Location {
+        id: destination_id,
+        name: "Old Watch".into(),
+        description: "A remembered destination.".into(),
+        region_id: source.region_id,
+        dangerous: false,
+        corpse_ids: Vec::new(),
+        exits: Vec::new(),
+        spatial_layout: None,
+    });
+    state
+        .world
+        .location_by_id_mut(source_id)
+        .unwrap()
+        .exits
+        .push(destination_id);
+    state.world.migrate_legacy_exits();
+    state
+        .world
+        .local_maps
+        .push(crate::spatial::generate_local_map(
+            7,
+            format!("location.{source_id}"),
+            crate::spatial::LocalMapConfig::default(),
+        ));
+    let route_id = format!(
+        "route.compat.legacy.{}.{}",
+        source_id.min(destination_id),
+        source_id.max(destination_id)
+    );
+
+    let migrated = normalize_loaded_game(state, SAVE_FILE_VERSION);
+
+    assert_eq!(migrated.world.cartography_version, 1);
+    assert!(migrated.world.is_route_discovered(&route_id));
+    assert!(migrated.world.is_region_surveyed(source.region_id));
 }
 
 #[test]

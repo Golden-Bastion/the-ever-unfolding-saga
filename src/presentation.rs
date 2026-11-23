@@ -203,6 +203,8 @@ pub(crate) struct WorldMapRouteView {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct WorldMapView {
     pub current_location: Option<LocationView>,
+    /// Broad geography learned by surveying the current region.
+    pub current_region_overview: Vec<String>,
     pub nodes: Vec<WorldMapNodeView>,
     pub routes: Vec<WorldMapRouteView>,
     /// Previously visited destinations reachable through the explored reciprocal route graph.

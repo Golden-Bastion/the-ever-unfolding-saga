@@ -81,10 +81,13 @@ pub(crate) fn has_location_travel_route(
 
 /// Whether the campaign has established this location as visited.
 ///
-/// Persistent local maps are authoritative. For saves made before local maps
+/// The current location and persistent local maps are authoritative. For saves made before local maps
 /// were persisted in the world, recover visited destinations from the retained
 /// travel history of the current character and its recorded predecessors.
 pub(crate) fn has_visited_location(state: &GameState, location_id: EntityId) -> bool {
+    if state.character.location_id == location_id {
+        return true;
+    }
     let stable_id = format!("location.{location_id}");
     if state
         .world
@@ -125,7 +128,7 @@ pub(crate) fn has_visited_location(state: &GameState, location_id: EntityId) -> 
 }
 
 /// Find a shortest directed route to a previously visited location using only
-/// permitted connections between visited locations. Persistent local maps are
+/// discovered, permitted connections between visited locations. Persistent local maps are
 /// authoritative; retained lineage history supports saves predating map persistence.
 /// The returned IDs are ordered hops and exclude the current location.
 pub(crate) fn find_known_travel_path(
@@ -147,10 +150,11 @@ pub(crate) fn find_known_travel_path(
             .world
             .routes_from(source_id)
             .filter(|(route, _)| {
-                route
-                    .geography
-                    .as_ref()
-                    .is_none_or(|geography| geography.travel_block_reason().is_none())
+                state.world.is_route_discovered(&route.id)
+                    && route
+                        .geography
+                        .as_ref()
+                        .is_none_or(|geography| geography.travel_block_reason().is_none())
             })
             .map(|(route, destination_id)| (route.id.as_str(), destination_id))
             .collect::<Vec<_>>();
@@ -196,8 +200,28 @@ pub(crate) fn fast_travel_to(
 
     let mut traveled = Vec::with_capacity(path.len());
     for location_id in path {
+        let route_id = state
+            .world
+            .routes_from(state.character.location_id)
+            .filter(|(route, destination)| {
+                *destination == location_id
+                    && state.world.is_route_discovered(&route.id)
+                    && route
+                        .geography
+                        .as_ref()
+                        .is_none_or(|geography| geography.travel_block_reason().is_none())
+            })
+            .map(|(route, _)| route.id.as_str())
+            .min()
+            .map(str::to_string)
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Fast travel requires a discovered route for every hop.",
+                )
+            })?;
         let previous_turn = state.character.turn;
-        travel_to(state, location_id)?;
+        travel_via_route(state, location_id, &route_id)?;
         traveled.push(location_id);
 
         let arrival_event =
@@ -222,7 +246,9 @@ pub(crate) fn travel_via_route(
             "Travel requires the selected route to connect the current location and destination.",
         ));
     }
-    travel_to(state, target_id)
+    travel_to(state, target_id)?;
+    state.world.mark_route_discovered(route_id.to_string());
+    Ok(())
 }
 
 pub(crate) fn travel_to(
@@ -245,6 +271,9 @@ pub(crate) fn travel_to(
     }
     state.character.turn += 1;
     state.character.location_id = target_id;
+    if let Some(location) = state.world.location_by_id(target_id) {
+        state.world.mark_region_surveyed(location.region_id);
+    }
     state.threat.clear();
     state.last_announced_location_id = None;
     let location = state.world.location_by_id(target_id).cloned();
