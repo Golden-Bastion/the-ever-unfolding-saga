@@ -402,7 +402,7 @@ fn fast_travel_requires_each_route_to_be_discovered() {
 }
 
 #[test]
-fn fast_travel_follows_the_shortest_known_route_and_applies_normal_travel_per_hop() {
+fn fast_travel_follows_the_least_time_known_route_and_applies_normal_travel_per_hop() {
     let (mut game, middle_id, destination_id) = fast_travel_fixture(false, true, true);
     let initial_turn = game.character.turn;
     let initial_time = game.world.time_points;
