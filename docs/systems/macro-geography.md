@@ -22,7 +22,14 @@ The broad water projection still lacks fine shoreline transitions. A watershed c
 
 New outdoor local maps now default to 64×48 tiles instead of the prototype's 24×16. Compact interiors remain smaller where appropriate; the authored shrine chamber uses 32×24. World Lab offers 64×48, 80×56, and 96×64 presets. Existing saved maps keep their dimensions and geometry; changing defaults never resizes a player's established map. This is an initial scale increase, not the final target. Outdoor areas should eventually take several minutes to cross, and regions must be substantially larger than one local map. See [world scale and travel](../design/world-scale-and-travel.md).
 
-The next presentation stage is to bind persisted river-bank intersections to route-specific ford/bridge placement and add explicit infrastructure/travel rules for crossings that remain unsupported. The initial lake ferry landing and cutscene are implemented, but they are still provisional presentation rather than authored docks, a fully animated boat, or a complete ferry service system. Fine coastline/elevation composition, region-appropriate vegetation, water and mountain assets, and underground geology remain separate visual work. Keep presentation downstream of the renderer-neutral geography model; it must not become a second source of terrain, route, or water truth.
+Route-specific river fords and bridges now use exact persisted bank pairs during physical route transitions, alongside the lake ferry sequence. Travel rejects open-ocean crossings, unresolved/survey-required water, lakes without verified shores, and new river crossings without verified banks. Known-route fast travel follows the same restrictions and can route around blocked connections. Crossing scenes remain provisional colored presentation, not constructed infrastructure or a settlement-level service simulation. Dedicated docks, bridge/ford artwork, richer animation, fine coastline/elevation composition, vegetation, water and mountain assets, and underground geology remain future work. Keep presentation downstream of renderer-neutral geography; it must not become a second source of terrain, route, or water truth.
+
+Implemented in v0.53.30:
+
+- Route geography exposes verified river and lake crossings in canonical or reverse travel order. River crossings require exact bank pairs and a ford/bridge classification; lake crossings require stable identity and both shores.
+- Route transitions present each river crossing as a provisional ford or bridge scene oriented from its persisted Q16 bank pair. Lake crossings retain the ferry scene; mixed routes play all verified crossings in travel order.
+- Open ocean, unresolved/survey-required water, lakes without verified shores, and new river crossings without verified banks block physical and known-route travel. Fast travel can choose an alternate explored route around a blocked edge.
+- Legacy river records using FordOrBridge remain traversable. Tests cover crossing ordering, incomplete infrastructure, legacy behavior, and direct/fast-travel enforcement. No save-format or local-map generator version change is required.
 
 Implemented in v0.53.29:
 

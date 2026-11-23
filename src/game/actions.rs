@@ -18,10 +18,12 @@ const MEDITATION_TARGETS: [(u32, &str); 8] = [
     (0, "Deep Night"),
 ];
 
-/// Return whether the active location has a route that permits travel to
-/// the destination. When a physical passage supplies a route ID, validate
-/// that exact route rather than accepting another parallel connection.
-pub(crate) fn has_location_travel_route(
+/// Return whether the active location has a route connection to the destination,
+/// regardless of whether its crossing infrastructure currently permits travel.
+/// This lets the interaction layer explain unavailable passages without making
+/// them traversable. When a physical passage supplies a route ID, validate that
+/// exact route rather than accepting another parallel connection.
+pub(crate) fn has_location_route_connection(
     state: &GameState,
     target_id: EntityId,
     route_id: Option<&str>,
@@ -32,10 +34,49 @@ pub(crate) fn has_location_travel_route(
     {
         return false;
     }
-    route_id.map_or_else(
-        || state.world.can_travel_between(source_id, target_id),
-        |id| state.world.can_travel_via_route(id, source_id, target_id),
-    )
+    match route_id {
+        Some(id) => state
+            .world
+            .route_by_id(id)
+            .is_some_and(|route| route.allows_travel(source_id, target_id)),
+        None => state
+            .world
+            .routes_from(source_id)
+            .any(|(route, destination)| {
+                destination == target_id && route.allows_travel(source_id, destination)
+            }),
+    }
+}
+
+/// Return whether the active location has a route that permits travel to
+/// the destination. When a physical passage supplies a route ID, validate
+/// that exact route rather than accepting another parallel connection.
+pub(crate) fn has_location_travel_route(
+    state: &GameState,
+    target_id: EntityId,
+    route_id: Option<&str>,
+) -> bool {
+    let route_is_traversable = |route: &crate::model::WorldRoute| {
+        route
+            .geography
+            .as_ref()
+            .is_none_or(|geography| geography.travel_block_reason().is_none())
+    };
+    let source_id = state.character.location_id;
+    if state.world.location_by_id(source_id).is_none()
+        || state.world.location_by_id(target_id).is_none()
+    {
+        return false;
+    }
+    match route_id {
+        Some(id) => state.world.route_by_id(id).is_some_and(|route| {
+            route.allows_travel(source_id, target_id) && route_is_traversable(route)
+        }),
+        None => state
+            .world
+            .routes_from(source_id)
+            .any(|(route, destination)| destination == target_id && route_is_traversable(route)),
+    }
 }
 
 /// Whether the campaign has established this location as visited.
@@ -105,6 +146,12 @@ pub(crate) fn find_known_travel_path(
         let mut exits = state
             .world
             .routes_from(source_id)
+            .filter(|(route, _)| {
+                route
+                    .geography
+                    .as_ref()
+                    .is_none_or(|geography| geography.travel_block_reason().is_none())
+            })
             .map(|(route, destination_id)| (route.id.as_str(), destination_id))
             .collect::<Vec<_>>();
         exits.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(right.0)));

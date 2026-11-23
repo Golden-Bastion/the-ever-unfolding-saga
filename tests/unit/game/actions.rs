@@ -90,6 +90,49 @@ fn travel_requires_reciprocal_world_graph_connections() {
     assert_eq!(game.character.turn, initial_turn + 1);
 }
 
+#[test]
+fn unsupported_route_crossings_block_direct_and_fast_travel() {
+    use crate::geography::routes::{
+        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus,
+        RouteProfile,
+    };
+
+    let (mut game, middle_id, destination_id) = fast_travel_fixture(false, true, true);
+    let source_id = game.character.location_id;
+    let route = game
+        .world
+        .routes
+        .iter_mut()
+        .find(|route| route.connects(source_id, middle_id))
+        .expect("fixture route");
+    route.geography = Some(RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::WaterCrossing,
+        path: Vec::new(),
+        crossings: vec![RouteCrossing {
+            coordinate: crate::geography::MacroCoordinate::new(4, 4),
+            kind: RouteCrossingKind::Ocean,
+            infrastructure: RouteInfrastructure::Impassable,
+            river_id: None,
+            river_width: None,
+            river_flow_direction: None,
+            river_banks: None,
+            lake_id: None,
+            lake_banks: None,
+        }],
+        total_cost: 0,
+    });
+
+    let turn = game.character.turn;
+    let time = game.world.time_points;
+    assert!(!has_location_travel_route(&game, middle_id, None));
+    assert!(travel_to(&mut game, middle_id).is_err());
+    assert!(find_known_travel_path(&game, destination_id).is_none());
+    assert_eq!(game.character.location_id, source_id);
+    assert_eq!(game.character.turn, turn);
+    assert_eq!(game.world.time_points, time);
+}
+
 fn fast_travel_fixture(
     dangerous_middle: bool,
     destination_known: bool,

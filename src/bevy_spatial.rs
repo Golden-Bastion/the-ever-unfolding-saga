@@ -23,7 +23,9 @@ use crate::bevy_presentation::{
 use crate::geography::climate::{self, Biome};
 use crate::geography::frontier;
 use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
-use crate::geography::routes::{RouteHeading, RouteProfile};
+use crate::geography::routes::{
+    RouteCrossingKind, RouteHeading, RouteInfrastructure, RouteProfile,
+};
 use crate::input::InputEvent;
 use crate::interaction_actions::{
     discover_available_interactions, AvailableInteraction, InteractionActionKind, InteractionTarget,
@@ -65,9 +67,9 @@ const SPATIAL_HEADER_HEIGHT_PX: f32 = 88.0;
 const SPATIAL_HEADER_ROW_HEIGHT_PX: f32 = 64.0;
 const SPATIAL_HEALTH_GAUGE_HEIGHT_PX: f32 = 20.0;
 const LOCATION_NOTICE_DURATION_SECONDS: f32 = 4.0;
-const FERRY_CROSSING_DURATION_SECONDS: f32 = 3.8;
-const FERRY_BOARDING_SECONDS: f32 = 0.8;
-const FERRY_LANDING_START_SECONDS: f32 = 3.0;
+const ROUTE_CROSSING_DURATION_SECONDS: f32 = 3.8;
+const ROUTE_APPROACH_SECONDS: f32 = 0.8;
+const ROUTE_EXIT_START_SECONDS: f32 = 3.0;
 const CAMERA_DEAD_ZONE_FRACTION: f32 = 0.15;
 const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
 const MAX_MOVEMENT_STEP_DISTANCE: f32 = PLAYER_COLLISION_HALF_EXTENT * 0.5;
@@ -169,30 +171,38 @@ struct SpatialInteractionWheel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FerryTransitStage {
+enum RouteTransitStage {
     Boarding,
     Crossing,
     Landing,
 }
 
-#[derive(Debug, Clone)]
-struct FerryTransitCrossing {
-    horizontal: bool,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RouteTransitKind {
+    Ferry,
+    Ford,
+    Bridge,
 }
 
 #[derive(Debug, Clone)]
-struct FerryTransit {
+struct RouteTransitCrossing {
+    horizontal: bool,
+    kind: RouteTransitKind,
+}
+
+#[derive(Debug, Clone)]
+struct RouteTransit {
     target_location_id: EntityId,
     route_id: String,
     destination_name: String,
-    crossings: Vec<FerryTransitCrossing>,
+    crossings: Vec<RouteTransitCrossing>,
     crossing_index: usize,
     elapsed_seconds: f32,
-    stage: FerryTransitStage,
+    stage: RouteTransitStage,
 }
 
 #[derive(Component)]
-struct SpatialFerryBoat(bool);
+struct SpatialTransitMarker(bool);
 
 #[cfg(target_os = "android")]
 #[derive(Component)]
@@ -253,7 +263,7 @@ pub(crate) struct SpatialExplorationState {
     location_notice: Option<String>,
     location_notice_remaining_seconds: f32,
     interaction_wheel: Option<SpatialInteractionWheel>,
-    ferry_transit: Option<FerryTransit>,
+    route_transit: Option<RouteTransit>,
     sandbox_map: Option<LocalMap>,
     sandbox_actor_entities: Vec<(EntityId, SpatialEntityKind)>,
     sandbox_mode: bool,
@@ -584,12 +594,12 @@ fn update_spatial_location_notice(
     advance_location_notice(&mut state, time.delta_secs());
 }
 
-fn update_ferry_transit(
+fn update_route_transit(
     time: Res<Time>,
     mut state: ResMut<SpatialExplorationState>,
     mut lifecycle: ResMut<LifecycleState>,
     mut navigation: ResMut<NavigationState>,
-    mut boat: Query<(&SpatialFerryBoat, &mut Node)>,
+    mut boat: Query<(&SpatialTransitMarker, &mut Node)>,
 ) {
     if navigation.current_screen != Some(ScreenId::SpatialExploration) {
         return;
@@ -598,28 +608,28 @@ fn update_ferry_transit(
     let mut completed = false;
     let mut rebuild_scene = false;
     let mut progress = 0.15_f32;
-    if let Some(transit) = state.ferry_transit.as_mut() {
+    if let Some(transit) = state.route_transit.as_mut() {
         let delta = time.delta_secs();
         if delta.is_finite() {
             transit.elapsed_seconds += delta.max(0.0);
         }
         let elapsed = transit.elapsed_seconds;
-        let stage = if elapsed < FERRY_BOARDING_SECONDS {
-            FerryTransitStage::Boarding
-        } else if elapsed < FERRY_LANDING_START_SECONDS {
-            FerryTransitStage::Crossing
+        let stage = if elapsed < ROUTE_APPROACH_SECONDS {
+            RouteTransitStage::Boarding
+        } else if elapsed < ROUTE_EXIT_START_SECONDS {
+            RouteTransitStage::Crossing
         } else {
-            FerryTransitStage::Landing
+            RouteTransitStage::Landing
         };
         if stage != transit.stage {
             transit.stage = stage;
             rebuild_scene = true;
         }
-        progress = 0.15 + (elapsed / FERRY_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 0.70;
-        if elapsed >= FERRY_CROSSING_DURATION_SECONDS {
+        progress = 0.15 + (elapsed / ROUTE_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 0.70;
+        if elapsed >= ROUTE_CROSSING_DURATION_SECONDS {
             transit.crossing_index += 1;
             transit.elapsed_seconds = 0.0;
-            transit.stage = FerryTransitStage::Boarding;
+            transit.stage = RouteTransitStage::Boarding;
             if transit.crossing_index >= transit.crossings.len() {
                 completed = true;
             } else {
@@ -629,8 +639,8 @@ fn update_ferry_transit(
         }
     }
 
-    for (boat_visual, mut node) in &mut boat {
-        if boat_visual.0 {
+    for (marker_visual, mut node) in &mut boat {
+        if marker_visual.0 {
             node.left = percent(progress * 100.0);
         } else {
             node.top = percent(progress * 100.0);
@@ -640,7 +650,7 @@ fn update_ferry_transit(
         state.dirty = true;
     }
     if completed {
-        let Some(transit) = state.ferry_transit.take() else {
+        let Some(transit) = state.route_transit.take() else {
             return;
         };
         state.dirty = true;
@@ -650,7 +660,7 @@ fn update_ferry_transit(
             &mut navigation,
             transit.target_location_id,
             Some(&transit.route_id),
-            "The ferry route could not be completed.",
+            "The route crossing could not be completed.",
         ) {
             state.message = Some(message.to_string());
             state.dirty = true;
@@ -672,7 +682,7 @@ pub(crate) fn install(app: &mut App) {
             (
                 refresh_spatial_scene_on_reentry,
                 update_spatial_location_notice,
-                update_ferry_transit,
+                update_route_transit,
                 spatial_input,
                 update_spatial_wheel_animation,
                 sync_spatial_camera_viewport,
@@ -697,7 +707,7 @@ pub(crate) fn enter(
     navigation: &mut NavigationState,
 ) {
     state.sandbox_mode = false;
-    state.ferry_transit = None;
+    state.route_transit = None;
     let Some(location) = game.world.location_by_id(game.character.location_id) else {
         state.biome = None;
         state.surface = None;
@@ -1180,7 +1190,7 @@ fn spatial_input(
         return;
     }
 
-    if state.ferry_transit.is_some() {
+    if state.route_transit.is_some() {
         let _ = activations.read().count();
         queue.0.clear();
         state.player_animation.stop();
@@ -1942,6 +1952,22 @@ fn use_map_exit(
         return;
     }
 
+    let blocked_reason = route_id.as_deref().and_then(|id| {
+        lifecycle.session.as_ref().and_then(|session| {
+            session
+                .state
+                .world
+                .route_by_id(id)
+                .and_then(|route| route.geography.as_ref())
+                .and_then(|geography| geography.travel_block_reason())
+        })
+    });
+    if let Some(reason) = blocked_reason {
+        state.message = Some(reason.to_string());
+        state.dirty = true;
+        return;
+    }
+
     let valid_route = lifecycle.session.as_ref().is_some_and(|session| {
         crate::game::actions::has_location_travel_route(
             &session.state,
@@ -1955,20 +1981,36 @@ fn use_map_exit(
         return;
     }
 
-    let ferry_crossings = route_id
+    let route_crossings = route_id
         .as_deref()
         .and_then(|route_id| {
             lifecycle.session.as_ref().and_then(|session| {
                 session.state.world.route_by_id(route_id).and_then(|route| {
                     route.geography.as_ref().map(|geography| {
                         geography
-                            .resolved_lake_crossings(route.location_a_id == source_location_id)
+                            .resolved_travel_crossings(route.location_a_id == source_location_id)
                             .into_iter()
                             .filter_map(|crossing| {
-                                let banks = crossing.lake_banks?;
-                                Some(FerryTransitCrossing {
-                                    horizontal: banks.exit.x_q16.abs_diff(banks.entry.x_q16)
-                                        >= banks.exit.y_q16.abs_diff(banks.entry.y_q16),
+                                let (entry, exit, kind) = match crossing.kind {
+                                    RouteCrossingKind::Lake => {
+                                        let banks = crossing.lake_banks?;
+                                        (banks.entry, banks.exit, RouteTransitKind::Ferry)
+                                    }
+                                    RouteCrossingKind::River => {
+                                        let banks = crossing.river_banks?;
+                                        let kind = match crossing.infrastructure {
+                                            RouteInfrastructure::Ford => RouteTransitKind::Ford,
+                                            RouteInfrastructure::Bridge => RouteTransitKind::Bridge,
+                                            _ => return None,
+                                        };
+                                        (banks.entry, banks.exit, kind)
+                                    }
+                                    _ => return None,
+                                };
+                                Some(RouteTransitCrossing {
+                                    horizontal: exit.x_q16.abs_diff(entry.x_q16)
+                                        >= exit.y_q16.abs_diff(entry.y_q16),
+                                    kind,
                                 })
                             })
                             .collect::<Vec<_>>()
@@ -1977,7 +2019,7 @@ fn use_map_exit(
             })
         })
         .unwrap_or_default();
-    if !ferry_crossings.is_empty() {
+    if !route_crossings.is_empty() {
         let Some(route_id) = route_id else {
             return;
         };
@@ -1987,14 +2029,14 @@ fn use_map_exit(
             .and_then(|session| session.state.world.location_by_id(target_location_id))
             .map(|location| location.name.clone())
             .unwrap_or_else(|| "the far shore".to_string());
-        state.ferry_transit = Some(FerryTransit {
+        state.route_transit = Some(RouteTransit {
             target_location_id,
             route_id: route_id.clone(),
             destination_name,
-            crossings: ferry_crossings,
+            crossings: route_crossings,
             crossing_index: 0,
             elapsed_seconds: 0.0,
-            stage: FerryTransitStage::Boarding,
+            stage: RouteTransitStage::Boarding,
         });
         state.interaction_wheel = None;
         state.player_animation.stop();
@@ -2216,7 +2258,7 @@ fn update_spatial_world(
         }
         return;
     }
-    if runtime_state.is_paused() || state.ferry_transit.is_some() {
+    if runtime_state.is_paused() || state.route_transit.is_some() {
         return;
     }
     let Some(location_id) = state
@@ -2887,13 +2929,13 @@ fn render_spatial_screen(
         }
         crate::bevy_gameplay::GameplayMenuScreen::Closed => {}
     }
-    if let Some(transit) = state.ferry_transit.as_ref() {
-        spawn_ferry_cutscene_overlay(&mut commands, root, transit);
+    if let Some(transit) = state.route_transit.as_ref() {
+        spawn_route_transit_overlay(&mut commands, root, transit);
     }
     state.dirty = false;
 }
 
-fn spawn_ferry_cutscene_overlay(commands: &mut Commands, parent: Entity, transit: &FerryTransit) {
+fn spawn_route_transit_overlay(commands: &mut Commands, parent: Entity, transit: &RouteTransit) {
     let Some(crossing) = transit.crossings.get(transit.crossing_index) else {
         return;
     };
@@ -2917,10 +2959,15 @@ fn spawn_ferry_cutscene_overlay(commands: &mut Commands, parent: Entity, transit
         .id();
     commands.entity(parent).add_child(overlay);
 
+    let crossing_title = match crossing.kind {
+        RouteTransitKind::Ferry => "FERRY CROSSING",
+        RouteTransitKind::Ford => "RIVER FORD",
+        RouteTransitKind::Bridge => "RIVER BRIDGE",
+    };
     let title = commands
         .spawn((
             Text::new(format!(
-                "FERRY CROSSING  {} / {}",
+                "{crossing_title}  {} / {}",
                 transit.crossing_index + 1,
                 transit.crossings.len()
             )),
@@ -2940,7 +2987,10 @@ fn spawn_ferry_cutscene_overlay(commands: &mut Commands, parent: Entity, transit
                 align_items: AlignItems::Center,
                 ..default()
             },
-            BackgroundColor(Color::srgb(0.055, 0.16, 0.23)),
+            BackgroundColor(match crossing.kind {
+                RouteTransitKind::Ferry => Color::srgb(0.055, 0.16, 0.23),
+                RouteTransitKind::Ford | RouteTransitKind::Bridge => Color::srgb(0.045, 0.12, 0.15),
+            }),
             BorderColor::all(Color::srgb(0.16, 0.30, 0.34)),
         ))
         .id();
@@ -3009,38 +3059,123 @@ fn spawn_ferry_cutscene_overlay(commands: &mut Commands, parent: Entity, transit
         commands.entity(water).add_child(stripe);
     }
 
-    let boat_progress =
-        15.0 + (transit.elapsed_seconds / FERRY_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 70.0;
-    let boat = commands
+    match crossing.kind {
+        RouteTransitKind::Bridge => {
+            let bridge = commands
+                .spawn((
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: if crossing.horizontal {
+                            percent(24)
+                        } else {
+                            percent(43)
+                        },
+                        top: if crossing.horizontal {
+                            percent(42)
+                        } else {
+                            percent(18)
+                        },
+                        width: if crossing.horizontal {
+                            percent(52)
+                        } else {
+                            percent(14)
+                        },
+                        height: if crossing.horizontal {
+                            px(22)
+                        } else {
+                            percent(64)
+                        },
+                        border: UiRect::all(px(2)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.34, 0.22, 0.13)),
+                    BorderColor::all(Color::srgb(0.68, 0.48, 0.29)),
+                ))
+                .id();
+            commands.entity(water).add_child(bridge);
+        }
+        RouteTransitKind::Ford => {
+            for step in 0..4 {
+                let stone = commands
+                    .spawn((
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: if crossing.horizontal {
+                                percent(27.0 + step as f32 * 15.0)
+                            } else {
+                                percent(43)
+                            },
+                            top: if crossing.horizontal {
+                                percent(43)
+                            } else {
+                                percent(22.0 + step as f32 * 15.0)
+                            },
+                            width: if crossing.horizontal {
+                                percent(9)
+                            } else {
+                                percent(14)
+                            },
+                            height: if crossing.horizontal {
+                                px(14)
+                            } else {
+                                percent(9)
+                            },
+                            border_radius: BorderRadius::MAX,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.43, 0.42, 0.36)),
+                    ))
+                    .id();
+                commands.entity(water).add_child(stone);
+            }
+        }
+        RouteTransitKind::Ferry => {}
+    }
+
+    let marker_progress =
+        15.0 + (transit.elapsed_seconds / ROUTE_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 70.0;
+    let is_ferry = crossing.kind == RouteTransitKind::Ferry;
+    let marker = commands
         .spawn((
-            SpatialFerryBoat(crossing.horizontal),
+            SpatialTransitMarker(crossing.horizontal),
             Node {
                 position_type: PositionType::Absolute,
                 left: if crossing.horizontal {
-                    percent(boat_progress)
+                    percent(marker_progress)
                 } else {
                     percent(42)
                 },
                 top: if crossing.horizontal {
                     percent(42)
                 } else {
-                    percent(boat_progress)
+                    percent(marker_progress)
                 },
-                width: px(52),
-                height: px(18),
+                width: px(if is_ferry { 52 } else { 16 }),
+                height: px(if is_ferry { 18 } else { 16 }),
                 border_radius: BorderRadius::MAX,
+                border: UiRect::all(px(1)),
                 ..default()
             },
-            BackgroundColor(Color::srgb(0.35, 0.22, 0.12)),
+            BackgroundColor(if is_ferry {
+                Color::srgb(0.35, 0.22, 0.12)
+            } else {
+                Color::srgb(0.78, 0.68, 0.43)
+            }),
             BorderColor::all(Color::srgb(0.72, 0.57, 0.34)),
         ))
         .id();
-    commands.entity(water).add_child(boat);
+    commands.entity(water).add_child(marker);
 
-    let caption = match transit.stage {
-        FerryTransitStage::Boarding => "Boarding at the landing...",
-        FerryTransitStage::Crossing => "Crossing the lake...",
-        FerryTransitStage::Landing => "Approaching the far landing...",
+    let caption = match (crossing.kind, transit.stage) {
+        (RouteTransitKind::Ferry, RouteTransitStage::Boarding) => "Boarding at the landing...",
+        (RouteTransitKind::Ferry, RouteTransitStage::Crossing) => "Crossing the lake...",
+        (RouteTransitKind::Ferry, RouteTransitStage::Landing) => "Approaching the far landing...",
+        (RouteTransitKind::Ford, RouteTransitStage::Boarding) => "Approaching the ford...",
+        (RouteTransitKind::Ford, RouteTransitStage::Crossing) => "Wading across the river...",
+        (RouteTransitKind::Ford, RouteTransitStage::Landing) => "Reaching the far bank...",
+        (RouteTransitKind::Bridge, RouteTransitStage::Boarding) => "Approaching the bridge...",
+        (RouteTransitKind::Bridge, RouteTransitStage::Crossing) => "Crossing the bridge...",
+        (RouteTransitKind::Bridge, RouteTransitStage::Landing) => "Leaving the bridge...",
     };
     let detail = commands
         .spawn((
