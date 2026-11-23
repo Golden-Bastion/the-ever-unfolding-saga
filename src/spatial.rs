@@ -1632,8 +1632,6 @@ fn place_river_crossings(
         }
     }
 
-    drop(crossing_search);
-
     for candidate in best.into_iter().flatten() {
         let terrain = match candidate.width {
             RiverWidthClass::Narrow | RiverWidthClass::Medium => Terrain::Ford,
