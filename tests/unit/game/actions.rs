@@ -1,6 +1,6 @@
 use super::{
-    fast_travel_to, find_known_travel_path, has_location_travel_route, travel_to,
-    travel_via_route, MEDITATION_TARGETS,
+    fast_travel_to, find_known_travel_path, has_location_travel_route, travel_to, travel_via_route,
+    MEDITATION_TARGETS,
 };
 use crate::model::{GameState, Location, RouteDirection, WorldRoute};
 use crate::spatial::{GridPosition, LocalMap, Terrain};
