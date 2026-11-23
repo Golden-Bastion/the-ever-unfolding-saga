@@ -198,7 +198,7 @@ fn region_overview(state: &GameState, region_id: u64) -> Vec<String> {
     overview.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(right.0)));
     overview
         .into_iter()
-        .filter(|(_, count)| *count >= 2)
+        .filter(|(label, count)| *count >= 2 || (*label == "Mountain ridges" && *count > 0))
         .take(4)
         .map(|(label, _)| label.to_string())
         .collect()
