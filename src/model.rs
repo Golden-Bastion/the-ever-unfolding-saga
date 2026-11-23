@@ -634,8 +634,13 @@ impl World {
             .retain(|route| !route.connects(first_location_id, second_location_id));
         let removed = original_len - self.routes.len();
         if removed > 0 {
+            let remaining_route_ids = self
+                .routes
+                .iter()
+                .map(|route| route.id.clone())
+                .collect::<Vec<_>>();
             self.discovered_route_ids
-                .retain(|id| self.routes.iter().any(|route| route.id == *id));
+                .retain(|id| remaining_route_ids.contains(id));
             self.rebuild_location_exit_cache();
         }
         removed
