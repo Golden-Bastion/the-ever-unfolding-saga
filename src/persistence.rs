@@ -259,6 +259,7 @@ fn read_save_file(path: &Path) -> io::Result<LoadedSaveFile> {
 }
 
 fn normalize_loaded_game(mut game: GameState, save_file_version: u32) -> GameState {
+    game.world.minutes_into_time_point = game.world.minutes_into_time_point.min(119);
     if save_file_version < 2 {
         game.world.time_points = 3;
         game.world.day = 1;
