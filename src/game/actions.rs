@@ -311,25 +311,27 @@ pub(crate) fn travel_via_route(
 /// Select the least-time permitted route when a caller does not supply a passage identity.
 pub(crate) fn travel_to(state: &mut GameState, target_id: EntityId) -> std::io::Result<()> {
     let source_id = state.character.location_id;
-    let route_id = state
+    let route = state
         .world
         .routes_from(source_id)
         .filter(|(route, destination)| {
-            *destination == target_id && has_location_travel_route(state, target_id, Some(&route.id))
+            *destination == target_id
+                && has_location_travel_route(state, target_id, Some(&route.id))
         })
         .min_by(|(left, _), (right, _)| {
             route_travel_time_points(state, left)
                 .cmp(&route_travel_time_points(state, right))
                 .then_with(|| left.id.cmp(&right.id))
         })
-        .map(|(route, _)| route.id.clone())
+        .map(|(route, _)| route.clone())
         .ok_or_else(|| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "Travel requires a world route that permits travel to the destination.",
             )
         })?;
-    travel_via_route(state, target_id, &route_id)
+    let duration = route_travel_time_points(state, &route);
+    apply_route_travel(state, target_id, duration)
 }
 
 fn apply_route_travel(
