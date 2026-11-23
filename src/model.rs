@@ -187,6 +187,15 @@ pub struct World {
     /// Authoritative persistent connections between world locations.
     #[serde(default)]
     pub routes: Vec<WorldRoute>,
+    /// Stable route IDs physically discovered by exploring local passages.
+    #[serde(default)]
+    pub discovered_route_ids: Vec<String>,
+    /// Regions whose broad macro-geography has been surveyed by visiting them.
+    #[serde(default)]
+    pub surveyed_region_ids: Vec<EntityId>,
+    /// One-time migration marker for the hybrid cartography rules.
+    #[serde(default)]
+    pub cartography_version: u8,
     /// Explicit changes to deterministically generated lakes and other waterbodies.
     #[serde(default)]
     pub waterbody_modifications: Vec<WaterbodyModification>,
@@ -514,6 +523,9 @@ impl World {
             regions: Vec::new(),
             locations: Vec::new(),
             routes: Vec::new(),
+            discovered_route_ids: Vec::new(),
+            surveyed_region_ids: Vec::new(),
+            cartography_version: 1,
             waterbody_modifications: Vec::new(),
             history: Vec::new(),
             time_points: 3,
@@ -606,6 +618,7 @@ impl World {
         self.routes.retain(|route| route.id != route_id);
         let removed = self.routes.len() != original_len;
         if removed {
+            self.discovered_route_ids.retain(|id| id != route_id);
             self.rebuild_location_exit_cache();
         }
         removed
@@ -624,6 +637,46 @@ impl World {
             self.rebuild_location_exit_cache();
         }
         removed
+    }
+
+    /// Record a route as known after its physical passage has been uncovered or used.
+    pub fn mark_route_discovered(&mut self, route_id: impl Into<String>) -> bool {
+        let route_id = route_id.into();
+        if self.route_by_id(&route_id).is_none()
+            || self.discovered_route_ids.iter().any(|known| known == &route_id)
+        {
+            return false;
+        }
+        self.discovered_route_ids.push(route_id);
+        self.discovered_route_ids.sort();
+        true
+    }
+
+    /// Whether a route is known, including legacy maps whose exit tile was already revealed.
+    pub fn is_route_discovered(&self, route_id: &str) -> bool {
+        self.discovered_route_ids.iter().any(|known| known == route_id)
+            || self.local_maps.iter().any(|map| {
+                map.exits.iter().any(|exit| {
+                    exit.route_id.as_deref() == Some(route_id)
+                        && map.is_tile_discovered(exit.position)
+                })
+            })
+    }
+
+    /// Record that the broad geography of a region is known to the world.
+    pub fn mark_region_surveyed(&mut self, region_id: EntityId) -> bool {
+        if self.regions.iter().all(|region| region.id != region_id)
+            || self.surveyed_region_ids.contains(&region_id)
+        {
+            return false;
+        }
+        self.surveyed_region_ids.push(region_id);
+        self.surveyed_region_ids.sort_unstable();
+        true
+    }
+
+    pub fn is_region_surveyed(&self, region_id: EntityId) -> bool {
+        self.surveyed_region_ids.contains(&region_id)
     }
 
     pub fn route_by_id(&self, route_id: &str) -> Option<&WorldRoute> {
