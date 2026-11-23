@@ -52,8 +52,7 @@ pub(crate) fn time_display(points: u32, day: u32) -> String {
 /// The cycle starts at 02:00 in slot zero and returns to 00:00 at the
 /// "Midnight" slot (eleven), matching the existing named world-time portions.
 pub(crate) fn clock_display(points: u32, minutes_into_time_point: u8) -> String {
-    let minute_of_day = (((points % 12 + 1) % 12) * 120
-        + u32::from(minutes_into_time_point.min(119)))
-        % 1_440;
+    let minute_of_day =
+        (((points % 12 + 1) % 12) * 120 + u32::from(minutes_into_time_point.min(119))) % 1_440;
     format!("{:02}:{:02}", minute_of_day / 60, minute_of_day % 60)
 }

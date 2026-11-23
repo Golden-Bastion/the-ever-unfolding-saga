@@ -2571,14 +2571,13 @@ fn render_spatial_screen(
     let world_time = if state.sandbox_mode {
         None
     } else {
-        lifecycle
-            .session
-            .as_ref()
-            .map(|session| (
+        lifecycle.session.as_ref().map(|session| {
+            (
                 session.state.world.day,
                 session.state.world.time_points,
                 session.state.world.minutes_into_time_point,
-            ))
+            )
+        })
     };
     if !state.dirty {
         return;
@@ -4476,7 +4475,10 @@ fn spawn_spatial_time_indicator(
     let readout = commands
         .spawn((
             SpatialTimeReadout,
-            Text::new(crate::game::time::clock_display(time_points, minutes_into_time_point)),
+            Text::new(crate::game::time::clock_display(
+                time_points,
+                minutes_into_time_point,
+            )),
             TextFont::from_font_size(FontSize::Rem(0.82)),
             TextColor(bevy_presentation::THEME_TEXT),
         ))
@@ -4576,9 +4578,10 @@ fn advance_spatial_world_clock(
         navigation.current_screen,
         lifecycle.phase == LifecyclePhase::Complete,
         lifecycle.session.is_some()
-            && spatial.session.as_ref().is_some_and(|session| {
-                spatial.maps.contains_key(&session.location_id)
-            }),
+            && spatial
+                .session
+                .as_ref()
+                .is_some_and(|session| spatial.maps.contains_key(&session.location_id)),
         spatial.sandbox_mode,
         runtime_state.is_paused(),
         gameplay.screen != crate::bevy_gameplay::GameplayMenuScreen::Closed,
@@ -4591,7 +4594,11 @@ fn advance_spatial_world_clock(
     let Some(session) = lifecycle.session.as_mut() else {
         return;
     };
-    advance_spatial_clock(&mut spatial, &mut session.state, f64::from(time.delta_secs()));
+    advance_spatial_clock(
+        &mut spatial,
+        &mut session.state,
+        f64::from(time.delta_secs()),
+    );
 }
 
 fn sync_spatial_time_presentation(
@@ -4645,7 +4652,10 @@ fn sync_spatial_time_presentation(
         };
     }
     for mut readout in &mut readouts {
-        *readout = Text::new(crate::game::time::clock_display(time_points, minutes_into_time_point));
+        *readout = Text::new(crate::game::time::clock_display(
+            time_points,
+            minutes_into_time_point,
+        ));
     }
     for (panel, mut visual, mut background) in &mut sky_panels {
         background.0 = sky.background;

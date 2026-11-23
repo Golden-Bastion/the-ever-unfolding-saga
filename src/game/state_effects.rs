@@ -4,8 +4,8 @@ use crate::model::{Condition, GameState};
 /// unit used by action costs, conditions, and generated-world evolution.
 pub(crate) fn advance_world_minutes(state: &mut GameState, amount: u32) {
     const MINUTES_PER_TIME_POINT: u64 = 120;
-    let elapsed = u64::from(state.world.minutes_into_time_point.min(119))
-        .saturating_add(u64::from(amount));
+    let elapsed =
+        u64::from(state.world.minutes_into_time_point.min(119)).saturating_add(u64::from(amount));
     let elapsed_points = u32::try_from(elapsed / MINUTES_PER_TIME_POINT).unwrap_or(u32::MAX);
     state.world.minutes_into_time_point = (elapsed % MINUTES_PER_TIME_POINT) as u8;
     if elapsed_points > 0 {

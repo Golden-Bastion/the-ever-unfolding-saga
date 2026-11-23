@@ -2206,8 +2206,14 @@ fn spatial_time_visuals_cycle_across_the_full_world_clock() {
         assert!((0.0..=100.0).contains(&sky.celestial_x));
         assert!((0.0..=100.0).contains(&sky.celestial_y));
     }
-    assert_eq!(sky_visual_at(0, 0).background, sky_visual_at(12, 0).background);
-    assert_eq!(sky_visual_at(3, 0).celestial_x, sky_visual_at(15, 0).celestial_x);
+    assert_eq!(
+        sky_visual_at(0, 0).background,
+        sky_visual_at(12, 0).background
+    );
+    assert_eq!(
+        sky_visual_at(3, 0).celestial_x,
+        sky_visual_at(15, 0).celestial_x
+    );
 }
 
 #[test]

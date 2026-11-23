@@ -59,7 +59,10 @@ fn continuous_world_minutes_accumulate_into_existing_two_hour_time_points() {
         "Traveller".into(),
         "Wanderer".into(),
     );
-    state.character.conditions.push(crate::model::Condition::new("Tired", 2, 0));
+    state
+        .character
+        .conditions
+        .push(crate::model::Condition::new("Tired", 2, 0));
     let initial_points = state.world.time_points;
 
     advance_world_minutes(&mut state, 119);
