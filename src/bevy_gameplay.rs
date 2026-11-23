@@ -721,7 +721,7 @@ fn render_world_map_content(
                 panel,
                 format!(
                     "REGIONAL LANDSCAPE  |  {}",
-                    view.current_region_overview.join(" · ")
+                    view.current_region_overview.join(", ")
                 ),
             );
             bevy_presentation::spawn_muted_label(
