@@ -1999,7 +1999,10 @@ fn use_map_exit(
                                     _ => return None,
                                 };
                                 Some(RouteTransitCrossing {
-                                    horizontal: exit.x_q16.abs_diff(entry.x_q16) >= exit.y_q16.abs_diff(entry.y_q16),
+                                    horizontal: exit
+                                        .x_q16
+                                        .abs_diff(entry.x_q16)
+                                        >= exit.y_q16.abs_diff(entry.y_q16),
                                     kind,
                                 })
                             })

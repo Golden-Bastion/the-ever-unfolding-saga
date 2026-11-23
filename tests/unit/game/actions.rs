@@ -92,7 +92,11 @@ fn travel_requires_reciprocal_world_graph_connections() {
 
 #[test]
 fn unsupported_route_crossings_block_direct_and_fast_travel() {
-    use crate::geography::routes::{RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus, RouteProfile};
+    use crate::geography::routes::{
+        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure,
+        RoutePlanningStatus, RouteProfile,
+    };
+
     let (mut game, middle_id, destination_id) = fast_travel_fixture(false, true, true);
     let source_id = game.character.location_id;
     let route = game
@@ -118,6 +122,7 @@ fn unsupported_route_crossings_block_direct_and_fast_travel() {
         }],
         total_cost: 0,
     });
+
     let turn = game.character.turn;
     let time = game.world.time_points;
     assert!(!has_location_travel_route(&game, middle_id, None));

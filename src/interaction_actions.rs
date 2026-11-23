@@ -260,9 +260,13 @@ pub(crate) fn discover_available_interactions(
                 .and_then(|geography| geography.travel_block_reason())
             {
                 format!("Unavailable: {reason}")
-            } else if route_geography.is_some_and(|geography| geography.has_resolved_lake_crossing()) {
+            } else if route_geography
+                .is_some_and(|geography| geography.has_resolved_lake_crossing())
+            {
                 format!("Board ferry to {destination}")
-            } else if route_geography.is_some_and(|geography| geography.has_resolved_river_crossing()) {
+            } else if route_geography
+                .is_some_and(|geography| geography.has_resolved_river_crossing())
+            {
                 format!("Cross river route to {destination}")
             } else if let Some(destination_name) = destination_name {
                 format!("Enter: {destination_name}")
