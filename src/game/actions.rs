@@ -42,7 +42,9 @@ pub(crate) fn has_location_route_connection(
         None => state
             .world
             .routes_from(source_id)
-            .any(|(route, destination)| destination == target_id && route.allows_travel(source_id, destination)),
+            .any(|(route, destination)| {
+                destination == target_id && route.allows_travel(source_id, destination)
+            }),
     }
 }
 
