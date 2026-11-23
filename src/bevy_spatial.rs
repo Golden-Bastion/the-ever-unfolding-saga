@@ -4476,7 +4476,7 @@ fn spawn_spatial_time_indicator(
     let readout = commands
         .spawn((
             SpatialTimeReadout,
-            Text::new(crate::game::time::clock_display(time_points)),
+            Text::new(crate::game::time::clock_display(time_points, minutes_into_time_point)),
             TextFont::from_font_size(FontSize::Rem(0.82)),
             TextColor(bevy_presentation::THEME_TEXT),
         ))
