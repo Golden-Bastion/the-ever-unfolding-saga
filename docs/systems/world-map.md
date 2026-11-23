@@ -46,7 +46,7 @@ The graph is presented inside a clipped two-dimensional viewport. Its pan and zo
 
 ## Final geography boundary
 
-The current screen remains an interim topological route graph. The eventual geography-backed world/region map depends on a coherent, persistent macro-geography and location-placement model; it is not a visual reskin of the current graph. Its requirements and world-generation boundaries are specified in [World Topology, Local Exploration, and Hybrid Travel](../design/world-topology-and-travel.md), and the root [roadmap](../../ROADMAP.md) sequences that work with the broader world foundation.
+The current screen remains an interim topological route graph. The persistent macro-geography foundation now drives terrain projection for new outdoor local maps and terrain-aware route planning, but a geography-backed world/region map is still future work: it needs an explicit map-scale projection and cartographic presentation derived from coherent geography, location placement, and route data. It is not a visual reskin of the current graph. Its requirements and boundaries are specified in [World Topology, Local Exploration, and Hybrid Travel](../design/world-topology-and-travel.md), and the root [roadmap](../../ROADMAP.md) sequences the remaining work.
 ## Replacement strategy
 
 Keep the current division between:
@@ -56,7 +56,7 @@ Keep the current division between:
 3. **Presentation:** temporary graph layout, line routing, visual states, and controls.
 4. **Travel:** ordinary movement and physical-passage transitions remain authoritative in spatial gameplay; fast travel finds a path through previously visited locations and invokes the normal travel action for each hop.
 
-When macro-geography arrives, add geography to the world-generation/topology layer and derive a geography-aware map presentation from it. The current map screen entry point, stable route/location identities, fast-travel eligibility, and travel action should remain reusable. Remove temporary graph layout only when the geography-backed representation can supply a coherent map; do not migrate interim pixel positions into world saves.
+As the macro-geography foundation matures, derive a geography-aware world/region map presentation from its terrain, location placement, and route data. The current map screen entry point, stable route/location identities, fast-travel eligibility, and travel action should remain reusable. Replace the temporary graph layout only when the geography-backed representation can supply a coherent map; do not migrate interim pixel positions into world saves.
 
 
 An empty fast-travel destination list does not add a separate explanatory notice to the map. The graph and its Back action remain visible, avoiding a redundant empty-state message while preserving navigation.
