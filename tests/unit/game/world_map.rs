@@ -260,6 +260,19 @@ fn broad_regional_overview_is_hidden_until_the_region_is_surveyed() {
 }
 
 #[test]
+fn surveyed_underground_regions_are_identified_without_surface_biome_leakage() {
+    let mut state = test_state();
+    state.world.regions[0].coordinate =
+        Some(crate::geography::RegionCoordinate::in_stratum(0, 0, -1));
+    state.world.mark_region_surveyed(1);
+
+    assert_eq!(
+        build_view(&state).current_region_overview,
+        vec!["Underground".to_string()]
+    );
+}
+
+#[test]
 fn discovering_a_local_passage_reveals_its_route_but_not_other_connections() {
     let mut state = test_state();
     let mut map = explored_map(10);
