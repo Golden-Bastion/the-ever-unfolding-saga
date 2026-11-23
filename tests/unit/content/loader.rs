@@ -81,7 +81,7 @@ fn authored_exit_placement_must_reference_a_declared_exit() {
 }
 
 #[test]
-fn authored_exit_side_accepts_a_declared_destination() {
+fn authored_exit_placement_overrides_a_declared_legacy_side() {
     let mut content = default_campaign_content();
     let location = content
         .world
@@ -103,6 +103,30 @@ fn authored_exit_side_accepts_a_declared_destination() {
     assert_eq!(
         location.exit_preference("location.hollow_market"),
         Some((crate::spatial::MapExitSide::East, Some(49_152)))
+    );
+    assert!(!content.validate().iter().any(|issue| {
+        issue.contains("location.ashen_gate") && issue.contains("location.hollow_market")
+    }));
+}
+
+#[test]
+fn authored_exit_side_remains_a_legacy_fallback() {
+    let mut content = default_campaign_content();
+    let location = content
+        .world
+        .locations
+        .iter_mut()
+        .find(|location| location.id == "location.ashen_gate")
+        .unwrap();
+    location.exit_placements.clear();
+    location.exit_sides.insert(
+        "location.hollow_market".into(),
+        crate::spatial::MapExitSide::East,
+    );
+
+    assert_eq!(
+        location.exit_preference("location.hollow_market"),
+        Some((crate::spatial::MapExitSide::East, None))
     );
     assert!(!content.validate().iter().any(|issue| {
         issue.contains("location.ashen_gate") && issue.contains("location.hollow_market")
