@@ -85,6 +85,9 @@ pub(crate) fn has_location_travel_route(
 /// were persisted in the world, recover visited destinations from the retained
 /// travel history of the current character and its recorded predecessors.
 pub(crate) fn has_visited_location(state: &GameState, location_id: EntityId) -> bool {
+    if state.character.location_id == location_id {
+        return true;
+    }
     let stable_id = format!("location.{location_id}");
     if state
         .world
