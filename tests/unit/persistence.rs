@@ -150,11 +150,6 @@ fn legacy_cartography_migration_preserves_known_travel_between_visited_locations
         format!("location.{source_id}"),
         crate::spatial::LocalMapConfig::default(),
     ));
-    state.world.local_maps.push(crate::spatial::generate_local_map(
-        7,
-        format!("location.{destination_id}"),
-        crate::spatial::LocalMapConfig::default(),
-    ));
     let route_id = format!(
         "route.compat.legacy.{}.{}",
         source_id.min(destination_id),
