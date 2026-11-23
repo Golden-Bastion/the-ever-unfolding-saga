@@ -246,6 +246,7 @@ pub(crate) fn find_known_travel_route_path(
 }
 
 /// Return the location IDs in the least-time known route, excluding the current location.
+#[cfg(test)]
 pub(crate) fn find_known_travel_path(
     state: &GameState,
     target_id: EntityId,
@@ -309,6 +310,7 @@ pub(crate) fn travel_via_route(
 }
 
 /// Select the least-time permitted route when a caller does not supply a passage identity.
+#[cfg(test)]
 pub(crate) fn travel_to(state: &mut GameState, target_id: EntityId) -> std::io::Result<()> {
     let source_id = state.character.location_id;
     let route = state
