@@ -125,7 +125,7 @@ pub(crate) fn has_visited_location(state: &GameState, location_id: EntityId) -> 
 }
 
 /// Find a shortest directed route to a previously visited location using only
-/// permitted connections between visited locations. Persistent local maps are
+/// discovered, permitted connections between visited locations. Persistent local maps are
 /// authoritative; retained lineage history supports saves predating map persistence.
 /// The returned IDs are ordered hops and exclude the current location.
 pub(crate) fn find_known_travel_path(
