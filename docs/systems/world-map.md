@@ -13,8 +13,8 @@ The first version intentionally avoids a geographic map projection. It visualize
 - Node positions are a temporary graph layout, not geographical distance, direction, terrain, or scale; unrelated unvisited locations remain hidden.
 - The current region and current location are shown explicitly above the graph. Region names are also attached to their location nodes.
 - Locations with established local maps are previously visited places. These are the only destinations eligible for fast travel.
-- The map marks a visited destination as fast-travelable only when a shortest directed path exists from the current location using physically discovered routes that permit travel in that direction and whose intermediate locations have also been visited.
-- Fast travel executes the normal travel action for every route hop. Each hop advances the world clock and turn, records history, synchronizes quests, and runs arrival events.
+- The map marks a visited destination as fast-travelable only when a least-estimated-time directed path exists from the current location using physically discovered routes that permit travel in that direction and whose intermediate locations have also been visited. Route estimates include normalized distance, persisted elevation/ridge cost, bounded biome difficulty, and explicit crossing delays.
+- Fast travel executes the normal travel action for every route hop. Each hop advances the world clock by that route's estimated duration, increments the turn, records history, synchronizes quests, and runs arrival events. Known destinations display the total estimated journey duration in two-hour world-time units.
 - A death, active threat, or consequential arrival event interrupts a multi-hop journey at that stop. The player resumes ordinary spatial play there; fast travel never skips over an encounter or event.
 - Visible but unvisited frontier locations cannot be selected for fast travel. They must be reached through ordinary movement and physical passages in spatial gameplay.
 - Choosing a fast-travelable map node is the fast-travel action; there is no separate destination-only Travel screen.
