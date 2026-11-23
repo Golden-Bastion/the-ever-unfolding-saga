@@ -4,7 +4,8 @@ use crate::persistence::save_game;
 use crate::presentation::{
     CharacterView, MeditationResultView, MeditationTargetView, MeditationView,
 };
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::path::Path;
 
 const MEDITATION_TARGETS: [(u32, &str); 8] = [
@@ -127,71 +128,140 @@ pub(crate) fn has_visited_location(state: &GameState, location_id: EntityId) -> 
     })
 }
 
-/// Find a shortest directed route to a previously visited location using only
-/// discovered, permitted connections between visited locations. Persistent local maps are
-/// authoritative; retained lineage history supports saves predating map persistence.
-/// The returned IDs are ordered hops and exclude the current location.
-pub(crate) fn find_known_travel_path(
+/// One directed hop in the fastest known route, retaining the exact route identity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct KnownTravelHop {
+    pub location_id: EntityId,
+    pub route_id: String,
+    pub time_points: u32,
+}
+
+/// Estimate one route hop from its persisted route plan. Legacy and non-geographic
+/// routes retain the original four-hour minimum until they gain route geometry.
+fn route_travel_time_points(state: &GameState, route: &crate::model::WorldRoute) -> u32 {
+    let Some(geography) = route.geography.as_ref() else {
+        return 2;
+    };
+    let world_seed = state
+        .world
+        .geography_seed
+        .or_else(|| state.world.generation.map(|generation| generation.seed));
+    let ruleset_version = if state.world.geography_ruleset_version == 0 {
+        state
+            .world
+            .generation
+            .map_or(0, |generation| generation.geography_ruleset_version)
+    } else {
+        state.world.geography_ruleset_version
+    };
+    geography
+        .travel_estimate(world_seed, ruleset_version)
+        .time_points
+}
+
+/// Find the least-time directed path to a previously visited location using only
+/// discovered, permitted connections between visited locations. Ties are resolved
+/// by stable location and route IDs.
+pub(crate) fn find_known_travel_route_path(
     state: &GameState,
     target_id: EntityId,
-) -> Option<Vec<EntityId>> {
+) -> Option<Vec<KnownTravelHop>> {
     let start_id = state.character.location_id;
     if target_id == start_id || !has_visited_location(state, target_id) {
         return None;
     }
 
-    let mut queue = VecDeque::from([start_id]);
-    let mut visited = HashSet::from([start_id]);
-    let mut previous = HashMap::<EntityId, EntityId>::new();
+    let mut queue = BinaryHeap::from([Reverse((0_u64, start_id))]);
+    let mut distances = HashMap::from([(start_id, 0_u64)]);
+    let mut previous = HashMap::<EntityId, (EntityId, String, u32)>::new();
 
-    while let Some(source_id) = queue.pop_front() {
+    while let Some(Reverse((known_cost, source_id))) = queue.pop() {
+        if distances.get(&source_id).copied() != Some(known_cost) {
+            continue;
+        }
+        if source_id == target_id {
+            break;
+        }
         state.world.location_by_id(source_id)?;
+
         let mut exits = state
             .world
             .routes_from(source_id)
-            .filter(|(route, _)| {
+            .filter(|(route, destination)| {
                 state.world.is_route_discovered(&route.id)
                     && route
                         .geography
                         .as_ref()
                         .is_none_or(|geography| geography.travel_block_reason().is_none())
+                    && has_visited_location(state, *destination)
             })
-            .map(|(route, destination_id)| (route.id.as_str(), destination_id))
             .collect::<Vec<_>>();
-        exits.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(right.0)));
+        exits.sort_by(|left, right| {
+            left.1
+                .cmp(&right.1)
+                .then_with(|| left.0.id.cmp(&right.0.id))
+        });
 
-        for (_, next_id) in exits {
-            if visited.contains(&next_id) || !has_visited_location(state, next_id) {
+        for (route, next_id) in exits {
+            let hop_time = route_travel_time_points(state, route);
+            let next_cost = known_cost.saturating_add(u64::from(hop_time));
+            let candidate_predecessor = (source_id, route.id.clone());
+            let should_update = match distances.get(&next_id).copied() {
+                None => true,
+                Some(existing) if next_cost < existing => true,
+                Some(existing) if next_cost == existing => previous
+                    .get(&next_id)
+                    .is_none_or(|(previous_id, previous_route, _)| {
+                        candidate_predecessor < (*previous_id, previous_route.clone())
+                    }),
+                _ => false,
+            };
+            if !should_update {
                 continue;
             }
 
-            visited.insert(next_id);
-            previous.insert(next_id, source_id);
-            if next_id == target_id {
-                let mut path = Vec::new();
-                let mut cursor = target_id;
-                while cursor != start_id {
-                    path.push(cursor);
-                    cursor = *previous.get(&cursor)?;
-                }
-                path.reverse();
-                return Some(path);
-            }
-            queue.push_back(next_id);
+            distances.insert(next_id, next_cost);
+            previous.insert(next_id, (source_id, route.id.clone(), hop_time));
+            queue.push(Reverse((next_cost, next_id)));
         }
     }
 
-    None
+    if !distances.contains_key(&target_id) {
+        return None;
+    }
+
+    let mut path = Vec::new();
+    let mut cursor = target_id;
+    while cursor != start_id {
+        let (previous_id, route_id, time_points) = previous.get(&cursor)?.clone();
+        path.push(KnownTravelHop {
+            location_id: cursor,
+            route_id,
+            time_points,
+        });
+        cursor = previous_id;
+    }
+    path.reverse();
+    Some(path)
 }
 
-/// Fast travel skips local movement but follows the known directed route
-/// network and applies the normal travel action for every hop. A death or active
-/// threat at an intermediate arrival interrupts the journey at that location.
+/// Return the location IDs in the least-time known route, excluding the current location.
+pub(crate) fn find_known_travel_path(
+    state: &GameState,
+    target_id: EntityId,
+) -> Option<Vec<EntityId>> {
+    find_known_travel_route_path(state, target_id)
+        .map(|path| path.into_iter().map(|hop| hop.location_id).collect())
+}
+
+/// Fast travel skips local movement but follows the least-time known directed route
+/// and applies the normal travel action for every hop. A death or active threat at
+/// an intermediate arrival interrupts the journey at that location.
 pub(crate) fn fast_travel_to(
     state: &mut GameState,
     target_id: EntityId,
 ) -> std::io::Result<Vec<EntityId>> {
-    let path = find_known_travel_path(state, target_id).ok_or_else(|| {
+    let path = find_known_travel_route_path(state, target_id).ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "Fast travel is only available to known locations connected by explored routes.",
@@ -199,30 +269,10 @@ pub(crate) fn fast_travel_to(
     })?;
 
     let mut traveled = Vec::with_capacity(path.len());
-    for location_id in path {
-        let route_id = state
-            .world
-            .routes_from(state.character.location_id)
-            .filter(|(route, destination)| {
-                *destination == location_id
-                    && state.world.is_route_discovered(&route.id)
-                    && route
-                        .geography
-                        .as_ref()
-                        .is_none_or(|geography| geography.travel_block_reason().is_none())
-            })
-            .map(|(route, _)| route.id.as_str())
-            .min()
-            .map(str::to_string)
-            .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Fast travel requires a discovered route for every hop.",
-                )
-            })?;
+    for hop in path {
         let previous_turn = state.character.turn;
-        travel_via_route(state, location_id, &route_id)?;
-        traveled.push(location_id);
+        travel_via_route(state, hop.location_id, &hop.route_id)?;
+        traveled.push(hop.location_id);
 
         let arrival_event =
             state.world.history.iter().any(|entry| {
@@ -240,29 +290,54 @@ pub(crate) fn travel_via_route(
     target_id: EntityId,
     route_id: &str,
 ) -> std::io::Result<()> {
+    let Some(route) = state.world.route_by_id(route_id).cloned() else {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Travel requires the selected route to connect the current location and destination.",
+        ));
+    };
     if !has_location_travel_route(state, target_id, Some(route_id)) {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "Travel requires the selected route to connect the current location and destination.",
         ));
     }
-    travel_to(state, target_id)?;
+    let duration = route_travel_time_points(state, &route);
+    apply_route_travel(state, target_id, duration)?;
     state.world.mark_route_discovered(route_id.to_string());
     Ok(())
 }
 
-pub(crate) fn travel_to(
-    state: &mut GameState,
-    target_id: crate::model::EntityId,
-) -> std::io::Result<()> {
-    if !has_location_travel_route(state, target_id, None) {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "Travel requires a world route that permits travel to the destination.",
-        ));
-    }
+/// Select the least-time permitted route when a caller does not supply a passage identity.
+pub(crate) fn travel_to(state: &mut GameState, target_id: EntityId) -> std::io::Result<()> {
+    let source_id = state.character.location_id;
+    let route_id = state
+        .world
+        .routes_from(source_id)
+        .filter(|(route, destination)| {
+            *destination == target_id && has_location_travel_route(state, target_id, Some(&route.id))
+        })
+        .min_by(|(left, _), (right, _)| {
+            route_travel_time_points(state, left)
+                .cmp(&route_travel_time_points(state, right))
+                .then_with(|| left.id.cmp(&right.id))
+        })
+        .map(|(route, _)| route.id.clone())
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Travel requires a world route that permits travel to the destination.",
+            )
+        })?;
+    travel_via_route(state, target_id, &route_id)
+}
 
-    state_effects::advance_time(state, 2);
+fn apply_route_travel(
+    state: &mut GameState,
+    target_id: EntityId,
+    duration_time_points: u32,
+) -> std::io::Result<()> {
+    state_effects::advance_time(state, duration_time_points);
     if state_effects::is_night(state.world.time_points) {
         add_or_refresh_condition(
             &mut state.character.conditions,
