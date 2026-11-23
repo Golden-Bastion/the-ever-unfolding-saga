@@ -81,7 +81,12 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
                 current: location.id == current.id,
                 reachable: state.world.routes_from(state.character.location_id).any(
                     |(route, destination)| {
-                        destination == location.id && state.world.is_route_discovered(&route.id)
+                        destination == location.id
+                            && state.world.is_route_discovered(&route.id)
+                            && route
+                                .geography
+                                .as_ref()
+                                .is_none_or(|geography| geography.travel_block_reason().is_none())
                     },
                 ),
                 fast_travel_index: fast_travel.map(|(index, _)| index),
