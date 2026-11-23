@@ -230,6 +230,23 @@ fn known_map(location_id: u64) -> LocalMap {
 }
 
 #[test]
+fn fast_travel_does_not_use_an_undiscovered_parallel_route() {
+    let (mut game, middle_id, destination_id) = fast_travel_fixture(false, true, true);
+    let source_id = game.character.location_id;
+    assert!(game.world.add_route(WorldRoute::new(
+        "route.aaa.undiscovered",
+        source_id,
+        middle_id,
+        RouteDirection::Bidirectional,
+    )));
+    assert!(!game.world.is_route_discovered("route.aaa.undiscovered"));
+
+    fast_travel_to(&mut game, destination_id).unwrap();
+
+    assert!(!game.world.is_route_discovered("route.aaa.undiscovered"));
+}
+
+#[test]
 fn fast_travel_requires_each_route_to_be_discovered() {
     let (mut game, _, destination_id) = fast_travel_fixture(false, true, true);
     game.world.discovered_route_ids.clear();
