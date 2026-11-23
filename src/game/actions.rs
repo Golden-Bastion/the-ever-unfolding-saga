@@ -222,7 +222,9 @@ pub(crate) fn travel_via_route(
             "Travel requires the selected route to connect the current location and destination.",
         ));
     }
-    travel_to(state, target_id)
+    travel_to(state, target_id)?;
+    state.world.mark_route_discovered(route_id.to_string());
+    Ok(())
 }
 
 pub(crate) fn travel_to(
@@ -245,6 +247,9 @@ pub(crate) fn travel_to(
     }
     state.character.turn += 1;
     state.character.location_id = target_id;
+    if let Some(location) = state.world.location_by_id(target_id) {
+        state.world.mark_region_surveyed(location.region_id);
+    }
     state.threat.clear();
     state.last_announced_location_id = None;
     let location = state.world.location_by_id(target_id).cloned();
