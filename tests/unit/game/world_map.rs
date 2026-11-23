@@ -259,7 +259,10 @@ fn discovering_a_local_passage_reveals_its_route_but_not_other_connections() {
     state.world.local_maps.push(map.clone());
 
     let hidden = build_view(&state);
-    assert_eq!(hidden.nodes.iter().map(|node| node.location.id).collect::<Vec<_>>(), vec![10]);
+    assert_eq!(
+        hidden.nodes.iter().map(|node| node.location.id).collect::<Vec<_>>(),
+        vec![10]
+    );
 
     map.mark_tile_discovered(exit_position);
     state.world.local_maps[0] = map;
@@ -269,7 +272,10 @@ fn discovering_a_local_passage_reveals_its_route_but_not_other_connections() {
         vec![10, 11]
     );
     assert_eq!(revealed.routes.len(), 1);
-    assert_eq!((revealed.routes[0].from_id, revealed.routes[0].to_id), (10, 11));
+    assert_eq!(
+        (revealed.routes[0].from_id, revealed.routes[0].to_id),
+        (10, 11)
+    );
 }
 
 #[test]
