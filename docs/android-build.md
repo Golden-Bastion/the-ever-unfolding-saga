@@ -6,7 +6,9 @@ The Android CI workflow produces installable, signed APK artifacts for the suppo
 - `android-armv7` → `armeabi-v7a`
 - `android-x86_64` → `x86_64`
 
-A `workflow_dispatch` run supports two operations. `build` builds the selected ABI and exposes the signed APK as a workflow artifact without touching a GitHub Release. `release` rebuilds all three APKs from an existing `release_tag` and publishes them to that release. The `release` operation requires the persistent Android signing secrets. It is intended for release recovery or republishing a tag without deleting or moving the tag.
+A `workflow_dispatch` run supports two operations. `build` builds the selected ABI and exposes the signed APK as a workflow artifact without touching a GitHub Release. `release` rebuilds all three APKs from an existing `release` tag and publishes them to that release. The `release` operation requires the persistent Android signing secrets and remains useful when Android APKs need to be rebuilt.
+
+For artifact-only release promotion, use the main [CI/CD workflow](../.github/workflows/ci-cd.yml) with `operation=publish`. It downloads the three APKs from the original tag-triggered Android workflow run alongside the five desktop archives, then publishes the complete set to GitHub Releases, itch.io, or both. This does not run Android builds or signing and does not require the Android keystore secrets. The original tag-run artifacts must still be within their seven-day retention period.
 
 For manual runs, the workflow can generate a short-lived CI-only signing key when the Android signing secrets are absent. This is intended for personal/device testing. Release-tag builds require the persistent repository signing secrets below.
 

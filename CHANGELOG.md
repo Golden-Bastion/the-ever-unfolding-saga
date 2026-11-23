@@ -291,5 +291,6 @@ This file records completed work in the current unreleased development line. Old
 
 ### Release and workflow maintenance
 
+- Added an artifact-only `publish` operation to CI/CD dispatch. It locates successful tag-triggered desktop and Android workflow runs by the tag commit, verifies all five desktop archives and all three unexpired APK artifacts, and publishes them to GitHub Releases, itch.io, or both without rebuilding or re-signing. Cross-run promotion uses the filename-derived artifact names from the existing single-file desktop uploads.
 - Added a manually maintained `RELEASE-NOTES.md` for concise, version-specific GitHub Release summaries. CI/CD validates its version heading and uses its title and body instead of extracting the large development changelog.
 - Removed automatic workflow-run cleanup from GitHub Actions. The standalone cleanup script now targets a specified release, previews deletions by default, requires `--apply` to delete, retries transient API errors, and preserves the selected release runs and active runs.

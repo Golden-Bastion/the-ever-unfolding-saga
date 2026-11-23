@@ -22,9 +22,11 @@ on:
         options:
           - build
           - release
+          - publish
       branch:
-        description: Branch to build from (workflow definition branch for release)
-        required: true
+        description: Branch to build from (build operation only)
+        required: false
+        default: main
         type: string
       target:
         description: Platform and architecture to build (build operation only)
@@ -38,9 +40,18 @@ on:
           - windows-x86_64
           - windows-aarch64
       release_tag:
-        description: Existing release tag to rebuild and publish (release operation only)
+        description: Existing release tag to rebuild (release) or publish existing artifacts (publish)
         required: false
         type: string
+      publish_to:
+        description: Destination for existing artifacts (publish operation only)
+        required: false
+        default: both
+        type: choice
+        options:
+          - github
+          - itch
+          - both
       debug_build:
         description: Enable Bevy ECS debug names in the release binary (build operation only)
         required: false
@@ -53,7 +64,7 @@ on:
         type: string
 
 concurrency:
-  group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.release_tag }}-${{ inputs.version_suffix }}
+  group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.release_tag }}-${{ inputs.publish_to }}-${{ inputs.version_suffix }}
   cancel-in-progress: true
 
 permissions:
@@ -136,7 +147,7 @@ jobs:
     name: Prepare build matrix
     if: |
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
-      github.event_name == 'workflow_dispatch'
+      (github.event_name == 'workflow_dispatch' && inputs.operation != 'publish')
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
@@ -435,6 +446,7 @@ jobs:
       - name: Upload release archive
         uses: actions/upload-artifact@v7.0.1
         with:
+          # archive: false uses the single file's own name as the artifact name.
           path: teus-*-${{ matrix.platform }}-${{ matrix.arch }}*.${{ matrix.archive_ext }}
           if-no-files-found: error
           retention-days: 7
@@ -529,6 +541,329 @@ jobs:
           release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" --jq '.id')"
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false -F make_latest=true
           echo "Published $TAG_NAME after verifying all eight release assets."
+
+
+  publish_existing:
+    name: Publish existing release artifacts
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Find complete desktop and Android artifact runs
+        id: artifact_runs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use vMAJOR.MINOR.PATCH; got $TAG_NAME"
+            exit 1
+          fi
+
+          tag_commit="$(git rev-list -n 1 "$TAG_NAME^{commit}")"
+          if [[ -z "$tag_commit" ]]; then
+            echo "Could not resolve release tag $TAG_NAME."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$tag_commit" origin/main; then
+            echo "Tag $TAG_NAME does not point to a commit contained in main."
+            exit 1
+          fi
+
+          package_version="$(grep '^version = ' Cargo.toml | head -n 1 | cut -d\" -f2)"
+          tag_version="$(printf '%s' "$TAG_NAME" | sed 's/^v//')"
+          if [[ "$package_version" != "$tag_version" ]]; then
+            echo "Cargo.toml version ($package_version) does not match tag ($TAG_NAME)."
+            exit 1
+          fi
+
+          expected_desktop=(
+            "teus-$TAG_NAME-linux-x86_64.tar.xz"
+            "teus-$TAG_NAME-linux-aarch64.tar.xz"
+            "teus-$TAG_NAME-macos-aarch64.tar.xz"
+            "teus-$TAG_NAME-windows-x86_64.zip"
+            "teus-$TAG_NAME-windows-aarch64.zip"
+          )
+          expected_android=(
+            "teus-$TAG_NAME-android-x86_64.apk"
+            "teus-$TAG_NAME-android-aarch64.apk"
+            "teus-$TAG_NAME-android-armv7.apk"
+          )
+
+          find_artifact_run() {
+            local workflow_file="$1"
+            shift
+            local expected_names=("$@")
+            local run_ids
+            local run_id
+            local available_names
+            local expected
+            local complete
+
+            run_ids="$(gh api --paginate \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_file/runs?event=push&per_page=100" \
+              | jq -r --arg sha "$tag_commit" \
+                '.workflow_runs[] | select(.head_sha == $sha and .status == "completed" and .conclusion == "success") | .id')"
+
+            while IFS= read -r run_id; do
+              [[ -n "$run_id" ]] || continue
+              available_names="$(gh api \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" \
+                --jq '.artifacts[] | select(.expired == false) | .name')"
+
+              complete=true
+              for expected in "${expected_names[@]}"; do
+                if ! grep -Fxq -- "$expected" <<< "$available_names"; then
+                  complete=false
+                  break
+                fi
+              done
+
+              if [[ "$complete" == "true" ]]; then
+                echo "$run_id"
+                return 0
+              fi
+            done <<< "$run_ids"
+
+            return 1
+          }
+
+          if ! desktop_run_id="$(find_artifact_run ci-cd.yml "${expected_desktop[@]}")"; then
+            echo "::error::No completed CI/CD tag run for $TAG_NAME contains all five unexpired desktop artifacts."
+            exit 1
+          fi
+          if ! android_run_id="$(find_artifact_run android-build.yml "${expected_android[@]}")"; then
+            echo "::error::No completed Android tag run for $TAG_NAME contains all three unexpired APK artifacts."
+            exit 1
+          fi
+
+          echo "desktop_run_id=$desktop_run_id" >> "$GITHUB_OUTPUT"
+          echo "android_run_id=$android_run_id" >> "$GITHUB_OUTPUT"
+          echo "Using desktop run $desktop_run_id and Android run $android_run_id for $TAG_NAME."
+
+      - name: Download existing desktop archives
+        uses: actions/download-artifact@v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifact_runs.outputs.desktop_run_id }}
+          pattern: teus-${{ inputs.release_tag }}-*
+          path: dist
+          merge-multiple: true
+          skip-decompress: true
+
+      - name: Download existing Android APKs
+        uses: actions/download-artifact@v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifact_runs.outputs.android_run_id }}
+          pattern: teus-${{ inputs.release_tag }}-android-*.apk
+          path: dist
+          merge-multiple: true
+
+      - name: Verify all eight downloaded artifacts
+        shell: bash
+        env:
+          TAG_NAME: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          expected_assets=(
+            "teus-$TAG_NAME-linux-x86_64.tar.xz"
+            "teus-$TAG_NAME-linux-aarch64.tar.xz"
+            "teus-$TAG_NAME-macos-aarch64.tar.xz"
+            "teus-$TAG_NAME-windows-x86_64.zip"
+            "teus-$TAG_NAME-windows-aarch64.zip"
+            "teus-$TAG_NAME-android-x86_64.apk"
+            "teus-$TAG_NAME-android-aarch64.apk"
+            "teus-$TAG_NAME-android-armv7.apk"
+          )
+
+          for asset in "${expected_assets[@]}"; do
+            if [[ ! -s "dist/$asset" ]]; then
+              echo "::error::Downloaded release artifact is missing or empty: $asset"
+              exit 1
+            fi
+          done
+
+          echo "Verified all five desktop archives and all three Android APKs."
+          ls -lh dist/
+
+
+      - name: Validate itch.io publishing configuration
+        if: inputs.publish_to == 'itch' || inputs.publish_to == 'both'
+        id: itch_config
+        shell: bash
+        env:
+          ITCHIO_TARGET: ${{ vars.ITCHIO_TARGET }}
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$ITCHIO_TARGET" || -z "$BUTLER_API_KEY" ]]; then
+            echo "::error::itch.io publishing requires the ITCHIO_TARGET repository variable and BUTLER_API_KEY secret."
+            exit 1
+          fi
+
+          if [[ ! "$ITCHIO_TARGET" =~ ^[a-z0-9_-]+/[a-z0-9_-]+$ ]]; then
+            echo "::error::ITCHIO_TARGET must use the lowercase username/game-slug format."
+            exit 1
+          fi
+
+      - name: Install Butler
+        if: inputs.publish_to == 'itch' || inputs.publish_to == 'both'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          archive="$RUNNER_TEMP/butler-linux-amd64.zip"
+          install_dir="$RUNNER_TEMP/butler"
+          mkdir -p "$install_dir"
+
+          curl --fail --location --retry 3 \
+            https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default \
+            --output "$archive"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/butler"
+          echo "$install_dir" >> "$GITHUB_PATH"
+          "$install_dir/butler" version
+
+      - name: Prepare desktop builds for Butler
+        if: inputs.publish_to == 'itch' || inputs.publish_to == 'both'
+        shell: bash
+        env:
+          TAG_NAME: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          build_root="$RUNNER_TEMP/itch-builds"
+          mkdir -p "$build_root"
+
+          for channel in linux-x86_64 linux-aarch64 macos-aarch64; do
+            archive="dist/teus-$TAG_NAME-$channel.tar.xz"
+            destination="$build_root/$channel"
+            mkdir -p "$destination"
+            tar -xJf "$archive" --strip-components=1 -C "$destination"
+
+            if [[ ! -d "$destination/data" || ! -f "$destination/ever_unfolding_saga" ]]; then
+              echo "Unexpected desktop package contents in $archive."
+              exit 1
+            fi
+            chmod +x "$destination/ever_unfolding_saga"
+          done
+
+          for channel in windows-x86_64 windows-aarch64; do
+            archive="dist/teus-$TAG_NAME-$channel.zip"
+            archive_root="teus-$TAG_NAME-$channel"
+            extract_dir="$RUNNER_TEMP/itch-extract-$channel"
+            destination="$build_root/$channel"
+            mkdir -p "$extract_dir" "$destination"
+            unzip -q "$archive" -d "$extract_dir"
+
+            if [[ ! -d "$extract_dir/$archive_root" ]]; then
+              echo "Expected package directory not found in $archive."
+              exit 1
+            fi
+            cp -a "$extract_dir/$archive_root/." "$destination/"
+
+            if [[ ! -d "$destination/data" || ! -f "$destination/ever_unfolding_saga.exe" ]]; then
+              echo "Unexpected desktop package contents in $archive."
+              exit 1
+            fi
+          done
+
+      - name: Upload artifacts to GitHub Release
+        if: inputs.publish_to == 'github' || inputs.publish_to == 'both'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          if ! gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::GitHub Release $TAG_NAME does not exist. Run the release build operation first or select itch-only publishing."
+            exit 1
+          fi
+
+          gh release upload "$TAG_NAME" \
+            "dist/teus-$TAG_NAME-linux-x86_64.tar.xz" \
+            "dist/teus-$TAG_NAME-linux-aarch64.tar.xz" \
+            "dist/teus-$TAG_NAME-macos-aarch64.tar.xz" \
+            "dist/teus-$TAG_NAME-windows-x86_64.zip" \
+            "dist/teus-$TAG_NAME-windows-aarch64.zip" \
+            "dist/teus-$TAG_NAME-android-x86_64.apk" \
+            "dist/teus-$TAG_NAME-android-aarch64.apk" \
+            "dist/teus-$TAG_NAME-android-armv7.apk" \
+            --clobber --repo "$GITHUB_REPOSITORY"
+
+          release_assets="$(gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          for asset in \
+            "teus-$TAG_NAME-linux-x86_64.tar.xz" \
+            "teus-$TAG_NAME-linux-aarch64.tar.xz" \
+            "teus-$TAG_NAME-macos-aarch64.tar.xz" \
+            "teus-$TAG_NAME-windows-x86_64.zip" \
+            "teus-$TAG_NAME-windows-aarch64.zip" \
+            "teus-$TAG_NAME-android-x86_64.apk" \
+            "teus-$TAG_NAME-android-aarch64.apk" \
+            "teus-$TAG_NAME-android-armv7.apk"; do
+            if ! grep -Fxq -- "$asset" <<< "$release_assets"; then
+              echo "::error::GitHub Release is missing uploaded asset $asset."
+              exit 1
+            fi
+          done
+
+          echo "All eight assets are attached to GitHub Release $TAG_NAME."
+      - name: Publish all eight builds to itch.io
+        if: inputs.publish_to == 'itch' || inputs.publish_to == 'both'
+        shell: bash
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCHIO_TARGET: ${{ vars.ITCHIO_TARGET }}
+          TAG_NAME: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          for channel in linux-x86_64 linux-aarch64 macos-aarch64 windows-x86_64 windows-aarch64; do
+            echo "Publishing $channel"
+            butler push "$RUNNER_TEMP/itch-builds/$channel" "$ITCHIO_TARGET:$channel" --userversion "$TAG_NAME"
+          done
+
+          for arch in x86_64 aarch64 armv7; do
+            apk="dist/teus-$TAG_NAME-android-$arch.apk"
+            channel="android-$arch"
+            echo "Publishing $channel"
+            butler push "$apk" "$ITCHIO_TARGET:$channel" --userversion "$TAG_NAME"
+          done
+
+      - name: Publish GitHub Release after selected destinations complete
+        if: inputs.publish_to == 'github' || inputs.publish_to == 'both'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" --jq '.id')"
+          is_draft="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" --jq '.draft')"
+          if [[ "$is_draft" == "true" ]]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false
+          fi
+          echo "GitHub Release $TAG_NAME is published with the complete desktop and Android asset set."
 
   sync_lock:
     name: Commit Cargo.lock updates
