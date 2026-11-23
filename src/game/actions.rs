@@ -159,18 +159,41 @@ fn route_travel_time_points(state: &GameState, route: &crate::model::WorldRoute)
         .time_points
 }
 
-/// Find the least-time directed path to a previously visited location using only
-/// discovered, permitted connections between visited locations. Ties are resolved
-/// by stable location and route IDs.
-pub(crate) fn find_known_travel_route_path(
-    state: &GameState,
-    target_id: EntityId,
-) -> Option<Vec<KnownTravelHop>> {
-    let start_id = state.character.location_id;
-    if target_id == start_id || !has_visited_location(state, target_id) {
-        return None;
-    }
+/// A shortest-time tree rooted at the current location. World Map uses one tree
+/// for all destinations instead of recalculating the same route estimates per node.
+pub(crate) struct KnownTravelRouteTree {
+    start_id: EntityId,
+    distances: HashMap<EntityId, u64>,
+    previous: HashMap<EntityId, (EntityId, String, u32)>,
+}
 
+impl KnownTravelRouteTree {
+    pub(crate) fn path_to(&self, target_id: EntityId) -> Option<Vec<KnownTravelHop>> {
+        if target_id == self.start_id || !self.distances.contains_key(&target_id) {
+            return None;
+        }
+
+        let mut path = Vec::new();
+        let mut cursor = target_id;
+        while cursor != self.start_id {
+            let (previous_id, route_id, time_points) = self.previous.get(&cursor)?.clone();
+            path.push(KnownTravelHop {
+                location_id: cursor,
+                route_id,
+                time_points,
+            });
+            cursor = previous_id;
+        }
+        path.reverse();
+        Some(path)
+    }
+}
+
+/// Calculate least-time paths to all reachable previously visited locations using
+/// only discovered, permitted connections. Ties are resolved by stable location
+/// and route IDs. Each route's terrain samples are evaluated at most once per tree.
+pub(crate) fn known_travel_route_tree(state: &GameState) -> KnownTravelRouteTree {
+    let start_id = state.character.location_id;
     let mut queue = BinaryHeap::from([Reverse((0_u64, start_id))]);
     let mut distances = HashMap::from([(start_id, 0_u64)]);
     let mut previous = HashMap::<EntityId, (EntityId, String, u32)>::new();
@@ -179,10 +202,9 @@ pub(crate) fn find_known_travel_route_path(
         if distances.get(&source_id).copied() != Some(known_cost) {
             continue;
         }
-        if source_id == target_id {
-            break;
+        if state.world.location_by_id(source_id).is_none() {
+            continue;
         }
-        state.world.location_by_id(source_id)?;
 
         let mut exits = state
             .world
@@ -193,6 +215,7 @@ pub(crate) fn find_known_travel_route_path(
                         .geography
                         .as_ref()
                         .is_none_or(|geography| geography.travel_block_reason().is_none())
+                    && state.world.location_by_id(*destination).is_some()
                     && has_visited_location(state, *destination)
             })
             .collect::<Vec<_>>();
@@ -209,13 +232,11 @@ pub(crate) fn find_known_travel_route_path(
             let should_update = match distances.get(&next_id).copied() {
                 None => true,
                 Some(existing) if next_cost < existing => true,
-                Some(existing) if next_cost == existing => {
-                    previous
-                        .get(&next_id)
-                        .is_none_or(|(previous_id, previous_route, _)| {
-                            candidate_predecessor < (*previous_id, previous_route.clone())
-                        })
-                }
+                Some(existing) if next_cost == existing => previous
+                    .get(&next_id)
+                    .is_none_or(|(previous_id, previous_route, _)| {
+                        candidate_predecessor < (*previous_id, previous_route.clone())
+                    }),
                 _ => false,
             };
             if !should_update {
@@ -228,23 +249,19 @@ pub(crate) fn find_known_travel_route_path(
         }
     }
 
-    if !distances.contains_key(&target_id) {
-        return None;
+    KnownTravelRouteTree {
+        start_id,
+        distances,
+        previous,
     }
+}
 
-    let mut path = Vec::new();
-    let mut cursor = target_id;
-    while cursor != start_id {
-        let (previous_id, route_id, time_points) = previous.get(&cursor)?.clone();
-        path.push(KnownTravelHop {
-            location_id: cursor,
-            route_id,
-            time_points,
-        });
-        cursor = previous_id;
-    }
-    path.reverse();
-    Some(path)
+/// Find the least-time directed path to a previously visited location.
+pub(crate) fn find_known_travel_route_path(
+    state: &GameState,
+    target_id: EntityId,
+) -> Option<Vec<KnownTravelHop>> {
+    known_travel_route_tree(state).path_to(target_id)
 }
 
 /// Return the location IDs in the least-time known route, excluding the current location.
