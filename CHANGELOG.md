@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.34: Terrain-aware route travel time
+
+- Added deterministic travel estimates from persisted route distance, existing elevation/ridge cost, up to 16 biome samples, and explicit mountain-pass, ford, and ferry delays.
+- Geography-backed routes now advance world time according to their estimated cost. Legacy routes without usable geography retain the four-hour minimum.
+- Physical passage travel and known-route fast travel use the same route estimate; fast travel now chooses the least-time discovered path rather than simply the fewest hops.
+- Known World Map destinations display their total estimated travel duration. Arrival events, threat interruptions, history, quest synchronization, and per-hop turn advancement remain in place.
+- Added automated coverage for distance/terrain/crossing estimates, elapsed-time application, least-time path selection, and duration labels.
+- No persistent schema, save-format, geography-ruleset, or local-map generator version change is required.
+- Bumped Rust and Android metadata to 0.53.34.
+
 ### v0.53.33: Hybrid world discovery
 
 - Added world-persistent regional surveys. Visiting a location reveals a broad overview of its region's deterministic macro-geography without exposing exact local terrain or landmarks.
