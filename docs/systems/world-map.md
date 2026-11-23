@@ -4,7 +4,7 @@ The World Map is the focused surface for understanding the current region, curre
 
 ## Interim implementation: topological route graph
 
-The first version intentionally avoids representing geographical terrain. It visualizes the authoritative world-location graph using an automatically arranged route diagram.
+The first version intentionally avoids a geographic map projection. It visualizes the authoritative world-location graph using an automatically arranged route diagram, with a separate broad terrain summary for surveyed regions.
 
 - The current location is always visible and marked as the current position.
 - Locations with established persistent local maps are shown as explored.
