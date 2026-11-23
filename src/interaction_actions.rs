@@ -216,7 +216,7 @@ pub(crate) fn discover_available_interactions(
         let pending_cave = exit.cave_target.is_some() && exit.target_location_id == 0;
         if (!pending_frontier
             && !pending_cave
-            && !crate::game::actions::has_location_travel_route(
+            && !crate::game::actions::has_location_route_connection(
                 game,
                 exit.target_location_id,
                 exit.route_id.as_deref(),
