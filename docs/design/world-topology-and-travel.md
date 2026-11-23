@@ -4,11 +4,11 @@
 
 The design direction is settled and its core topology/geography foundations are being implemented incrementally. This document records the world-topology and travel decisions, constraints, and intentionally open choices.
 
-The design extends the existing graph-based world and local spatial-exploration prototype. It does not require a seamless global terrain map, and it does not replace existing location-level gameplay actions.
+The design extends the graph-based world within the spatial-first gameplay model. It does not require a seamless global terrain map; it defines how spatial locations, routes, and regional geography connect.
 
 ## Goal
 
-Create a persistent, extensible world in which the player can optionally explore every location spatially, travel between locations by physically using map exits where appropriate, and use fast travel on established routes when the intervening journey does not need to be played.
+Create a persistent, extensible world in which the player experiences locations through spatial local areas, travels between them by physically using map exits where appropriate, and uses fast travel on established routes when the intervening journey does not need to be played.
 
 The world should be able to expand beyond its initial frontier without generating or simulating every possible region up front.
 
@@ -25,17 +25,19 @@ The world uses two complementary structures:
 
 A region is not a continuous tile map. Regions and locations are connected through the world graph. Intermediate locations may connect major destinations, as in area-based exploration games where travel occurs through linked maps.
 
-The global world does not need one seamless terrain surface. Each location has its own local map, which is loaded as a separate spatial area when explored.
+The global world does not need one seamless terrain surface. Each location has its own local map, loaded as the active spatial area when the player enters that location.
 
-### 2. Explore is an optional action at every location
+### 2. Spatial locations and interaction ownership
 
-Every accessible world location should offer an **Explore** action and a corresponding local spatial area.
+Spatial gameplay is the normal player-facing context. There is no separate location-level **Explore** action or dashboard that the player must enter before playing a location.
 
-- Exploration is optional. Existing textual/location-level actions such as talking, using inventory, meditating, managing quests, and interacting with known services remain directly available without walking around a map.
-- Safe locations are not excluded from spatial exploration. Settlements and other safe sites may have useful local geography, exits, landmarks, and points of interest, while still retaining their direct textual actions.
-- Local maps may be authored or procedurally generated, and their scale/detail can vary by location. A small or simple location does not need the same complexity as a wilderness region or major settlement.
-- A location's map should be generated lazily when needed, not by rendering or fully generating every location at world creation.
+- A world location reached through the route graph is experienced through its own local spatial map. Entering or returning to that location loads its spatial area; it is not an optional activity layered on top of a detached location screen.
+- Local maps may be authored or procedurally generated, and their scale and detail can vary by location. A small or simple location does not need the same complexity as a wilderness region or major settlement.
+- Generate a location's map lazily when it is first needed, rather than generating every location at world creation.
 - Once established, a local map and its meaningful state must persist rather than silently rerolling on re-entry.
+- Ordinary interactions belong in spatial gameplay and are exposed contextually by proximity and eligibility. Talking to nearby NPCs already follows this model; trade, when implemented, should use the same in-world interaction flow rather than a detached location-level action.
+- Deliberate character and system activities may remain in dedicated interfaces. Meditation, for example, is available from the spatial pause menu only when the authoritative safety rules permit it; character records remain in their dedicated hub.
+- Known-route fast travel is a convenience for skipping eligible journeys, not a replacement for spatial interaction within the current location.
 
 ### 3. Spatial travel between locations
 
@@ -139,22 +141,22 @@ The responsibilities are deliberately separated:
 - **Content generation** populates regions and locations with inhabitants, resources, discoveries, and opportunities. It is designed separately.
 - **World simulation** determines which supported entities and processes change over time; a large world does not imply that every entity runs a continuous simulation.
 - **Persistence/inheritance** keeps established world changes and separates them from character-specific state.
-- **Presentation/input** exposes Explore, physical exits, and fast travel without making Bevy presentation code authoritative for gameplay rules.
+- **Presentation/input** exposes contextual spatial interactions, physical exits, and fast travel without making Bevy presentation code authoritative for gameplay rules.
 
 ## Architectural constraints
 
 - Extend the existing world/location graph and renderer-neutral spatial model rather than creating an independent parallel travel system.
-- Preserve direct access to existing textual interactions at safe locations.
+- Keep ordinary world interactions contextual within spatial gameplay; use dedicated menus/screens for deliberate character and system activities.
 - Use explicit route/destination identities and validate consistency between world-graph connections and local-map exits.
 - Keep local-map generation deterministic where practical and preserve maps after creation.
 - Do not require detailed simulation of distant regions merely because they exist.
 - Introduce the capability incrementally with focused tests and safe save migrations.
-- The initial spatial-exploration milestone remains limited to its current acceptance criteria; this issue describes the direction of later development.
+- Spatial gameplay is the primary player-facing context; this document describes world topology and travel rather than a separate Explore-entry flow.
 
 ## Implementation sequence
 
 1. **Topology specification and compatibility audit:** define region coordinates, stable generation keys, graph connections, and how existing worlds/saves are represented.
-2. **Explore availability across location types:** make the optional action consistently available while preserving direct textual actions; define default local-map profiles for settlements, wilderness, ruins, and other locations.
+2. **Location-local spatial areas:** define and generate suitable local-map profiles for settlements, wilderness, ruins, and other location types, with lazy creation and persistence.
 3. **Map exits and graph-linked transitions:** let the player reach and use physical exits that transition to the correct connected location, with reciprocal connections and persistence.
 4. **Frontier region expansion:** create a region on demand through a frontier route, connect it into the world, and verify repeat visits do not reroll it.
 5. **Known-route fast travel:** retain convenient travel while enforcing time, discovery, encounter, and authored-route rules.
@@ -165,8 +167,8 @@ Each stage should be separately testable. The sequence does not require every st
 
 ## Acceptance criteria for the eventual system
 
-- Explore is available at every accessible world location, but existing textual/location-level actions do not require spatial movement.
-- Entering Explore opens the correct local map; re-entry restores the established map and its persistent changes.
+- Entering a world location loads its corresponding spatial area; re-entry restores the established map and its persistent changes.
+- Ordinary interactions with nearby NPCs and world targets are discovered contextually in spatial gameplay; dedicated character/system activities remain in their appropriate menus or screens.
 - Physical map exits correspond to valid graph connections and transition to the correct destination.
 - Connected locations and intermediate route locations can be explored independently without a seamless global terrain map.
 - A frontier route can create a new region on demand; revisiting that route leads to the same established destination.

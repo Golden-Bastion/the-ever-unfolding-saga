@@ -10,19 +10,19 @@ Those tasks cover only the initial playable exploration slice, not the full visi
 
 ## Vision
 
-Build a character-focused RPG in which spatial exploration and future action combat are graphics-first experiences, supported by a persistent simulation and existing narrative/record systems. Extend the current game deliberately: preserve useful world rules, location-level actions, dialogue, quests, events, NPCs, time, and persistence instead of replacing the whole structure or maintaining two competing games.
+Build a character-focused RPG in which spatial exploration and future action combat are graphics-first experiences, supported by a persistent simulation and existing narrative/record systems. Extend the current game deliberately: preserve useful world rules, contextual interactions, dialogue, quests, events, NPCs, time, and persistence instead of replacing the whole structure or maintaining two competing games.
 
 The existing world model and gameplay rules remain authoritative. Text-based dialogue, contextual feedback, history, and record screens continue to matter; they support the spatial experience rather than defining the game's overall identity.
 
 ## Core interaction model
 
-Safe or town-like locations should continue to expose their existing location-level actions directly through appropriate contextual controls or menus. The player should not need to walk around a town map just to talk to an NPC, meditate, use inventory, or perform other existing actions. Not every location or activity needs a spatial map.
+Spatial gameplay is the normal player-facing context for locations, including settlements and safe areas. There is no separate dashboard or location-level `Explore` action: the player inhabits the current location through its spatial map and moves between locations through physical passages or eligible known-route fast travel.
 
-For locations that are not generally safe, such as wilderness, forests, ruins, or known-threat areas, expose an `Explore`/`Investigate` action when appropriate.
+Ordinary world interactions are contextual and proximity-driven. Nearby eligible NPCs expose Talk through the spatial interaction wheel; searching remains, examining points of interest, and entering passages use the same in-world interaction model. Trade, when implemented, should be added to this contextual NPC interaction flow rather than as a detached dashboard or location-level button.
 
-`Explore` enters a tile/grid-based spatial map where the player can move around and encounter the environment dynamically.
+Meditation is a deliberate character activity exposed through the spatial pause menu, and remains subject to the authoritative safe-to-meditate rules. Other character records and system functions remain in their dedicated screens and menus. This distinction is about where an interaction belongs, not whether the current location has a spatial map.
 
-`Investigate` is used when the player has a reason to search a location, such as an active quest or knowledge that the area is unsafe. It can involve examining terrain, following clues, discovering points of interest, and detecting hidden entities or objects.
+Investigation is contextual to the world state. An eligible active threat exposes the existing Investigate action in spatial gameplay, which enters the authoritative combat flow; clue- and environment-based investigation can build on spatial examination and discovery rather than a separate Explore mode.
 
 ## Dynamic world
 
