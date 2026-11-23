@@ -109,12 +109,8 @@ fn tracked_quest_marks_the_first_incomplete_visit_objective_and_reveals_its_loca
         .iter()
         .all(|route| route.from_id != 14 && route.to_id != 14));
     assert!(
-        !view
-            .nodes
-            .iter()
-            .find(|node| node.location.id == 11)
-            .unwrap()
-            .tracked_objective
+        !view.nodes.iter().any(|node| node.location.id == 11),
+        "unrelated undiscovered locations should remain hidden"
     );
 }
 
@@ -151,12 +147,8 @@ fn tracked_evidence_objective_resolves_to_the_location_that_owns_the_discovery()
             .tracked_objective
     );
     assert!(
-        !view
-            .nodes
-            .iter()
-            .find(|node| node.location.id == 12)
-            .unwrap()
-            .tracked_objective
+        !view.nodes.iter().any(|node| node.location.id == 12),
+        "unrelated undiscovered locations should remain hidden"
     );
 }
 
