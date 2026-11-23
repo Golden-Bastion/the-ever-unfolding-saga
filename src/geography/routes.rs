@@ -279,6 +279,7 @@ impl RouteGeography {
     }
 }
 
+/// Convert the persisted polyline to the planner's 100/141 octile movement scale.
 fn route_distance_cost(path: &[MacroCoordinate]) -> u64 {
     let numerator = path.windows(2).fold(0_u128, |total, pair| {
         let dx = u128::from(pair[0].x.abs_diff(pair[1].x));
@@ -299,7 +300,9 @@ fn route_distance_cost(path: &[MacroCoordinate]) -> u64 {
 
 fn landscape_travel_penalty_percent(kind: RouteLandscapeKind) -> u64 {
     match kind {
-        RouteLandscapeKind::Grassland | RouteLandscapeKind::Valley | RouteLandscapeKind::Water => 0,
+        RouteLandscapeKind::Grassland
+        | RouteLandscapeKind::Valley
+        | RouteLandscapeKind::Water => 0,
         RouteLandscapeKind::Coast => 10,
         RouteLandscapeKind::Forest => 15,
         RouteLandscapeKind::Desert => 20,
