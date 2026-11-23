@@ -131,6 +131,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                 reachable: true,
                 fast_travel_index: Some(1),
                 fast_travel_steps: Some(1),
+                fast_travel_time_points: Some(2),
             },
             crate::presentation::WorldMapNodeView {
                 location: crate::presentation::LocationView {
@@ -146,6 +147,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                 reachable: false,
                 fast_travel_index: None,
                 fast_travel_steps: None,
+                fast_travel_time_points: None,
             },
         ],
         routes: vec![
@@ -184,6 +186,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                     ..Default::default()
                 },
                 route_steps: 1,
+                travel_time_points: 2,
             },
         ],
     };
