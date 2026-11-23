@@ -242,6 +242,24 @@ fn map_does_not_reveal_routes_before_their_local_passages_are_explored() {
 }
 
 #[test]
+fn broad_regional_overview_is_hidden_until_the_region_is_surveyed() {
+    let mut state = test_state();
+    state.world.geography_seed = Some(123);
+    state.world.geography_ruleset_version = crate::geography::GEOGRAPHY_RULESET_VERSION;
+    state.world.regions[0].coordinate = Some(crate::geography::RegionCoordinate::ORIGIN);
+
+    assert!(build_view(&state).current_region_overview.is_empty());
+
+    state.world.mark_region_surveyed(1);
+    let first = build_view(&state).current_region_overview;
+    let second = build_view(&state).current_region_overview;
+
+    assert!(!first.is_empty());
+    assert!(first.len() <= 4);
+    assert_eq!(first, second);
+}
+
+#[test]
 fn discovering_a_local_passage_reveals_its_route_but_not_other_connections() {
     let mut state = test_state();
     let mut map = explored_map(10);
