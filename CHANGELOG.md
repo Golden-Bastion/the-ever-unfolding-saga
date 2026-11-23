@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.30: Route-specific river crossings and travel enforcement
+
+- Route transitions sequence verified river crossings as provisional ford or bridge scenes, oriented from exact persisted Q16 bank pairs. Existing ferry scenes remain for verified lakes; mixed routes present all resolved crossings in travel order.
+- Route travel rejects open-ocean crossings, unresolved/survey-required water, lakes without verified shores, and new rivers without verified banks. Legacy FordOrBridge river records remain traversable.
+- Known-route fast travel applies the same requirements and excludes blocked route edges, allowing an alternate explored route where one exists.
+- Contextual passage labels distinguish ferry/river transitions and explicitly identify unavailable crossings.
+- Added tests for resolved crossing order, incomplete infrastructure, legacy behavior, and direct/fast-travel enforcement.
+- Crossing scenes are transient; no save-format or local-map generator version change is required.
+- Bumped Rust and Android metadata to 0.53.30.
+
 ### v0.53.29: Ferry landing and crossing scenes
 
 - Resolved lake crossings with stable lake identity and both verified Q16 shores now identify their local-map route passage as a ferry landing. The interaction prompt explicitly offers boarding rather than presenting it as an ordinary passage.

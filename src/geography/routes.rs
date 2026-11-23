@@ -178,6 +178,50 @@ impl RouteGeography {
         })
     }
 
+    pub fn has_resolved_river_crossing(&self) -> bool {
+        self.crossings.iter().any(|crossing| crossing.kind == RouteCrossingKind::River
+            && crossing.river_banks.is_some()
+            && matches!(crossing.infrastructure, RouteInfrastructure::Ford | RouteInfrastructure::Bridge))
+    }
+
+    pub fn resolved_travel_crossings(&self, from_a: bool) -> Vec<&RouteCrossing> {
+        let crossings = self.crossings.iter().filter(|crossing| match crossing.kind {
+            RouteCrossingKind::River => crossing.river_banks.is_some()
+                && matches!(crossing.infrastructure, RouteInfrastructure::Ford | RouteInfrastructure::Bridge),
+            RouteCrossingKind::Lake => crossing.lake_id.is_some() && crossing.lake_banks.is_some(),
+            _ => false,
+        });
+        if from_a { crossings.collect() } else { crossings.rev().collect() }
+    }
+
+    /// Return a reason when explicit route geography cannot currently be crossed.
+    /// Legacy FordOrBridge river records remain traversable.
+    pub fn travel_block_reason(&self) -> Option<&'static str> {
+        for crossing in &self.crossings {
+            if crossing.infrastructure == RouteInfrastructure::Impassable || crossing.kind == RouteCrossingKind::Ocean {
+                return Some("Open ocean blocks this overland route.");
+            }
+            if crossing.infrastructure == RouteInfrastructure::Survey || crossing.kind == RouteCrossingKind::UnresolvedWater {
+                return Some("This water crossing requires a survey before the route can be travelled.");
+            }
+            match crossing.kind {
+                RouteCrossingKind::River => match crossing.infrastructure {
+                    RouteInfrastructure::Ford | RouteInfrastructure::Bridge if crossing.river_banks.is_some() => {}
+                    RouteInfrastructure::FordOrBridge => {}
+                    _ => return Some("The river crossing has no verified banks or suitable ford/bridge."),
+                },
+                RouteCrossingKind::Lake => {
+                    if crossing.infrastructure != RouteInfrastructure::Ferry || crossing.lake_id.is_none() || crossing.lake_banks.is_none() {
+                        return Some("The lake crossing needs verified shores and a ferry landing.");
+                    }
+                }
+                RouteCrossingKind::Ocean | RouteCrossingKind::UnresolvedWater => unreachable!(),
+                RouteCrossingKind::MountainPass => {}
+            }
+        }
+        None
+    }
+
     pub fn unavailable(status: RoutePlanningStatus) -> Self {
         Self {
             status,

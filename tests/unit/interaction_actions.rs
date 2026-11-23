@@ -491,9 +491,7 @@ fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
     assert!(labels
         .iter()
         .any(|label| label == "Board ferry to Resolved Ferry"));
-    assert!(labels
-        .iter()
-        .any(|label| label == "Enter: Unresolved Crossing"));
+    assert!(labels.iter().any(|label| label.starts_with("Unavailable: The lake crossing needs verified shores")));
 }
 
 #[test]

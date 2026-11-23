@@ -734,6 +734,48 @@ fn exact_river_bank_metadata_roundtrips_and_old_records_default_empty() {
     assert_eq!(legacy.lake_banks, None);
 }
 #[test]
+fn resolved_travel_crossings_keep_route_order_and_require_verified_banks() {
+    use crate::geography::river_geometry::{RiverBankIntersection, RiverPosition, RIVER_POSITION_SCALE};
+    use crate::geography::routes::{LakeBankIntersection, RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus, RouteProfile};
+    let pos = |x, y| RiverPosition { x_q16: x * RIVER_POSITION_SCALE, y_q16: y * RIVER_POSITION_SCALE };
+    let river = RouteCrossing { coordinate: MacroCoordinate::new(4,8), kind: RouteCrossingKind::River,
+        infrastructure: RouteInfrastructure::Bridge, river_id: None, river_width: None, river_flow_direction: None,
+        river_banks: Some(RiverBankIntersection { entry: pos(4,8), exit: pos(5,8) }), lake_id: None, lake_banks: None };
+    let lake = RouteCrossing { coordinate: MacroCoordinate::new(12,8), kind: RouteCrossingKind::Lake,
+        infrastructure: RouteInfrastructure::Ferry, river_id: None, river_width: None, river_flow_direction: None,
+        river_banks: None, lake_id: Some("lake.route.fixture".into()),
+        lake_banks: Some(LakeBankIntersection { entry: pos(12,8), exit: pos(13,8) }) };
+    let unresolved_river = RouteCrossing { river_banks: None, ..river.clone() };
+    let geography = RouteGeography { status: RoutePlanningStatus::Planned, profile: RouteProfile::Mixed,
+        path: Vec::new(), crossings: vec![river, lake, unresolved_river.clone()], total_cost: 0 };
+    assert_eq!(geography.travel_block_reason(), None);
+    assert_eq!(geography.resolved_travel_crossings(true).iter().map(|c| c.kind).collect::<Vec<_>>(),
+        vec![RouteCrossingKind::River, RouteCrossingKind::Lake]);
+    assert_eq!(geography.resolved_travel_crossings(false).iter().map(|c| c.kind).collect::<Vec<_>>(),
+        vec![RouteCrossingKind::Lake, RouteCrossingKind::River]);
+    let unsupported = [
+        RouteCrossing { kind: RouteCrossingKind::Ocean, infrastructure: RouteInfrastructure::Impassable, ..geography.crossings[0].clone() },
+        RouteCrossing { kind: RouteCrossingKind::UnresolvedWater, infrastructure: RouteInfrastructure::Survey, ..geography.crossings[0].clone() },
+        RouteCrossing { kind: RouteCrossingKind::Lake, infrastructure: RouteInfrastructure::Ferry, lake_id: Some("lake.without.shores".into()), lake_banks: None, ..geography.crossings[0].clone() },
+        unresolved_river,
+    ];
+    for crossing in unsupported {
+        assert!(RouteGeography { crossings: vec![crossing], ..geography.clone() }.travel_block_reason().is_some());
+    }
+}
+
+#[test]
+fn legacy_ford_or_bridge_crossings_remain_traversable() {
+    use crate::geography::routes::{RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus, RouteProfile};
+    let geography = RouteGeography { status: RoutePlanningStatus::Planned, profile: RouteProfile::RiverCrossing,
+        path: Vec::new(), crossings: vec![RouteCrossing { coordinate: MacroCoordinate::new(1,2),
+            kind: RouteCrossingKind::River, infrastructure: RouteInfrastructure::FordOrBridge,
+            river_id: None, river_width: None, river_flow_direction: None, river_banks: None, lake_id: None, lake_banks: None }],
+        total_cost: 0 };
+    assert_eq!(geography.travel_block_reason(), None);
+}
+
+#[test]
 fn legacy_route_crossings_deserialize_without_river_metadata() {
     use crate::geography::routes::{RouteCrossing, RouteCrossingKind, RouteInfrastructure};
 
