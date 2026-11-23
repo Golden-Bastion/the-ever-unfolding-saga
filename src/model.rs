@@ -203,7 +203,7 @@ pub struct World {
     /// Current two-hour world-time slot (12 slots per day).
     #[serde(default)]
     pub time_points: u32,
-    /// Elapsed minutes within the current two-hour slot (0..120).
+    /// Elapsed minutes within the current two-hour slot (0..119).
     #[serde(default)]
     pub minutes_into_time_point: u8,
     #[serde(default)]
