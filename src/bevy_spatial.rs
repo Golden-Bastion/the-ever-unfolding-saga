@@ -325,10 +325,6 @@ fn advance_location_notice(state: &mut SpatialExplorationState, delta_seconds: f
 // arc and the moon's night path both travel left-to-right across fixed
 // two-hour world-clock anchors, with minute-level interpolation while the
 // same celestial body remains in the sky.
-fn sky_visual(time_points: u32) -> SkyVisual {
-    sky_visual_at(time_points, 0)
-}
-
 fn sky_visual_at(time_points: u32, minutes_into_time_point: u8) -> SkyVisual {
     let mut current = sky_visual_slot(time_points);
     let next = sky_visual_slot(time_points % 12 + 1);
@@ -4579,7 +4575,10 @@ fn advance_spatial_world_clock(
     if !should_advance_spatial_clock(
         navigation.current_screen,
         lifecycle.phase == LifecyclePhase::Complete,
-        lifecycle.session.is_some(),
+        lifecycle.session.is_some()
+            && spatial.session.as_ref().is_some_and(|session| {
+                spatial.maps.contains_key(&session.location_id)
+            }),
         spatial.sandbox_mode,
         runtime_state.is_paused(),
         gameplay.screen != crate::bevy_gameplay::GameplayMenuScreen::Closed,
