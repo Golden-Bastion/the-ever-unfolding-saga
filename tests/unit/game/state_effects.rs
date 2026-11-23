@@ -52,6 +52,58 @@ fn advancing_time_applies_generated_world_evolution() {
 }
 
 #[test]
+fn continuous_world_minutes_accumulate_into_existing_two_hour_time_points() {
+    let mut state = crate::model::create_new_state(
+        "Minute Clock",
+        WorldMode::New,
+        "Traveller".into(),
+        "Wanderer".into(),
+    );
+    state.character.conditions.push(crate::model::Condition::new("Tired", 2, 0));
+    let initial_points = state.world.time_points;
+
+    advance_world_minutes(&mut state, 119);
+    assert_eq!(state.world.time_points, initial_points);
+    assert_eq!(state.world.minutes_into_time_point, 119);
+    assert_eq!(state.character.conditions[0].remaining, 2);
+
+    advance_world_minutes(&mut state, 1);
+    assert_eq!(state.world.time_points, initial_points + 1);
+    assert_eq!(state.world.minutes_into_time_point, 0);
+    assert_eq!(state.character.conditions[0].remaining, 1);
+}
+
+#[test]
+fn action_time_advancement_preserves_partial_continuous_minutes() {
+    let mut state = crate::model::create_new_state(
+        "Combined Clock",
+        WorldMode::New,
+        "Traveller".into(),
+        "Wanderer".into(),
+    );
+    advance_world_minutes(&mut state, 75);
+    let initial_points = state.world.time_points;
+
+    advance_time(&mut state, 1);
+    assert_eq!(state.world.time_points, initial_points + 1);
+    assert_eq!(state.world.minutes_into_time_point, 75);
+
+    advance_world_minutes(&mut state, 45);
+    assert_eq!(state.world.time_points, initial_points + 2);
+    assert_eq!(state.world.minutes_into_time_point, 0);
+}
+
+#[test]
+fn old_world_saves_default_the_new_minute_offset_to_zero() {
+    let world = crate::model::World::new("Legacy Clock", WorldMode::New);
+    let mut value = serde_json::to_value(world).unwrap();
+    value.as_object_mut().unwrap().remove("minutes_into_time_point");
+
+    let restored: crate::model::World = serde_json::from_value(value).unwrap();
+    assert_eq!(restored.minutes_into_time_point, 0);
+}
+
+#[test]
 fn large_elapsed_time_advances_wrap_the_clock_without_integer_overflow() {
     let mut state = crate::model::create_new_state(
         "Long Journey",
