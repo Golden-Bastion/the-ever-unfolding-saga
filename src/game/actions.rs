@@ -36,7 +36,7 @@ pub(crate) fn has_location_travel_route(
         route
             .geography
             .as_ref()
-            .map_or(true, |geography| geography.travel_block_reason().is_none())
+            .is_none_or(|geography| geography.travel_block_reason().is_none())
     };
     match route_id {
         Some(id) => state.world.route_by_id(id).is_some_and(|route| {
@@ -120,7 +120,7 @@ pub(crate) fn find_known_travel_path(
                 route
                     .geography
                     .as_ref()
-                    .map_or(true, |geography| geography.travel_block_reason().is_none())
+                    .is_none_or(|geography| geography.travel_block_reason().is_none())
             })
             .map(|(route, destination_id)| (route.id.as_str(), destination_id))
             .collect::<Vec<_>>();
