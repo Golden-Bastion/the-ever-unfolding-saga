@@ -99,6 +99,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                 reachable: false,
                 fast_travel_index: None,
                 fast_travel_steps: None,
+                fast_travel_time_points: None,
             },
             crate::presentation::WorldMapNodeView {
                 location: crate::presentation::LocationView {
@@ -114,6 +115,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                 reachable: true,
                 fast_travel_index: Some(0),
                 fast_travel_steps: Some(1),
+                fast_travel_time_points: Some(2),
             },
             crate::presentation::WorldMapNodeView {
                 location: crate::presentation::LocationView {
@@ -172,6 +174,7 @@ fn world_map_layout_is_deterministic_and_places_known_routes_by_graph_distance()
                     ..Default::default()
                 },
                 route_steps: 1,
+                travel_time_points: 2,
             },
             crate::presentation::WorldMapDestinationView {
                 location: crate::presentation::LocationView {
@@ -283,4 +286,12 @@ fn spatial_pause_menu_places_travel_and_safe_meditation_before_character_actions
 #[test]
 fn meditation_is_hidden_when_unsafe() {
     assert!(!pause_actions_from(true, false).contains(&PauseAction::Meditate));
+}
+
+
+#[test]
+fn world_map_travel_duration_uses_two_hour_time_points() {
+    assert_eq!(format_world_travel_duration(1), "~2h");
+    assert_eq!(format_world_travel_duration(12), "~1d");
+    assert_eq!(format_world_travel_duration(14), "~1d 4h");
 }
