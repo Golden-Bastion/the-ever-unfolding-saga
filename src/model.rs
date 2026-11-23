@@ -891,6 +891,37 @@ impl World {
             if crossing.kind != expected_kind {
                 return false;
             }
+            let requirement_matches = match record.kind {
+                InfrastructureKind::Ford => matches!(
+                    crossing.infrastructure,
+                    crate::geography::routes::RouteInfrastructure::Ford
+                        | crate::geography::routes::RouteInfrastructure::FordOrBridge
+                ),
+                InfrastructureKind::Bridge => {
+                    crossing.infrastructure
+                        == crate::geography::routes::RouteInfrastructure::Bridge
+                }
+                InfrastructureKind::Ferry => {
+                    crossing.infrastructure
+                        == crate::geography::routes::RouteInfrastructure::Ferry
+                }
+                InfrastructureKind::MountainPass => {
+                    crossing.infrastructure == crate::geography::routes::RouteInfrastructure::None
+                }
+                InfrastructureKind::Road | InfrastructureKind::Trail => false,
+            };
+            if !requirement_matches
+                || self.route_infrastructure.iter().any(|existing| {
+                    existing.route_id == record.route_id
+                        && existing.crossing_index == record.crossing_index
+                        && existing.kind == record.kind
+                })
+            {
+                return false;
+            }
+        }
+        if record.owner.as_ref().is_some_and(|owner| owner.id.trim().is_empty()) {
+            return false;
         }
         self.route_infrastructure.push(record);
         self.route_infrastructure
@@ -927,22 +958,26 @@ impl World {
                     continue;
                 };
                 let index = u16::try_from(index).ok();
-                let has_available_record = self.route_infrastructure.iter().any(|record| {
+                let record = self.route_infrastructure.iter().find(|record| {
                     record.route_id == route_id
                         && record.crossing_index == index
                         && record.kind == required_kind
-                        && record.is_available()
                 });
-                if !has_available_record {
+                let Some(record) = record else {
                     return Some(match required_kind {
                         InfrastructureKind::Bridge => {
-                            "This route requires a constructed, publicly available bridge."
+                            "This route requires a constructed bridge."
                         }
                         InfrastructureKind::Ferry => {
-                            "This route requires an operational, publicly available ferry."
+                            "This route requires a constructed ferry service."
                         }
                         _ => unreachable!(),
                     });
+                };
+                if !record.is_available() {
+                    return record.unavailable_reason().or(Some(
+                        "This crossing infrastructure is not available to the traveller."
+                    ));
                 }
             }
         }
