@@ -4,6 +4,14 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.37: Route-specific local river crossings
+
+- Projected persisted river-bank midpoint targets now select their own nearest feasible local ford/bridge spans, including multiple route crossings on one connected river component.
+- Targets selecting the same span share it, and intersecting spans retain both runs; components without route targets retain one deterministic fallback crossing. Incomplete channels and runs without two fitting land banks remain blocked.
+- Added regression coverage for multiple distinct targets on one component, input-order independence, duplicate targets, and untouched river tiles between crossings.
+- Advanced the local-map generator version from 12 to 13. Established maps remain unchanged; no save-format or geography-ruleset version change is required.
+- Bumped Rust and Android metadata to 0.53.37.
+
 ### v0.53.36: Authored local passage anchors
 
 - Added per-destination authored local-map passage placements using a compass edge and normalized Q16 offset, avoiding dimension-specific tile coordinates.
