@@ -1,8 +1,9 @@
 //! Renderer-neutral world-map view derived from established locations and routes.
 //!
 //! The interim map deliberately contains no geography or persistent layout data.
-//! Its visible graph is based on locations with persistent local maps, plus legacy
-//! visits recoverable from retained character-lineage travel history and their exits.
+//! Its visible graph is based on physically discovered route passages, plus a
+//! tracked quest destination and the current location. Regional terrain summaries
+//! are derived from surveyed macro-geography without exposing local detail.
 //! Presentation code arranges these stable identities.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
