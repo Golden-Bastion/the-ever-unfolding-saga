@@ -180,7 +180,7 @@ The first route-identity layer was implemented after this audit was merged.
 - Existing local-map passages receive a matching route ID while preserving their existing passage ID and position. New and additional routes are appended through idempotent reconciliation; saved terrain and established passage geometry are not regenerated or moved.
 - Travel, known-route fast-travel traversal, World Map route views, procedural generation, authored seeding, and World Lab route editing now use persistent route records. Physical passage interactions validate the passage's specific route ID.
 
-This layer intentionally does not yet define route type/profile, terrain constraints, macro-geographic route geometry, distance, travel cost, or route discovery state. Those remain dependent on the coordinate-backed world topology design and are not implied by this implementation.
+Route discovery is now a separate world-persistent layer: local passage tiles reveal stable route IDs, regional surveys record broad macro-geography knowledge, and fast travel requires discovered routes between visited locations. The one-time cartography migration preserves the former frontier visibility and fast-travel behavior for existing saves. Route type/profile, terrain constraints, macro-geographic route geometry, and travel cost remain separate from discovery state.
 
 
 ## Implementation follow-up — macro-geography coordinate foundation
