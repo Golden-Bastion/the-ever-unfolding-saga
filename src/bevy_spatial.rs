@@ -2093,9 +2093,10 @@ fn use_map_exit(
     }
 
     let blocked_reason = route_id.as_deref().and_then(|id| {
-        lifecycle.session.as_ref().and_then(|session| {
-            session.state.world.route_travel_block_reason(id)
-        })
+        lifecycle
+            .session
+            .as_ref()
+            .and_then(|session| session.state.world.route_travel_block_reason(id))
     });
     if let Some(reason) = blocked_reason {
         state.message = Some(reason.to_string());
@@ -2314,7 +2315,11 @@ fn travel_to_location(
                 .routes_from(source_location_id)
                 .filter(|(route, destination)| {
                     *destination == target_location_id
-                        && session.state.world.route_travel_block_reason(&route.id).is_none()
+                        && session
+                            .state
+                            .world
+                            .route_travel_block_reason(&route.id)
+                            .is_none()
                 })
                 .map(|(route, _)| route.id.clone())
                 .min()

@@ -835,7 +835,10 @@ impl World {
         self.routes.iter().find(|route| route.id == route_id)
     }
 
-    pub fn infrastructure_by_id(&self, infrastructure_id: &str) -> Option<&RouteInfrastructureRecord> {
+    pub fn infrastructure_by_id(
+        &self,
+        infrastructure_id: &str,
+    ) -> Option<&RouteInfrastructureRecord> {
         self.route_infrastructure
             .iter()
             .find(|record| record.id == infrastructure_id)
@@ -870,9 +873,7 @@ impl World {
             InfrastructureKind::Ford | InfrastructureKind::Bridge => {
                 Some(crate::geography::routes::RouteCrossingKind::River)
             }
-            InfrastructureKind::Ferry => {
-                Some(crate::geography::routes::RouteCrossingKind::Lake)
-            }
+            InfrastructureKind::Ferry => Some(crate::geography::routes::RouteCrossingKind::Lake),
             InfrastructureKind::MountainPass => {
                 Some(crate::geography::routes::RouteCrossingKind::MountainPass)
             }
@@ -907,12 +908,10 @@ impl World {
                         | crate::geography::routes::RouteInfrastructure::FordOrBridge
                 ),
                 InfrastructureKind::Bridge => {
-                    crossing.infrastructure
-                        == crate::geography::routes::RouteInfrastructure::Bridge
+                    crossing.infrastructure == crate::geography::routes::RouteInfrastructure::Bridge
                 }
                 InfrastructureKind::Ferry => {
-                    crossing.infrastructure
-                        == crate::geography::routes::RouteInfrastructure::Ferry
+                    crossing.infrastructure == crate::geography::routes::RouteInfrastructure::Ferry
                 }
                 InfrastructureKind::MountainPass => {
                     crossing.infrastructure == crate::geography::routes::RouteInfrastructure::None
@@ -929,7 +928,11 @@ impl World {
                 return false;
             }
         }
-        if record.owner.as_ref().is_some_and(|owner| owner.id.trim().is_empty()) {
+        if record
+            .owner
+            .as_ref()
+            .is_some_and(|owner| owner.id.trim().is_empty())
+        {
             return false;
         }
         self.route_infrastructure.push(record);
@@ -986,9 +989,7 @@ impl World {
                 });
                 let Some(record) = record else {
                     return Some(match required_kind {
-                        InfrastructureKind::Bridge => {
-                            "This route requires a constructed bridge."
-                        }
+                        InfrastructureKind::Bridge => "This route requires a constructed bridge.",
                         InfrastructureKind::Ferry => {
                             "This route requires a constructed ferry service."
                         }
@@ -997,7 +998,7 @@ impl World {
                 };
                 if !record.is_available() {
                     return record.unavailable_reason().or(Some(
-                        "This crossing infrastructure is not available to the traveller."
+                        "This crossing infrastructure is not available to the traveller.",
                     ));
                 }
             }

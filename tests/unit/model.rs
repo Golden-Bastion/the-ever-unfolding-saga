@@ -121,8 +121,8 @@ fn infrastructure_condition_and_access_control_route_availability() {
 fn bridge_crossing_requires_a_built_available_infrastructure_record() {
     use crate::geography::river_geometry::{RiverBankIntersection, RiverPosition};
     use crate::geography::routes::{
-        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure,
-        RoutePlanningStatus, RouteProfile,
+        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus,
+        RouteProfile,
     };
     use crate::geography::MacroCoordinate;
 
@@ -140,7 +140,10 @@ fn bridge_crossing_requires_a_built_available_infrastructure_record() {
             river_flow_direction: None,
             river_banks: Some(RiverBankIntersection {
                 entry: RiverPosition { x_q16: 0, y_q16: 0 },
-                exit: RiverPosition { x_q16: 65_536, y_q16: 0 },
+                exit: RiverPosition {
+                    x_q16: 65_536,
+                    y_q16: 0,
+                },
             }),
             lake_id: None,
             lake_banks: None,
@@ -251,7 +254,10 @@ fn infrastructure_records_round_trip_and_default_empty_for_older_world_saves() {
     assert_eq!(restored.route_infrastructure, world.route_infrastructure);
 
     let mut legacy = encoded;
-    legacy.as_object_mut().unwrap().remove("route_infrastructure");
+    legacy
+        .as_object_mut()
+        .unwrap()
+        .remove("route_infrastructure");
     let restored: World = serde_json::from_value(legacy)
         .expect("older world saves must default to no explicit infrastructure records");
     assert!(restored.route_infrastructure.is_empty());
@@ -274,7 +280,6 @@ fn removing_a_route_also_removes_its_infrastructure_records() {
     assert!(world.remove_route("route.infrastructure.test"));
     assert!(world.route_infrastructure.is_empty());
 }
-
 
 #[test]
 fn world_history_is_bounded_to_recent_entries() {

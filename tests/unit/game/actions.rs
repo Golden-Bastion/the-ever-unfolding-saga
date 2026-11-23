@@ -149,19 +149,21 @@ fn route_infrastructure_access_is_shared_by_direct_and_fast_travel() {
         .map(|(route, _)| route.id.clone())
         .expect("fixture route should exist");
 
-    assert!(game.world.add_route_infrastructure(RouteInfrastructureRecord {
-        id: "infrastructure.private-road.test".into(),
-        route_id: route_id.clone(),
-        crossing_index: None,
-        kind: InfrastructureKind::Road,
-        construction: InfrastructureConstruction::Built,
-        condition: InfrastructureCondition::Operational,
-        owner: Some(crate::model::InfrastructureOwner {
-            kind: crate::model::InfrastructureOwnerKind::Faction,
-            id: "faction.test".into(),
-        }),
-        access: InfrastructureAccess::Private,
-    }));
+    assert!(game
+        .world
+        .add_route_infrastructure(RouteInfrastructureRecord {
+            id: "infrastructure.private-road.test".into(),
+            route_id: route_id.clone(),
+            crossing_index: None,
+            kind: InfrastructureKind::Road,
+            construction: InfrastructureConstruction::Built,
+            condition: InfrastructureCondition::Operational,
+            owner: Some(crate::model::InfrastructureOwner {
+                kind: crate::model::InfrastructureOwnerKind::Faction,
+                id: "faction.test".into(),
+            }),
+            access: InfrastructureAccess::Private,
+        }));
 
     assert!(!has_location_travel_route(
         &game,
@@ -171,11 +173,7 @@ fn route_infrastructure_access_is_shared_by_direct_and_fast_travel() {
     assert!(find_known_travel_path(&game, destination_id).is_none());
 
     game.world.route_infrastructure[0].access = InfrastructureAccess::Public;
-    assert!(has_location_travel_route(
-        &game,
-        middle_id,
-        Some(&route_id)
-    ));
+    assert!(has_location_travel_route(&game, middle_id, Some(&route_id)));
     assert_eq!(
         find_known_travel_path(&game, destination_id),
         Some(vec![middle_id, destination_id])
