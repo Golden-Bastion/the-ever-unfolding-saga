@@ -81,7 +81,9 @@ The design retains fast travel as a convenience, rather than forcing players to 
 - Specific routes may disable fast travel when a quest, encounter, authored sequence, or gameplay rule depends on travelling through them directly.
 - The normal travel interface should communicate when direct spatial travel is required and why fast travel is unavailable.
 
-The exact travel-time values and the conditions for travel events belong to the travel-system design and balancing work; they are not fixed here.
+The current implementation uses the persisted route plan as a normalized travel-cost estimate. One hundred cost units represent one ordinary 32-sample route-grid step and advance two world-time points (four in-game hours). The estimate separates polyline distance from the planner's existing elevation/ridge cost, adds a bounded biome difficulty adjustment, and adds explicit delays for mountain passes, fords, and ferries. A bridge adds no extra crossing delay. Routes without a usable planned geography retain a four-hour minimum. Fast travel chooses the least estimated-time path through discovered, permitted routes rather than simply the fewest hops, and shows the estimate on known World Map destinations.
+
+These are relative prototype units, not metres or kilometres. Exact physical scale, roads/trails and their condition, weather, encumbrance, character capability, and further time tuning remain future work; add those modifiers only when their authoritative systems exist.
 
 ### 5. On-demand regional expansion
 
