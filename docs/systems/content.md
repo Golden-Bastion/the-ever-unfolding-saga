@@ -36,7 +36,7 @@ A location may define an optional `exit_placements` object keyed by the stable c
 
 The older `exit_sides` object remains supported as a side-only fallback when no `exit_placements` entry exists for the same destination. A normalized placement takes precedence when both are present. When neither is authored, the existing macro-route heading and deterministic compass-side fallback apply. Existing saved passage IDs and positions are never moved when content changes; preferences affect only newly added passages. Validation rejects preferences that reference destinations not declared in the same location's `exits` list. Older content defaults to no preferences.
 
-The base campaign demonstrates this on Ashen Gate and Hollow Market, where authored layouts and approaches make broad-side choices useful.
+The base campaign demonstrates normalized placements on Ashen Gate and retains side-only preferences on Hollow Market as a legacy-format example.
 
 ## Authored spatial discoveries
 
