@@ -28,6 +28,20 @@ The world should support a connected resource loop:
 
 The same resource should retain its identity and usefulness across these activities. For example, gathered herbs could be sold directly, used to produce potions, or carried on an expedition. Crafted goods could serve as equipment, supplies, or merchandise.
 
+### Infrastructure construction and upkeep
+
+Roads, trails, bridges, docks, ferries, and other route infrastructure are consumers of this shared resource and work model, not a separate economy. The infrastructure records in the world-topology system already represent route association, construction state, condition, access, and optional ownership, but they do not yet provide player-facing construction, repair, or transfer workflows.
+
+When infrastructure lifecycle gameplay is implemented in v0.55.x:
+
+- Construction and repair costs must draw from the same stackable resources and inventories/storage used by gathering, crafting, and trade.
+- Costs must be validated and deducted atomically; failed or interrupted work must not silently consume materials or duplicate completed work.
+- Work should account for time and plausible worker capability, tools, and assignments when those systems support them.
+- Infrastructure may be funded or operated by a player, settlement, faction, organization, or other supported actor, but construction and operation must not imply ownership.
+- Maintenance should respond to meaningful condition changes and consequences rather than impose arbitrary recurring chores.
+
+Do not implement a parallel infrastructure stockpile, resource catalogue, crafting recipe system, or worker simulator solely to make route construction playable. The shared resource/inventory and work foundations are prerequisites.
+
 ### Farming and productive work
 
 Farming should be a supported livelihood rather than a separate farming simulator.
