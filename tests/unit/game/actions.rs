@@ -170,13 +170,17 @@ fn route_infrastructure_access_is_shared_by_direct_and_fast_travel() {
         middle_id,
         Some(&route_id)
     ));
-    assert!(!game.world.can_travel_via_route(&route_id, source_id, middle_id));
+    assert!(!game
+        .world
+        .can_travel_via_route(&route_id, source_id, middle_id));
     assert!(!game.world.can_travel_between(source_id, middle_id));
     assert!(find_known_travel_path(&game, destination_id).is_none());
 
     game.world.route_infrastructure[0].access = InfrastructureAccess::Public;
     assert!(has_location_travel_route(&game, middle_id, Some(&route_id)));
-    assert!(game.world.can_travel_via_route(&route_id, source_id, middle_id));
+    assert!(game
+        .world
+        .can_travel_via_route(&route_id, source_id, middle_id));
     assert!(game.world.can_travel_between(source_id, middle_id));
     assert_eq!(
         find_known_travel_path(&game, destination_id),
