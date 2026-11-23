@@ -264,10 +264,8 @@ impl RouteGeography {
         let total_cost = distance_cost
             .saturating_add(terrain_cost)
             .saturating_add(crossing_cost);
-        let time_points = u32::try_from(
-            total_cost.div_ceil(ROUTE_COST_PER_TIME_POINT).max(2),
-        )
-        .unwrap_or(u32::MAX);
+        let time_points = u32::try_from(total_cost.div_ceil(ROUTE_COST_PER_TIME_POINT).max(2))
+            .unwrap_or(u32::MAX);
 
         RouteTravelEstimate {
             distance_cost,
