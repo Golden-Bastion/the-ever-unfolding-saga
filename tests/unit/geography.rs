@@ -799,7 +799,6 @@ fn surface_terrain_barrier_sampling_rejects_underground_strata() {
     .is_none());
 }
 
-
 #[test]
 fn neighboring_surface_chunks_are_continuous_and_sampling_order_independent() {
     let seed = 8_211;
