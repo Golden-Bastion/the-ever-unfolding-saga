@@ -279,12 +279,13 @@ fn physical_route_travel_uses_persisted_distance_and_terrain_cost() {
         .find(|(_, destination)| *destination == middle_id)
         .map(|(route, _)| route.id.clone())
         .expect("fixture route");
-    game.world
+    let route = game
+        .world
         .routes
         .iter_mut()
         .find(|route| route.id == route_id)
-        .unwrap()
-        .geography = Some(RouteGeography {
+        .unwrap();
+    route.geography = Some(RouteGeography {
         status: RoutePlanningStatus::Planned,
         profile: RouteProfile::Trail,
         path: vec![MacroCoordinate::new(0, 0), MacroCoordinate::new(64, 0)],
@@ -316,12 +317,13 @@ fn fast_travel_prefers_a_longer_hop_count_when_its_total_time_is_lower() {
         RouteDirection::Bidirectional,
     )));
     game.world.mark_route_discovered("route.direct.slow");
-    game.world
+    let direct_route = game
+        .world
         .routes
         .iter_mut()
         .find(|route| route.id == "route.direct.slow")
-        .unwrap()
-        .geography = Some(RouteGeography {
+        .unwrap();
+    direct_route.geography = Some(RouteGeography {
         status: RoutePlanningStatus::Planned,
         profile: RouteProfile::Trail,
         path: vec![MacroCoordinate::new(0, 0), MacroCoordinate::new(160, 0)],
@@ -355,12 +357,13 @@ fn least_time_fast_travel_selects_the_exact_cheapest_parallel_route() {
         .find(|(_, destination)| *destination == middle_id)
         .map(|(route, _)| route.id.clone())
         .expect("fixture route");
-    game.world
+    let slower_route = game
+        .world
         .routes
         .iter_mut()
         .find(|route| route.id == slower_route_id)
-        .unwrap()
-        .geography = Some(RouteGeography {
+        .unwrap();
+    slower_route.geography = Some(RouteGeography {
         status: RoutePlanningStatus::Planned,
         profile: RouteProfile::Trail,
         path: vec![MacroCoordinate::new(0, 0), MacroCoordinate::new(160, 0)],
