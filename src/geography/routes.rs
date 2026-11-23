@@ -180,6 +180,9 @@ pub struct RouteGeography {
 /// Route-cost units required for one two-hour world-time portion.
 pub const ROUTE_COST_PER_TIME_POINT: u64 = 50;
 const MIN_ROUTE_DISTANCE_COST: u64 = 100;
+const MOUNTAIN_PASS_DELAY_COST: u64 = 50;
+const FORD_DELAY_COST: u64 = 50;
+const FERRY_DELAY_COST: u64 = 100;
 
 /// A deterministic, renderer-independent estimate for travelling one world route.
 ///
@@ -188,10 +191,15 @@ const MIN_ROUTE_DISTANCE_COST: u64 = 100;
 /// step and advance two world-time points (four in-game hours).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RouteTravelEstimate {
+    /// Normalized polyline distance, with a minimum cost for one short hop.
     pub distance_cost: u64,
+    /// Existing elevation/ridge cost plus the sampled biome difficulty adjustment.
     pub terrain_cost: u64,
+    /// Additional cost for physical crossings on this route.
     pub crossing_cost: u64,
+    /// Sum of distance, terrain, and crossing costs.
     pub total_cost: u64,
+    /// Estimated elapsed world time, in two-hour time points.
     pub time_points: u32,
 }
 
@@ -241,13 +249,15 @@ impl RouteGeography {
         let terrain_cost = planner_terrain_cost.saturating_add(biome_cost);
         let crossing_cost = self.crossings.iter().fold(0_u64, |total, crossing| {
             total.saturating_add(match crossing.kind {
-                RouteCrossingKind::MountainPass => 50,
+                RouteCrossingKind::MountainPass => MOUNTAIN_PASS_DELAY_COST,
                 RouteCrossingKind::River => match crossing.infrastructure {
                     RouteInfrastructure::Bridge => 0,
-                    RouteInfrastructure::Ford | RouteInfrastructure::FordOrBridge => 50,
+                    RouteInfrastructure::Ford | RouteInfrastructure::FordOrBridge => {
+                        FORD_DELAY_COST
+                    }
                     _ => 0,
                 },
-                RouteCrossingKind::Lake => 100,
+                RouteCrossingKind::Lake => FERRY_DELAY_COST,
                 RouteCrossingKind::Ocean | RouteCrossingKind::UnresolvedWater => 0,
             })
         });
