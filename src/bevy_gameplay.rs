@@ -662,6 +662,19 @@ fn assign_world_map_component(
     }
 }
 
+fn format_world_travel_duration(time_points: u32) -> String {
+    let hours = time_points.saturating_mul(2);
+    let days = hours / 24;
+    let remaining_hours = hours % 24;
+    if days == 0 {
+        format!("~{hours}h")
+    } else if remaining_hours == 0 {
+        format!("~{days}d")
+    } else {
+        format!("~{days}d {remaining_hours}h")
+    }
+}
+
 pub(crate) fn render_spatial_world_map_overlay(
     commands: &mut Commands,
     parent: Entity,
@@ -914,9 +927,12 @@ fn render_world_map_graph(
             } else {
                 "route steps"
             };
+            let duration = format_world_travel_duration(
+                node.fast_travel_time_points.unwrap_or(2),
+            );
             let detail = format!(
-                "{} | FAST TRAVEL | {} {}",
-                node.location.region_name, steps, route_label
+                "{} | FAST TRAVEL | {} {} | {}",
+                node.location.region_name, steps, route_label, duration
             );
             let button = bevy_presentation::spawn_positioned_action_button_with_detail(
                 commands,
