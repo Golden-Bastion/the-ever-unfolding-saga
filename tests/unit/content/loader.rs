@@ -357,6 +357,7 @@ fn mod_events_can_reference_definitions_from_other_mods() {
         geography: None,
         spatial_discoveries: Vec::new(),
         exit_sides: Default::default(),
+        exit_placements: Default::default(),
     });
     definitions_mod.factions.push(FactionContent {
         id: "faction.later-ward".into(),
@@ -675,6 +676,7 @@ fn location_archetype_mod_overrides_preserve_omitted_base_values() {
         geography: None,
         spatial_discoveries: Vec::new(),
         exit_sides: Default::default(),
+        exit_placements: Default::default(),
     });
     merge_campaign_content(&mut base, legacy_mod);
 
@@ -703,6 +705,7 @@ fn location_archetype_mod_overrides_preserve_omitted_base_values() {
         geography: None,
         spatial_discoveries: Vec::new(),
         exit_sides: Default::default(),
+        exit_placements: Default::default(),
     });
     merge_campaign_content(&mut base, override_mod);
 
