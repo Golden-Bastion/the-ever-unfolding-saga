@@ -2,9 +2,9 @@
 
 > Design record migrated from [GitHub issue #230](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/230). This document preserves the settled direction, constraints, and intentionally open design choices. Implementation status and sequencing belong in the root [roadmap](../../ROADMAP.md); this document is not a progress log.
 
-Plan and eventually implement a proper audio/music system for The Ever-Unfolding Saga.
+Define and implement a proper audio/music system for The Ever-Unfolding Saga.
 
-This is a future milestone, not part of the current Android/UI work. The architecture should be considered before the eventual Bevy presentation grows too far, but the actual soundtrack can be added later when gameplay states and atmosphere are more stable.
+The initial audio-system implementation is part of the current v0.53.x development line; see the root roadmap for its remaining scope and sequencing. This document defines the intended boundaries and acceptance criteria. Keep the first implementation small and state/event-driven; soundtrack breadth can grow as gameplay states and atmosphere become more stable.
 
 ## Scope
 - Introduce an audio/music manager or equivalent abstraction rather than having individual screens manipulate audio files directly.
