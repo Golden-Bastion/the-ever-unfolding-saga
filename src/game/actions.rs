@@ -293,19 +293,21 @@ pub(crate) fn travel_via_route(
     target_id: EntityId,
     route_id: &str,
 ) -> std::io::Result<()> {
-    let Some(route) = state.world.route_by_id(route_id).cloned() else {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "Travel requires the selected route to connect the current location and destination.",
-        ));
+    let duration = {
+        let Some(route) = state.world.route_by_id(route_id) else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Travel requires the selected route to connect the current location and destination.",
+            ));
+        };
+        if !has_location_travel_route(state, target_id, Some(route_id)) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Travel requires the selected route to connect the current location and destination.",
+            ));
+        }
+        route_travel_time_points(state, route)
     };
-    if !has_location_travel_route(state, target_id, Some(route_id)) {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "Travel requires the selected route to connect the current location and destination.",
-        ));
-    }
-    let duration = route_travel_time_points(state, &route);
     apply_route_travel(state, target_id, duration)?;
     state.world.mark_route_discovered(route_id.to_string());
     Ok(())
