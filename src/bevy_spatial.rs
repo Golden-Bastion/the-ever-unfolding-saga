@@ -2364,7 +2364,7 @@ fn travel_to_location(
     }
 
     enter(state, game_state, navigation);
-    if let Some(route_id) = route_id {
+    if let Some(route_id) = selected_route_id.as_deref() {
         let preferred_edge = lifecycle
             .session
             .as_ref()
