@@ -57,8 +57,8 @@ pub struct LocationContent {
     pub archetype: Option<crate::geography::locations::LocationArchetype>,
     #[serde(default)]
     pub exits: Vec<String>,
-    /// Preferred local-map edge for each authored destination content ID.
-    /// Omitted entries retain geography-derived and deterministic placement.
+    /// Legacy side-only local-map edge preferences keyed by destination content ID.
+    /// `exit_placements` takes precedence when both fields contain the same destination.
     #[serde(default)]
     pub exit_sides: HashMap<String, crate::spatial::MapExitSide>,
     /// Exact normalized local-map edge anchors keyed by destination content ID.
