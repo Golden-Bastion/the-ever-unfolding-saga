@@ -1045,6 +1045,51 @@ fn route_travel_estimate_accounts_for_required_crossing_delays() {
 }
 
 #[test]
+fn route_travel_estimate_samples_biomes_deterministically() {
+    let geography = RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::Trail,
+        path: vec![MacroCoordinate::new(0, 0), MacroCoordinate::new(64, 0)],
+        crossings: Vec::new(),
+        total_cost: 200,
+    };
+
+    let without_seed = geography.travel_estimate(None, GEOGRAPHY_RULESET_VERSION);
+    let first = geography.travel_estimate(Some(42), GEOGRAPHY_RULESET_VERSION);
+    let repeated = geography.travel_estimate(Some(42), GEOGRAPHY_RULESET_VERSION);
+
+    assert_eq!(first, repeated);
+    assert!(first.total_cost >= without_seed.total_cost);
+}
+
+#[test]
+fn legacy_unplanned_route_records_still_account_for_known_crossings() {
+    let geography = RouteGeography {
+        status: RoutePlanningStatus::MissingEndpoint,
+        profile: RouteProfile::RiverCrossing,
+        path: Vec::new(),
+        crossings: vec![RouteCrossing {
+            coordinate: MacroCoordinate::new(16, 16),
+            kind: RouteCrossingKind::River,
+            infrastructure: RouteInfrastructure::FordOrBridge,
+            river_id: None,
+            river_width: None,
+            river_flow_direction: None,
+            river_banks: None,
+            lake_id: None,
+            lake_banks: None,
+        }],
+        total_cost: 0,
+    };
+
+    let estimate = geography.travel_estimate(None, GEOGRAPHY_RULESET_VERSION);
+
+    assert_eq!(estimate.distance_cost, 100);
+    assert_eq!(estimate.crossing_cost, 50);
+    assert_eq!(estimate.time_points, 3);
+}
+
+#[test]
 fn route_terrain_penalties_distinguish_open_country_from_difficult_biomes() {
     assert_eq!(
         landscape_travel_penalty_percent(RouteLandscapeKind::Grassland),
