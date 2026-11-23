@@ -305,16 +305,23 @@ impl RouteGeography {
 
         // A local low point between two higher open-land samples is presented as a valley.
         // This is a visual cue only; it does not change route cost or geography.
-        for index in 1..samples.len().saturating_sub(1) {
-            let current = samples[index];
-            if current.kind == RouteLandscapeKind::Grassland
-                && samples[index - 1].kind == RouteLandscapeKind::Grassland
-                && samples[index + 1].kind == RouteLandscapeKind::Grassland
-                && current.elevation_q16.saturating_add(4_096) < samples[index - 1].elevation_q16
-                && current.elevation_q16.saturating_add(4_096) < samples[index + 1].elevation_q16
-            {
-                samples[index].kind = RouteLandscapeKind::Valley;
-            }
+        let valley_indices = samples
+            .windows(3)
+            .enumerate()
+            .filter_map(|(index, window)| {
+                let previous = window[0];
+                let current = window[1];
+                let next = window[2];
+                (current.kind == RouteLandscapeKind::Grassland
+                    && previous.kind == RouteLandscapeKind::Grassland
+                    && next.kind == RouteLandscapeKind::Grassland
+                    && current.elevation_q16.saturating_add(4_096) < previous.elevation_q16
+                    && current.elevation_q16.saturating_add(4_096) < next.elevation_q16)
+                    .then_some(index + 1)
+            })
+            .collect::<Vec<_>>();
+        for index in valley_indices {
+            samples[index].kind = RouteLandscapeKind::Valley;
         }
 
         samples
