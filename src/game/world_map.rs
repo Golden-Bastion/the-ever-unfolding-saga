@@ -39,13 +39,14 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
     }
     visible_ids.retain(|id| state.world.location_by_id(*id).is_some());
 
+    let known_travel_tree = crate::game::actions::known_travel_route_tree(state);
     let mut fast_travel_destinations = state
         .world
         .locations
         .iter()
         .filter(|location| location.id != current.id && is_explored(location.id))
         .filter_map(|location| {
-            crate::game::actions::find_known_travel_route_path(state, location.id).map(|path| {
+            known_travel_tree.path_to(location.id).map(|path| {
                 WorldMapDestinationView {
                     location: location_view(state, location, &campaign),
                     route_steps: path.len(),
