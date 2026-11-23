@@ -727,7 +727,7 @@ fn render_world_map_content(
             bevy_presentation::spawn_muted_label(
                 commands,
                 panel,
-                "Broad terrain is known; local routes and landmarks still require exploration.",
+                "Exact local terrain, passages, and landmarks still require exploration.",
             );
         }
     } else {
