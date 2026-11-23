@@ -23,7 +23,9 @@ use crate::bevy_presentation::{
 use crate::geography::climate::{self, Biome};
 use crate::geography::frontier;
 use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
-use crate::geography::routes::{RouteCrossingKind, RouteHeading, RouteInfrastructure, RouteProfile};
+use crate::geography::routes::{
+    RouteCrossingKind, RouteHeading, RouteInfrastructure, RouteProfile,
+};
 use crate::input::InputEvent;
 use crate::interaction_actions::{
     discover_available_interactions, AvailableInteraction, InteractionActionKind, InteractionTarget,
@@ -176,7 +178,11 @@ enum RouteTransitStage {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RouteTransitKind { Ferry, Ford, Bridge }
+enum RouteTransitKind {
+    Ferry,
+    Ford,
+    Bridge,
+}
 
 #[derive(Debug, Clone)]
 struct RouteTransitCrossing {
@@ -1948,7 +1954,10 @@ fn use_map_exit(
 
     let blocked_reason = route_id.as_deref().and_then(|id| {
         lifecycle.session.as_ref().and_then(|session| {
-            session.state.world.route_by_id(id)
+            session
+                .state
+                .world
+                .route_by_id(id)
                 .and_then(|route| route.geography.as_ref())
                 .and_then(|geography| geography.travel_block_reason())
         })
@@ -1999,9 +2008,7 @@ fn use_map_exit(
                                     _ => return None,
                                 };
                                 Some(RouteTransitCrossing {
-                                    horizontal: exit
-                                        .x_q16
-                                        .abs_diff(entry.x_q16)
+                                    horizontal: exit.x_q16.abs_diff(entry.x_q16)
                                         >= exit.y_q16.abs_diff(entry.y_q16),
                                     kind,
                                 })
@@ -2982,9 +2989,7 @@ fn spawn_route_transit_overlay(commands: &mut Commands, parent: Entity, transit:
             },
             BackgroundColor(match crossing.kind {
                 RouteTransitKind::Ferry => Color::srgb(0.055, 0.16, 0.23),
-                RouteTransitKind::Ford | RouteTransitKind::Bridge => {
-                    Color::srgb(0.045, 0.12, 0.15)
-                },
+                RouteTransitKind::Ford | RouteTransitKind::Bridge => Color::srgb(0.045, 0.12, 0.15),
             }),
             BorderColor::all(Color::srgb(0.16, 0.30, 0.34)),
         ))
@@ -3056,67 +3061,71 @@ fn spawn_route_transit_overlay(commands: &mut Commands, parent: Entity, transit:
 
     match crossing.kind {
         RouteTransitKind::Bridge => {
-            let bridge = commands.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: if crossing.horizontal {
-                        percent(24)
-                    } else {
-                        percent(43)
-                    },
-                    top: if crossing.horizontal {
-                        percent(42)
-                    } else {
-                        percent(18)
-                    },
-                    width: if crossing.horizontal {
-                        percent(52)
-                    } else {
-                        percent(14)
-                    },
-                    height: if crossing.horizontal {
-                        px(22)
-                    } else {
-                        percent(64)
-                    },
-                    border: UiRect::all(px(2)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.34, 0.22, 0.13)),
-                BorderColor::all(Color::srgb(0.68, 0.48, 0.29)),
-            )).id();
-            commands.entity(water).add_child(bridge);
-        }
-        RouteTransitKind::Ford => {
-            for step in 0..4 {
-                let stone = commands.spawn((
+            let bridge = commands
+                .spawn((
                     Node {
                         position_type: PositionType::Absolute,
                         left: if crossing.horizontal {
-                            percent(27.0 + step as f32 * 15.0)
+                            percent(24)
                         } else {
                             percent(43)
                         },
                         top: if crossing.horizontal {
-                            percent(43)
+                            percent(42)
                         } else {
-                            percent(22.0 + step as f32 * 15.0)
+                            percent(18)
                         },
                         width: if crossing.horizontal {
-                            percent(9)
+                            percent(52)
                         } else {
                             percent(14)
                         },
                         height: if crossing.horizontal {
-                            px(14)
+                            px(22)
                         } else {
-                            percent(9)
+                            percent(64)
                         },
-                        border_radius: BorderRadius::MAX,
+                        border: UiRect::all(px(2)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgb(0.43, 0.42, 0.36)),
-                )).id();
+                    BackgroundColor(Color::srgb(0.34, 0.22, 0.13)),
+                    BorderColor::all(Color::srgb(0.68, 0.48, 0.29)),
+                ))
+                .id();
+            commands.entity(water).add_child(bridge);
+        }
+        RouteTransitKind::Ford => {
+            for step in 0..4 {
+                let stone = commands
+                    .spawn((
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: if crossing.horizontal {
+                                percent(27.0 + step as f32 * 15.0)
+                            } else {
+                                percent(43)
+                            },
+                            top: if crossing.horizontal {
+                                percent(43)
+                            } else {
+                                percent(22.0 + step as f32 * 15.0)
+                            },
+                            width: if crossing.horizontal {
+                                percent(9)
+                            } else {
+                                percent(14)
+                            },
+                            height: if crossing.horizontal {
+                                px(14)
+                            } else {
+                                percent(9)
+                            },
+                            border_radius: BorderRadius::MAX,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.43, 0.42, 0.36)),
+                    ))
+                    .id();
                 commands.entity(water).add_child(stone);
             }
         }
@@ -3126,33 +3135,35 @@ fn spawn_route_transit_overlay(commands: &mut Commands, parent: Entity, transit:
     let marker_progress =
         15.0 + (transit.elapsed_seconds / ROUTE_CROSSING_DURATION_SECONDS).clamp(0.0, 1.0) * 70.0;
     let is_ferry = crossing.kind == RouteTransitKind::Ferry;
-    let marker = commands.spawn((
-        SpatialTransitMarker(crossing.horizontal),
-        Node {
-            position_type: PositionType::Absolute,
-            left: if crossing.horizontal {
-                percent(marker_progress)
-            } else {
-                percent(42)
+    let marker = commands
+        .spawn((
+            SpatialTransitMarker(crossing.horizontal),
+            Node {
+                position_type: PositionType::Absolute,
+                left: if crossing.horizontal {
+                    percent(marker_progress)
+                } else {
+                    percent(42)
+                },
+                top: if crossing.horizontal {
+                    percent(42)
+                } else {
+                    percent(marker_progress)
+                },
+                width: px(if is_ferry { 52 } else { 16 }),
+                height: px(if is_ferry { 18 } else { 16 }),
+                border_radius: BorderRadius::MAX,
+                border: UiRect::all(px(1)),
+                ..default()
             },
-            top: if crossing.horizontal {
-                percent(42)
+            BackgroundColor(if is_ferry {
+                Color::srgb(0.35, 0.22, 0.12)
             } else {
-                percent(marker_progress)
-            },
-            width: px(if is_ferry { 52 } else { 16 }),
-            height: px(if is_ferry { 18 } else { 16 }),
-            border_radius: BorderRadius::MAX,
-            border: UiRect::all(px(1)),
-            ..default()
-        },
-        BackgroundColor(if is_ferry {
-            Color::srgb(0.35, 0.22, 0.12)
-        } else {
-            Color::srgb(0.78, 0.68, 0.43)
-        }),
-        BorderColor::all(Color::srgb(0.72, 0.57, 0.34)),
-    )).id();
+                Color::srgb(0.78, 0.68, 0.43)
+            }),
+            BorderColor::all(Color::srgb(0.72, 0.57, 0.34)),
+        ))
+        .id();
     commands.entity(water).add_child(marker);
 
     let caption = match (crossing.kind, transit.stage) {

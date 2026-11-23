@@ -190,19 +190,22 @@ impl RouteGeography {
     }
 
     pub fn resolved_travel_crossings(&self, from_a: bool) -> Vec<&RouteCrossing> {
-        let crossings = self.crossings.iter().filter(|crossing| match crossing.kind {
-            RouteCrossingKind::River => {
-                crossing.river_banks.is_some()
-                    && matches!(
-                        crossing.infrastructure,
-                        RouteInfrastructure::Ford | RouteInfrastructure::Bridge
-                    )
-            }
-            RouteCrossingKind::Lake => {
-                crossing.lake_id.is_some() && crossing.lake_banks.is_some()
-            }
-            _ => false,
-        });
+        let crossings = self
+            .crossings
+            .iter()
+            .filter(|crossing| match crossing.kind {
+                RouteCrossingKind::River => {
+                    crossing.river_banks.is_some()
+                        && matches!(
+                            crossing.infrastructure,
+                            RouteInfrastructure::Ford | RouteInfrastructure::Bridge
+                        )
+                }
+                RouteCrossingKind::Lake => {
+                    crossing.lake_id.is_some() && crossing.lake_banks.is_some()
+                }
+                _ => false,
+            });
         if from_a {
             crossings.collect()
         } else {

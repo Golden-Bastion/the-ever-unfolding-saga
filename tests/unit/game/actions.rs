@@ -93,8 +93,8 @@ fn travel_requires_reciprocal_world_graph_connections() {
 #[test]
 fn unsupported_route_crossings_block_direct_and_fast_travel() {
     use crate::geography::routes::{
-        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure,
-        RoutePlanningStatus, RouteProfile,
+        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus,
+        RouteProfile,
     };
 
     let (mut game, middle_id, destination_id) = fast_travel_fixture(false, true, true);

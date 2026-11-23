@@ -33,9 +33,10 @@ pub(crate) fn has_location_travel_route(
         return false;
     }
     let route_is_traversable = |route: &crate::model::WorldRoute| {
-        route.geography.as_ref().map_or(true, |geography| {
-            geography.travel_block_reason().is_none()
-        })
+        route
+            .geography
+            .as_ref()
+            .map_or(true, |geography| geography.travel_block_reason().is_none())
     };
     match route_id {
         Some(id) => state.world.route_by_id(id).is_some_and(|route| {
@@ -44,9 +45,7 @@ pub(crate) fn has_location_travel_route(
         None => state
             .world
             .routes_from(source_id)
-            .any(|(route, destination)| {
-                destination == target_id && route_is_traversable(route)
-            }),
+            .any(|(route, destination)| destination == target_id && route_is_traversable(route)),
     }
 }
 
@@ -118,9 +117,10 @@ pub(crate) fn find_known_travel_path(
             .world
             .routes_from(source_id)
             .filter(|(route, _)| {
-                route.geography.as_ref().map_or(true, |geography| {
-                    geography.travel_block_reason().is_none()
-                })
+                route
+                    .geography
+                    .as_ref()
+                    .map_or(true, |geography| geography.travel_block_reason().is_none())
             })
             .map(|(route, destination_id)| (route.id.as_str(), destination_id))
             .collect::<Vec<_>>();

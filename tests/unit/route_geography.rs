@@ -837,8 +837,8 @@ fn resolved_travel_crossings_keep_route_order_and_require_verified_banks() {
 #[test]
 fn legacy_ford_or_bridge_crossings_remain_traversable() {
     use crate::geography::routes::{
-        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure,
-        RoutePlanningStatus, RouteProfile,
+        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure, RoutePlanningStatus,
+        RouteProfile,
     };
 
     let geography = RouteGeography {
