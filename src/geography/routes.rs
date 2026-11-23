@@ -177,6 +177,126 @@ pub struct RouteGeography {
     pub total_cost: u64,
 }
 
+/// Route-cost units required for one two-hour world-time portion.
+pub const ROUTE_COST_PER_TIME_POINT: u64 = 50;
+const MIN_ROUTE_DISTANCE_COST: u64 = 100;
+
+/// A deterministic, renderer-independent estimate for travelling one world route.
+///
+/// Distance and terrain costs use normalized route-cost units, not metres or
+/// kilometres. One hundred units represent one ordinary 32-sample route-grid
+/// step and advance two world-time points (four in-game hours).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RouteTravelEstimate {
+    pub distance_cost: u64,
+    pub terrain_cost: u64,
+    pub crossing_cost: u64,
+    pub total_cost: u64,
+    pub time_points: u32,
+}
+
+impl RouteGeography {
+    /// Estimate travel duration from persisted route cost, bounded biome samples,
+    /// and the explicit crossings already required by this route.
+    ///
+    /// Missing world seeds omit only the biome adjustment; persisted route
+    /// distance, planner terrain cost, and crossing requirements remain usable.
+    pub fn travel_estimate(
+        &self,
+        world_seed: Option<u64>,
+        ruleset_version: u32,
+    ) -> RouteTravelEstimate {
+        if self.status != RoutePlanningStatus::Planned {
+            return default_route_travel_estimate();
+        }
+
+        let distance_cost = route_distance_cost(&self.path);
+        let planner_terrain_cost = self.total_cost.saturating_sub(distance_cost);
+        let biome_penalty_percent = world_seed
+            .map(|seed| {
+                let samples = self.landscape_samples(seed, ruleset_version, true);
+                if samples.is_empty() {
+                    0
+                } else {
+                    let total = samples
+                        .iter()
+                        .map(|sample| landscape_travel_penalty_percent(sample.kind))
+                        .sum::<u64>();
+                    total.div_ceil(samples.len() as u64)
+                }
+            })
+            .unwrap_or(0);
+        let biome_cost = distance_cost
+            .saturating_mul(biome_penalty_percent)
+            .div_ceil(100);
+        let terrain_cost = planner_terrain_cost.saturating_add(biome_cost);
+        let crossing_cost = self.crossings.iter().fold(0_u64, |total, crossing| {
+            total.saturating_add(match crossing.kind {
+                RouteCrossingKind::MountainPass => 50,
+                RouteCrossingKind::River => match crossing.infrastructure {
+                    RouteInfrastructure::Bridge => 0,
+                    RouteInfrastructure::Ford | RouteInfrastructure::FordOrBridge => 50,
+                    _ => 0,
+                },
+                RouteCrossingKind::Lake => 100,
+                RouteCrossingKind::Ocean | RouteCrossingKind::UnresolvedWater => 0,
+            })
+        });
+        let total_cost = distance_cost
+            .saturating_add(terrain_cost)
+            .saturating_add(crossing_cost);
+        let time_points = total_cost
+            .div_ceil(ROUTE_COST_PER_TIME_POINT)
+            .max(2)
+            .min(u64::from(u32::MAX)) as u32;
+
+        RouteTravelEstimate {
+            distance_cost,
+            terrain_cost,
+            crossing_cost,
+            total_cost,
+            time_points,
+        }
+    }
+}
+
+fn default_route_travel_estimate() -> RouteTravelEstimate {
+    RouteTravelEstimate {
+        distance_cost: MIN_ROUTE_DISTANCE_COST,
+        terrain_cost: 0,
+        crossing_cost: 0,
+        total_cost: MIN_ROUTE_DISTANCE_COST,
+        time_points: 2,
+    }
+}
+
+fn route_distance_cost(path: &[MacroCoordinate]) -> u64 {
+    let numerator = path.windows(2).fold(0_u128, |total, pair| {
+        let dx = u128::from(pair[0].x.abs_diff(pair[1].x));
+        let dy = u128::from(pair[0].y.abs_diff(pair[1].y));
+        let major = dx.max(dy);
+        let minor = dx.min(dy);
+        total.saturating_add(major.saturating_mul(100).saturating_add(minor.saturating_mul(41)))
+    });
+    let cost = numerator.div_ceil(ROUTE_GRID_SPACING as u128);
+    u64::try_from(cost)
+        .unwrap_or(u64::MAX)
+        .max(MIN_ROUTE_DISTANCE_COST)
+}
+
+fn landscape_travel_penalty_percent(kind: RouteLandscapeKind) -> u64 {
+    match kind {
+        RouteLandscapeKind::Grassland | RouteLandscapeKind::Valley | RouteLandscapeKind::Water => {
+            0
+        }
+        RouteLandscapeKind::Coast => 10,
+        RouteLandscapeKind::Forest => 15,
+        RouteLandscapeKind::Desert => 20,
+        RouteLandscapeKind::Tundra => 25,
+        RouteLandscapeKind::Mountain => 35,
+    }
+}
+
 impl RouteGeography {
     /// Return resolved inland-lake crossings in the order they are encountered
     /// from the selected route endpoint. Crossings without two verified shores
