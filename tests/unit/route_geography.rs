@@ -1010,6 +1010,24 @@ fn route_travel_estimate_separates_distance_from_planner_terrain_cost() {
 }
 
 #[test]
+fn diagonal_route_distance_uses_the_planners_octile_cost() {
+    let geography = RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::Trail,
+        path: vec![MacroCoordinate::new(0, 0), MacroCoordinate::new(32, 32)],
+        crossings: Vec::new(),
+        total_cost: 141,
+    };
+
+    let estimate = geography.travel_estimate(None, GEOGRAPHY_RULESET_VERSION);
+
+    assert_eq!(estimate.distance_cost, 141);
+    assert_eq!(estimate.terrain_cost, 0);
+    assert_eq!(estimate.total_cost, 141);
+    assert_eq!(estimate.time_points, 3);
+}
+
+#[test]
 fn route_travel_estimate_accounts_for_required_crossing_delays() {
     let crossing = |kind, infrastructure| RouteCrossing {
         coordinate: MacroCoordinate::new(16, 16),
