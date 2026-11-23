@@ -979,4 +979,12 @@ fn route_landscape_samples_are_bounded_deterministic_and_follow_travel_direction
         path.first().copied()
     );
     assert_eq!(reverse, forward.iter().rev().copied().collect::<Vec<_>>());
+
+    let mut unplanned = geography.clone();
+    unplanned.status = RoutePlanningStatus::SearchLimit;
+    assert!(
+        unplanned
+            .landscape_samples(42, GEOGRAPHY_RULESET_VERSION, true)
+            .is_empty()
+    );
 }
