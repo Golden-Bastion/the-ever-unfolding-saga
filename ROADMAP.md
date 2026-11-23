@@ -4,6 +4,10 @@ This is the authoritative overview of unfinished work, current priorities, and p
 
 Completed work in the current development line belongs in [CHANGELOG.md](CHANGELOG.md); earlier completed work belongs in [CHANGELOG-HISTORY.md](CHANGELOG-HISTORY.md). Detailed design decisions live in [docs/design/](docs/design/README.md), while [system documentation](docs/systems/) describes current implementation behavior and boundaries.
 
+## Cross-cutting release operations
+
+The CI/CD workflow supports artifact-only publication of an existing tag to GitHub Releases, itch.io, or both. It reuses the exact desktop and Android workflow artifacts produced by the tag-triggered build runs, verifies the complete eight-file set, and does not rebuild or re-sign. This manual promotion is available only while the original workflow artifacts remain within their seven-day retention period.
+
 ## Current development line — v0.53.x: world topology and spatial-world expansion
 
 **Repository version at this roadmap revision: 0.53.29.**
