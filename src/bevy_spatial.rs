@@ -4568,7 +4568,7 @@ fn advance_spatial_clock(
 fn advance_spatial_world_clock(
     time: Res<Time>,
     navigation: Res<NavigationState>,
-    lifecycle: ResMut<LifecycleState>,
+    mut lifecycle: ResMut<LifecycleState>,
     gameplay: Res<crate::bevy_gameplay::GameplayMenuState>,
     runtime_state: Res<crate::bevy_gameplay::GameplayRuntimeState>,
     interaction_state: Res<crate::bevy_interactions::BevyInteractionState>,
