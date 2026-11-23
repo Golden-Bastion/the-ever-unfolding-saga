@@ -1186,6 +1186,7 @@ fn route_reconciliation_uses_profile_and_preferred_side_for_new_passages() {
             target_location_id: 20,
             profile: Some(RouteProfile::MountainPass),
             preferred_side: Some(MapExitSide::North),
+            preferred_edge_offset_q16: None,
             frontier_id: None,
         }],
     );
@@ -1193,6 +1194,221 @@ fn route_reconciliation_uses_profile_and_preferred_side_for_new_passages() {
     assert_eq!(map.exits.len(), 1);
     assert_eq!(map.exits[0].route_profile, Some(RouteProfile::MountainPass));
     assert_eq!(map.exits[0].position.y, 0);
+}
+
+#[test]
+fn macro_route_edge_offsets_place_new_passages_at_the_projected_boundary_position() {
+    let mut map = generate_local_map(818, "location.10", LocalMapConfig::default());
+    map.terrain.fill(Terrain::Floor);
+    map.props.clear();
+    map.points_of_interest.clear();
+    map.interactables.clear();
+    map.encounters.clear();
+
+    configure_map_routes(
+        &mut map,
+        &[MapRouteDestination {
+            route_id: "route.edge.precise".into(),
+            target_location_id: 20,
+            profile: None,
+            preferred_side: Some(MapExitSide::East),
+            preferred_edge_offset_q16: Some(0),
+            frontier_id: None,
+        }],
+    );
+
+    assert_eq!(map.exits.len(), 1);
+    assert_eq!(map.exits[0].position.x, map.width - 1);
+    assert_eq!(map.exits[0].position.y, 1);
+}
+
+#[test]
+fn route_arrivals_use_reciprocal_passages_or_the_nearest_reachable_projected_edge() {
+    let mut reciprocal = generate_local_map(
+        824,
+        "location.route_arrival_reciprocal",
+        LocalMapConfig::default(),
+    );
+    reciprocal.terrain.fill(Terrain::Floor);
+    reciprocal.props.clear();
+    reciprocal.points_of_interest.clear();
+    reciprocal.interactables.clear();
+    reciprocal.encounters.clear();
+    reciprocal.entry = GridPosition {
+        x: 1,
+        y: reciprocal.height / 2,
+    };
+    configure_map_routes(
+        &mut reciprocal,
+        &[MapRouteDestination {
+            route_id: "route.arrival.reciprocal".into(),
+            target_location_id: 10,
+            profile: None,
+            preferred_side: Some(MapExitSide::West),
+            preferred_edge_offset_q16: Some(0),
+            frontier_id: None,
+        }],
+    );
+    assert_eq!(
+        reciprocal.route_arrival_position("route.arrival.reciprocal", 10, None, None),
+        Some(GridPosition { x: 1, y: 1 })
+    );
+
+    let mut one_way = generate_local_map(
+        825,
+        "location.route_arrival_one_way",
+        LocalMapConfig::default(),
+    );
+    one_way.terrain.fill(Terrain::Wall);
+    one_way.props.clear();
+    one_way.points_of_interest.clear();
+    one_way.interactables.clear();
+    one_way.encounters.clear();
+    one_way.entry = GridPosition {
+        x: 1,
+        y: one_way.height / 2,
+    };
+    for x in 0..one_way.width {
+        one_way.terrain[usize::from(x)] = Terrain::Wall;
+        let south = usize::from(one_way.height - 1) * usize::from(one_way.width)
+            + usize::from(x);
+        one_way.terrain[south] = Terrain::Wall;
+    }
+    for y in 0..one_way.height {
+        one_way.terrain[usize::from(y) * usize::from(one_way.width)] = Terrain::Wall;
+        let east = usize::from(y) * usize::from(one_way.width)
+            + usize::from(one_way.width - 1);
+        one_way.terrain[east] = Terrain::Wall;
+    }
+    one_way.terrain[usize::from(one_way.entry.y) * usize::from(one_way.width)
+        + usize::from(one_way.entry.x)] = Terrain::Floor;
+    let established_snapshot = one_way.clone();
+    assert_eq!(
+        one_way.route_arrival_position(
+            "route.arrival.one_way",
+            11,
+            Some(MapExitSide::East),
+            Some(0),
+        ),
+        None
+    );
+    assert_eq!(one_way, established_snapshot);
+    assert_eq!(
+        one_way.prepare_route_arrival_position(
+            "route.arrival.one_way",
+            11,
+            Some(MapExitSide::East),
+            Some(0),
+        ),
+        Some(GridPosition {
+            x: one_way.width - 2,
+            y: 1,
+        })
+    );
+    let arrival = GridPosition {
+        x: one_way.width - 2,
+        y: 1,
+    };
+    assert!(one_way.is_walkable(arrival));
+    assert!(has_walkable_path(&one_way, arrival, one_way.entry));
+    assert_eq!(
+        one_way.terrain_at(GridPosition {
+            x: one_way.width - 1,
+            y: 1,
+        }),
+        Some(Terrain::Wall),
+        "one-way arrival projection must not carve or move the map boundary"
+    );
+}
+
+#[test]
+fn route_passage_corridors_never_overwrite_water_and_require_a_real_crossing() {
+    let mut connected = generate_local_map(
+        821,
+        "location.water_safe_passage",
+        LocalMapConfig::default(),
+    );
+    connected.terrain.fill(Terrain::Floor);
+    connected.entry = GridPosition {
+        x: 1,
+        y: connected.height / 2,
+    };
+    connected.props.clear();
+    connected.points_of_interest.clear();
+    connected.interactables.clear();
+    connected.encounters.clear();
+    let river_x = connected.width / 2;
+    let ford_y = connected.height / 2;
+    for y in 1..connected.height - 1 {
+        let index = usize::from(y) * usize::from(connected.width) + usize::from(river_x);
+        connected.terrain[index] = Terrain::Water;
+    }
+    let ford_index = usize::from(ford_y) * usize::from(connected.width) + usize::from(river_x);
+    connected.terrain[ford_index] = Terrain::Ford;
+
+    configure_map_routes(
+        &mut connected,
+        &[MapRouteDestination {
+            route_id: "route.water.safe".into(),
+            target_location_id: 20,
+            profile: None,
+            preferred_side: Some(MapExitSide::East),
+            preferred_edge_offset_q16: Some(u16::MAX / 2),
+            frontier_id: None,
+        }],
+    );
+
+    assert_eq!(connected.exits.len(), 1);
+    assert_eq!(connected.terrain[ford_index], Terrain::Ford);
+    for y in 1..connected.height - 1 {
+        if y != ford_y {
+            let index = usize::from(y) * usize::from(connected.width) + usize::from(river_x);
+            assert_eq!(connected.terrain[index], Terrain::Water);
+        }
+    }
+    assert!(has_walkable_path(
+        &connected,
+        connected.entry,
+        connected.exits[0].position,
+    ));
+
+    let mut blocked = generate_local_map(
+        821,
+        "location.blocked_water_passage",
+        LocalMapConfig::default(),
+    );
+    blocked.terrain.fill(Terrain::Floor);
+    blocked.entry = GridPosition {
+        x: 1,
+        y: blocked.height / 2,
+    };
+    blocked.props.clear();
+    blocked.points_of_interest.clear();
+    blocked.interactables.clear();
+    blocked.encounters.clear();
+    let river_x = blocked.width / 2;
+    for y in 1..blocked.height - 1 {
+        let index = usize::from(y) * usize::from(blocked.width) + usize::from(river_x);
+        blocked.terrain[index] = Terrain::Water;
+    }
+
+    configure_map_routes(
+        &mut blocked,
+        &[MapRouteDestination {
+            route_id: "route.blocked.water".into(),
+            target_location_id: 21,
+            profile: None,
+            preferred_side: Some(MapExitSide::East),
+            preferred_edge_offset_q16: Some(u16::MAX / 2),
+            frontier_id: None,
+        }],
+    );
+
+    assert!(blocked.exits.is_empty());
+    assert!((1..blocked.height - 1).all(|y| {
+        blocked.terrain[usize::from(y) * usize::from(blocked.width) + usize::from(river_x)]
+            == Terrain::Water
+    }));
 }
 
 #[test]
@@ -1230,6 +1446,7 @@ fn route_reconciliation_backfills_profile_without_moving_existing_passage() {
             target_location_id: 20,
             profile: Some(RouteProfile::RiverCrossing),
             preferred_side: Some(MapExitSide::North),
+            preferred_edge_offset_q16: None,
             frontier_id: None,
         }],
     );
@@ -1251,6 +1468,7 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
             target_location_id: 20,
             profile: None,
             preferred_side: None,
+            preferred_edge_offset_q16: None,
             frontier_id: None,
         },
         MapRouteDestination {
@@ -1258,6 +1476,7 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
             target_location_id: 20,
             profile: None,
             preferred_side: None,
+            preferred_edge_offset_q16: None,
             frontier_id: None,
         },
     ];
@@ -1280,6 +1499,7 @@ fn route_reconciliation_preserves_existing_passages_and_adds_parallel_routes_ide
         target_location_id: 21,
         profile: None,
         preferred_side: None,
+        preferred_edge_offset_q16: None,
         frontier_id: None,
     });
     configure_map_routes(&mut map, &expanded_routes);
@@ -1302,6 +1522,7 @@ fn route_reconciliation_distributes_new_passages_round_robin_by_compass_side() {
             target_location_id: 20 + slot,
             profile: None,
             preferred_side: None,
+            preferred_edge_offset_q16: None,
             frontier_id: None,
         })
         .collect::<Vec<_>>();
@@ -1363,6 +1584,7 @@ fn route_reconciliation_attaches_legacy_passage_without_relocating_it() {
             target_location_id: 20,
             profile: None,
             preferred_side: None,
+            preferred_edge_offset_q16: None,
             frontier_id: None,
         }],
     );
@@ -1403,6 +1625,7 @@ fn pending_frontier_passages_are_idempotent_and_upgrade_in_place() {
             target_location_id: 44,
             profile: Some(RouteProfile::Trail),
             preferred_side: Some(MapExitSide::East),
+            preferred_edge_offset_q16: None,
             frontier_id: Some(frontier.id.clone()),
         }],
     );
@@ -1426,6 +1649,7 @@ fn pending_frontier_passages_are_idempotent_and_upgrade_in_place() {
             target_location_id: 44,
             profile: Some(RouteProfile::Trail),
             preferred_side: Some(MapExitSide::East),
+            preferred_edge_offset_q16: None,
             frontier_id: Some(frontier.id),
         }],
     );
@@ -1481,6 +1705,7 @@ fn cave_transitions_are_reachable_interior_passages_and_reconcile_idempotently()
         target_location_id: 99,
         profile: None,
         preferred_side: None,
+        preferred_edge_offset_q16: None,
         frontier_id: None,
     };
     configure_map_cave_connections(
@@ -1530,6 +1755,7 @@ fn new_route_and_frontier_passages_prefer_centered_edge_positions() {
             target_location_id: 20,
             profile: None,
             preferred_side: Some(MapExitSide::East),
+            preferred_edge_offset_q16: None,
             frontier_id: None,
         }],
     );
@@ -1571,6 +1797,7 @@ fn authored_preferred_exit_side_controls_new_route_placement() {
             target_location_id: 20,
             profile: None,
             preferred_side: Some(MapExitSide::West),
+            preferred_edge_offset_q16: None,
             frontier_id: None,
         }],
     );
@@ -1675,6 +1902,44 @@ fn water_and_walls_are_impassable_while_land_and_crossings_are_walkable() {
 }
 
 #[test]
+fn route_bank_midpoints_select_the_nearest_feasible_local_river_crossing() {
+    let mut map = generate_local_map(
+        74,
+        "location.route_bank_preference",
+        LocalMapConfig { width: 32, height: 24 },
+    );
+    map.terrain.fill(Terrain::Floor);
+    let river_x = map.width / 2;
+    for y in 2..map.height - 2 {
+        map.terrain[usize::from(y) * usize::from(map.width) + usize::from(river_x)] =
+            Terrain::Water;
+    }
+
+    let target = GridPosition { x: river_x, y: 17 };
+    place_river_crossings(
+        &mut map,
+        |position| {
+            (position.x == river_x && (2..map.height - 2).contains(&position.y))
+                .then_some(RiverWidthClass::Narrow)
+        },
+        &[target],
+    );
+
+    assert_eq!(map.terrain_at(target), Some(Terrain::Ford));
+    assert_eq!(
+        map.terrain
+            .iter()
+            .filter(|terrain| **terrain == Terrain::Ford)
+            .count(),
+        1
+    );
+    assert_eq!(
+        map.terrain_at(GridPosition { x: river_x, y: 3 }),
+        Some(Terrain::Water)
+    );
+}
+
+#[test]
 fn local_river_crossings_are_deterministic_walkable_and_width_appropriate() {
     fn crossing_map(width: RiverWidthClass) -> LocalMap {
         let config = LocalMapConfig {
@@ -1694,9 +1959,13 @@ fn local_river_crossings_are_deterministic_walkable_and_width_appropriate() {
                     Terrain::Floor;
             }
         }
-        place_river_crossings(&mut map, |position| {
-            ((7..=9).contains(&position.x) && (1..=10).contains(&position.y)).then_some(width)
-        });
+        place_river_crossings(
+            &mut map,
+            |position| {
+                ((7..=9).contains(&position.x) && (1..=10).contains(&position.y)).then_some(width)
+            },
+            &[],
+        );
         map
     }
     for (width, expected) in [
@@ -1741,16 +2010,20 @@ fn non_river_water_and_river_channels_without_two_local_banks_stay_blocked() {
             map.terrain[usize::from(y) * usize::from(map.width) + usize::from(x)] = Terrain::Floor;
         }
     }
-    place_river_crossings(&mut map, |_| None);
+    place_river_crossings(&mut map, |_| None, &[]);
     assert!(!map
         .terrain
         .iter()
         .any(|terrain| matches!(terrain, Terrain::Ford | Terrain::Bridge)));
-    place_river_crossings(&mut map, |position| {
-        (7..15)
-            .contains(&position.x)
-            .then_some(RiverWidthClass::Wide)
-    });
+    place_river_crossings(
+        &mut map,
+        |position| {
+            (7..15)
+                .contains(&position.x)
+                .then_some(RiverWidthClass::Wide)
+        },
+        &[],
+    );
     assert!(!map
         .terrain
         .iter()

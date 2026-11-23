@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.31: Macro-route connections meet local geography
+
+- New outdoor-map route exits use the first/last persisted macro-route segment to intersect the location's aspect-ratio-aware footprint. New exits are placed deterministically near that exact normalized edge position; authored compass-side overrides and established passage positions remain authoritative.
+- Exact persisted river-bank midpoints are projected into the corresponding local surface map. When a route crossing falls inside that footprint, local ford/bridge selection prefers the nearest feasible span on the same river component; unrelated components retain their deterministic fallback.
+- Destination arrivals now use the matching reciprocal route passage when one exists. One-way arrivals on newly generated maps prepare a safe corridor from the projected inbound edge; arrivals on established maps use only existing walkable paths and never rewrite saved terrain.
+- Route and frontier passage corridors on maps containing water use bounded deterministic pathfinding. They may carve non-water terrain and cross existing fords/bridges, but never convert water into floor or bypass closed doors; if no physical connection exists, the passage is not added.
+- Added automated coverage for footprint-edge projection, exact Q16-to-tile projection, route-prioritized local crossings, reciprocal and one-way arrivals, and water barriers with and without a ford.
+- Advanced LOCAL_MAP_GENERATOR_VERSION from 11 to 12. Established saved maps and passage positions are preserved; no world save-format or macro-geography ruleset change is required.
+- Bumped Rust and Android metadata to 0.53.31.
+
 ### v0.53.30: Route-specific river crossings and travel enforcement
 
 - Route transitions sequence verified river crossings as provisional ford or bridge scenes, oriented from exact persisted Q16 bank pairs. Existing ferry scenes remain for verified lakes; mixed routes present all resolved crossings in travel order.

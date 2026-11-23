@@ -50,6 +50,16 @@ Local maps can provide physical route exits such as roads, gates, mountain passe
 
 Walking to a physical exit should be the natural way to discover new routes, approach dangerous or authored travel situations, and explore places along a journey.
 
+#### Macro-route entry geometry
+
+For a geography-backed location, a new local-map route exit is derived from the first or last segment of its persisted macro route path. That segment is intersected with the location's aspect-ratio-aware rectangular footprint, producing a compass side and normalized position along that side. A matching authored exit-side preference remains an intentional override. If legacy route geometry cannot be projected, the existing deterministic compass-side fallback is used. Established passage positions are never moved during reconciliation.
+
+When an exact persisted river-bank pair falls inside the location footprint, its midpoint is projected into the local tile grid and used to prioritize the nearest feasible local ford/bridge span on that connected river component. Other river components retain the deterministic fallback. This does not create a crossing when the relevant river span cannot be resolved inside the local map.
+
+On arrival, the destination map uses the matching reciprocal passage when one exists. For a one-way route without a reciprocal exit, a newly generated map prepares a corridor from the projected inbound edge to its entry; the corridor may clear non-water terrain but cannot cut through water or closed doors. An established map is never modified to accommodate an arrival: it uses an already walkable inbound path when available and otherwise retains its normal entry position.
+
+A local passage corridor must respect the map's actual water. On maps containing water, a bounded deterministic path search can route through land and already established fords/bridges, and may clear non-water blocking terrain. It never turns a water tile into ordinary floor. If the required physical connection is absent, the passage is not added; route topology must not be made to look traversable by drawing a corridor through a river or lake.
+
 #### Lake ferry transitions
 
 A route that crosses an inland lake should expose a physical ferry landing at the route passage in the current location. The player boards there, enters a distinct crossing scene, and arrives at the opposite shore before the connected destination location loads. Treat this as a short authored-feeling cutscene rather than a second explorable map or a seamless global-water simulation. When a route crosses multiple lakes, present the crossings in travel order.

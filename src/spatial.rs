@@ -13,7 +13,7 @@ use crate::geography::rivers::RiverWidthClass;
 use crate::geography::routes::RouteProfile;
 use crate::rng::DeterministicRng;
 
-pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 11;
+pub const LOCAL_MAP_GENERATOR_VERSION: u32 = 12;
 pub const DEFAULT_MAP_WIDTH: u16 = 64;
 pub const DEFAULT_MAP_HEIGHT: u16 = 48;
 const MIN_MAP_DIMENSION: u16 = 8;
@@ -305,6 +305,9 @@ pub struct MapRouteDestination {
     pub target_location_id: u64,
     pub profile: Option<RouteProfile>,
     pub preferred_side: Option<MapExitSide>,
+    /// Exact normalized position along the preferred edge, derived from macro route geometry.
+    /// When present, the route is not silently relocated to another compass side.
+    pub preferred_edge_offset_q16: Option<u16>,
     /// Matches and upgrades an unresolved frontier passage instead of adding another one.
     pub frontier_id: Option<String>,
 }
@@ -622,6 +625,76 @@ impl LocalMap {
         Some(self.points_of_interest.remove(index))
     }
 
+    /// Resolve a route arrival to the first safe tile just inside its matching
+    /// reciprocal passage. For a one-way route with no reciprocal exit, use the
+    /// projected macro footprint edge and only choose a tile already reachable
+    /// from this map's entry; this never carves or overwrites saved map terrain.
+    pub fn route_arrival_position(
+        &self,
+        route_id: &str,
+        source_location_id: u64,
+        preferred_side: Option<MapExitSide>,
+        preferred_edge_offset_q16: Option<u16>,
+    ) -> Option<GridPosition> {
+        if let Some(exit) = self.exits.iter().find(|exit| {
+            exit.route_id.as_deref() == Some(route_id)
+                && exit.target_location_id == source_location_id
+        }) {
+            let path = walkable_arrival_path(self, exit.position, Some(&exit.id))?;
+            return path.get(1).copied().or_else(|| path.first().copied());
+        }
+
+        let (Some(side), Some(offset_q16)) = (preferred_side, preferred_edge_offset_q16) else {
+            return None;
+        };
+        edge_positions_near_offset(self, side, offset_q16)
+            .into_iter()
+            .find_map(|edge| {
+                let interior = edge_interior_position(self, edge)?;
+                let path = walkable_arrival_path(self, interior, None)?;
+                path.first().copied()
+            })
+    }
+
+    /// Prepare a route arrival on a newly generated map. If no reciprocal exit
+    /// exists, carve only non-water terrain along a bounded path from the projected
+    /// inbound edge to the map entry. Existing maps should use route_arrival_position
+    /// instead so their saved terrain is never rewritten on arrival.
+    pub fn prepare_route_arrival_position(
+        &mut self,
+        route_id: &str,
+        source_location_id: u64,
+        preferred_side: Option<MapExitSide>,
+        preferred_edge_offset_q16: Option<u16>,
+    ) -> Option<GridPosition> {
+        if let Some(position) = self.route_arrival_position(
+            route_id,
+            source_location_id,
+            preferred_side,
+            preferred_edge_offset_q16,
+        ) {
+            return Some(position);
+        }
+
+        let (Some(side), Some(offset_q16)) = (preferred_side, preferred_edge_offset_q16) else {
+            return None;
+        };
+        edge_positions_near_offset(self, side, offset_q16)
+            .into_iter()
+            .find_map(|edge| {
+                let interior = edge_interior_position(self, edge)?;
+                if corridor_tile_reserved(self, interior, None) {
+                    return None;
+                }
+                let path = water_safe_passage_corridor(self, interior, None)?;
+                let arrival = path.first().copied()?;
+                for position in path {
+                    carve_generated_floor(self, position);
+                }
+                Some(arrival)
+            })
+    }
+
     /// Add a passage to a real destination in the owning world graph.
     /// The caller supplies valid destination IDs from that graph; this keeps
     /// the renderer-neutral map model from inventing world identities.
@@ -648,7 +721,9 @@ impl LocalMap {
 
         let side =
             map_exit_side(self, exit.position).expect("validated passage position is on an edge");
-        carve_exit_corridor(self, exit.position, side);
+        if !carve_exit_corridor(self, exit.position, side, None) {
+            return false;
+        }
         self.exits.push(exit);
         true
     }
@@ -680,7 +755,9 @@ impl LocalMap {
         let Some(side) = map_exit_side(self, exit.position) else {
             return false;
         };
-        carve_exit_corridor(self, exit.position, side);
+        if !carve_exit_corridor(self, exit.position, side, None) {
+            return false;
+        }
         self.exits.push(exit);
         true
     }
@@ -800,7 +877,9 @@ impl LocalMap {
         let Some(side) = map_exit_side(self, position) else {
             return false;
         };
-        carve_exit_corridor(self, position, side);
+        if !carve_exit_corridor(self, position, side, Some(id)) {
+            return false;
+        }
         let Some(exit) = self.exits.iter_mut().find(|exit| exit.id == id) else {
             return false;
         };
@@ -977,7 +1056,10 @@ impl LocalMap {
             return false;
         }
 
-        passage_corridor_positions(self, position)
+        let Some(corridor) = passage_corridor_positions(self, position, ignored_exit_id) else {
+            return false;
+        };
+        corridor
             .into_iter()
             .filter(|cell| *cell != self.entry && *cell != position)
             .all(|cell| {
@@ -1314,6 +1396,18 @@ pub fn generate_local_map_with_surface(
     config: LocalMapConfig,
     surface: &LocalSurfaceMap,
 ) -> LocalMap {
+    generate_local_map_with_surface_and_crossings(world_seed, location_id, config, surface, &[])
+}
+
+/// Generate an outdoor map while preferring local river crossings near persisted
+/// route-bank intersections that fall inside this location's macro footprint.
+pub fn generate_local_map_with_surface_and_crossings(
+    world_seed: u64,
+    location_id: impl Into<String>,
+    config: LocalMapConfig,
+    surface: &LocalSurfaceMap,
+    preferred_river_crossings: &[GridPosition],
+) -> LocalMap {
     let mut map = generate_local_map(world_seed, location_id, config);
     let fallback = map.clone();
     map.props.clear();
@@ -1331,11 +1425,15 @@ pub fn generate_local_map_with_surface(
 
     // Keep macro-route requirements authoritative while making local river
     // geography physically traversable wherever a complete crossing fits.
-    place_river_crossings(&mut map, |position| {
-        surface
-            .sample_at_tile(position.x, position.y)
-            .and_then(|sample| sample.river_width())
-    });
+    place_river_crossings(
+        &mut map,
+        |position| {
+            surface
+                .sample_at_tile(position.x, position.y)
+                .and_then(|sample| sample.river_width())
+        },
+        preferred_river_crossings,
+    );
 
     let mut walkable = (1..map.height.saturating_sub(1))
         .flat_map(|y| (1..map.width.saturating_sub(1)).map(move |x| GridPosition { x, y }))
@@ -1390,6 +1488,7 @@ pub fn generate_local_map_with_surface(
 fn place_river_crossings(
     map: &mut LocalMap,
     river_width_at: impl Fn(GridPosition) -> Option<RiverWidthClass>,
+    preferred_crossings: &[GridPosition],
 ) {
     let width = usize::from(map.width);
     let tile_count = width.saturating_mul(usize::from(map.height));
@@ -1448,6 +1547,14 @@ fn place_river_crossings(
     if component_count == 0 {
         return;
     }
+    let preferred_by_component = preferred_river_crossings_by_component(
+        &river_widths,
+        &component_ids,
+        component_count,
+        map.width,
+        map.height,
+        preferred_crossings,
+    );
 
     let mut best = Vec::with_capacity(component_count);
     best.resize_with(component_count, || None::<RiverCrossingCandidate>);
@@ -1488,6 +1595,7 @@ fn place_river_crossings(
                     tiles,
                     (bank_before, bank_after),
                     0,
+                    &preferred_by_component,
                 );
             }
         }
@@ -1529,6 +1637,7 @@ fn place_river_crossings(
                     tiles,
                     (bank_before, bank_after),
                     1,
+                    &preferred_by_component,
                 );
             }
         }
@@ -1550,6 +1659,7 @@ struct RiverCrossingCandidate {
     tiles: Vec<GridPosition>,
     width: RiverWidthClass,
     axis_order: u8,
+    preference_distance: Option<u32>,
 }
 
 fn consider_river_crossing(
@@ -1560,6 +1670,7 @@ fn consider_river_crossing(
     tiles: Vec<GridPosition>,
     banks: (GridPosition, GridPosition),
     axis_order: u8,
+    preferred_by_component: &[Option<GridPosition>],
 ) {
     let (bank_before, bank_after) = banks;
     if tiles.is_empty() || !map.is_walkable(bank_before) || !map.is_walkable(bank_after) {
@@ -1586,29 +1697,97 @@ fn consider_river_crossing(
     else {
         return;
     };
+    let preference_distance = preferred_by_component
+        .get(component_id)
+        .copied()
+        .flatten()
+        .map(|target| {
+            tiles
+                .iter()
+                .map(|position| {
+                    let dx = i32::from(position.x) - i32::from(target.x);
+                    let dy = i32::from(position.y) - i32::from(target.y);
+                    (dx * dx + dy * dy) as u32
+                })
+                .min()
+                .unwrap_or(u32::MAX)
+        });
     let candidate = RiverCrossingCandidate {
         tiles,
         width: crossing_width,
         axis_order,
+        preference_distance,
     };
-    let candidate_key = (
+    let candidate_key = river_crossing_candidate_key(&candidate);
+    let replace = best[component_id]
+        .as_ref()
+        .is_none_or(|current| candidate_key < river_crossing_candidate_key(current));
+    if replace {
+        best[component_id] = Some(candidate);
+    }
+}
+
+fn river_crossing_candidate_key(
+    candidate: &RiverCrossingCandidate,
+) -> (bool, u32, usize, u16, u16, u8) {
+    (
+        candidate.preference_distance.is_none(),
+        candidate.preference_distance.unwrap_or_default(),
         candidate.tiles.len(),
         candidate.tiles[0].y,
         candidate.tiles[0].x,
         candidate.axis_order,
-    );
-    let replace = best[component_id].as_ref().is_none_or(|current| {
-        candidate_key
-            < (
-                current.tiles.len(),
-                current.tiles[0].y,
-                current.tiles[0].x,
-                current.axis_order,
-            )
-    });
-    if replace {
-        best[component_id] = Some(candidate);
+    )
+}
+
+fn preferred_river_crossings_by_component(
+    river_widths: &[Option<RiverWidthClass>],
+    component_ids: &[Option<usize>],
+    component_count: usize,
+    map_width: u16,
+    map_height: u16,
+    preferred_crossings: &[GridPosition],
+) -> Vec<Option<GridPosition>> {
+    let width = usize::from(map_width);
+    let mut selected = vec![None; component_count];
+    let mut selected_key = vec![None::<(u32, u16, u16)>; component_count];
+    let mut targets = preferred_crossings.to_vec();
+    targets.sort_by_key(|position| (position.y, position.x));
+    targets.dedup();
+
+    for target in targets {
+        let mut nearest = None::<(u32, u16, u16, usize)>;
+        let min_x = target.x.saturating_sub(2);
+        let max_x = target.x.saturating_add(2).min(map_width.saturating_sub(1));
+        let min_y = target.y.saturating_sub(2);
+        let max_y = target.y.saturating_add(2).min(map_height.saturating_sub(1));
+        for y in min_y..=max_y {
+            for x in min_x..=max_x {
+                let index = usize::from(y) * width + usize::from(x);
+                let Some(component_id) = component_ids.get(index).copied().flatten() else {
+                    continue;
+                };
+                if river_widths.get(index).copied().flatten().is_none() {
+                    continue;
+                }
+                let dx = i32::from(x) - i32::from(target.x);
+                let dy = i32::from(y) - i32::from(target.y);
+                let distance = (dx * dx + dy * dy) as u32;
+                let candidate = (distance, y, x, component_id);
+                if nearest.is_none_or(|current| candidate < current) {
+                    nearest = Some(candidate);
+                }
+            }
+        }
+        if let Some((distance, y, x, component_id)) = nearest {
+            let key = (distance, target.y, target.x);
+            if selected_key[component_id].is_none_or(|current| key < current) {
+                selected_key[component_id] = Some(key);
+                selected[component_id] = Some(target);
+            }
+        }
     }
+    selected
 }
 
 fn river_width_rank(width: RiverWidthClass) -> u8 {
@@ -2362,10 +2541,32 @@ pub fn configure_map_exits(map: &mut LocalMap, target_location_ids: &[u64]) {
             target_location_id,
             profile: None,
             preferred_side: None,
+            preferred_edge_offset_q16: None,
             frontier_id: None,
         })
         .collect::<Vec<_>>();
     configure_map_routes(map, &routes);
+}
+
+/// Order edge cells from the projected macro-route intersection outward.
+fn edge_positions_near_offset(
+    map: &LocalMap,
+    side: MapExitSide,
+    offset_q16: u16,
+) -> Vec<GridPosition> {
+    let mut positions = edge_positions_center_out(map, side);
+    let count = positions.len().saturating_sub(1);
+    let offset = (u32::from(offset_q16) * count as u32 + u32::from(u16::MAX) / 2)
+        / u32::from(u16::MAX);
+    let target = 1 + offset as u16;
+    positions.sort_by_key(|position| {
+        let coordinate = match side {
+            MapExitSide::North | MapExitSide::South => position.x,
+            MapExitSide::East | MapExitSide::West => position.y,
+        };
+        (coordinate.abs_diff(target), coordinate)
+    });
+    positions
 }
 
 /// Add pending physical passages for deterministic adjacent frontiers.
@@ -2593,15 +2794,22 @@ pub fn configure_map_routes(map: &mut LocalMap, destinations: &[MapRouteDestinat
                 MapExitSide::South,
             ],
         };
-        let side_positions = compass_sides.map(|side| edge_positions_center_out(map, side));
-        let max_slots = side_positions.iter().map(Vec::len).max().unwrap_or(0);
-        let positions = (0..max_slots)
-            .flat_map(|slot| {
-                side_positions
-                    .iter()
-                    .filter_map(move |positions| positions.get(slot).copied())
-            })
-            .collect::<Vec<_>>();
+        let positions = if let Some(offset_q16) = route.preferred_edge_offset_q16 {
+            route
+                .preferred_side
+                .map(|side| edge_positions_near_offset(map, side, offset_q16))
+                .unwrap_or_default()
+        } else {
+            let side_positions = compass_sides.map(|side| edge_positions_center_out(map, side));
+            let max_slots = side_positions.iter().map(Vec::len).max().unwrap_or(0);
+            (0..max_slots)
+                .flat_map(|slot| {
+                    side_positions
+                        .iter()
+                        .filter_map(move |positions| positions.get(slot).copied())
+                })
+                .collect::<Vec<_>>()
+        };
 
         let passage_id = format!("{}.route.{}", map.location_id, route.route_id);
         for position in positions {
@@ -2742,8 +2950,15 @@ fn map_exit_side(map: &LocalMap, position: GridPosition) -> Option<usize> {
     }
 }
 
-fn passage_corridor_positions(map: &LocalMap, exit: GridPosition) -> Vec<GridPosition> {
+fn passage_corridor_positions(
+    map: &LocalMap,
+    exit: GridPosition,
+    ignored_exit_id: Option<&str>,
+) -> Option<Vec<GridPosition>> {
     let side = map_exit_side(map, exit).expect("passage route requires an edge position");
+    if map.terrain.contains(&Terrain::Water) {
+        return water_safe_passage_corridor(map, exit, ignored_exit_id);
+    }
     let mut positions = vec![exit];
     let mut position = exit;
     let mut route = Vec::new();
@@ -2752,7 +2967,7 @@ fn passage_corridor_positions(map: &LocalMap, exit: GridPosition) -> Vec<GridPos
         for target in waypoints {
             extend_passage_path(&mut positions, &mut position, target);
         }
-        return positions;
+        return Some(positions);
     }
 
     if map.layout_id.as_deref() == Some("shrine_chamber") {
@@ -2816,7 +3031,196 @@ fn passage_corridor_positions(map: &LocalMap, exit: GridPosition) -> Vec<GridPos
     for target in route {
         extend_passage_path(&mut positions, &mut position, target);
     }
-    positions
+    Some(positions)
+}
+
+fn water_safe_passage_corridor(
+    map: &LocalMap,
+    exit: GridPosition,
+    ignored_exit_id: Option<&str>,
+) -> Option<Vec<GridPosition>> {
+    if map.terrain_at(exit) == Some(Terrain::Water)
+        || map.terrain_at(map.entry) == Some(Terrain::Water)
+    {
+        return None;
+    }
+    let tile_count = usize::from(map.width).checked_mul(usize::from(map.height))?;
+    if map.terrain.len() != tile_count || !map.contains(exit) || !map.contains(map.entry) {
+        return None;
+    }
+    let index_of = |position: GridPosition| {
+        usize::from(position.y) * usize::from(map.width) + usize::from(position.x)
+    };
+    let start = index_of(exit);
+    let goal = index_of(map.entry);
+    let mut previous = vec![None::<usize>; tile_count];
+    let mut visited = vec![false; tile_count];
+    let mut queue = VecDeque::from([start]);
+    visited[start] = true;
+
+    while let Some(index) = queue.pop_front() {
+        if index == goal {
+            break;
+        }
+        let position = GridPosition {
+            x: (index % usize::from(map.width)) as u16,
+            y: (index / usize::from(map.width)) as u16,
+        };
+        for (dx, dy) in [(0_i32, -1_i32), (1, 0), (0, 1), (-1, 0)] {
+            let x = i32::from(position.x) + dx;
+            let y = i32::from(position.y) + dy;
+            if x < 0 || y < 0 || x >= i32::from(map.width) || y >= i32::from(map.height) {
+                continue;
+            }
+            let next = GridPosition { x: x as u16, y: y as u16 };
+            let is_start_or_goal = next == exit || next == map.entry;
+            if !is_start_or_goal
+                && (next.x == 0
+                    || next.y == 0
+                    || next.x >= map.width.saturating_sub(1)
+                    || next.y >= map.height.saturating_sub(1))
+            {
+                continue;
+            }
+            let next_index = index_of(next);
+            if visited[next_index]
+                || map.terrain.get(next_index).copied() == Some(Terrain::Water)
+                || !map.can_cross_edge(position, next)
+                || (!is_start_or_goal && corridor_tile_reserved(map, next, ignored_exit_id))
+            {
+                continue;
+            }
+            visited[next_index] = true;
+            previous[next_index] = Some(index);
+            queue.push_back(next_index);
+        }
+    }
+    if !visited[goal] {
+        return None;
+    }
+
+    let mut path = vec![map.entry];
+    let mut cursor = goal;
+    while cursor != start {
+        cursor = previous[cursor]?;
+        let position = GridPosition {
+            x: (cursor % usize::from(map.width)) as u16,
+            y: (cursor / usize::from(map.width)) as u16,
+        };
+        path.push(position);
+    }
+    path.reverse();
+    Some(path)
+}
+
+fn edge_interior_position(map: &LocalMap, edge: GridPosition) -> Option<GridPosition> {
+    match map_exit_side(map, edge)? {
+        0 => edge.x.checked_sub(1).map(|x| GridPosition { x, y: edge.y }),
+        1 => edge.x.checked_add(1).map(|x| GridPosition { x, y: edge.y }),
+        2 => edge.y.checked_add(1).map(|y| GridPosition { x: edge.x, y }),
+        3 => edge.y.checked_sub(1).map(|y| GridPosition { x: edge.x, y }),
+        _ => None,
+    }
+}
+
+fn walkable_arrival_path(
+    map: &LocalMap,
+    start_position: GridPosition,
+    ignored_exit_id: Option<&str>,
+) -> Option<Vec<GridPosition>> {
+    if !map.contains(start_position)
+        || !map.contains(map.entry)
+        || !map.is_walkable(start_position)
+        || !map.is_walkable(map.entry)
+        || (start_position != map.entry
+            && corridor_tile_reserved(map, start_position, ignored_exit_id))
+    {
+        return None;
+    }
+    let tile_count = usize::from(map.width).checked_mul(usize::from(map.height))?;
+    if map.terrain.len() != tile_count {
+        return None;
+    }
+    let index_of = |position: GridPosition| {
+        usize::from(position.y) * usize::from(map.width) + usize::from(position.x)
+    };
+    let start = index_of(start_position);
+    let goal = index_of(map.entry);
+    let mut previous = vec![None::<usize>; tile_count];
+    let mut visited = vec![false; tile_count];
+    let mut queue = VecDeque::from([start]);
+    visited[start] = true;
+
+    while let Some(index) = queue.pop_front() {
+        if index == goal {
+            break;
+        }
+        let position = GridPosition {
+            x: (index % usize::from(map.width)) as u16,
+            y: (index / usize::from(map.width)) as u16,
+        };
+        for (dx, dy) in [(0_i32, -1_i32), (1, 0), (0, 1), (-1, 0)] {
+            let x = i32::from(position.x) + dx;
+            let y = i32::from(position.y) + dy;
+            if x < 0 || y < 0 || x >= i32::from(map.width) || y >= i32::from(map.height) {
+                continue;
+            }
+            let next = GridPosition { x: x as u16, y: y as u16 };
+            let is_start_or_goal = next == start_position || next == map.entry;
+            if !is_start_or_goal
+                && (next.x == 0
+                    || next.y == 0
+                    || next.x >= map.width.saturating_sub(1)
+                    || next.y >= map.height.saturating_sub(1))
+            {
+                continue;
+            }
+            let next_index = index_of(next);
+            if visited[next_index]
+                || !map.is_walkable(next)
+                || !map.can_cross_edge(position, next)
+                || (!is_start_or_goal && corridor_tile_reserved(map, next, ignored_exit_id))
+            {
+                continue;
+            }
+            visited[next_index] = true;
+            previous[next_index] = Some(index);
+            queue.push_back(next_index);
+        }
+    }
+    if !visited[goal] {
+        return None;
+    }
+
+    let mut path = vec![map.entry];
+    let mut cursor = goal;
+    while cursor != start {
+        cursor = previous[cursor]?;
+        let position = GridPosition {
+            x: (cursor % usize::from(map.width)) as u16,
+            y: (cursor / usize::from(map.width)) as u16,
+        };
+        path.push(position);
+    }
+    path.reverse();
+    Some(path)
+}
+
+fn corridor_tile_reserved(
+    map: &LocalMap,
+    position: GridPosition,
+    ignored_exit_id: Option<&str>,
+) -> bool {
+    map.exits
+        .iter()
+        .any(|exit| Some(exit.id.as_str()) != ignored_exit_id && exit.position == position)
+        || map.points_of_interest.iter().any(|point| point.position == position)
+        || map.interactables.iter().any(|actor| actor.position == position)
+        || map.encounters.iter().any(|encounter| encounter.position == position)
+        || map
+            .props
+            .iter()
+            .any(|prop| prop.footprint_contains(position, map.width))
 }
 
 fn extend_passage_path(
@@ -2842,20 +3246,34 @@ fn extend_passage_path(
     }
 }
 
-fn carve_exit_corridor(map: &mut LocalMap, exit: GridPosition, side: usize) {
+fn carve_exit_corridor(
+    map: &mut LocalMap,
+    exit: GridPosition,
+    side: usize,
+    ignored_exit_id: Option<&str>,
+) -> bool {
+    if map.terrain.contains(&Terrain::Water) {
+        let Some(path) = water_safe_passage_corridor(map, exit, ignored_exit_id) else {
+            return false;
+        };
+        for position in path {
+            carve_generated_floor(map, position);
+        }
+        return true;
+    }
     if let Some(waypoints) = authored_gate_exit_waypoints(map, exit, side) {
         let mut position = exit;
         carve_generated_floor(map, position);
         for target in waypoints {
             carve_toward(map, &mut position, target);
         }
-        return;
+        return true;
     }
 
     if map.layout_id.as_deref() == Some("shrine_chamber")
         && carve_shrine_chamber_exit_corridor(map, exit, side)
     {
-        return;
+        return true;
     }
 
     let mut position = exit;
@@ -2900,6 +3318,7 @@ fn carve_exit_corridor(map: &mut LocalMap, exit: GridPosition, side: usize) {
             }
         }
     }
+    true
 }
 
 fn carve_generated_floor(map: &mut LocalMap, position: GridPosition) {
@@ -2910,7 +3329,9 @@ fn carve_generated_floor(map: &mut LocalMap, position: GridPosition) {
         .retain(|prop| !prop.footprint_contains(position, map_width));
     let index = usize::from(position.y) * usize::from(map.width) + usize::from(position.x);
     if let Some(terrain) = map.terrain.get_mut(index) {
-        *terrain = Terrain::Floor;
+        if *terrain != Terrain::Water && !matches!(*terrain, Terrain::Ford | Terrain::Bridge) {
+            *terrain = Terrain::Floor;
+        }
     }
 }
 
