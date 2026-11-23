@@ -94,6 +94,25 @@ fn action_time_advancement_preserves_partial_continuous_minutes() {
 }
 
 #[test]
+fn continuous_minutes_roll_over_the_day_at_midnight() {
+    let mut state = crate::model::create_new_state(
+        "Midnight Clock",
+        WorldMode::New,
+        "Traveller".into(),
+        "Wanderer".into(),
+    );
+    state.world.day = 9;
+    state.world.time_points = 11;
+    state.world.minutes_into_time_point = 119;
+
+    advance_world_minutes(&mut state, 1);
+
+    assert_eq!(state.world.day, 10);
+    assert_eq!(state.world.time_points, 0);
+    assert_eq!(state.world.minutes_into_time_point, 0);
+}
+
+#[test]
 fn old_world_saves_default_the_new_minute_offset_to_zero() {
     let world = crate::model::World::new("Legacy Clock", WorldMode::New);
     let mut value = serde_json::to_value(world).unwrap();
