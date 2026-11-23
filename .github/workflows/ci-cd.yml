@@ -45,7 +45,7 @@ on:
         type: string
       publish_to:
         description: Destination for existing artifacts (publish operation only)
-        required: true
+        required: false
         default: both
         type: choice
         options:
@@ -704,48 +704,6 @@ jobs:
           ls -lh dist/
 
 
-      - name: Upload artifacts to GitHub Release
-        if: inputs.publish_to == 'github' || inputs.publish_to == 'both'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ inputs.release_tag }}
-        run: |
-          set -euo pipefail
-
-          if ! gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::GitHub Release $TAG_NAME does not exist. Run the release build operation first or select itch-only publishing."
-            exit 1
-          fi
-
-          gh release upload "$TAG_NAME" \
-            "dist/teus-$TAG_NAME-linux-x86_64.tar.xz" \
-            "dist/teus-$TAG_NAME-linux-aarch64.tar.xz" \
-            "dist/teus-$TAG_NAME-macos-aarch64.tar.xz" \
-            "dist/teus-$TAG_NAME-windows-x86_64.zip" \
-            "dist/teus-$TAG_NAME-windows-aarch64.zip" \
-            "dist/teus-$TAG_NAME-android-x86_64.apk" \
-            "dist/teus-$TAG_NAME-android-aarch64.apk" \
-            "dist/teus-$TAG_NAME-android-armv7.apk" \
-            --clobber --repo "$GITHUB_REPOSITORY"
-
-          release_assets="$(gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
-          for asset in \
-            "teus-$TAG_NAME-linux-x86_64.tar.xz" \
-            "teus-$TAG_NAME-linux-aarch64.tar.xz" \
-            "teus-$TAG_NAME-macos-aarch64.tar.xz" \
-            "teus-$TAG_NAME-windows-x86_64.zip" \
-            "teus-$TAG_NAME-windows-aarch64.zip" \
-            "teus-$TAG_NAME-android-x86_64.apk" \
-            "teus-$TAG_NAME-android-aarch64.apk" \
-            "teus-$TAG_NAME-android-armv7.apk"; do
-            if ! grep -Fxq -- "$asset" <<< "$release_assets"; then
-              echo "::error::GitHub Release is missing uploaded asset $asset."
-              exit 1
-            fi
-          done
-
-          echo "All eight assets are attached to GitHub Release $TAG_NAME."
       - name: Validate itch.io publishing configuration
         if: inputs.publish_to == 'itch' || inputs.publish_to == 'both'
         id: itch_config
@@ -828,6 +786,48 @@ jobs:
             fi
           done
 
+      - name: Upload artifacts to GitHub Release
+        if: inputs.publish_to == 'github' || inputs.publish_to == 'both'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          if ! gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::GitHub Release $TAG_NAME does not exist. Run the release build operation first or select itch-only publishing."
+            exit 1
+          fi
+
+          gh release upload "$TAG_NAME" \
+            "dist/teus-$TAG_NAME-linux-x86_64.tar.xz" \
+            "dist/teus-$TAG_NAME-linux-aarch64.tar.xz" \
+            "dist/teus-$TAG_NAME-macos-aarch64.tar.xz" \
+            "dist/teus-$TAG_NAME-windows-x86_64.zip" \
+            "dist/teus-$TAG_NAME-windows-aarch64.zip" \
+            "dist/teus-$TAG_NAME-android-x86_64.apk" \
+            "dist/teus-$TAG_NAME-android-aarch64.apk" \
+            "dist/teus-$TAG_NAME-android-armv7.apk" \
+            --clobber --repo "$GITHUB_REPOSITORY"
+
+          release_assets="$(gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          for asset in \
+            "teus-$TAG_NAME-linux-x86_64.tar.xz" \
+            "teus-$TAG_NAME-linux-aarch64.tar.xz" \
+            "teus-$TAG_NAME-macos-aarch64.tar.xz" \
+            "teus-$TAG_NAME-windows-x86_64.zip" \
+            "teus-$TAG_NAME-windows-aarch64.zip" \
+            "teus-$TAG_NAME-android-x86_64.apk" \
+            "teus-$TAG_NAME-android-aarch64.apk" \
+            "teus-$TAG_NAME-android-armv7.apk"; do
+            if ! grep -Fxq -- "$asset" <<< "$release_assets"; then
+              echo "::error::GitHub Release is missing uploaded asset $asset."
+              exit 1
+            fi
+          done
+
+          echo "All eight assets are attached to GitHub Release $TAG_NAME."
       - name: Publish all eight builds to itch.io
         if: inputs.publish_to == 'itch' || inputs.publish_to == 'both'
         shell: bash
