@@ -197,6 +197,7 @@ pub(crate) fn known_travel_route_tree(state: &GameState) -> KnownTravelRouteTree
     let mut queue = BinaryHeap::from([Reverse((0_u64, start_id))]);
     let mut distances = HashMap::from([(start_id, 0_u64)]);
     let mut previous = HashMap::<EntityId, (EntityId, String, u32)>::new();
+    let mut route_times = HashMap::<String, u32>::new();
 
     while let Some(Reverse((known_cost, source_id))) = queue.pop() {
         if distances.get(&source_id).copied() != Some(known_cost) {
@@ -226,7 +227,9 @@ pub(crate) fn known_travel_route_tree(state: &GameState) -> KnownTravelRouteTree
         });
 
         for (route, next_id) in exits {
-            let hop_time = route_travel_time_points(state, route);
+            let hop_time = *route_times
+                .entry(route.id.clone())
+                .or_insert_with(|| route_travel_time_points(state, route));
             let next_cost = known_cost.saturating_add(u64::from(hop_time));
             let candidate_predecessor = (source_id, route.id.clone());
             let should_update = match distances.get(&next_id).copied() {
