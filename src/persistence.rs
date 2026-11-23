@@ -280,13 +280,13 @@ fn normalize_loaded_game(mut game: GameState, save_file_version: u32) -> GameSta
     // runtime entity IDs or changes World.next_id.
     game.world.migrate_legacy_exits();
 
-    // Older saves treated all routes between visited locations as known.
-    // Preserve that behavior once, then use explicit passage discovery going forward.
+    // Older maps exposed every route adjacent to a visited location.
+    // Preserve that frontier visibility once, then use explicit passage discovery going forward.
     if game.world.cartography_version == 0 {
         let routes = game.world.routes.clone();
         for route in routes {
             if crate::game::actions::has_visited_location(&game, route.location_a_id)
-                && crate::game::actions::has_visited_location(&game, route.location_b_id)
+                || crate::game::actions::has_visited_location(&game, route.location_b_id)
             {
                 game.world.mark_route_discovered(route.id);
             }
