@@ -50,3 +50,21 @@ fn advancing_time_applies_generated_world_evolution() {
     advance_time(&mut state, 1);
     assert!(!state.world.location_by_id(target_id).unwrap().dangerous);
 }
+
+
+#[test]
+fn large_elapsed_time_advances_wrap_the_clock_without_integer_overflow() {
+    let mut state = crate::model::create_new_state(
+        "Long Journey",
+        WorldMode::New,
+        "Traveller".into(),
+        "Wanderer".into(),
+    );
+    state.world.day = u32::MAX - 1;
+    state.world.time_points = 11;
+
+    advance_time(&mut state, u32::MAX);
+
+    assert_eq!(state.world.day, u32::MAX);
+    assert_eq!(state.world.time_points, 2);
+}
