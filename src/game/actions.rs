@@ -323,15 +323,15 @@ pub(crate) fn travel_to(state: &mut GameState, target_id: EntityId) -> std::io::
                 .cmp(&route_travel_time_points(state, right))
                 .then_with(|| left.id.cmp(&right.id))
         })
-        .map(|(route, _)| route.clone())
+        .map(|(route, _)| (route.id.clone(), route_travel_time_points(state, route)))
+        .min_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(&right.0)))
         .ok_or_else(|| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "Travel requires a world route that permits travel to the destination.",
             )
         })?;
-    let duration = route_travel_time_points(state, &route);
-    apply_route_travel(state, target_id, duration)
+    apply_route_travel(state, target_id, route.1)
 }
 
 fn apply_route_travel(
