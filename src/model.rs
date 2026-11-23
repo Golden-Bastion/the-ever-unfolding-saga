@@ -946,7 +946,9 @@ impl World {
     }
 
     pub fn route_travel_block_reason(&self, route_id: &str) -> Option<&'static str> {
-        let route = self.route_by_id(route_id)?;
+        let Some(route) = self.route_by_id(route_id) else {
+            return Some("This route no longer exists.");
+        };
         let geography = route.geography.as_ref();
         if let Some(reason) = geography.and_then(|item| item.travel_block_reason()) {
             return Some(reason);
@@ -968,7 +970,17 @@ impl World {
                 };
                 let index = u16::try_from(index).ok();
                 let record = self.route_infrastructure.iter().find(|record| {
-                    record.route_id == route_id
+                    let crossing_kind_matches = match required_kind {
+                        InfrastructureKind::Bridge => {
+                            crossing.kind == crate::geography::routes::RouteCrossingKind::River
+                        }
+                        InfrastructureKind::Ferry => {
+                            crossing.kind == crate::geography::routes::RouteCrossingKind::Lake
+                        }
+                        _ => false,
+                    };
+                    crossing_kind_matches
+                        && record.route_id == route_id
                         && record.crossing_index == index
                         && record.kind == required_kind
                 });
@@ -1007,9 +1019,10 @@ impl World {
     }
 
     pub fn can_travel_between(&self, source_id: EntityId, destination_id: EntityId) -> bool {
-        self.routes
-            .iter()
-            .any(|route| route.allows_travel(source_id, destination_id))
+        self.routes.iter().any(|route| {
+            route.allows_travel(source_id, destination_id)
+                && self.route_travel_block_reason(&route.id).is_none()
+        })
     }
 
     pub fn can_travel_via_route(
@@ -1018,8 +1031,10 @@ impl World {
         source_id: EntityId,
         destination_id: EntityId,
     ) -> bool {
-        self.route_by_id(route_id)
-            .is_some_and(|route| route.allows_travel(source_id, destination_id))
+        self.route_by_id(route_id).is_some_and(|route| {
+            route.allows_travel(source_id, destination_id)
+                && self.route_travel_block_reason(route_id).is_none()
+        })
     }
 
     pub fn has_route_between(
