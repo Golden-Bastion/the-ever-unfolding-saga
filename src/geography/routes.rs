@@ -247,7 +247,7 @@ impl RouteGeography {
         ruleset_version: u32,
         from_a: bool,
     ) -> Vec<RouteLandscapeSample> {
-        if self.path.len() < 2 {
+        if self.status != RoutePlanningStatus::Planned || self.path.len() < 2 {
             return Vec::new();
         }
 
