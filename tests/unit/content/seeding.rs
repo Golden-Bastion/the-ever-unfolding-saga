@@ -28,6 +28,7 @@ fn seed_world_adds_missing_content_locations_and_repairs_metadata() {
                 }),
                 spatial_discoveries: Vec::new(),
                 exit_sides: Default::default(),
+                exit_placements: Default::default(),
             }],
         },
         factions: vec![],
