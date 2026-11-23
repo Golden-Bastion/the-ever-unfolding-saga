@@ -6,7 +6,7 @@ Long-term design umbrella for the broader hybrid spatial-exploration, investigat
 
 The first bounded exploration milestone is tracked separately in #353, with three implementation tasks: #354, #355, and #356.
 
-Those tasks cover only the initial playable exploration slice, not the full vision in this issue. This issue remains open for future dynamic encounters, roaming entities, investigation/clue progression beyond the first point of interest, and the broader hybrid spatial-world systems. Real-time spatial combat has its own detailed design in #252.
+Those tasks cover only the initial playable exploration slice, not the full vision in this document. The design umbrella issue #228 was closed after its settled direction was migrated here; remaining implementation work—persistent roaming entities, awareness/pursuit, encounter lifecycle, and investigation/clue progression beyond the initial authored chain—is tracked in the root roadmap. Real-time spatial combat has its own detailed design in #252.
 
 ## Vision
 
