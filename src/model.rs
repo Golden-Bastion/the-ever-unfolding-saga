@@ -150,7 +150,7 @@ impl RouteInfrastructureRecord {
         );
         let requires_built = matches!(
             self.kind,
-            InfrastructureKind::Bridge | InfrastructureKind::Ferry
+            InfrastructureKind::Road | InfrastructureKind::Bridge | InfrastructureKind::Ferry
         );
         construction_allows_use
             && (!requires_built || self.construction == InfrastructureConstruction::Built)
@@ -170,10 +170,10 @@ impl RouteInfrastructureRecord {
         }
         if matches!(
             self.kind,
-            InfrastructureKind::Bridge | InfrastructureKind::Ferry
+            InfrastructureKind::Road | InfrastructureKind::Bridge | InfrastructureKind::Ferry
         ) && self.construction != InfrastructureConstruction::Built
         {
-            return Some("This crossing has not been constructed.");
+            return Some("This infrastructure has not been constructed.");
         }
         match self.condition {
             InfrastructureCondition::Closed => {
@@ -877,6 +877,15 @@ impl World {
                 Some(crate::geography::routes::RouteCrossingKind::MountainPass)
             }
         };
+        if expected_crossing.is_none()
+            && self.route_infrastructure.iter().any(|existing| {
+                existing.route_id == record.route_id
+                    && existing.crossing_index.is_none()
+                    && existing.kind == record.kind
+            })
+        {
+            return false;
+        }
         if let Some(expected_kind) = expected_crossing {
             let Some(index) = record.crossing_index.map(usize::from) else {
                 return false;
