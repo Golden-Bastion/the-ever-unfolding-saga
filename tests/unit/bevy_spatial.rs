@@ -1100,6 +1100,8 @@ fn extend_known_spatial_route(
         destination_id,
         crate::model::RouteDirection::Bidirectional,
     )));
+    game.world
+        .mark_route_discovered(format!("route.test.middle.{destination_id}"));
     if let Some(region) = game
         .world
         .regions
@@ -1120,6 +1122,13 @@ fn extend_known_spatial_route(
 #[test]
 fn map_fast_travel_follows_multiple_known_route_steps_and_restores_the_final_map() {
     let (mut lifecycle, mut spatial, mut navigation, middle_id, _) = connected_spatial_fixture();
+    lifecycle
+        .session
+        .as_mut()
+        .unwrap()
+        .state
+        .world
+        .mark_route_discovered("route.test.connected");
     let target_id = extend_known_spatial_route(&mut lifecycle, middle_id, false);
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
     let before_time = lifecycle.session.as_ref().unwrap().state.world.time_points;
@@ -1151,6 +1160,13 @@ fn map_fast_travel_follows_multiple_known_route_steps_and_restores_the_final_map
 #[test]
 fn map_fast_travel_stops_at_an_intermediate_dangerous_location() {
     let (mut lifecycle, mut spatial, mut navigation, middle_id, _) = connected_spatial_fixture();
+    lifecycle
+        .session
+        .as_mut()
+        .unwrap()
+        .state
+        .world
+        .mark_route_discovered("route.test.connected");
     let target_id = extend_known_spatial_route(&mut lifecycle, middle_id, true);
     let before_turn = lifecycle.session.as_ref().unwrap().state.character.turn;
     let before_time = lifecycle.session.as_ref().unwrap().state.world.time_points;
@@ -1513,6 +1529,13 @@ fn physical_passage_generates_a_destination_map_on_first_arrival() {
 fn known_location_fast_travel_saves_the_source_map_and_restores_the_destination_map() {
     let (mut lifecycle, mut spatial, mut navigation, destination_id, source_key) =
         connected_spatial_fixture();
+    lifecycle
+        .session
+        .as_mut()
+        .unwrap()
+        .state
+        .world
+        .mark_route_discovered("route.test.connected");
     let source_entry = spatial.maps[&source_key].entry;
     spatial
         .maps
