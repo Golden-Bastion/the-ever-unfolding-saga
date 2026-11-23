@@ -97,6 +97,21 @@ Issuing an assignment does not guarantee success. The result should depend on ca
 
 Use one coherent organization model for different kinds of collective activity, instead of separate unrelated implementations for every possible group.
 
+### Organizations and authority over shared infrastructure
+
+Infrastructure ownership and access are related to social power but are not the same state. A route-infrastructure record may optionally identify a faction, settlement, character, or organization as owner. That reference does not establish the owner's authority model, transfer terms, or who may use the route.
+
+When infrastructure permissions and ownership workflows are implemented in v0.55.x, they should reuse this document's structured relationships, agreements, membership, leadership, and delegated authority. The system must distinguish at least:
+
+- Public infrastructure that is usable without a personal relationship or ownership claim.
+- Permission-required infrastructure where an authorized owner or governing body can grant access.
+- Private infrastructure where access is restricted and must be explicitly authorized.
+- Ownership transfer through a supported agreement, purchase, grant, succession, or other defined authority.
+
+A character's loyalty, trust, faction reputation, proximity, or friendly dialogue must not independently substitute for a valid access grant. Ownership does not automatically make every member, leader, or associated character an authorized user. Unowned public infrastructure remains valid. These rules must integrate with the eventual settlement/organization authority model rather than hard-code permissions against today's limited faction reputation value.
+
+The infrastructure record and travel checks already preserve the distinction between optional ownership and access state. The actual permission-resolution and ownership-transfer workflows are deferred to v0.55.x; until then, permission-required and private infrastructure is unavailable.
+
 An organization may support, as applicable:
 - Members and membership status.
 - Roles, ranks, leaders, and delegated authority.
