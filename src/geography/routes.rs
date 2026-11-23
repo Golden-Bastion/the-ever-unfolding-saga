@@ -256,9 +256,15 @@ impl RouteGeography {
         let mut samples = Vec::with_capacity(sample_count);
         for sample_index in 0..sample_count {
             let forward_index = sample_index * (path_len - 1) / (sample_count - 1);
-            let path_index = if from_a { forward_index } else { path_len - 1 - forward_index };
+            let path_index = if from_a {
+                forward_index
+            } else {
+                path_len - 1 - forward_index
+            };
             let coordinate = self.path[path_index];
-            let Some(terrain_sample) = terrain::sample_surface(world_seed, ruleset_version, coordinate) else {
+            let Some(terrain_sample) =
+                terrain::sample_surface(world_seed, ruleset_version, coordinate)
+            else {
                 continue;
             };
 

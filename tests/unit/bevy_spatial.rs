@@ -2147,7 +2147,6 @@ fn water_and_sand_reuse_the_existing_ground_art_with_distinct_material_tints() {
     );
 }
 
-
 #[test]
 fn route_landscape_placeholder_palette_distinguishes_every_environment() {
     let kinds = [

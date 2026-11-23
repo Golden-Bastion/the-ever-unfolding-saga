@@ -24,8 +24,8 @@ use crate::geography::climate::{self, Biome};
 use crate::geography::frontier;
 use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
 use crate::geography::routes::{
-    RouteCrossingKind, RouteHeading, RouteInfrastructure, RouteLandscapeKind,
-    RouteLandscapeSample, RouteProfile,
+    RouteCrossingKind, RouteHeading, RouteInfrastructure, RouteLandscapeKind, RouteLandscapeSample,
+    RouteProfile,
 };
 use crate::input::InputEvent;
 use crate::interaction_actions::{
@@ -620,7 +620,11 @@ fn update_route_transit(
     let mut marker_horizontal = true;
     if let Some(transit) = state.route_transit.as_mut() {
         let delta = time.delta_secs();
-        let delta_seconds = if delta.is_finite() { delta.max(0.0) } else { 0.0 };
+        let delta_seconds = if delta.is_finite() {
+            delta.max(0.0)
+        } else {
+            0.0
+        };
 
         if transit.journey.is_some() {
             let journey_finished = if let Some(journey) = transit.journey.as_mut() {
@@ -3138,7 +3142,11 @@ fn route_landscape_summary(samples: &[RouteLandscapeSample]) -> String {
             break;
         }
     }
-    if labels.is_empty() { "Open country".to_string() } else { labels.join(" / ") }
+    if labels.is_empty() {
+        "Open country".to_string()
+    } else {
+        labels.join(" / ")
+    }
 }
 
 fn route_landscape_color(kind: RouteLandscapeKind) -> Color {
@@ -3206,8 +3214,16 @@ fn spawn_route_journey_overlay(
     commands.entity(parent).add_child(overlay);
 
     for (value, font_size, color) in [
-        ("THE ROAD AHEAD".to_string(), 1.2, bevy_presentation::THEME_TEXT),
-        (format!("Toward {}", transit.destination_name), 0.9, bevy_presentation::THEME_MUTED),
+        (
+            "THE ROAD AHEAD".to_string(),
+            1.2,
+            bevy_presentation::THEME_TEXT,
+        ),
+        (
+            format!("Toward {}", transit.destination_name),
+            0.9,
+            bevy_presentation::THEME_MUTED,
+        ),
     ] {
         let label = commands
             .spawn((
@@ -3233,8 +3249,26 @@ fn spawn_route_journey_overlay(
         .id();
     commands.entity(overlay).add_child(scene);
 
-    spawn_route_journey_shape(commands, scene, 0.0, 142.0, 100.0, 1.0, Color::srgb(0.17, 0.22, 0.21), false);
-    spawn_route_journey_shape(commands, scene, 0.0, 0.0, 100.0, 19.0, Color::srgb(0.07, 0.095, 0.085), false);
+    spawn_route_journey_shape(
+        commands,
+        scene,
+        0.0,
+        142.0,
+        100.0,
+        1.0,
+        Color::srgb(0.17, 0.22, 0.21),
+        false,
+    );
+    spawn_route_journey_shape(
+        commands,
+        scene,
+        0.0,
+        0.0,
+        100.0,
+        19.0,
+        Color::srgb(0.07, 0.095, 0.085),
+        false,
+    );
 
     let sample_count = journey.samples.len().max(1);
     let slot_width = 100.0 / sample_count as f32;
@@ -3252,50 +3286,203 @@ fn spawn_route_journey_overlay(
             RouteLandscapeKind::Grassland => 38.0,
         };
         let height = base_height + elevation;
-        spawn_route_journey_shape(commands, scene, left, 19.0, slot_width + 0.25, height, route_landscape_color(sample.kind), false);
+        spawn_route_journey_shape(
+            commands,
+            scene,
+            left,
+            19.0,
+            slot_width + 0.25,
+            height,
+            route_landscape_color(sample.kind),
+            false,
+        );
 
         match sample.kind {
             RouteLandscapeKind::Mountain => {
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.12, 19.0, slot_width * 0.28, height + 31.0, Color::srgb(0.40, 0.42, 0.43), false);
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.59, 19.0, slot_width * 0.25, height + 13.0, Color::srgb(0.23, 0.25, 0.27), false);
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.12,
+                    19.0,
+                    slot_width * 0.28,
+                    height + 31.0,
+                    Color::srgb(0.40, 0.42, 0.43),
+                    false,
+                );
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.59,
+                    19.0,
+                    slot_width * 0.25,
+                    height + 13.0,
+                    Color::srgb(0.23, 0.25, 0.27),
+                    false,
+                );
             }
             RouteLandscapeKind::Forest => {
                 let trunk_width = (slot_width * 0.10).max(0.7);
                 for tree in 0..2 {
                     let tree_left = left + slot_width * (0.25 + tree as f32 * 0.43);
-                    spawn_route_journey_shape(commands, scene, tree_left + slot_width * 0.08, 19.0, trunk_width, 24.0, Color::srgb(0.23, 0.16, 0.10), false);
-                    spawn_route_journey_shape(commands, scene, tree_left, 40.0, slot_width * 0.28, 28.0, Color::srgb(0.10, 0.30, 0.17), true);
+                    spawn_route_journey_shape(
+                        commands,
+                        scene,
+                        tree_left + slot_width * 0.08,
+                        19.0,
+                        trunk_width,
+                        24.0,
+                        Color::srgb(0.23, 0.16, 0.10),
+                        false,
+                    );
+                    spawn_route_journey_shape(
+                        commands,
+                        scene,
+                        tree_left,
+                        40.0,
+                        slot_width * 0.28,
+                        28.0,
+                        Color::srgb(0.10, 0.30, 0.17),
+                        true,
+                    );
                 }
             }
             RouteLandscapeKind::Valley => {
-                spawn_route_journey_shape(commands, scene, left, 19.0, slot_width * 0.30, 22.0, Color::srgb(0.34, 0.42, 0.24), false);
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.70, 19.0, slot_width * 0.30, 22.0, Color::srgb(0.31, 0.40, 0.23), false);
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left,
+                    19.0,
+                    slot_width * 0.30,
+                    22.0,
+                    Color::srgb(0.34, 0.42, 0.24),
+                    false,
+                );
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.70,
+                    19.0,
+                    slot_width * 0.30,
+                    22.0,
+                    Color::srgb(0.31, 0.40, 0.23),
+                    false,
+                );
             }
             RouteLandscapeKind::Water => {
-                spawn_route_journey_shape(commands, scene, left, 39.0, slot_width, 3.0, Color::srgb(0.17, 0.39, 0.45), false);
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.20, 53.0, slot_width * 0.55, 2.0, Color::srgb(0.25, 0.48, 0.51), false);
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left,
+                    39.0,
+                    slot_width,
+                    3.0,
+                    Color::srgb(0.17, 0.39, 0.45),
+                    false,
+                );
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.20,
+                    53.0,
+                    slot_width * 0.55,
+                    2.0,
+                    Color::srgb(0.25, 0.48, 0.51),
+                    false,
+                );
             }
             RouteLandscapeKind::Desert => {
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.05, 26.0, slot_width * 0.88, 18.0, Color::srgb(0.63, 0.48, 0.27), true);
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.05,
+                    26.0,
+                    slot_width * 0.88,
+                    18.0,
+                    Color::srgb(0.63, 0.48, 0.27),
+                    true,
+                );
             }
             RouteLandscapeKind::Coast => {
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.48, 19.0, slot_width * 0.52, 18.0, Color::srgb(0.06, 0.20, 0.26), false);
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.48, 37.0, slot_width * 0.52, 2.0, Color::srgb(0.18, 0.40, 0.44), false);
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.48,
+                    19.0,
+                    slot_width * 0.52,
+                    18.0,
+                    Color::srgb(0.06, 0.20, 0.26),
+                    false,
+                );
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.48,
+                    37.0,
+                    slot_width * 0.52,
+                    2.0,
+                    Color::srgb(0.18, 0.40, 0.44),
+                    false,
+                );
             }
             RouteLandscapeKind::Tundra => {
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.14, 19.0, slot_width * 0.30, 30.0, Color::srgb(0.60, 0.64, 0.63), false);
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.56, 19.0, slot_width * 0.31, 23.0, Color::srgb(0.51, 0.57, 0.58), false);
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.14,
+                    19.0,
+                    slot_width * 0.30,
+                    30.0,
+                    Color::srgb(0.60, 0.64, 0.63),
+                    false,
+                );
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.56,
+                    19.0,
+                    slot_width * 0.31,
+                    23.0,
+                    Color::srgb(0.51, 0.57, 0.58),
+                    false,
+                );
             }
             RouteLandscapeKind::Grassland => {
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.25, 19.0, 1.2, 12.0, Color::srgb(0.43, 0.48, 0.27), false);
-                spawn_route_journey_shape(commands, scene, left + slot_width * 0.67, 19.0, 1.0, 9.0, Color::srgb(0.43, 0.48, 0.27), false);
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.25,
+                    19.0,
+                    1.2,
+                    12.0,
+                    Color::srgb(0.43, 0.48, 0.27),
+                    false,
+                );
+                spawn_route_journey_shape(
+                    commands,
+                    scene,
+                    left + slot_width * 0.67,
+                    19.0,
+                    1.0,
+                    9.0,
+                    Color::srgb(0.43, 0.48, 0.27),
+                    false,
+                );
             }
         }
     }
 
-    spawn_route_journey_shape(commands, scene, 4.0, 8.0, 92.0, 3.0, Color::srgb(0.42, 0.34, 0.22), false);
-    let progress = 15.0
-        + (journey.elapsed_seconds / ROUTE_JOURNEY_DURATION_SECONDS).clamp(0.0, 1.0) * 70.0;
+    spawn_route_journey_shape(
+        commands,
+        scene,
+        4.0,
+        8.0,
+        92.0,
+        3.0,
+        Color::srgb(0.42, 0.34, 0.22),
+        false,
+    );
+    let progress =
+        15.0 + (journey.elapsed_seconds / ROUTE_JOURNEY_DURATION_SECONDS).clamp(0.0, 1.0) * 70.0;
     let traveler = commands
         .spawn((
             SpatialTransitMarker(true),

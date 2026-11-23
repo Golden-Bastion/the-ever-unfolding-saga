@@ -937,7 +937,6 @@ fn route_profiles_reflect_combined_terrain_crossing_requirements() {
     );
 }
 
-
 #[test]
 fn route_landscape_samples_are_bounded_deterministic_and_follow_travel_direction() {
     use crate::geography::routes::{
@@ -964,8 +963,22 @@ fn route_landscape_samples_are_bounded_deterministic_and_follow_travel_direction
     assert!(forward.len() <= MAX_ROUTE_LANDSCAPE_SAMPLES);
     assert_eq!(forward.len(), MAX_ROUTE_LANDSCAPE_SAMPLES);
     assert_eq!(forward, repeated);
-    assert_eq!(forward.first().map(|sample: &RouteLandscapeSample| sample.coordinate), path.first().copied());
-    assert_eq!(forward.last().map(|sample| sample.coordinate), path.last().copied());
-    assert_eq!(reverse.first().map(|sample| sample.coordinate), path.last().copied());
-    assert_eq!(reverse.last().map(|sample| sample.coordinate), path.first().copied());
+    assert_eq!(
+        forward
+            .first()
+            .map(|sample: &RouteLandscapeSample| sample.coordinate),
+        path.first().copied()
+    );
+    assert_eq!(
+        forward.last().map(|sample| sample.coordinate),
+        path.last().copied()
+    );
+    assert_eq!(
+        reverse.first().map(|sample| sample.coordinate),
+        path.last().copied()
+    );
+    assert_eq!(
+        reverse.last().map(|sample| sample.coordinate),
+        path.first().copied()
+    );
 }
