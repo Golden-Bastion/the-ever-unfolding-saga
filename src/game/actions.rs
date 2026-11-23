@@ -147,10 +147,11 @@ pub(crate) fn find_known_travel_path(
             .world
             .routes_from(source_id)
             .filter(|(route, _)| {
-                route
-                    .geography
-                    .as_ref()
-                    .is_none_or(|geography| geography.travel_block_reason().is_none())
+                state.world.is_route_discovered(&route.id)
+                    && route
+                        .geography
+                        .as_ref()
+                        .is_none_or(|geography| geography.travel_block_reason().is_none())
             })
             .map(|(route, destination_id)| (route.id.as_str(), destination_id))
             .collect::<Vec<_>>();
