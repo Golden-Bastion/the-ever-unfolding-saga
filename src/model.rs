@@ -634,6 +634,8 @@ impl World {
             .retain(|route| !route.connects(first_location_id, second_location_id));
         let removed = original_len - self.routes.len();
         if removed > 0 {
+            self.discovered_route_ids
+                .retain(|id| self.routes.iter().any(|route| route.id == *id));
             self.rebuild_location_exit_cache();
         }
         removed
@@ -654,6 +656,9 @@ impl World {
 
     /// Whether a route is known, including legacy maps whose exit tile was already revealed.
     pub fn is_route_discovered(&self, route_id: &str) -> bool {
+        if self.route_by_id(route_id).is_none() {
+            return false;
+        }
         self.discovered_route_ids.iter().any(|known| known == route_id)
             || self.local_maps.iter().any(|map| {
                 map.exits.iter().any(|exit| {
