@@ -1,9 +1,10 @@
 use crate::model::{Condition, GameState};
 
 pub(crate) fn advance_time(state: &mut GameState, amount: u32) {
-    let total = state.world.time_points + amount;
-    state.world.day += total / 12;
-    state.world.time_points = total % 12;
+    let total = u64::from(state.world.time_points) + u64::from(amount);
+    let elapsed_days = u32::try_from(total / 12).unwrap_or(u32::MAX);
+    state.world.day = state.world.day.saturating_add(elapsed_days);
+    state.world.time_points = (total % 12) as u32;
     for condition in &mut state.character.conditions {
         condition.remaining = condition.remaining.saturating_sub(amount);
     }
