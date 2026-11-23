@@ -1223,6 +1223,50 @@ fn macro_route_edge_offsets_place_new_passages_at_the_projected_boundary_positio
 }
 
 #[test]
+fn authored_q16_passage_anchors_reach_both_ends_of_the_playable_edge() {
+    use crate::spatial::MapExitSide;
+
+    for (side, offset_q16, expected) in [
+        (
+            MapExitSide::North,
+            0,
+            GridPosition { x: 1, y: 0 },
+        ),
+        (
+            MapExitSide::South,
+            u16::MAX,
+            GridPosition {
+                x: DEFAULT_MAP_WIDTH - 2,
+                y: DEFAULT_MAP_HEIGHT - 1,
+            },
+        ),
+    ] {
+        let mut map = generate_local_map(826, "location.authored_anchor", LocalMapConfig::default());
+        map.terrain.fill(Terrain::Floor);
+        map.props.clear();
+        map.points_of_interest.clear();
+        map.interactables.clear();
+        map.encounters.clear();
+
+        configure_map_routes(
+            &mut map,
+            &[MapRouteDestination {
+                route_id: "route.authored.anchor".into(),
+                target_location_id: 20,
+                profile: None,
+                preferred_side: Some(side),
+                preferred_edge_offset_q16: Some(offset_q16),
+                frontier_id: None,
+            }],
+        );
+
+        assert_eq!(map.exits.len(), 1);
+        assert_eq!(map.exits[0].position, expected);
+        assert!(has_walkable_path(&map, map.entry, expected));
+    }
+}
+
+#[test]
 fn route_arrivals_use_reciprocal_passages_or_the_nearest_reachable_projected_edge() {
     let mut reciprocal = generate_local_map(
         824,
