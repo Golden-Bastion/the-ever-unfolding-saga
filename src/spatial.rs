@@ -1779,7 +1779,7 @@ fn preferred_river_crossings_by_component(
                 }
             }
         }
-        if let Some((distance, y, x, component_id)) = nearest {
+        if let Some((distance, _, _, component_id)) = nearest {
             let key = (distance, target.y, target.x);
             if selected_key[component_id].is_none_or(|current| key < current) {
                 selected_key[component_id] = Some(key);

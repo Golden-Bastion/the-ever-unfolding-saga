@@ -1916,10 +1916,11 @@ fn route_bank_midpoints_select_the_nearest_feasible_local_river_crossing() {
     }
 
     let target = GridPosition { x: river_x, y: 17 };
+    let map_height = map.height;
     place_river_crossings(
         &mut map,
         |position| {
-            (position.x == river_x && (2..map.height - 2).contains(&position.y))
+            (position.x == river_x && (2..map_height - 2).contains(&position.y))
                 .then_some(RiverWidthClass::Narrow)
         },
         &[target],
