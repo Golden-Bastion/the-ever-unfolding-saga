@@ -60,6 +60,26 @@ fn authored_exit_side_must_reference_a_declared_exit() {
 }
 
 #[test]
+fn base_campaign_uses_normalized_authored_passage_anchors() {
+    let content = default_campaign_content();
+    let gate = content
+        .world
+        .locations
+        .iter()
+        .find(|location| location.id == "location.ashen_gate")
+        .unwrap();
+
+    assert_eq!(
+        gate.exit_preference("location.hollow_market"),
+        Some((crate::spatial::MapExitSide::East, Some(32_768)))
+    );
+    assert_eq!(
+        gate.exit_preference("location.charred_watchtower"),
+        Some((crate::spatial::MapExitSide::North, Some(16_384)))
+    );
+}
+
+#[test]
 fn authored_exit_placement_must_reference_a_declared_exit() {
     let mut content = default_campaign_content();
     let location = content
