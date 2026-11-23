@@ -1,5 +1,6 @@
 use super::{
     fast_travel_to, find_known_travel_path, has_location_travel_route, travel_to,
+    travel_via_route,
     MEDITATION_TARGETS,
 };
 use crate::model::{GameState, Location, RouteDirection, WorldRoute};
@@ -244,6 +245,25 @@ fn fast_travel_does_not_use_an_undiscovered_parallel_route() {
     fast_travel_to(&mut game, destination_id).unwrap();
 
     assert!(!game.world.is_route_discovered("route.aaa.undiscovered"));
+}
+
+#[test]
+fn physical_route_use_records_route_and_regional_discovery() {
+    let (mut game, middle_id, _) = fast_travel_fixture(false, false, true);
+    game.world.discovered_route_ids.clear();
+    let source_id = game.character.location_id;
+    let route_id = game
+        .world
+        .routes_from(source_id)
+        .find(|(_, destination)| *destination == middle_id)
+        .map(|(route, _)| route.id.clone())
+        .expect("physical passage route should exist");
+    let region_id = game.world.location_by_id(middle_id).unwrap().region_id;
+
+    travel_via_route(&mut game, middle_id, &route_id).unwrap();
+
+    assert!(game.world.is_route_discovered(&route_id));
+    assert!(game.world.is_region_surveyed(region_id));
 }
 
 #[test]
