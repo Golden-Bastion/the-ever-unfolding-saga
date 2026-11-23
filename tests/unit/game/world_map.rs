@@ -363,6 +363,13 @@ fn previously_visited_locations_become_fast_travel_targets_along_known_routes() 
         .collect::<Vec<_>>();
     assert_eq!(destinations, vec![(11, 1), (13, 2)]);
     assert_eq!(
+        view.fast_travel_destinations
+            .iter()
+            .map(|destination| (destination.location.id, destination.travel_time_points))
+            .collect::<Vec<_>>(),
+        vec![(11, 2), (13, 4)]
+    );
+    assert_eq!(
         view.nodes
             .iter()
             .find(|node| node.location.id == 11)
@@ -377,6 +384,14 @@ fn previously_visited_locations_become_fast_travel_targets_along_known_routes() 
             .unwrap()
             .fast_travel_steps,
         Some(2)
+    );
+    assert_eq!(
+        view.nodes
+            .iter()
+            .find(|node| node.location.id == 13)
+            .unwrap()
+            .fast_travel_time_points,
+        Some(4)
     );
 }
 
@@ -399,6 +414,7 @@ fn unvisited_frontier_locations_are_visible_but_not_fast_travel_targets() {
     assert!(!frontier.explored);
     assert!(frontier.fast_travel_index.is_none());
     assert!(frontier.fast_travel_steps.is_none());
+    assert!(frontier.fast_travel_time_points.is_none());
 }
 
 #[test]

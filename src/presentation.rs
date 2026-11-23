@@ -185,12 +185,16 @@ pub(crate) struct WorldMapNodeView {
     pub reachable: bool,
     pub fast_travel_index: Option<usize>,
     pub fast_travel_steps: Option<usize>,
+    /// Estimated journey duration in two-hour world-time points.
+    pub fast_travel_time_points: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct WorldMapDestinationView {
     pub location: LocationView,
     pub route_steps: usize,
+    /// Total estimated journey duration in two-hour world-time points.
+    pub travel_time_points: u32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

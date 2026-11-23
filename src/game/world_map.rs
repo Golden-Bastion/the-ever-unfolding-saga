@@ -39,18 +39,22 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
     }
     visible_ids.retain(|id| state.world.location_by_id(*id).is_some());
 
+    let known_travel_tree = crate::game::actions::known_travel_route_tree(state);
     let mut fast_travel_destinations = state
         .world
         .locations
         .iter()
         .filter(|location| location.id != current.id && is_explored(location.id))
         .filter_map(|location| {
-            crate::game::actions::find_known_travel_path(state, location.id).map(|path| {
-                WorldMapDestinationView {
+            known_travel_tree
+                .path_to(location.id)
+                .map(|path| WorldMapDestinationView {
                     location: location_view(state, location, &campaign),
                     route_steps: path.len(),
-                }
-            })
+                    travel_time_points: path
+                        .iter()
+                        .fold(0_u32, |total, hop| total.saturating_add(hop.time_points)),
+                })
         })
         .collect::<Vec<_>>();
     fast_travel_destinations.sort_by(|left, right| {
@@ -63,7 +67,16 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
     let fast_travel_indices = fast_travel_destinations
         .iter()
         .enumerate()
-        .map(|(index, destination)| (destination.location.id, (index, destination.route_steps)))
+        .map(|(index, destination)| {
+            (
+                destination.location.id,
+                (
+                    index,
+                    destination.route_steps,
+                    destination.travel_time_points,
+                ),
+            )
+        })
         .collect::<HashMap<_, _>>();
 
     let nodes = state
@@ -89,8 +102,9 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
                                 .is_none_or(|geography| geography.travel_block_reason().is_none())
                     },
                 ),
-                fast_travel_index: fast_travel.map(|(index, _)| index),
-                fast_travel_steps: fast_travel.map(|(_, steps)| steps),
+                fast_travel_index: fast_travel.map(|(index, _, _)| index),
+                fast_travel_steps: fast_travel.map(|(_, steps, _)| steps),
+                fast_travel_time_points: fast_travel.map(|(_, _, time)| time),
             }
         })
         .collect();
