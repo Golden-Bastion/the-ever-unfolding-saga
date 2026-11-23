@@ -256,8 +256,7 @@ impl RouteGeography {
         let mut samples = Vec::with_capacity(sample_count);
         for sample_index in 0..sample_count {
             let intervals = sample_count - 1;
-            let forward_index =
-                (sample_index * (path_len - 1) + intervals / 2) / intervals;
+            let forward_index = (sample_index * (path_len - 1) + intervals / 2) / intervals;
             let path_index = if from_a {
                 forward_index
             } else {
