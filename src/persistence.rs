@@ -304,33 +304,23 @@ fn normalize_loaded_game(mut game: GameState, save_file_version: u32) -> GameSta
         game.world.cartography_version = 1;
     }
 
-    let local_discoveries = game
-        .world
-        .local_maps
-        .iter()
-        .flat_map(|map| {
-            let location_id = map
-                .location_id
-                .strip_prefix("location.")
-                .and_then(|value| value.parse::<u64>().ok());
-            let region_id = location_id.and_then(|id| {
-                game.world.location_by_id(id).map(|location| location.region_id)
-            });
-            let route_ids = map
-                .exits
-                .iter()
-                .filter(|exit| map.is_tile_discovered(exit.position))
-                .filter_map(|exit| exit.route_id.clone())
-                .collect::<Vec<_>>();
-            region_id.into_iter().map(|id| (Some(id), route_ids.clone()))
-                .chain(std::iter::once((None, route_ids)))
-        })
-        .collect::<Vec<_>>();
-    for (region_id, route_ids) in local_discoveries {
-        if let Some(region_id) = region_id {
+    let local_maps = game.world.local_maps.clone();
+    for map in local_maps {
+        let location_id = map
+            .location_id
+            .strip_prefix("location.")
+            .and_then(|value| value.parse::<u64>().ok());
+        if let Some(region_id) = location_id.and_then(|id| {
+            game.world.location_by_id(id).map(|location| location.region_id)
+        }) {
             game.world.mark_region_surveyed(region_id);
         }
-        for route_id in route_ids {
+        for route_id in map
+            .exits
+            .iter()
+            .filter(|exit| map.is_tile_discovered(exit.position))
+            .filter_map(|exit| exit.route_id.clone())
+        {
             game.world.mark_route_discovered(route_id);
         }
     }
