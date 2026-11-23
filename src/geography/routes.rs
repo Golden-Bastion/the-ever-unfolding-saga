@@ -206,26 +206,35 @@ impl RouteGeography {
         world_seed: Option<u64>,
         ruleset_version: u32,
     ) -> RouteTravelEstimate {
-        if self.status != RoutePlanningStatus::Planned {
-            return default_route_travel_estimate();
-        }
-
-        let distance_cost = route_distance_cost(&self.path);
-        let planner_terrain_cost = self.total_cost.saturating_sub(distance_cost);
-        let biome_penalty_percent = world_seed
-            .map(|seed| {
-                let samples = self.landscape_samples(seed, ruleset_version, true);
-                if samples.is_empty() {
-                    0
-                } else {
-                    let total = samples
-                        .iter()
-                        .map(|sample| landscape_travel_penalty_percent(sample.kind))
-                        .sum::<u64>();
-                    total.div_ceil(samples.len() as u64)
-                }
-            })
-            .unwrap_or(0);
+        let has_planned_path = self.status == RoutePlanningStatus::Planned;
+        let distance_cost = if has_planned_path {
+            route_distance_cost(&self.path)
+        } else {
+            MIN_ROUTE_DISTANCE_COST
+        };
+        let planner_terrain_cost = if has_planned_path {
+            self.total_cost.saturating_sub(distance_cost)
+        } else {
+            0
+        };
+        let biome_penalty_percent = if has_planned_path {
+            world_seed
+                .map(|seed| {
+                    let samples = self.landscape_samples(seed, ruleset_version, true);
+                    if samples.is_empty() {
+                        0
+                    } else {
+                        let total = samples
+                            .iter()
+                            .map(|sample| landscape_travel_penalty_percent(sample.kind))
+                            .sum::<u64>();
+                        total.div_ceil(samples.len() as u64)
+                    }
+                })
+                .unwrap_or(0)
+        } else {
+            0
+        };
         let biome_cost = distance_cost
             .saturating_mul(biome_penalty_percent)
             .div_ceil(100);
@@ -257,16 +266,6 @@ impl RouteGeography {
             total_cost,
             time_points,
         }
-    }
-}
-
-fn default_route_travel_estimate() -> RouteTravelEstimate {
-    RouteTravelEstimate {
-        distance_cost: MIN_ROUTE_DISTANCE_COST,
-        terrain_cost: 0,
-        crossing_cost: 0,
-        total_cost: MIN_ROUTE_DISTANCE_COST,
-        time_points: 2,
     }
 }
 
