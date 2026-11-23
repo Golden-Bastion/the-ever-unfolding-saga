@@ -500,8 +500,9 @@ fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
         .any(|label| label.starts_with("Unavailable: The lake crossing needs verified shores")));
 
     let resolved_route_id = resolved_route_id.expect("resolved ferry route should be registered");
-    assert!(game.world.add_route_infrastructure(
-        crate::model::RouteInfrastructureRecord {
+    assert!(game
+        .world
+        .add_route_infrastructure(crate::model::RouteInfrastructureRecord {
             id: "infrastructure.ferry.interaction.fixture".into(),
             route_id: resolved_route_id,
             crossing_index: Some(0),
@@ -510,8 +511,7 @@ fn resolved_lake_route_passages_are_labeled_as_ferry_landings() {
             condition: crate::model::InfrastructureCondition::Operational,
             owner: None,
             access: crate::model::InfrastructureAccess::Public,
-        }
-    ));
+        }));
 
     let labels = discover_available_interactions(&map, &game, player)
         .into_iter()
