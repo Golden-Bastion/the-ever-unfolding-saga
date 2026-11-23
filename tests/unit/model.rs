@@ -156,16 +156,24 @@ fn bridge_crossing_requires_a_built_available_infrastructure_record() {
         Some("This route requires a constructed bridge.")
     );
 
-    let record = RouteInfrastructureRecord {
+    let mut record = RouteInfrastructureRecord {
         id: "infrastructure.bridge.test".into(),
         route_id: "route.infrastructure.test".into(),
         crossing_index: Some(0),
         kind: InfrastructureKind::Bridge,
-        construction: InfrastructureConstruction::Built,
+        construction: InfrastructureConstruction::Natural,
         condition: InfrastructureCondition::Operational,
         owner: None,
         access: InfrastructureAccess::Public,
     };
+    assert!(world.add_route_infrastructure(record.clone()));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        Some("This infrastructure has not been constructed.")
+    );
+
+    assert!(world.remove_route_infrastructure(&record.id));
+    record.construction = InfrastructureConstruction::Built;
     assert!(world.add_route_infrastructure(record));
     assert_eq!(
         world.route_travel_block_reason("route.infrastructure.test"),
@@ -176,6 +184,57 @@ fn bridge_crossing_requires_a_built_available_infrastructure_record() {
     assert_eq!(
         world.route_travel_block_reason("route.infrastructure.test"),
         Some("This infrastructure has been destroyed.")
+    );
+}
+
+#[test]
+fn verified_natural_fords_do_not_require_owned_or_built_infrastructure() {
+    use crate::geography::river_geometry::{RiverBankIntersection, RiverPosition};
+    use crate::geography::routes::{
+        RouteCrossing, RouteCrossingKind, RouteGeography, RouteInfrastructure,
+        RoutePlanningStatus, RouteProfile,
+    };
+    use crate::geography::MacroCoordinate;
+
+    let mut world = infrastructure_test_world();
+    world.routes[0].geography = Some(RouteGeography {
+        status: RoutePlanningStatus::Planned,
+        profile: RouteProfile::RiverCrossing,
+        path: Vec::new(),
+        crossings: vec![RouteCrossing {
+            coordinate: MacroCoordinate::new(32, 64),
+            kind: RouteCrossingKind::River,
+            infrastructure: RouteInfrastructure::Ford,
+            river_id: None,
+            river_width: None,
+            river_flow_direction: None,
+            river_banks: Some(RiverBankIntersection {
+                entry: RiverPosition { x_q16: 0, y_q16: 0 },
+                exit: RiverPosition { x_q16: 65_536, y_q16: 0 },
+            }),
+            lake_id: None,
+            lake_banks: None,
+        }],
+        total_cost: 0,
+    });
+
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        None
+    );
+    assert!(world.add_route_infrastructure(RouteInfrastructureRecord {
+        id: "infrastructure.ford.test".into(),
+        route_id: "route.infrastructure.test".into(),
+        crossing_index: Some(0),
+        kind: InfrastructureKind::Ford,
+        construction: InfrastructureConstruction::Natural,
+        condition: InfrastructureCondition::Operational,
+        owner: None,
+        access: InfrastructureAccess::Public,
+    }));
+    assert_eq!(
+        world.route_travel_block_reason("route.infrastructure.test"),
+        None
     );
 }
 
