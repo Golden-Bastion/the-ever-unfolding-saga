@@ -380,6 +380,10 @@ fn least_time_fast_travel_selects_the_exact_cheapest_parallel_route() {
     assert_eq!(path.len(), 1);
     assert_eq!(path[0].route_id, "route.zzz.fast");
     assert_eq!(path[0].time_points, 2);
+
+    let before = game.world.day * 12 + game.world.time_points;
+    assert_eq!(fast_travel_to(&mut game, middle_id).unwrap(), vec![middle_id]);
+    assert_eq!(game.world.day * 12 + game.world.time_points, before + 2);
 }
 
 #[test]
