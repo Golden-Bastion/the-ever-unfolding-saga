@@ -94,13 +94,11 @@ pub(crate) fn build_view(state: &GameState) -> WorldMapView {
         if !state.world.is_route_discovered(&route.id) {
             continue;
         }
-        {
-            let a = route.location_a_id;
-            let b = route.location_b_id;
-            let directions = route_directions.entry((a, b)).or_insert((false, false));
-            directions.0 |= route.allows_travel(a, b);
-            directions.1 |= route.allows_travel(b, a);
-        }
+        let a = route.location_a_id;
+        let b = route.location_b_id;
+        let directions = route_directions.entry((a, b)).or_insert((false, false));
+        directions.0 |= route.allows_travel(a, b);
+        directions.1 |= route.allows_travel(b, a);
     }
 
     let routes: Vec<WorldMapRouteView> = route_directions
