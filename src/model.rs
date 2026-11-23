@@ -200,8 +200,12 @@ pub struct World {
     #[serde(default)]
     pub waterbody_modifications: Vec<WaterbodyModification>,
     pub history: Vec<HistoryEntry>,
+    /// Current two-hour world-time slot (12 slots per day).
     #[serde(default)]
     pub time_points: u32,
+    /// Elapsed minutes within the current two-hour slot (0..119).
+    #[serde(default)]
+    pub minutes_into_time_point: u8,
     #[serde(default)]
     pub day: u32,
     #[serde(default, alias = "completed_quest_titles")]
@@ -529,6 +533,7 @@ impl World {
             waterbody_modifications: Vec::new(),
             history: Vec::new(),
             time_points: 3,
+            minutes_into_time_point: 0,
             day: 1,
             completed_quest_ids: Vec::new(),
             event_cooldowns: Vec::new(),

@@ -52,6 +52,88 @@ fn advancing_time_applies_generated_world_evolution() {
 }
 
 #[test]
+fn continuous_world_minutes_accumulate_into_existing_two_hour_time_points() {
+    let mut state = crate::model::create_new_state(
+        "Minute Clock",
+        WorldMode::New,
+        "Traveller".into(),
+        "Wanderer".into(),
+    );
+    state
+        .character
+        .conditions
+        .push(crate::model::Condition::new("Tired", 2, 0));
+    let initial_points = state.world.time_points;
+
+    advance_world_minutes(&mut state, 119);
+    assert_eq!(state.world.time_points, initial_points);
+    assert_eq!(state.world.minutes_into_time_point, 119);
+    assert_eq!(state.character.conditions[0].remaining, 2);
+
+    advance_world_minutes(&mut state, 1);
+    assert_eq!(state.world.time_points, initial_points + 1);
+    assert_eq!(state.world.minutes_into_time_point, 0);
+    assert_eq!(state.character.conditions[0].remaining, 1);
+}
+
+#[test]
+fn action_time_advancement_preserves_partial_continuous_minutes() {
+    let mut state = crate::model::create_new_state(
+        "Combined Clock",
+        WorldMode::New,
+        "Traveller".into(),
+        "Wanderer".into(),
+    );
+    advance_world_minutes(&mut state, 75);
+    let initial_points = state.world.time_points;
+
+    advance_time(&mut state, 1);
+    assert_eq!(state.world.time_points, initial_points + 1);
+    assert_eq!(state.world.minutes_into_time_point, 75);
+
+    advance_world_minutes(&mut state, 45);
+    assert_eq!(state.world.time_points, initial_points + 2);
+    assert_eq!(state.world.minutes_into_time_point, 0);
+}
+
+#[test]
+fn continuous_minutes_roll_over_at_the_existing_day_boundary() {
+    let mut state = crate::model::create_new_state(
+        "Midnight Clock",
+        WorldMode::New,
+        "Traveller".into(),
+        "Wanderer".into(),
+    );
+    state.world.day = 9;
+    state.world.time_points = 11;
+    state.world.minutes_into_time_point = 119;
+
+    advance_world_minutes(&mut state, 1);
+
+    assert_eq!(state.world.day, 10);
+    assert_eq!(state.world.time_points, 0);
+    assert_eq!(state.world.minutes_into_time_point, 0);
+}
+
+#[test]
+fn world_minute_offset_round_trips_and_legacy_saves_default_to_zero() {
+    let mut world = crate::model::World::new("Minute Clock", WorldMode::New);
+    world.minutes_into_time_point = 47;
+
+    let value = serde_json::to_value(&world).unwrap();
+    let restored: crate::model::World = serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(restored.minutes_into_time_point, 47);
+
+    let mut legacy_value = value;
+    legacy_value
+        .as_object_mut()
+        .unwrap()
+        .remove("minutes_into_time_point");
+    let legacy: crate::model::World = serde_json::from_value(legacy_value).unwrap();
+    assert_eq!(legacy.minutes_into_time_point, 0);
+}
+
+#[test]
 fn large_elapsed_time_advances_wrap_the_clock_without_integer_overflow() {
     let mut state = crate::model::create_new_state(
         "Long Journey",

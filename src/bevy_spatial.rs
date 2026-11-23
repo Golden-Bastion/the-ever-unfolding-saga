@@ -280,7 +280,8 @@ pub(crate) struct SpatialExplorationState {
     last_navigation_screen: Option<ScreenId>,
     player_animation: PlayerAnimation,
     last_threat_available: Option<bool>,
-    last_world_time: Option<(u32, u32)>,
+    last_world_time: Option<(u32, u32, u8)>,
+    clock_elapsed_seconds: f64,
     biome: Option<Biome>,
     surface: Option<LocalSurfaceMap>,
 }
@@ -322,8 +323,20 @@ fn advance_location_notice(state: &mut SpatialExplorationState, delta_seconds: f
 
 // The panel faces south: east is left and west is right. The sun's daytime
 // arc and the moon's night path both travel left-to-right across fixed
-// two-hour world-clock slots rather than astronomical calculations.
-fn sky_visual(time_points: u32) -> SkyVisual {
+// two-hour world-clock anchors, with minute-level interpolation while the
+// same celestial body remains in the sky.
+fn sky_visual_at(time_points: u32, minutes_into_time_point: u8) -> SkyVisual {
+    let mut current = sky_visual_slot(time_points);
+    let next = sky_visual_slot(time_points % 12 + 1);
+    if current.celestial == next.celestial {
+        let progress = f32::from(minutes_into_time_point.min(119)) / 120.0;
+        current.celestial_x += (next.celestial_x - current.celestial_x) * progress;
+        current.celestial_y += (next.celestial_y - current.celestial_y) * progress;
+    }
+    current
+}
+
+fn sky_visual_slot(time_points: u32) -> SkyVisual {
     match time_points % 12 {
         0 => SkyVisual {
             background: bevy_presentation::THEME_SKY_NIGHT,
@@ -721,6 +734,7 @@ pub(crate) fn install(app: &mut App) {
                 update_route_transit,
                 spatial_input,
                 update_spatial_wheel_animation,
+                advance_spatial_world_clock,
                 sync_spatial_camera_viewport,
                 update_spatial_world,
                 update_spatial_context_prompt,
@@ -744,6 +758,7 @@ pub(crate) fn enter(
 ) {
     state.sandbox_mode = false;
     state.route_transit = None;
+    state.clock_elapsed_seconds = 0.0;
     let Some(location) = game.world.location_by_id(game.character.location_id) else {
         state.biome = None;
         state.surface = None;
@@ -2556,10 +2571,13 @@ fn render_spatial_screen(
     let world_time = if state.sandbox_mode {
         None
     } else {
-        lifecycle
-            .session
-            .as_ref()
-            .map(|session| (session.state.world.day, session.state.world.time_points))
+        lifecycle.session.as_ref().map(|session| {
+            (
+                session.state.world.day,
+                session.state.world.time_points,
+                session.state.world.minutes_into_time_point,
+            )
+        })
     };
     if !state.dirty {
         return;
@@ -2581,7 +2599,8 @@ fn render_spatial_screen(
     let Some(map) = state.maps.get(&session.location_id) else {
         return;
     };
-    let time_points = world_time.map(|(_, points)| points);
+    let time_points = world_time.map(|(_, points, _)| points);
+    let minutes_into_time_point = world_time.map(|(_, _, minutes)| minutes).unwrap_or(0);
 
     for y in 0..map.height {
         for x in 0..map.width {
@@ -2937,7 +2956,13 @@ fn render_spatial_screen(
         spawn_label(&mut commands, header_context, heading);
     }
     if let Some(time_points) = time_points {
-        spawn_spatial_time_indicator(&mut commands, header_context, time_points, &celestial_art);
+        spawn_spatial_time_indicator(
+            &mut commands,
+            header_context,
+            time_points,
+            minutes_into_time_point,
+            &celestial_art,
+        );
     }
 
     let vitals = commands
@@ -4385,9 +4410,10 @@ fn spawn_spatial_time_indicator(
     commands: &mut Commands,
     parent: Entity,
     time_points: u32,
+    minutes_into_time_point: u8,
     celestial_art: &CelestialArtAssets,
 ) {
-    let sky = sky_visual(time_points);
+    let sky = sky_visual_at(time_points, minutes_into_time_point);
     let row = commands
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -4449,7 +4475,10 @@ fn spawn_spatial_time_indicator(
     let readout = commands
         .spawn((
             SpatialTimeReadout,
-            Text::new(crate::game::time::clock_display(time_points)),
+            Text::new(crate::game::time::clock_display(
+                time_points,
+                minutes_into_time_point,
+            )),
             TextFont::from_font_size(FontSize::Rem(0.82)),
             TextColor(bevy_presentation::THEME_TEXT),
         ))
@@ -4490,22 +4519,117 @@ fn spawn_celestial_visual(
 }
 
 #[allow(clippy::too_many_arguments)] // Keep the presentation regions independently queried.
+const REAL_SECONDS_PER_WORLD_MINUTE: f64 = 5.0;
+const MAX_SPATIAL_CLOCK_FRAME_DELTA_SECONDS: f64 = 5.0;
+
+#[allow(clippy::too_many_arguments)]
+fn should_advance_spatial_clock(
+    current_screen: Option<ScreenId>,
+    lifecycle_complete: bool,
+    has_session: bool,
+    sandbox_mode: bool,
+    paused: bool,
+    gameplay_menu_open: bool,
+    route_transit: bool,
+    interaction_wheel_open: bool,
+    overlay_open: bool,
+) -> bool {
+    current_screen == Some(ScreenId::SpatialExploration)
+        && lifecycle_complete
+        && has_session
+        && !sandbox_mode
+        && !paused
+        && !gameplay_menu_open
+        && !route_transit
+        && !interaction_wheel_open
+        && !overlay_open
+}
+
+fn advance_spatial_clock(
+    spatial: &mut SpatialExplorationState,
+    game: &mut GameState,
+    delta_seconds: f64,
+) {
+    let elapsed = if delta_seconds.is_finite() {
+        delta_seconds.clamp(0.0, MAX_SPATIAL_CLOCK_FRAME_DELTA_SECONDS)
+    } else {
+        0.0
+    };
+    spatial.clock_elapsed_seconds += elapsed;
+    let elapsed_minutes =
+        (spatial.clock_elapsed_seconds / REAL_SECONDS_PER_WORLD_MINUTE).floor() as u32;
+    if elapsed_minutes == 0 {
+        return;
+    }
+    spatial.clock_elapsed_seconds -= f64::from(elapsed_minutes) * REAL_SECONDS_PER_WORLD_MINUTE;
+    crate::game::state_effects::advance_world_minutes(game, elapsed_minutes);
+}
+
+fn advance_spatial_world_clock(
+    time: Res<Time>,
+    navigation: Res<NavigationState>,
+    mut lifecycle: ResMut<LifecycleState>,
+    gameplay: Res<crate::bevy_gameplay::GameplayMenuState>,
+    runtime_state: Res<crate::bevy_gameplay::GameplayRuntimeState>,
+    interaction_state: Res<crate::bevy_interactions::BevyInteractionState>,
+    mut spatial: ResMut<SpatialExplorationState>,
+) {
+    if !should_advance_spatial_clock(
+        navigation.current_screen,
+        lifecycle.phase == LifecyclePhase::Complete,
+        lifecycle.session.is_some()
+            && spatial
+                .session
+                .as_ref()
+                .is_some_and(|session| spatial.maps.contains_key(&session.location_id)),
+        spatial.sandbox_mode,
+        runtime_state.is_paused(),
+        gameplay.screen != crate::bevy_gameplay::GameplayMenuScreen::Closed,
+        spatial.route_transit.is_some(),
+        spatial.interaction_wheel.is_some(),
+        crate::bevy_interactions::spatial_overlay_open(&interaction_state),
+    ) {
+        return;
+    }
+    let Some(session) = lifecycle.session.as_mut() else {
+        return;
+    };
+    advance_spatial_clock(
+        &mut spatial,
+        &mut session.state,
+        f64::from(time.delta_secs()),
+    );
+}
+
+#[derive(SystemParam)]
+struct SpatialTimePresentationQueries<'w, 's> {
+    atmosphere: Query<
+        'w,
+        's,
+        &'static mut BackgroundColor,
+        (With<SpatialAtmosphere>, Without<SpatialSkyPanel>),
+    >,
+    sky_panels: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static mut SpatialSkyPanel,
+            &'static mut BackgroundColor,
+        ),
+        Without<SpatialAtmosphere>,
+    >,
+    horizons: Query<'w, 's, &'static mut Node, With<SpatialSkyHorizon>>,
+    readouts: Query<'w, 's, &'static mut Text, With<SpatialTimeReadout>>,
+}
+
 fn sync_spatial_time_presentation(
     mut commands: Commands,
     lifecycle: Res<LifecycleState>,
     navigation: Res<NavigationState>,
     celestial_art: Res<CelestialArtAssets>,
     mut state: ResMut<SpatialExplorationState>,
-    mut atmosphere: Query<
-        &mut BackgroundColor,
-        (With<SpatialAtmosphere>, Without<SpatialSkyPanel>),
-    >,
-    mut sky_panels: Query<
-        (Entity, &mut SpatialSkyPanel, &mut BackgroundColor),
-        Without<SpatialAtmosphere>,
-    >,
-    mut horizons: Query<&mut Node, With<SpatialSkyHorizon>>,
-    mut readouts: Query<&mut Text, With<SpatialTimeReadout>>,
+    mut queries: SpatialTimePresentationQueries<'_, '_>,
 ) {
     if state.sandbox_mode
         || lifecycle.phase != LifecyclePhase::Complete
@@ -4516,29 +4640,37 @@ fn sync_spatial_time_presentation(
     let Some(session) = lifecycle.session.as_ref() else {
         return;
     };
-    let world_time = Some((session.state.world.day, session.state.world.time_points));
+    let world_time = Some((
+        session.state.world.day,
+        session.state.world.time_points,
+        session.state.world.minutes_into_time_point,
+    ));
     if state.last_world_time == world_time {
         return;
     }
     state.last_world_time = world_time;
     let time_points = session.state.world.time_points;
-    let sky = sky_visual(time_points);
+    let minutes_into_time_point = session.state.world.minutes_into_time_point;
+    let sky = sky_visual_at(time_points, minutes_into_time_point);
 
     let atmosphere_tint = spatial_environment_tint(time_points).unwrap_or(Color::NONE);
-    for mut background in &mut atmosphere {
+    for mut background in &mut queries.atmosphere {
         background.0 = atmosphere_tint;
     }
-    for mut node in &mut horizons {
+    for mut node in &mut queries.horizons {
         node.display = if sky.warm_horizon {
             Display::Flex
         } else {
             Display::None
         };
     }
-    for mut readout in &mut readouts {
-        *readout = Text::new(crate::game::time::clock_display(time_points));
+    for mut readout in &mut queries.readouts {
+        *readout = Text::new(crate::game::time::clock_display(
+            time_points,
+            minutes_into_time_point,
+        ));
     }
-    for (panel, mut visual, mut background) in &mut sky_panels {
+    for (panel, mut visual, mut background) in &mut queries.sky_panels {
         background.0 = sky.background;
         if let Some(previous) = visual.celestial_visual.take() {
             commands.entity(previous).despawn();

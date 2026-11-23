@@ -4,6 +4,15 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.35: Active spatial world clock
+
+- Added a continuous campaign clock during active local exploration at one in-game minute per five real-world seconds, including while the player stands still.
+- Pauses world-time accrual outside the active local map and during pause/gameplay menus, interaction overlays, combat, and route transit; World Lab sandbox time remains isolated.
+- Persists the minute remainder within the existing two-hour time point, preserving action and route time costs as additive advancement through the shared world-time logic.
+- Updates the spatial HUD to show HH:MM and interpolates celestial position between the existing two-hour sky anchors.
+- Added coverage for pacing, active-session gating, two-hour accumulation, additive action costs, and old-save defaults. No save-format version change is required.
+- Bumped Rust and Android metadata to 0.53.35.
+
 ### v0.53.34: Terrain-aware route travel time
 
 - Added deterministic travel estimates from persisted route distance, existing elevation/ridge cost, up to 16 biome samples, and explicit mountain-pass, ford, and ferry delays.
