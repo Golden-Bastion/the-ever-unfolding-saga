@@ -55,20 +55,19 @@ fn host_audio_queue_preserves_cue_order_and_ambience_lifecycle() {
     queue.stop_ambience("forest");
 
     assert_eq!(queue.pending.len(), 3);
-    assert_eq!(queue.pending[0].kind, AudioCueKind::OneShot);
-    assert_eq!(
-        queue.pending[0].asset_path.as_deref(),
-        Some("audio/footstep.ogg")
-    );
-    assert_eq!(queue.pending[1].kind, AudioCueKind::StartAmbience);
-    assert_eq!(queue.pending[1].key.as_deref(), Some("forest"));
-    assert_eq!(
-        queue.pending[1].asset_path.as_deref(),
-        Some("audio/forest_wind.ogg")
-    );
-    assert_eq!(queue.pending[2].kind, AudioCueKind::StopAmbience);
-    assert_eq!(queue.pending[2].key.as_deref(), Some("forest"));
-    assert!(queue.pending[2].asset_path.is_none());
+    assert!(matches!(
+        &queue.pending[0],
+        AudioCueRequest::OneShot { asset_path } if asset_path == "audio/footstep.ogg"
+    ));
+    assert!(matches!(
+        &queue.pending[1],
+        AudioCueRequest::StartAmbience { key, asset_path }
+            if key == "forest" && asset_path == "audio/forest_wind.ogg"
+    ));
+    assert!(matches!(
+        &queue.pending[2],
+        AudioCueRequest::StopAmbience { key } if key == "forest"
+    ));
 }
 
 #[test]
