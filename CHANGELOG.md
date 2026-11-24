@@ -4,6 +4,12 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### Neighboring-region continuity regression coverage
+
+- Added cross-chunk regression coverage across positive and negative region boundaries for terrain, mountain uplift, climate, shoreline adjacency, watershed, and composed surface-water classification.
+- Re-evaluated the same border samples in reverse order and verified region-local/global coordinate round trips, ensuring chunk ownership and visitation order do not alter derived geography.
+- Verified that both sides of every tested shared edge report reciprocal shoreline adjacency. No generation algorithm, save data, or geography ruleset changed.
+
 ### Route infrastructure state and availability
 
 - Added persistent world-owned route infrastructure records for roads, trails, fords, bridges, ferries, and mountain passes, attached to stable route IDs and optional crossing indices.

@@ -798,3 +798,82 @@ fn surface_terrain_barrier_sampling_rejects_underground_strata() {
     )
     .is_none());
 }
+
+#[test]
+fn neighboring_surface_chunks_are_continuous_and_sampling_order_independent() {
+    let seed = 8_211;
+    let boundaries = [0_i64, 256_i64];
+    let offsets = [-1_i64, 0, 255];
+    let mut coordinates = Vec::new();
+    let mut horizontal_pairs = Vec::new();
+    let mut vertical_pairs = Vec::new();
+
+    for boundary in boundaries {
+        for offset in offsets {
+            let west = MacroCoordinate::new(boundary - 1, offset);
+            let east = MacroCoordinate::new(boundary, offset);
+            let north = MacroCoordinate::new(offset, boundary - 1);
+            let south = MacroCoordinate::new(offset, boundary);
+
+            horizontal_pairs.push((west, east));
+            vertical_pairs.push((north, south));
+            coordinates.extend([west, east, north, south]);
+        }
+    }
+
+    let sample_in_order = |ordered: &[MacroCoordinate]| {
+        ordered
+            .iter()
+            .map(|coordinate| {
+                (
+                    *coordinate,
+                    terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate),
+                    mountains::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate),
+                    climate::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate),
+                    coast::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate),
+                    watershed::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate),
+                    hydrology::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, *coordinate),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+
+    // The same border strips are evaluated as if neighboring chunks were
+    // visited in opposite orders. Every derived field must remain identical.
+    let forward = sample_in_order(&coordinates);
+    let reversed_coordinates = coordinates.iter().rev().copied().collect::<Vec<_>>();
+    let reverse = sample_in_order(&reversed_coordinates);
+    assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
+
+    // Region ownership is only a partition of the global lattice. Converting
+    // each border sample through its owning chunk must not change its identity.
+    for coordinate in &coordinates {
+        let (region, local_x, local_y) = coordinate.region_and_local();
+        assert_eq!(
+            region.global_sample(local_x, local_y),
+            Some(*coordinate),
+            "region-local conversion changed {coordinate:?}"
+        );
+    }
+
+    // Both sides of every seam must agree about whether the shared edge is a
+    // shoreline. This catches chunk-local coastline masks that disagree.
+    for (first, second) in horizontal_pairs {
+        let first_shore = coast::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, first).unwrap();
+        let second_shore = coast::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, second).unwrap();
+        assert_eq!(
+            first_shore.has_opposite_neighbor(coast::direction::EAST),
+            second_shore.has_opposite_neighbor(coast::direction::WEST),
+            "east/west shoreline masks disagree across {first:?} and {second:?}"
+        );
+    }
+    for (first, second) in vertical_pairs {
+        let first_shore = coast::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, first).unwrap();
+        let second_shore = coast::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, second).unwrap();
+        assert_eq!(
+            first_shore.has_opposite_neighbor(coast::direction::SOUTH),
+            second_shore.has_opposite_neighbor(coast::direction::NORTH),
+            "north/south shoreline masks disagree across {first:?} and {second:?}"
+        );
+    }
+}
