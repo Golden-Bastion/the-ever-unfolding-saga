@@ -72,7 +72,7 @@ fn host_audio_queue_preserves_cue_order_and_ambience_lifecycle() {
 }
 
 #[test]
-fn context_resolution_uses_existing_world_and_combat_state() {
+fn context_resolution_uses_existing_lifecycle_and_world_state() {
     let title = resolve_context(&LifecycleState::default(), &CombatState::default());
     assert_eq!(title, (MusicContext::Title, 1));
 
