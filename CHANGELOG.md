@@ -12,6 +12,14 @@ This file records completed work in the current unreleased development line. Old
 - Kept geological sampling independent from cave topology: solid rock, chambers, and passages receive the same material-field treatment at matching coordinates.
 - Added coverage for surface/underground boundaries, deterministic seed and depth variation, all material families, region-seam sampling order, and material descriptors. No save schema, geography ruleset, cave connectivity, or local-map generator version changed.
 
+### Underground geological material presentation
+
+- Added the first spatial-renderer integration for the deterministic underground material field. Each cave location resolves its material from the persisted underground geography anchor and world seed; the sampler remains independent from cave topology.
+- Reused the existing broken-stone floor and masonry top/wall-face assets with distinct pale-granite, veil-slate, and cinder-basalt palettes. Discovery shading remains intact, and cave floors no longer use the worn wooden floor texture for ordinary rock terrain.
+- Added sparse deterministic fracture/outcrop accents on discovered wall and rubble tiles. Details are transient, non-colliding, capped per map, and avoid entrances, actors, props, encounters, and points of interest.
+- Added renderer tests for underground texture selection, material/discovery palettes, and deterministic location-specific detail placement. No save schema, geography ruleset, cave connectivity, or local-map generator version changed.
+- Dedicated geological textures and richer formation silhouettes remain future work.
+
 ### Macro-geography surface presentation
 
 - Carried authoritative elevation, mountain-ridge strength, moisture, and shoreline adjacency through the bounded local-surface projection for renderer use.
@@ -19,7 +27,7 @@ This file records completed work in the current unreleased development line. Old
 - Bilinearly interpolated continuous elevation, ridge-strength, moisture, and shoreline-influence values across the bounded projection grid, while preserving nearest-sample biome, water, barrier, river-width, and directional shoreline classifications.
 - Changed coastal water and land-edge treatment to blend gradually across the local projection instead of applying one full-strength tint to every coarse shoreline sample.
 - Kept environmental details non-colliding and bounded to 256 detail anchors per local map. They are transient presentation only; no save data, geography ruleset, or local-map generator version changed.
-- Dedicated terrain/water artwork, finished mountain and vegetation silhouettes, and underground geology remain future work.
+- Dedicated terrain/water artwork, finished mountain and vegetation silhouettes, and dedicated underground geological artwork remain future work.
 
 ### Neighboring-region continuity regression coverage
 
