@@ -2721,13 +2721,15 @@ fn render_spatial_screen(
                 if let Some((material, anchor)) = state.geology {
                     spawn_geological_details(
                         &mut commands,
-                        map,
-                        position,
-                        world_position,
-                        terrain,
-                        discovered,
-                        material,
-                        anchor,
+                        GeologicalDetailContext {
+                            map,
+                            position,
+                            world_position,
+                            terrain,
+                            discovered,
+                            material,
+                            anchor,
+                        },
                         &mut geological_details_spawned,
                     );
                 }
@@ -5321,17 +5323,30 @@ fn geological_material_palette(
     (tint(wall_top), tint(wall_face), tint(floor))
 }
 
-fn spawn_geological_details(
-    commands: &mut Commands,
-    map: &LocalMap,
+struct GeologicalDetailContext<'a> {
+    map: &'a LocalMap,
     position: GridPosition,
     world_position: Vec2,
     terrain: Terrain,
     discovered: bool,
     material: GeologicalMaterial,
     anchor: crate::geography::MacroCoordinate,
+}
+
+fn spawn_geological_details(
+    commands: &mut Commands,
+    context: GeologicalDetailContext<'_>,
     details_spawned: &mut usize,
 ) {
+    let GeologicalDetailContext {
+        map,
+        position,
+        world_position,
+        terrain,
+        discovered,
+        material,
+        anchor,
+    } = context;
     if *details_spawned >= MAX_SURFACE_DETAILS_PER_MAP
         || !discovered
         || !matches!(terrain, Terrain::Wall | Terrain::Rubble)
