@@ -5031,9 +5031,13 @@ fn spawn_surface_details(
     details_spawned: &mut usize,
 ) {
     if *details_spawned >= MAX_SURFACE_DETAILS_PER_MAP
+        || map.layout_id.as_deref() == Some("shrine_chamber")
         || !discovered
         || map.entry == position
-        || map.props.iter().any(|prop| prop.footprint_contains(position, map.width))
+        || map
+            .props
+            .iter()
+            .any(|prop| prop.footprint_contains(position, map.width))
         || map.exits.iter().any(|exit| exit.position == position)
         || map.points_of_interest.iter().any(|poi| poi.position == position)
         || map.interactables.iter().any(|actor| actor.position == position)
