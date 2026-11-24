@@ -147,7 +147,7 @@ fn geological_sampling_is_stable_across_region_seams_and_sampling_order() {
 }
 
 #[test]
-fn material_properties_are_bounded_and_reflect_their_family() {
+fn material_properties_are_relative_and_family_specific() {
     let granite = geology::GeologicalMaterial::PaleGranite;
     let slate = geology::GeologicalMaterial::VeilSlate;
     let basalt = geology::GeologicalMaterial::CinderBasalt;
