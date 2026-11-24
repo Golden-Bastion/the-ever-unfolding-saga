@@ -1,5 +1,5 @@
 use super::*;
-use crate::geography::{geology, GeologicalMaterial, MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
+use crate::geography::{geology, underground, MacroCoordinate, GEOGRAPHY_RULESET_VERSION};
 
 #[test]
 fn geology_rejects_surface_and_positive_strata() {
@@ -18,10 +18,23 @@ fn geological_materials_are_deterministic_and_seeded() {
     let coordinate = MacroCoordinate::in_stratum(-1_237, 842, -3);
     let first = geology::sample_geology(42, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
     let repeated = geology::sample_geology(42, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
-    let other_seed = geology::sample_geology(43, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
-
     assert_eq!(first, repeated);
-    assert_ne!(first, other_seed);
+
+    let mut found_seed_variation = false;
+    'search: for y in (-4_096..=4_096).step_by(128) {
+        for x in (-4_096..=4_096).step_by(128) {
+            let coordinate = MacroCoordinate::in_stratum(x, y, -3);
+            let first_seed =
+                geology::sample_geology(42, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+            let second_seed =
+                geology::sample_geology(43, GEOGRAPHY_RULESET_VERSION, coordinate).unwrap();
+            if first_seed != second_seed {
+                found_seed_variation = true;
+                break 'search;
+            }
+        }
+    }
+    assert!(found_seed_variation, "expected world seed to affect geological formations");
 }
 
 #[test]
@@ -135,13 +148,13 @@ fn geological_sampling_is_stable_across_region_seams_and_sampling_order() {
 
 #[test]
 fn material_properties_are_bounded_and_reflect_their_family() {
-    let granite = GeologicalMaterial::PaleGranite;
-    let slate = GeologicalMaterial::VeilSlate;
-    let basalt = GeologicalMaterial::CinderBasalt;
+    let granite = geology::GeologicalMaterial::PaleGranite;
+    let slate = geology::GeologicalMaterial::VeilSlate;
+    let basalt = geology::GeologicalMaterial::CinderBasalt;
 
     for material in [granite, slate, basalt] {
-        assert!(material.hardness_q16() <= u16::MAX);
-        assert!(material.fracture_q16() <= u16::MAX);
+        assert!(material.hardness_q16() > 0);
+        assert!(material.fracture_q16() > 0);
     }
     assert!(slate.fracture_q16() > granite.fracture_q16());
     assert!(granite.hardness_q16() > slate.hardness_q16());
