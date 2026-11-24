@@ -34,7 +34,10 @@ fn geological_materials_are_deterministic_and_seeded() {
             }
         }
     }
-    assert!(found_seed_variation, "expected world seed to affect geological formations");
+    assert!(
+        found_seed_variation,
+        "expected world seed to affect geological formations"
+    );
 }
 
 #[test]
@@ -113,7 +116,10 @@ fn geological_materials_vary_with_depth_without_changing_cave_topology() {
         }
     }
 
-    assert!(found_depth_variation, "expected some material variation by depth");
+    assert!(
+        found_depth_variation,
+        "expected some material variation by depth"
+    );
     assert!(found_cave_space, "expected cave space in the sampled area");
     assert!(found_solid_rock, "expected solid rock in the sampled area");
 }
@@ -130,17 +136,13 @@ fn geological_sampling_is_stable_across_region_seams_and_sampling_order() {
     let forward = coordinates
         .iter()
         .copied()
-        .map(|coordinate| {
-            geology::sample_geology(1_234, GEOGRAPHY_RULESET_VERSION, coordinate)
-        })
+        .map(|coordinate| geology::sample_geology(1_234, GEOGRAPHY_RULESET_VERSION, coordinate))
         .collect::<Vec<_>>();
     let reverse = coordinates
         .iter()
         .rev()
         .copied()
-        .map(|coordinate| {
-            geology::sample_geology(1_234, GEOGRAPHY_RULESET_VERSION, coordinate)
-        })
+        .map(|coordinate| geology::sample_geology(1_234, GEOGRAPHY_RULESET_VERSION, coordinate))
         .collect::<Vec<_>>();
 
     assert_eq!(forward, reverse.into_iter().rev().collect::<Vec<_>>());
