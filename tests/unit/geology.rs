@@ -71,10 +71,8 @@ fn all_material_families_appear_across_a_broad_underground_area() {
 }
 
 #[test]
-fn geological_materials_vary_with_depth_without_changing_cave_topology() {
+fn geological_materials_vary_with_depth() {
     let mut found_depth_variation = false;
-    let mut found_cave_space = false;
-    let mut found_solid_rock = false;
 
     for y in (-2_048..=2_048).step_by(64) {
         for x in (-2_048..=2_048).step_by(64) {
@@ -91,35 +89,44 @@ fn geological_materials_vary_with_depth_without_changing_cave_topology() {
             )
             .unwrap();
             found_depth_variation |= shallow.material() != deep.material();
-
-            let cave = underground::sample_underground(
-                812,
-                GEOGRAPHY_RULESET_VERSION,
-                MacroCoordinate::in_stratum(x, y, -1),
-            )
-            .unwrap();
-            found_cave_space |= cave.is_open();
-            found_solid_rock |= cave.kind() == UndergroundKind::SolidRock;
-
-            // Geological material exists regardless of whether this point is
-            // a chamber, passage, or solid rock.
-            assert!(geology::sample_geology(
-                812,
-                GEOGRAPHY_RULESET_VERSION,
-                MacroCoordinate::in_stratum(x, y, -1),
-            )
-            .is_some());
-
-            if found_depth_variation && found_cave_space && found_solid_rock {
+            if found_depth_variation {
                 return;
             }
         }
     }
 
-    assert!(
-        found_depth_variation,
-        "expected some material variation by depth"
-    );
+    assert!(found_depth_variation, "expected some material variation by depth");
+}
+
+#[test]
+fn geological_materials_are_available_in_cave_space_and_solid_rock() {
+    let mut found_cave_space = false;
+    let mut found_solid_rock = false;
+
+    for y in -64..=64 {
+        for x in -64..=64 {
+            let coordinate = MacroCoordinate::in_stratum(x, y, -1);
+            let cave = underground::sample_underground(
+                812,
+                GEOGRAPHY_RULESET_VERSION,
+                coordinate,
+            )
+            .unwrap();
+            assert!(geology::sample_geology(
+                812,
+                GEOGRAPHY_RULESET_VERSION,
+                coordinate,
+            )
+            .is_some());
+
+            found_cave_space |= cave.is_open();
+            found_solid_rock |= cave.kind() == UndergroundKind::SolidRock;
+            if found_cave_space && found_solid_rock {
+                return;
+            }
+        }
+    }
+
     assert!(found_cave_space, "expected cave space in the sampled area");
     assert!(found_solid_rock, "expected solid rock in the sampled area");
 }
