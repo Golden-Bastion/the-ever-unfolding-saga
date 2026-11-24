@@ -5072,7 +5072,10 @@ fn spawn_surface_details(
     };
     let hash = surface_detail_hash(position, sample);
     if sample.water() != SurfaceWaterFeature::Land {
-        if sample.water() == SurfaceWaterFeature::Ocean && sample.is_shoreline() && hash.is_multiple_of(4) {
+        if sample.water() == SurfaceWaterFeature::Ocean
+            && sample.is_shoreline()
+            && hash.is_multiple_of(4)
+        {
             let mask = sample.shoreline_mask();
             let vertical_normal = mask
                 & (crate::geography::coast::direction::NORTH
