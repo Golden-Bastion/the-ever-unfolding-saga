@@ -2576,11 +2576,19 @@ fn update_spatial_world(
             assets.geology_tile_image.as_ref(),
             assets.geology_tile_layout.as_ref(),
         ) {
-            sprite.image = image.clone();
-            sprite.texture_atlas = Some(TextureAtlas {
-                layout: layout.clone(),
-                index,
-            });
+            if sprite.image != *image {
+                sprite.image = image.clone();
+            }
+            let atlas_matches = sprite
+                .texture_atlas
+                .as_ref()
+                .is_some_and(|atlas| atlas.layout == *layout && atlas.index == index);
+            if !atlas_matches {
+                sprite.texture_atlas = Some(TextureAtlas {
+                    layout: layout.clone(),
+                    index,
+                });
+            }
             true
         } else {
             let image_index = if state.geology.is_some() {
