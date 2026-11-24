@@ -114,7 +114,7 @@ fn geological_materials_are_available_in_cave_space_and_solid_rock() {
             assert!(geology::sample_geology(812, GEOGRAPHY_RULESET_VERSION, coordinate,).is_some());
 
             found_cave_space |= cave.is_open();
-            found_solid_rock |= cave.kind() == UndergroundKind::SolidRock;
+            found_solid_rock |= cave.kind() == underground::UndergroundKind::SolidRock;
             if found_cave_space && found_solid_rock {
                 return;
             }
