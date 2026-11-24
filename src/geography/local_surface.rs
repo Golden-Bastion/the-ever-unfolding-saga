@@ -399,7 +399,10 @@ impl LocalSurfaceMap {
 
     fn grid_sample(&self, x: usize, y: usize) -> Option<LocalSurfaceSample> {
         self.samples
-            .get(y.checked_mul(usize::from(self.sample_width))?.checked_add(x)?)
+            .get(
+                y.checked_mul(usize::from(self.sample_width))?
+                    .checked_add(x)?,
+            )
             .copied()
     }
 
@@ -503,9 +506,7 @@ fn sample_grid_position_q16(
         .checked_mul(i64::from(sample_dimension))?
         .checked_sub(i64::from(tile_dimension))?;
     let denominator = i64::from(tile_dimension) * 2;
-    let position_q16 = numerator
-        .checked_mul(1_i64 << 16)?
-        / denominator;
+    let position_q16 = numerator.checked_mul(1_i64 << 16)? / denominator;
     let maximum = i64::from(sample_dimension - 1) * (1_i64 << 16);
     let position_q16 = position_q16.clamp(0, maximum);
     let lower = usize::try_from(position_q16 >> 16).ok()?;

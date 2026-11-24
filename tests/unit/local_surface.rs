@@ -222,10 +222,13 @@ fn surface_samples_retain_elevation_shoreline_and_moisture_for_presentation() {
     assert_eq!(sample.is_shoreline(), shoreline.is_shoreline());
     assert_eq!(
         sample.shoreline_strength_q16(),
-        if shoreline.is_shoreline() { u16::MAX } else { 0 }
+        if shoreline.is_shoreline() {
+            u16::MAX
+        } else {
+            0
+        }
     );
 }
-
 
 #[test]
 fn continuous_surface_fields_are_bilinearly_interpolated_but_categories_remain_nearest() {
@@ -304,8 +307,6 @@ fn interpolation_is_symmetric_around_the_location_anchor() {
         / 4;
 
     assert!((average_elevation - i64::from(anchor_sample.elevation_q16())).abs() <= 2);
-    assert!(
-        (average_ridge - i64::from(anchor_sample.mountain_ridge_strength_q16())).abs() <= 2
-    );
+    assert!((average_ridge - i64::from(anchor_sample.mountain_ridge_strength_q16())).abs() <= 2);
     assert!((average_moisture - i64::from(anchor_sample.moisture_q16())).abs() <= 2);
 }

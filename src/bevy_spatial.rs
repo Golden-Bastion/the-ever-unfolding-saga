@@ -4998,8 +4998,7 @@ fn surface_terrain_tint(
     let base = terrain_tint(terrain, discovered, biome);
     let mut rgba = base.to_srgba();
 
-    let shoreline_strength =
-        f32::from(sample.shoreline_strength_q16()) / f32::from(u16::MAX);
+    let shoreline_strength = f32::from(sample.shoreline_strength_q16()) / f32::from(u16::MAX);
     if sample.water() == SurfaceWaterFeature::Ocean && shoreline_strength > 0.0 {
         let shallow = if discovered {
             Color::srgb(0.48, 0.69, 0.76).to_srgba()
