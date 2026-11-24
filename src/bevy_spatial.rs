@@ -2531,28 +2531,36 @@ fn update_spatial_world(
     let player_sprite_size = spatial_player_sprite_size(&assets);
     for (tile, mut sprite) in &mut tiles {
         let terrain = map.terrain_at(tile.0).unwrap_or(Terrain::Wall);
-        if let Some(desired) = assets.tile_images[terrain_image_index(terrain)].clone() {
+        let image_index = if state.geology.is_some() {
+            underground_terrain_image_index(terrain)
+        } else {
+            terrain_image_index(terrain)
+        };
+        if let Some(desired) = assets.tile_images[image_index].clone() {
             if sprite.image != desired {
                 sprite.image = desired;
             }
+            let discovered = map.is_tile_discovered(tile.0);
             let surface_sample = surface_sample_at(state.surface.as_ref(), tile.0);
             let biome = surface_sample
                 .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
                 .map(|sample| sample.biome())
                 .or(state.biome);
-            sprite.color =
-                surface_terrain_tint(terrain, map.is_tile_discovered(tile.0), surface_sample)
-                    .unwrap_or_else(|| {
-                        terrain_tint(terrain, map.is_tile_discovered(tile.0), biome)
-                    });
+            sprite.color = state
+                .geology
+                .map(|(material, _)| geological_terrain_tint(terrain, material, discovered))
+                .unwrap_or_else(|| {
+                    surface_terrain_tint(terrain, discovered, surface_sample)
+                        .unwrap_or_else(|| terrain_tint(terrain, discovered, biome))
+                });
         }
     }
     for (side, mut sprite) in &mut wall_sides {
-        sprite.color = terrain_tint(
-            Terrain::Wall,
-            map.is_tile_discovered(side.tile),
-            state.biome,
-        );
+        let discovered = map.is_tile_discovered(side.tile);
+        sprite.color = state
+            .geology
+            .map(|(material, _)| geological_wall_face_tint(material, discovered))
+            .unwrap_or_else(|| terrain_tint(Terrain::Wall, discovered, state.biome));
     }
     for (mut transform, mut sprite) in &mut player {
         transform.translation.x = target.x;
