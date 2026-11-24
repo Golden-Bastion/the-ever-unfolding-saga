@@ -1,6 +1,27 @@
 use super::*;
 
 #[test]
+fn combat_result_outcome_is_authoritative_and_cleared_with_the_screen() {
+    let mut state = CombatState {
+        outcome: Some(CombatResult::Victory),
+        ..CombatState::default()
+    };
+    assert_eq!(state.result_outcome(), None);
+
+    state.phase = Some(CombatScreenPhase::Result);
+    assert_eq!(state.result_outcome(), Some(CombatResult::Victory));
+
+    state.outcome = Some(CombatResult::Fled);
+    assert_eq!(state.result_outcome(), Some(CombatResult::Fled));
+
+    state.outcome = Some(CombatResult::Defeat);
+    assert_eq!(state.result_outcome(), Some(CombatResult::Defeat));
+
+    state.clear();
+    assert_eq!(state.result_outcome(), None);
+}
+
+#[test]
 fn cancelling_combat_restores_spatial_exploration() {
     let mut navigation = NavigationState {
         current_screen: Some(ScreenId::SpatialExploration),

@@ -210,6 +210,7 @@ fn options_input(
     mut navigation: ResMut<NavigationState>,
     mut options: ResMut<OptionsState>,
     mut ui_settings: ResMut<crate::ui_settings::UiSettings>,
+    mut audio_settings: ResMut<crate::audio_settings::AudioSettings>,
     mut input_queue: ResMut<GameplayInputQueue>,
 ) {
     if !matches!(
@@ -244,14 +245,14 @@ fn options_input(
                 options.selected = index.min(options_selection_end(&options));
                 options.pending_remove_id = None;
             }
-            InputEvent::SelectTab(tab) if tab < 2 => {
+            InputEvent::SelectTab(tab) if tab < 3 => {
                 options.tab = tab;
                 options.selected = 0;
                 options.message = None;
                 options.pending_remove_id = None;
             }
             InputEvent::Tab => {
-                options.tab = (options.tab + 1) % 2;
+                options.tab = (options.tab + 1) % 3;
                 options.selected = 0;
                 options.message = None;
                 options.pending_remove_id = None;
@@ -261,6 +262,12 @@ fn options_input(
                 1 => activate_interface_action(
                     &mut options,
                     &mut ui_settings,
+                    &mut lifecycle,
+                    &mut navigation,
+                ),
+                2 => activate_audio_action(
+                    &mut options,
+                    &mut audio_settings,
                     &mut lifecycle,
                     &mut navigation,
                 ),
@@ -277,7 +284,7 @@ fn options_input(
 fn options_selection_end(options: &OptionsState) -> usize {
     match options.tab {
         0 => mod_back_action_index(options.mods.len()),
-        1 => 5,
+        1 | 2 => 5,
         _ => 0,
     }
 }
@@ -388,6 +395,46 @@ fn activate_interface_action(
     }
 }
 
+fn activate_audio_action(
+    options: &mut OptionsState,
+    settings: &mut crate::audio_settings::AudioSettings,
+    lifecycle: &mut LifecycleState,
+    navigation: &mut NavigationState,
+) {
+    let changed = match options.selected {
+        0 => settings.adjust_music_volume(-crate::audio_settings::VOLUME_STEP),
+        1 => settings.adjust_music_volume(crate::audio_settings::VOLUME_STEP),
+        2 => settings.adjust_sfx_volume(-crate::audio_settings::VOLUME_STEP),
+        3 => settings.adjust_sfx_volume(crate::audio_settings::VOLUME_STEP),
+        4 => {
+            settings.reset();
+            true
+        }
+        5 => {
+            close_options(lifecycle, navigation, options);
+            return;
+        }
+        _ => false,
+    };
+
+    if changed {
+        match settings.save() {
+            Ok(()) => {
+                options.message = Some(format!(
+                    "Music volume: {}%. Sound effects: {}%.",
+                    settings.music_volume_percent(),
+                    settings.sfx_volume_percent()
+                ));
+            }
+            Err(error) => {
+                options.message = Some(format!("Could not save audio settings: {error}"));
+            }
+        }
+    } else {
+        options.message = Some("The selected volume is already at its limit.".to_string());
+    }
+}
+
 fn import_mod(options: &mut OptionsState) {
     #[cfg(not(target_os = "android"))]
     {
@@ -443,6 +490,7 @@ fn render_if_active(
     navigation: Res<NavigationState>,
     mut options: ResMut<OptionsState>,
     ui_settings: Res<crate::ui_settings::UiSettings>,
+    audio_settings: Res<crate::audio_settings::AudioSettings>,
     roots: Query<Entity, With<BevyScreenRoot>>,
     options_screens: Query<(), With<OptionsScreen>>,
     options_content: Query<(Entity, &OptionsContent)>,
@@ -479,6 +527,7 @@ fn render_if_active(
                     hosts.rows,
                     &options,
                     &ui_settings,
+                    &audio_settings,
                     &children,
                     &mod_rows,
                     &empty_states,
@@ -496,6 +545,10 @@ fn render_if_active(
                     1 => {
                         bevy_presentation::clear_content_host(&mut commands, hosts.rows, &children);
                         render_interface_tab(&mut commands, hosts.rows, &options, &ui_settings);
+                    }
+                    2 => {
+                        bevy_presentation::clear_content_host(&mut commands, hosts.rows, &children);
+                        render_audio_tab(&mut commands, hosts.rows, &options, &audio_settings);
                     }
                     _ => {}
                 }
@@ -521,7 +574,12 @@ fn render_if_active(
         BorderColor::all(bevy_presentation::THEME_BORDER),
         BackgroundColor(bevy_presentation::THEME_SURFACE_STRONG),
     ));
-    bevy_presentation::spawn_tab_strip(&mut commands, panel, &["Mods", "Interface"], options.tab);
+    bevy_presentation::spawn_tab_strip(
+        &mut commands,
+        panel,
+        &["Mods", "Interface", "Audio"],
+        options.tab,
+    );
 
     let content = bevy_presentation::spawn_tab_content(&mut commands, panel);
     let hosts = spawn_options_content_hosts(&mut commands, content, options.tab);
@@ -530,6 +588,7 @@ fn render_if_active(
         hosts.rows,
         &options,
         &ui_settings,
+        &audio_settings,
         &children,
         &mod_rows,
         &empty_states,
@@ -609,6 +668,7 @@ fn render_options_list_content(
     rows: Entity,
     options: &OptionsState,
     ui_settings: &crate::ui_settings::UiSettings,
+    audio_settings: &crate::audio_settings::AudioSettings,
     children: &Query<&Children>,
     mod_rows: &Query<(Entity, &ModListRow)>,
     empty_states: &Query<(), With<OptionsEmptyState>>,
@@ -616,6 +676,7 @@ fn render_options_list_content(
     match options.tab {
         0 => render_mods_tab(commands, rows, options, children, mod_rows, empty_states),
         1 => render_interface_tab(commands, rows, options, ui_settings),
+        2 => render_audio_tab(commands, rows, options, audio_settings),
         _ => {}
     }
 }
@@ -639,6 +700,7 @@ fn render_options_aux_content(
     match options.tab {
         0 => render_mods_footer(commands, footer, options),
         1 => render_interface_footer(commands, footer, options),
+        2 => render_audio_footer(commands, footer, options),
         _ => {}
     }
 }
@@ -849,6 +911,47 @@ fn render_interface_tab(
             options.selected == increase,
         );
     }
+}
+
+fn render_audio_tab(
+    commands: &mut Commands,
+    list: Entity,
+    options: &OptionsState,
+    settings: &crate::audio_settings::AudioSettings,
+) {
+    bevy_presentation::spawn_label(commands, list, "AUDIO");
+    bevy_presentation::spawn_muted_label(
+        commands,
+        list,
+        "No sound-effect or ambience assets are installed yet.",
+    );
+    for (label, value, decrease, increase) in [
+        ("Music volume", settings.music_volume_percent(), 0, 1),
+        ("SFX / ambience", settings.sfx_volume_percent(), 2, 3),
+    ] {
+        let row = bevy_presentation::spawn_option_row(commands, list);
+        bevy_presentation::spawn_label(commands, row.label, label);
+        spawn_option_control_button(
+            commands,
+            row.controls,
+            decrease,
+            "-",
+            options.selected == decrease,
+        );
+        bevy_presentation::spawn_option_value(commands, row.controls, format!("{value}%"));
+        spawn_option_control_button(
+            commands,
+            row.controls,
+            increase,
+            "+",
+            options.selected == increase,
+        );
+    }
+}
+
+fn render_audio_footer(commands: &mut Commands, footer: Entity, options: &OptionsState) {
+    spawn_option_control_button(commands, footer, 4, "Reset", options.selected == 4);
+    spawn_option_control_button(commands, footer, 5, "Back", options.selected == 5);
 }
 
 fn render_interface_footer(commands: &mut Commands, footer: Entity, options: &OptionsState) {

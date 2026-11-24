@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.38: Verdandi-backed audio foundation
+
+- Integrated the Verdandi procedural-music plugin, pinned to a reviewed repository commit and Bevy 0.20-compatible API.
+- Added state-driven music contexts for title, exploration, settlement, danger, and combat. Contexts select deterministic world-seeded presets and arrangement intensity; Verdandi handles continuous playback and two-second preset crossfades.
+- Wired combat-start and victory musical stingers without coupling audio playback to combat-resolution rules. Defeat/retreat and extensible event stingers remain tracked in Verdandi issue #21.
+- Added persistent, independently configurable music and sound-effects volume preferences with an Audio tab in Options.
+- Added a host-owned Bevy audio cue queue for one-shot effects and looping ambience. No sound assets are bundled; selecting compatible, redistributable assets and recording provenance remain future work.
+- Documented the ownership boundary: Verdandi handles procedural music, while Bevy handles host-supplied non-musical audio. Follow-up API/scope work is tracked in Verdandi issues #19–#21.
+- Added automated coverage for audio preference bounds, category independence, Options navigation, and music-context mapping.
+
 ### Underground geological material foundation
 
 - Added a deterministic, renderer-independent underground material sampler with three stylized families: pale granite, veil slate, and cinder basalt.

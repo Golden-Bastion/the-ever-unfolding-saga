@@ -58,6 +58,8 @@ The current codebase has been progressively decomposed from large modules into r
 src/
 ├── main.rs                  # Bevy application entry point
 ├── bevy_app.rs              # Bevy app/bootstrap configuration
+├── audio_settings.rs        # persistent music and sound-effects preferences
+├── bevy_audio_manager.rs    # state-driven Verdandi music and host-owned Bevy audio cues
 ├── bevy_presentation.rs     # shared Bevy UI primitives and semantic input routing
 ├── bevy_lifecycle.rs        # start/load/creation/quit/death lifecycle orchestration
 ├── bevy_navigation_bridge.rs # lifecycle completion and spatial exploration hand-off
@@ -180,7 +182,7 @@ Campaign content itself is runtime data and should not be redundantly embedded i
 
 Presentation consumes authoritative state and produces frontend-independent view data before frontend-specific rendering occurs. The root `presentation.rs` module contains shared view models expressed only through domain-neutral owned data such as strings, scalars, and collections; it does not depend on Bevy, ratatui, crossterm, or gameplay actions.
 
-Bevy modules translate those view models into UI nodes and semantic input. `bevy_presentation.rs` owns reusable visual primitives, navigation state, and conversion from Bevy keyboard/button interaction into `InputEvent` values. Gameplay, records, interactions, combat, and console adapters consume these semantic events rather than engine-specific keyboard values in their gameplay rules.
+Bevy modules translate those view models into UI nodes and semantic input. `bevy_presentation.rs` owns reusable visual primitives, navigation state, and conversion from Bevy keyboard/button interaction into `InputEvent` values. Gameplay, records, interactions, combat, and console adapters consume these semantic events rather than engine-specific keyboard values in their gameplay rules. Audio presentation follows the same separation: `bevy_audio_manager.rs` resolves authoritative lifecycle, combat, and world context into Verdandi music controls and host-owned Bevy audio cues; `audio_settings.rs` persists player volume preferences without placing audio state in campaign saves.
 
 The developer console keeps its command editing, history, completion, scrolling, and view construction in `game/console_ui.rs` and `game/console.rs`; Bevy renders that `ConsoleView` without coupling the command state to a renderer.
 

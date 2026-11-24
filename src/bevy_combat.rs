@@ -9,7 +9,7 @@ use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
 use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId,
 };
-use crate::game::combat::{self, CombatEncounter, CombatStep};
+use crate::game::combat::{self, CombatEncounter, CombatResult, CombatStep};
 use crate::input::InputEvent;
 use crate::presentation::CombatResultView;
 
@@ -52,6 +52,7 @@ struct CombatText(CombatTextKind);
 pub(crate) struct CombatState {
     encounter: Option<CombatEncounter>,
     result: Option<CombatResultView>,
+    outcome: Option<CombatResult>,
     phase: Option<CombatScreenPhase>,
     selected: usize,
     dirty: bool,
@@ -61,14 +62,28 @@ impl CombatState {
     fn reset(&mut self, encounter: CombatEncounter) {
         self.encounter = Some(encounter);
         self.result = None;
+        self.outcome = None;
         self.phase = Some(CombatScreenPhase::Active);
         self.selected = 0;
         self.dirty = true;
     }
 
+    pub(crate) fn is_presenting(&self) -> bool {
+        self.encounter.is_some() && self.phase.is_some()
+    }
+
+    pub(crate) fn result_outcome(&self) -> Option<CombatResult> {
+        if self.phase == Some(CombatScreenPhase::Result) {
+            self.outcome
+        } else {
+            None
+        }
+    }
+
     fn clear(&mut self) {
         self.encounter = None;
         self.result = None;
+        self.outcome = None;
         self.phase = None;
         self.selected = 0;
         self.dirty = true;
@@ -230,8 +245,9 @@ fn activate_current_selection(
 fn apply_step(combat_state: &mut CombatState, navigation: &mut NavigationState, step: CombatStep) {
     match step {
         CombatStep::Continue => combat_state.dirty = true,
-        CombatStep::Result { view, .. } => {
+        CombatStep::Result { view, outcome } => {
             combat_state.result = Some(*view);
+            combat_state.outcome = Some(outcome);
             combat_state.phase = Some(CombatScreenPhase::Result);
             combat_state.selected = 0;
             navigation.selected = 0;

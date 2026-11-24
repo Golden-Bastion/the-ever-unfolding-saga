@@ -15,6 +15,14 @@ The initial audio-system implementation is part of the current v0.53.x developme
 - Keep presentation/audio concerns separated from core game logic so the system remains usable through the eventual GUI migration.
 - Start with a small soundtrack rather than trying to cover every possible situation.
 
+## Implementation boundary
+
+The initial implementation uses [Verdandi](https://github.com/Golden-Bastion/verdandi) as the procedural music engine. Verdandi owns seeded composition, musical presets, intensity/layer control, looping playback, preset crossfades, and built-in musical stingers. TEUS owns state resolution and maps gameplay contexts to Verdandi controls.
+
+General one-shot sound effects and environmental ambience remain in Bevy's native audio layer. Verdandi is not treated as a general-purpose game audio manager, and it does not own TEUS asset paths, cue IDs, or licensing records. The host-side audio manager routes those cues and applies the independent SFX gain.
+
+Current integration and known gaps are documented in [the audio system reference](../systems/audio.md). Verdandi follow-ups are tracked in [issue #19](https://github.com/Golden-Bastion/verdandi/issues/19) (transport/gain/fades), [issue #20](https://github.com/Golden-Bastion/verdandi/issues/20) (non-musical cue scope), and [issue #21](https://github.com/Golden-Bastion/verdandi/issues/21) (defeat/retreat and extensible stingers).
+
 ## Initial soundtrack candidates
 - Main/title theme
 - Exploration/world theme
