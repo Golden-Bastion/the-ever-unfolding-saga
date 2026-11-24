@@ -2651,10 +2651,8 @@ fn render_spatial_screen(
                         continue;
                     };
                     let mut wall_sprite = Sprite::from_image(image);
-                    wall_sprite.custom_size = Some(Vec2::new(
-                        TILE_HALF_WIDTH,
-                        WALL_HEIGHT + TILE_HALF_HEIGHT,
-                    ));
+                    wall_sprite.custom_size =
+                        Some(Vec2::new(TILE_HALF_WIDTH, WALL_HEIGHT + TILE_HALF_HEIGHT));
                     if let Some(material) = underground_material {
                         wall_sprite.color = geological_wall_face_tint(material, discovered);
                     }
@@ -5307,26 +5305,19 @@ fn geological_material_palette(
     discovered: bool,
 ) -> (Color, Color, Color) {
     let (wall_top, wall_face, floor) = match material {
-        GeologicalMaterial::PaleGranite => (
-            (0.68, 0.66, 0.61),
-            (0.48, 0.47, 0.44),
-            (0.55, 0.52, 0.46),
-        ),
-        GeologicalMaterial::VeilSlate => (
-            (0.53, 0.59, 0.63),
-            (0.37, 0.42, 0.46),
-            (0.43, 0.47, 0.49),
-        ),
-        GeologicalMaterial::CinderBasalt => (
-            (0.54, 0.43, 0.39),
-            (0.38, 0.30, 0.28),
-            (0.45, 0.36, 0.33),
-        ),
+        GeologicalMaterial::PaleGranite => {
+            ((0.68, 0.66, 0.61), (0.48, 0.47, 0.44), (0.55, 0.52, 0.46))
+        }
+        GeologicalMaterial::VeilSlate => {
+            ((0.53, 0.59, 0.63), (0.37, 0.42, 0.46), (0.43, 0.47, 0.49))
+        }
+        GeologicalMaterial::CinderBasalt => {
+            ((0.54, 0.43, 0.39), (0.38, 0.30, 0.28), (0.45, 0.36, 0.33))
+        }
     };
     let shade = if discovered { 1.0 } else { 0.48 };
-    let tint = |(red, green, blue): (f32, f32, f32)| {
-        Color::srgb(red * shade, green * shade, blue * shade)
-    };
+    let tint =
+        |(red, green, blue): (f32, f32, f32)| Color::srgb(red * shade, green * shade, blue * shade);
     (tint(wall_top), tint(wall_face), tint(floor))
 }
 
@@ -5372,23 +5363,23 @@ fn spawn_geological_details(
     }
     let tile_center = Vec2::new(f32::from(position.x) + 0.5, f32::from(position.y) + 0.5);
     let (y_offset, depth) = if terrain == Terrain::Wall {
-        (WALL_HEIGHT + 5.0, terrain_depth(terrain, tile_center) + 0.002)
+        (
+            WALL_HEIGHT + 5.0,
+            terrain_depth(terrain, tile_center) + 0.002,
+        )
     } else {
         (3.0, GROUND_TERRAIN_DEPTH + 0.02)
     };
     let (shard_color, facet_color) = match material {
-        GeologicalMaterial::PaleGranite => (
-            Color::srgb(0.49, 0.47, 0.43),
-            Color::srgb(0.78, 0.75, 0.68),
-        ),
-        GeologicalMaterial::VeilSlate => (
-            Color::srgb(0.32, 0.38, 0.42),
-            Color::srgb(0.63, 0.68, 0.70),
-        ),
-        GeologicalMaterial::CinderBasalt => (
-            Color::srgb(0.34, 0.25, 0.23),
-            Color::srgb(0.63, 0.43, 0.38),
-        ),
+        GeologicalMaterial::PaleGranite => {
+            (Color::srgb(0.49, 0.47, 0.43), Color::srgb(0.78, 0.75, 0.68))
+        }
+        GeologicalMaterial::VeilSlate => {
+            (Color::srgb(0.32, 0.38, 0.42), Color::srgb(0.63, 0.68, 0.70))
+        }
+        GeologicalMaterial::CinderBasalt => {
+            (Color::srgb(0.34, 0.25, 0.23), Color::srgb(0.63, 0.43, 0.38))
+        }
     };
     let shard = Sprite::from_color(shard_color, Vec2::new(12.0, 4.0));
     commands.spawn((
