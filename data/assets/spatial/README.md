@@ -7,7 +7,7 @@ These are first-pass original pixel-art assets packaged as protected base-game d
 - `terrain_rubble.png`: broken stone ground; retained as the generic underground fallback when the geology atlas is unavailable.
 - `terrain_wall_top.png`: weathered masonry tops used outside caves and as the fallback for missing geology art.
 - `geology_tiles.png`: 144×48 six-cell atlas (48×24 per cell), with pale-granite, veil-slate, and cinder-basalt floor tiles in the first row and their raised-rock ledge tiles in the second row. The spatial renderer selects atlas cells from the sampled underground material; it retains nearest-neighbor sampling and discovered/undiscovered shading.
-- `wall_face_left.png` and `wall_face_right.png`: textured isometric wall faces; receive the same material palette as their wall tops.
+- `wall_face_left.png` and `wall_face_right.png`: textured isometric wall faces; remain tinted from the sampled underground geological material.
 - `player_oathbound.png`: static fallback player character sprite.
 - `player_oathbound_animated.png`: transparent 192×384 directional animation atlas (6 columns × 8 rows of 32×48 frames), with four idle frames and six walking frames per direction.
 - `player_oathbound_animated.json`: mod-aware animation manifest defining frame/atlas dimensions and the row, frame range, duration, and looping behavior for each directional idle/walk clip.
