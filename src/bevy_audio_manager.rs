@@ -35,18 +35,11 @@ impl MusicContext {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum AudioCueKind {
-    OneShot,
-    StartAmbience,
-    StopAmbience,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct AudioCueRequest {
-    pub(crate) asset_path: Option<String>,
-    pub(crate) key: Option<String>,
-    pub(crate) kind: AudioCueKind,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum AudioCueRequest {
+    OneShot { asset_path: String },
+    StartAmbience { key: String, asset_path: String },
+    StopAmbience { key: String },
 }
 
 #[derive(Resource, Default)]
@@ -58,29 +51,22 @@ pub(crate) struct AudioCueQueue {
 impl AudioCueQueue {
     #[allow(dead_code)]
     pub(crate) fn play_effect(&mut self, asset_path: impl Into<String>) {
-        self.pending.push(AudioCueRequest {
-            asset_path: Some(asset_path.into()),
-            key: None,
-            kind: AudioCueKind::OneShot,
+        self.pending.push(AudioCueRequest::OneShot {
+            asset_path: asset_path.into(),
         });
     }
 
     #[allow(dead_code)]
     pub(crate) fn start_ambience(&mut self, key: impl Into<String>, asset_path: impl Into<String>) {
-        self.pending.push(AudioCueRequest {
-            asset_path: Some(asset_path.into()),
-            key: Some(key.into()),
-            kind: AudioCueKind::StartAmbience,
+        self.pending.push(AudioCueRequest::StartAmbience {
+            key: key.into(),
+            asset_path: asset_path.into(),
         });
     }
 
     #[allow(dead_code)]
     pub(crate) fn stop_ambience(&mut self, key: impl Into<String>) {
-        self.pending.push(AudioCueRequest {
-            asset_path: None,
-            key: Some(key.into()),
-            kind: AudioCueKind::StopAmbience,
-        });
+        self.pending.push(AudioCueRequest::StopAmbience { key: key.into() });
     }
 }
 
@@ -209,11 +195,8 @@ fn process_audio_cues(
     mut queue: ResMut<AudioCueQueue>,
 ) {
     for request in std::mem::take(&mut queue.pending) {
-        match request.kind {
-            AudioCueKind::OneShot => {
-                let Some(asset_path) = request.asset_path else {
-                    continue;
-                };
+        match request {
+            AudioCueRequest::OneShot { asset_path } => {
                 let source = asset_server.load(asset_path);
                 commands.spawn((
                     AudioPlayer::new(source),
@@ -221,10 +204,7 @@ fn process_audio_cues(
                     AudioBusMember,
                 ));
             }
-            AudioCueKind::StartAmbience => {
-                let (Some(key), Some(asset_path)) = (request.key, request.asset_path) else {
-                    continue;
-                };
+            AudioCueRequest::StartAmbience { key, asset_path } => {
                 if let Some(previous) = queue.active_ambience.remove(&key) {
                     commands.entity(previous).despawn();
                 }
@@ -238,10 +218,7 @@ fn process_audio_cues(
                     .id();
                 queue.active_ambience.insert(key, entity);
             }
-            AudioCueKind::StopAmbience => {
-                let Some(key) = request.key else {
-                    continue;
-                };
+            AudioCueRequest::StopAmbience { key } => {
                 if let Some(entity) = queue.active_ambience.remove(&key) {
                     commands.entity(entity).despawn();
                 }
