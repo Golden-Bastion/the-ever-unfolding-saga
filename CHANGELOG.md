@@ -4,6 +4,14 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### Underground geological material foundation
+
+- Added a deterministic, renderer-independent underground material sampler with three stylized families: pale granite, veil slate, and cinder basalt.
+- Combined broad, regional, and fine spatial fields with a restrained depth influence to produce coherent formations that vary horizontally and between underground strata.
+- Exposed relative hardness and fracture descriptors for future material-aware systems; these are game-design values, not physical measurements or active mining mechanics.
+- Kept geological sampling independent from cave topology: solid rock, chambers, and passages receive the same material-field treatment at matching coordinates.
+- Added coverage for surface/underground boundaries, deterministic seed and depth variation, all material families, region-seam sampling order, and material descriptors. No save schema, geography ruleset, cave connectivity, or local-map generator version changed.
+
 ### Macro-geography surface presentation
 
 - Carried authoritative elevation, mountain-ridge strength, moisture, and shoreline adjacency through the bounded local-surface projection for renderer use.
