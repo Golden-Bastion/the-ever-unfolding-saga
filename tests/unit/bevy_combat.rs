@@ -21,6 +21,7 @@ fn combat_result_outcome_is_authoritative_and_cleared_with_the_screen() {
     assert_eq!(state.result_outcome(), None);
 }
 
+#[test]
 fn cancelling_combat_restores_spatial_exploration() {
     let mut navigation = NavigationState {
         current_screen: Some(ScreenId::SpatialExploration),
