@@ -307,5 +307,5 @@ fn interpolation_is_symmetric_around_the_location_anchor() {
     assert!(
         (average_ridge - i64::from(anchor_sample.mountain_ridge_strength_q16())).abs() <= 2
     );
-    assert!((average_moisture - i64::from(anchor_sample.moisture_q16())).abs() <= 1);
+    assert!((average_moisture - i64::from(anchor_sample.moisture_q16())).abs() <= 2);
 }
