@@ -2685,12 +2685,14 @@ fn render_spatial_screen(
                 ));
                 spawn_surface_details(
                     &mut commands,
-                    map,
-                    position,
-                    world_position,
-                    terrain,
-                    discovered,
-                    surface_sample,
+                    SurfaceDetailContext {
+                        map,
+                        position,
+                        world_position,
+                        terrain,
+                        discovered,
+                        sample: surface_sample,
+                    },
                     &mut surface_details_spawned,
                 );
             }
@@ -5019,16 +5021,28 @@ fn surface_terrain_tint(
     Some(Color::srgba(rgba.red, rgba.green, rgba.blue, rgba.alpha))
 }
 
-fn spawn_surface_details(
-    commands: &mut Commands,
-    map: &LocalMap,
+struct SurfaceDetailContext<'a> {
+    map: &'a LocalMap,
     position: GridPosition,
     world_position: Vec2,
     terrain: Terrain,
     discovered: bool,
     sample: Option<LocalSurfaceSample>,
+}
+
+fn spawn_surface_details(
+    commands: &mut Commands,
+    context: SurfaceDetailContext<'_>,
     details_spawned: &mut usize,
 ) {
+    let SurfaceDetailContext {
+        map,
+        position,
+        world_position,
+        terrain,
+        discovered,
+        sample,
+    } = context;
     if *details_spawned >= MAX_SURFACE_DETAILS_PER_MAP
         || map.layout_id.as_deref() == Some("shrine_chamber")
         || !discovered
@@ -5058,7 +5072,7 @@ fn spawn_surface_details(
     };
     let hash = surface_detail_hash(position, sample);
     if sample.water() != SurfaceWaterFeature::Land {
-        if sample.water() == SurfaceWaterFeature::Ocean && sample.is_shoreline() && hash % 4 == 0 {
+        if sample.water() == SurfaceWaterFeature::Ocean && sample.is_shoreline() && hash.is_multiple_of(4) {
             let mask = sample.shoreline_mask();
             let vertical_normal = mask
                 & (crate::geography::coast::direction::NORTH
@@ -5097,7 +5111,7 @@ fn spawn_surface_details(
 
     if terrain == Terrain::Rubble
         && (sample.is_mountain_barrier() || sample.biome() == Biome::Alpine)
-        && hash % 3 == 0
+        && hash.is_multiple_of(3)
     {
         let rock = Sprite::from_color(
             if discovered {
@@ -5139,7 +5153,7 @@ fn spawn_surface_details(
         Biome::Tundra if sample.moisture_q16() >= 34_000 => 12,
         _ => return,
     };
-    if hash % vegetation_chance != 0 {
+    if !hash.is_multiple_of(vegetation_chance) {
         return;
     }
 
