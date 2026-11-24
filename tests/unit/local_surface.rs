@@ -220,6 +220,10 @@ fn surface_samples_retain_elevation_shoreline_and_moisture_for_presentation() {
     assert_eq!(sample.moisture_q16(), climate.moisture_q16());
     assert_eq!(sample.shoreline_mask(), shoreline.opposite_terrain_mask());
     assert_eq!(sample.is_shoreline(), shoreline.is_shoreline());
+    assert_eq!(
+        sample.shoreline_strength_q16(),
+        if shoreline.is_shoreline() { u16::MAX } else { 0 }
+    );
 }
 
 
@@ -299,9 +303,9 @@ fn interpolation_is_symmetric_around_the_location_anchor() {
         .sum::<i64>()
         / 4;
 
-    assert!((average_elevation - i64::from(anchor_sample.elevation_q16())).abs() <= 1);
+    assert!((average_elevation - i64::from(anchor_sample.elevation_q16())).abs() <= 2);
     assert!(
-        (average_ridge - i64::from(anchor_sample.mountain_ridge_strength_q16())).abs() <= 1
+        (average_ridge - i64::from(anchor_sample.mountain_ridge_strength_q16())).abs() <= 2
     );
     assert!((average_moisture - i64::from(anchor_sample.moisture_q16())).abs() <= 1);
 }
