@@ -66,7 +66,8 @@ impl AudioCueQueue {
 
     #[allow(dead_code)]
     pub(crate) fn stop_ambience(&mut self, key: impl Into<String>) {
-        self.pending.push(AudioCueRequest::StopAmbience { key: key.into() });
+        self.pending
+            .push(AudioCueRequest::StopAmbience { key: key.into() });
     }
 }
 
