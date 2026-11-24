@@ -207,7 +207,7 @@ fn surface_samples_retain_elevation_shoreline_and_moisture_for_presentation() {
     let surface =
         LocalSurfaceMap::sample_location(seed, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48)
             .unwrap();
-    let sample = surface.sample_at_tile(32, 24).unwrap();
+    let sample = surface.grid_sample(4, 3).unwrap();
     let terrain = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, anchor).unwrap();
     let climate = climate::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, anchor).unwrap();
     let shoreline = coast::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, anchor).unwrap();
@@ -220,4 +220,93 @@ fn surface_samples_retain_elevation_shoreline_and_moisture_for_presentation() {
     assert_eq!(sample.moisture_q16(), climate.moisture_q16());
     assert_eq!(sample.shoreline_mask(), shoreline.opposite_terrain_mask());
     assert_eq!(sample.is_shoreline(), shoreline.is_shoreline());
+    assert_eq!(
+        sample.shoreline_strength_q16(),
+        if shoreline.is_shoreline() {
+            u16::MAX
+        } else {
+            0
+        }
+    );
+}
+
+#[test]
+fn continuous_surface_fields_are_bilinearly_interpolated_but_categories_remain_nearest() {
+    let sample = |biome, elevation, ridge, moisture, shoreline| LocalSurfaceSample {
+        biome,
+        water: SurfaceWaterFeature::Land,
+        elevation_q16: elevation,
+        mountain_ridge_strength_q16: ridge,
+        moisture_q16: moisture,
+        shoreline_mask: if shoreline == 0 { 0 } else { 1 },
+        shoreline_strength_q16: shoreline,
+        mountain_barrier: false,
+        river_width: None,
+    };
+    let surface = LocalSurfaceMap {
+        anchor: MacroCoordinate::ORIGIN,
+        radius_x: 1,
+        radius_y: 1,
+        tile_width: 4,
+        tile_height: 4,
+        sample_width: 2,
+        sample_height: 2,
+        samples: vec![
+            sample(Biome::Grassland, 0, 0, 0, 0),
+            sample(Biome::Desert, 100, 1_000, 10_000, u16::MAX),
+            sample(Biome::Tundra, 200, 2_000, 20_000, u16::MAX),
+            sample(Biome::Alpine, 300, 3_000, 30_000, 0),
+        ],
+        river_tiles: vec![None; 16],
+    };
+
+    // Tile (1, 1) lies one quarter of the way between the four sample centers.
+    let projected = surface.sample_at_tile(1, 1).unwrap();
+    assert_eq!(projected.elevation_q16(), 75);
+    assert_eq!(projected.mountain_ridge_strength_q16(), 750);
+    assert_eq!(projected.moisture_q16(), 7_500);
+    assert_eq!(projected.shoreline_strength_q16(), 24_575);
+
+    // Discrete world classifications and the directional mask still come
+    // from the nearest authoritative macro sample.
+    assert_eq!(projected.biome(), Biome::Grassland);
+    assert_eq!(projected.water(), SurfaceWaterFeature::Land);
+    assert_eq!(projected.shoreline_mask(), 0);
+    assert!(!projected.is_shoreline());
+}
+
+#[test]
+fn interpolation_is_symmetric_around_the_location_anchor() {
+    let seed = 41;
+    let anchor = MacroCoordinate::new(1_237, -842);
+    let surface =
+        LocalSurfaceMap::sample_location(seed, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48)
+            .unwrap();
+    let anchor_sample = surface.grid_sample(4, 3).unwrap();
+    let surrounding = [
+        surface.sample_at_tile(31, 23).unwrap(),
+        surface.sample_at_tile(32, 23).unwrap(),
+        surface.sample_at_tile(31, 24).unwrap(),
+        surface.sample_at_tile(32, 24).unwrap(),
+    ];
+
+    let average_elevation = surrounding
+        .iter()
+        .map(|sample| i64::from(sample.elevation_q16()))
+        .sum::<i64>()
+        / 4;
+    let average_ridge = surrounding
+        .iter()
+        .map(|sample| i64::from(sample.mountain_ridge_strength_q16()))
+        .sum::<i64>()
+        / 4;
+    let average_moisture = surrounding
+        .iter()
+        .map(|sample| i64::from(sample.moisture_q16()))
+        .sum::<i64>()
+        / 4;
+
+    assert!((average_elevation - i64::from(anchor_sample.elevation_q16())).abs() <= 2);
+    assert!((average_ridge - i64::from(anchor_sample.mountain_ridge_strength_q16())).abs() <= 2);
+    assert!((average_moisture - i64::from(anchor_sample.moisture_q16())).abs() <= 2);
 }

@@ -54,6 +54,7 @@ pub struct LocalSurfaceSample {
     mountain_ridge_strength_q16: u32,
     moisture_q16: u32,
     shoreline_mask: u8,
+    shoreline_strength_q16: u16,
     mountain_barrier: bool,
     river_width: Option<RiverWidthClass>,
 }
@@ -86,6 +87,14 @@ impl LocalSurfaceSample {
 
     pub const fn is_shoreline(self) -> bool {
         self.shoreline_mask != 0
+    }
+
+    /// Smooth presentation influence derived from nearby shoreline samples.
+    ///
+    /// Unlike the directional adjacency mask, this value is bilinearly
+    /// interpolated across the bounded local projection grid.
+    pub const fn shoreline_strength_q16(self) -> u16 {
+        self.shoreline_strength_q16
     }
 
     pub const fn is_mountain_barrier(self) -> bool {
@@ -174,13 +183,15 @@ impl LocalSurfaceMap {
                     SurfaceWaterFeature::Land
                 };
 
+                let shoreline_mask = shoreline_sample.opposite_terrain_mask();
                 samples.push(LocalSurfaceSample {
                     biome: climate_sample.biome(),
                     water,
                     elevation_q16: terrain_sample.elevation_q16(),
                     mountain_ridge_strength_q16: terrain_sample.mountain_ridge_strength_q16(),
                     moisture_q16: climate_sample.moisture_q16(),
-                    shoreline_mask: shoreline_sample.opposite_terrain_mask(),
+                    shoreline_mask,
+                    shoreline_strength_q16: if shoreline_mask == 0 { 0 } else { u16::MAX },
                     mountain_barrier: terrain_sample.is_mountain_barrier(),
                     river_width: None,
                 });
@@ -327,14 +338,72 @@ impl LocalSurfaceMap {
     }
 
     /// Return the broad terrain and any local river channel covering one tile.
+    ///
+    /// Continuous environmental fields are bilinearly interpolated from the
+    /// bounded macro grid. Biome, water classification, directional shoreline
+    /// mask, mountain-barrier flag, and river width remain nearest-sample data.
     pub fn sample_at_tile(&self, tile_x: u16, tile_y: u16) -> Option<LocalSurfaceSample> {
         let mut sample = self.macro_sample_at_tile(tile_x, tile_y)?;
+        let (x0, x1, fraction_x) =
+            sample_grid_position_q16(tile_x, self.tile_width, self.sample_width)?;
+        let (y0, y1, fraction_y) =
+            sample_grid_position_q16(tile_y, self.tile_height, self.sample_height)?;
+        let top_left = self.grid_sample(x0, y0)?;
+        let top_right = self.grid_sample(x1, y0)?;
+        let bottom_left = self.grid_sample(x0, y1)?;
+        let bottom_right = self.grid_sample(x1, y1)?;
+
+        sample.elevation_q16 = bilinear_interpolate_q16(
+            i64::from(top_left.elevation_q16),
+            i64::from(top_right.elevation_q16),
+            i64::from(bottom_left.elevation_q16),
+            i64::from(bottom_right.elevation_q16),
+            fraction_x,
+            fraction_y,
+        ) as i32;
+        sample.mountain_ridge_strength_q16 = bilinear_interpolate_q16(
+            i64::from(top_left.mountain_ridge_strength_q16),
+            i64::from(top_right.mountain_ridge_strength_q16),
+            i64::from(bottom_left.mountain_ridge_strength_q16),
+            i64::from(bottom_right.mountain_ridge_strength_q16),
+            fraction_x,
+            fraction_y,
+        )
+        .clamp(0, i64::from(u32::MAX)) as u32;
+        sample.moisture_q16 = bilinear_interpolate_q16(
+            i64::from(top_left.moisture_q16),
+            i64::from(top_right.moisture_q16),
+            i64::from(bottom_left.moisture_q16),
+            i64::from(bottom_right.moisture_q16),
+            fraction_x,
+            fraction_y,
+        )
+        .clamp(0, i64::from(u32::MAX)) as u32;
+        sample.shoreline_strength_q16 = bilinear_interpolate_q16(
+            i64::from(top_left.shoreline_strength_q16),
+            i64::from(top_right.shoreline_strength_q16),
+            i64::from(bottom_left.shoreline_strength_q16),
+            i64::from(bottom_right.shoreline_strength_q16),
+            fraction_x,
+            fraction_y,
+        )
+        .clamp(0, i64::from(u16::MAX)) as u16;
+
         let index = usize::from(tile_y) * usize::from(self.tile_width) + usize::from(tile_x);
         if let Some(width) = self.river_tiles.get(index).copied().flatten() {
             sample.water = SurfaceWaterFeature::Lake;
             sample.river_width = Some(width);
         }
         Some(sample)
+    }
+
+    fn grid_sample(&self, x: usize, y: usize) -> Option<LocalSurfaceSample> {
+        self.samples
+            .get(
+                y.checked_mul(usize::from(self.sample_width))?
+                    .checked_add(x)?,
+            )
+            .copied()
     }
 
     fn macro_sample_at_tile(&self, tile_x: u16, tile_y: u16) -> Option<LocalSurfaceSample> {
@@ -416,6 +485,50 @@ fn coordinate_to_tile(position_q16: i64, anchor: i64, radius: u16, dimension: u1
         .checked_mul(i128::from(dimension))?
         / span;
     u16::try_from(tile.clamp(0, i128::from(dimension - 1))).ok()
+}
+
+/// Map a local tile center to the continuous macro-sample grid in Q16.
+fn sample_grid_position_q16(
+    tile: u16,
+    tile_dimension: u16,
+    sample_dimension: u16,
+) -> Option<(usize, usize, i64)> {
+    if tile >= tile_dimension || tile_dimension == 0 || sample_dimension == 0 {
+        return None;
+    }
+    if sample_dimension == 1 {
+        return Some((0, 0, 0));
+    }
+
+    // Macro samples represent evenly sized cells across the local footprint;
+    // interpolate between their centers rather than snapping to one cell.
+    let numerator = (i64::from(tile) * 2 + 1)
+        .checked_mul(i64::from(sample_dimension))?
+        .checked_sub(i64::from(tile_dimension))?;
+    let denominator = i64::from(tile_dimension) * 2;
+    let position_q16 = numerator.checked_mul(1_i64 << 16)? / denominator;
+    let maximum = i64::from(sample_dimension - 1) * (1_i64 << 16);
+    let position_q16 = position_q16.clamp(0, maximum);
+    let lower = usize::try_from(position_q16 >> 16).ok()?;
+    let upper = (lower + 1).min(usize::from(sample_dimension - 1));
+    Some((lower, upper, position_q16 & 0xFFFF))
+}
+
+fn interpolate_q16(from: i64, to: i64, fraction: i64) -> i64 {
+    from + (to - from) * fraction / (1_i64 << 16)
+}
+
+fn bilinear_interpolate_q16(
+    top_left: i64,
+    top_right: i64,
+    bottom_left: i64,
+    bottom_right: i64,
+    fraction_x: i64,
+    fraction_y: i64,
+) -> i64 {
+    let top = interpolate_q16(top_left, top_right, fraction_x);
+    let bottom = interpolate_q16(bottom_left, bottom_right, fraction_x);
+    interpolate_q16(top, bottom, fraction_y)
 }
 
 fn width_rank(width: RiverWidthClass) -> u8 {
