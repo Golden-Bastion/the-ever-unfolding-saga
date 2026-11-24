@@ -2571,11 +2571,7 @@ fn update_spatial_world(
         let geology_atlas_index = state
             .geology
             .and_then(|(material, _)| underground_geology_tile_index(terrain, material));
-        let using_geology_art = if let (
-            Some(index),
-            Some(image),
-            Some(layout),
-        ) = (
+        let using_geology_art = if let (Some(index), Some(image), Some(layout)) = (
             geology_atlas_index,
             assets.geology_tile_image.as_ref(),
             assets.geology_tile_layout.as_ref(),
@@ -5347,10 +5343,7 @@ fn underground_terrain_image_index(terrain: Terrain) -> usize {
 /// Returns the sprite-atlas cell for a material floor or raised-rock ledge.
 /// The sheet is arranged as three material columns (granite, slate, basalt)
 /// and two rows (floor, ledge).
-fn underground_geology_tile_index(
-    terrain: Terrain,
-    material: GeologicalMaterial,
-) -> Option<usize> {
+fn underground_geology_tile_index(terrain: Terrain, material: GeologicalMaterial) -> Option<usize> {
     let column = match material {
         GeologicalMaterial::PaleGranite => 0,
         GeologicalMaterial::VeilSlate => 1,
