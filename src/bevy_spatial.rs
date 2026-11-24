@@ -22,6 +22,7 @@ use crate::bevy_presentation::{
 };
 use crate::geography::climate::{self, Biome};
 use crate::geography::frontier;
+use crate::geography::geology::{self, GeologicalMaterial};
 use crate::geography::local_surface::{LocalSurfaceMap, LocalSurfaceSample, SurfaceWaterFeature};
 use crate::geography::routes::{
     RouteCrossingKind, RouteHeading, RouteInfrastructure, RouteLandscapeKind, RouteLandscapeSample,
@@ -285,6 +286,7 @@ pub(crate) struct SpatialExplorationState {
     clock_elapsed_seconds: f64,
     biome: Option<Biome>,
     surface: Option<LocalSurfaceMap>,
+    geology: Option<(GeologicalMaterial, crate::geography::MacroCoordinate)>,
 }
 
 impl SpatialExplorationState {
@@ -522,6 +524,7 @@ pub(crate) fn start_sandbox_playtest(
     state.sandbox_mode = true;
     state.biome = None;
     state.surface = None;
+    state.geology = None;
     state.location_notice = None;
     state.location_notice_remaining_seconds = 0.0;
     state.message =
@@ -763,6 +766,7 @@ pub(crate) fn enter(
     let Some(location) = game.world.location_by_id(game.character.location_id) else {
         state.biome = None;
         state.surface = None;
+        state.geology = None;
         return;
     };
     let location_id = format!("location.{}", location.id);
@@ -950,6 +954,7 @@ pub(crate) fn enter(
         location_biome(game, location.id)
     };
     state.surface = surface;
+    state.geology = location_geology(game, location.id);
     // Reconcile every authoritative route into an existing map. Established
     // passages retain their IDs and positions; newly added routes append exits.
     configure_map_routes(&mut map, &map_routes);
@@ -2526,28 +2531,36 @@ fn update_spatial_world(
     let player_sprite_size = spatial_player_sprite_size(&assets);
     for (tile, mut sprite) in &mut tiles {
         let terrain = map.terrain_at(tile.0).unwrap_or(Terrain::Wall);
-        if let Some(desired) = assets.tile_images[terrain_image_index(terrain)].clone() {
+        let image_index = if state.geology.is_some() {
+            underground_terrain_image_index(terrain)
+        } else {
+            terrain_image_index(terrain)
+        };
+        if let Some(desired) = assets.tile_images[image_index].clone() {
             if sprite.image != desired {
                 sprite.image = desired;
             }
+            let discovered = map.is_tile_discovered(tile.0);
             let surface_sample = surface_sample_at(state.surface.as_ref(), tile.0);
             let biome = surface_sample
                 .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
                 .map(|sample| sample.biome())
                 .or(state.biome);
-            sprite.color =
-                surface_terrain_tint(terrain, map.is_tile_discovered(tile.0), surface_sample)
-                    .unwrap_or_else(|| {
-                        terrain_tint(terrain, map.is_tile_discovered(tile.0), biome)
-                    });
+            sprite.color = state
+                .geology
+                .map(|(material, _)| geological_terrain_tint(terrain, material, discovered))
+                .unwrap_or_else(|| {
+                    surface_terrain_tint(terrain, discovered, surface_sample)
+                        .unwrap_or_else(|| terrain_tint(terrain, discovered, biome))
+                });
         }
     }
     for (side, mut sprite) in &mut wall_sides {
-        sprite.color = terrain_tint(
-            Terrain::Wall,
-            map.is_tile_discovered(side.tile),
-            state.biome,
-        );
+        let discovered = map.is_tile_discovered(side.tile);
+        sprite.color = state
+            .geology
+            .map(|(material, _)| geological_wall_face_tint(material, discovered))
+            .unwrap_or_else(|| terrain_tint(Terrain::Wall, discovered, state.biome));
     }
     for (mut transform, mut sprite) in &mut player {
         transform.translation.x = target.x;
@@ -2621,7 +2634,9 @@ fn render_spatial_screen(
     let time_points = world_time.map(|(_, points, _)| points);
     let minutes_into_time_point = world_time.map(|(_, _, minutes)| minutes).unwrap_or(0);
 
+    let underground_material = state.geology.map(|(material, _)| material);
     let mut surface_details_spawned = 0;
+    let mut geological_details_spawned = 0;
     for y in 0..map.height {
         for x in 0..map.width {
             let position = GridPosition { x, y };
@@ -2635,17 +2650,16 @@ fn render_spatial_screen(
                     let Some(image) = assets.wall_face_images[face_index].clone() else {
                         continue;
                     };
+                    let mut wall_sprite = Sprite::from_image(image);
+                    wall_sprite.custom_size =
+                        Some(Vec2::new(TILE_HALF_WIDTH, WALL_HEIGHT + TILE_HALF_HEIGHT));
+                    if let Some(material) = underground_material {
+                        wall_sprite.color = geological_wall_face_tint(material, discovered);
+                    }
                     commands.spawn((
                         SpatialWorldEntity,
                         SpatialWallSide { tile: position },
-                        Sprite {
-                            image,
-                            custom_size: Some(Vec2::new(
-                                TILE_HALF_WIDTH,
-                                WALL_HEIGHT + TILE_HALF_HEIGHT,
-                            )),
-                            ..default()
-                        },
+                        wall_sprite,
                         Transform::from_xyz(
                             world_position.x
                                 + if right_face {
@@ -2666,7 +2680,12 @@ fn render_spatial_screen(
                 0.0
             };
             let top_depth = terrain_depth(terrain, tile_center);
-            if let Some(image) = assets.tile_images[terrain_image_index(terrain)].clone() {
+            let image_index = if underground_material.is_some() {
+                underground_terrain_image_index(terrain)
+            } else {
+                terrain_image_index(terrain)
+            };
+            if let Some(image) = assets.tile_images[image_index].clone() {
                 let mut tile_sprite = Sprite::from_image(image);
                 tile_sprite.custom_size =
                     Some(Vec2::new(TILE_HALF_WIDTH * 2.0, TILE_HALF_HEIGHT * 2.0));
@@ -2675,8 +2694,12 @@ fn render_spatial_screen(
                     .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
                     .map(|sample| sample.biome())
                     .or(state.biome);
-                tile_sprite.color = surface_terrain_tint(terrain, discovered, surface_sample)
-                    .unwrap_or_else(|| terrain_tint(terrain, discovered, biome));
+                tile_sprite.color = underground_material
+                    .map(|material| geological_terrain_tint(terrain, material, discovered))
+                    .unwrap_or_else(|| {
+                        surface_terrain_tint(terrain, discovered, surface_sample)
+                            .unwrap_or_else(|| terrain_tint(terrain, discovered, biome))
+                    });
                 commands.spawn((
                     SpatialWorldEntity,
                     SpatialTile(position),
@@ -2695,6 +2718,21 @@ fn render_spatial_screen(
                     },
                     &mut surface_details_spawned,
                 );
+                if let Some((material, anchor)) = state.geology {
+                    spawn_geological_details(
+                        &mut commands,
+                        GeologicalDetailContext {
+                            map,
+                            position,
+                            world_position,
+                            terrain,
+                            discovered,
+                            material,
+                            anchor,
+                        },
+                        &mut geological_details_spawned,
+                    );
+                }
             }
         }
     }
@@ -5203,6 +5241,198 @@ fn surface_detail_hash(position: GridPosition, sample: LocalSurfaceSample) -> u3
         ^ u32::from(position.y).wrapping_mul(0x85EB_CA6B)
         ^ sample.elevation_q16() as u32
         ^ sample.moisture_q16();
+    value ^= value >> 16;
+    value = value.wrapping_mul(0x7FEB_352D);
+    value ^= value >> 15;
+    value = value.wrapping_mul(0x846C_A68B);
+    value ^ (value >> 16)
+}
+
+fn location_geology(
+    game: &GameState,
+    location_id: EntityId,
+) -> Option<(GeologicalMaterial, crate::geography::MacroCoordinate)> {
+    let anchor = game
+        .world
+        .location_geography
+        .iter()
+        .find(|record| record.location_id == location_id)?
+        .anchor;
+    if anchor.stratum >= 0 {
+        return None;
+    }
+    let generation = game.world.generation;
+    let world_seed = game
+        .world
+        .geography_seed
+        .or_else(|| generation.map(|metadata| metadata.seed))
+        .unwrap_or(game.world.id);
+    let ruleset_version = game.world.geography_ruleset_version.max(
+        generation
+            .map(|metadata| metadata.geography_ruleset_version)
+            .unwrap_or(0),
+    );
+    let material = geology::sample_geology(world_seed, ruleset_version, anchor)?.material();
+    Some((material, anchor))
+}
+
+fn underground_terrain_image_index(terrain: Terrain) -> usize {
+    match terrain {
+        Terrain::Floor | Terrain::Ash | Terrain::Rubble | Terrain::Ford => 2,
+        Terrain::Wall => 3,
+        Terrain::Sand | Terrain::Water | Terrain::Bridge => terrain_image_index(terrain),
+    }
+}
+
+fn geological_terrain_tint(
+    terrain: Terrain,
+    material: GeologicalMaterial,
+    discovered: bool,
+) -> Color {
+    let (wall_top, _wall_face, floor) = geological_material_palette(material, discovered);
+    match terrain {
+        Terrain::Wall => wall_top,
+        Terrain::Floor | Terrain::Ash | Terrain::Rubble | Terrain::Ford => floor,
+        Terrain::Sand | Terrain::Water | Terrain::Bridge => terrain_tint(terrain, discovered, None),
+    }
+}
+
+fn geological_wall_face_tint(material: GeologicalMaterial, discovered: bool) -> Color {
+    let (_, wall_face, _) = geological_material_palette(material, discovered);
+    wall_face
+}
+
+fn geological_material_palette(
+    material: GeologicalMaterial,
+    discovered: bool,
+) -> (Color, Color, Color) {
+    let (wall_top, wall_face, floor) = match material {
+        GeologicalMaterial::PaleGranite => {
+            ((0.68, 0.66, 0.61), (0.48, 0.47, 0.44), (0.55, 0.52, 0.46))
+        }
+        GeologicalMaterial::VeilSlate => {
+            ((0.53, 0.59, 0.63), (0.37, 0.42, 0.46), (0.43, 0.47, 0.49))
+        }
+        GeologicalMaterial::CinderBasalt => {
+            ((0.54, 0.43, 0.39), (0.38, 0.30, 0.28), (0.45, 0.36, 0.33))
+        }
+    };
+    let shade = if discovered { 1.0 } else { 0.48 };
+    let tint =
+        |(red, green, blue): (f32, f32, f32)| Color::srgb(red * shade, green * shade, blue * shade);
+    (tint(wall_top), tint(wall_face), tint(floor))
+}
+
+struct GeologicalDetailContext<'a> {
+    map: &'a LocalMap,
+    position: GridPosition,
+    world_position: Vec2,
+    terrain: Terrain,
+    discovered: bool,
+    material: GeologicalMaterial,
+    anchor: crate::geography::MacroCoordinate,
+}
+
+fn spawn_geological_details(
+    commands: &mut Commands,
+    context: GeologicalDetailContext<'_>,
+    details_spawned: &mut usize,
+) {
+    let GeologicalDetailContext {
+        map,
+        position,
+        world_position,
+        terrain,
+        discovered,
+        material,
+        anchor,
+    } = context;
+    if *details_spawned >= MAX_SURFACE_DETAILS_PER_MAP
+        || !discovered
+        || !matches!(terrain, Terrain::Wall | Terrain::Rubble)
+        || map.entry == position
+        || map
+            .props
+            .iter()
+            .any(|prop| prop.footprint_contains(position, map.width))
+        || map.exits.iter().any(|exit| exit.position == position)
+        || map
+            .points_of_interest
+            .iter()
+            .any(|poi| poi.position == position)
+        || map
+            .interactables
+            .iter()
+            .any(|actor| actor.position == position)
+        || map
+            .encounters
+            .iter()
+            .any(|encounter| encounter.position == position)
+    {
+        return;
+    }
+
+    let hash = geological_detail_hash(position, anchor, material);
+    if !hash.is_multiple_of(5) {
+        return;
+    }
+    let tile_center = Vec2::new(f32::from(position.x) + 0.5, f32::from(position.y) + 0.5);
+    let (y_offset, depth) = if terrain == Terrain::Wall {
+        (
+            WALL_HEIGHT + 5.0,
+            terrain_depth(terrain, tile_center) + 0.002,
+        )
+    } else {
+        (3.0, GROUND_TERRAIN_DEPTH + 0.02)
+    };
+    let (shard_color, facet_color) = match material {
+        GeologicalMaterial::PaleGranite => {
+            (Color::srgb(0.49, 0.47, 0.43), Color::srgb(0.78, 0.75, 0.68))
+        }
+        GeologicalMaterial::VeilSlate => {
+            (Color::srgb(0.32, 0.38, 0.42), Color::srgb(0.63, 0.68, 0.70))
+        }
+        GeologicalMaterial::CinderBasalt => {
+            (Color::srgb(0.34, 0.25, 0.23), Color::srgb(0.63, 0.43, 0.38))
+        }
+    };
+    let shard = Sprite::from_color(shard_color, Vec2::new(12.0, 4.0));
+    commands.spawn((
+        SpatialWorldEntity,
+        shard,
+        Transform::from_xyz(world_position.x, world_position.y + y_offset, depth).with_rotation(
+            Quat::from_rotation_z(if hash & 1 == 0 { -0.38 } else { 0.32 }),
+        ),
+    ));
+    let facet = Sprite::from_color(facet_color, Vec2::new(4.0, 2.0));
+    commands.spawn((
+        SpatialWorldEntity,
+        facet,
+        Transform::from_xyz(
+            world_position.x - 2.0,
+            world_position.y + y_offset + 1.5,
+            depth + 0.001,
+        ),
+    ));
+    *details_spawned += 1;
+}
+
+fn geological_detail_hash(
+    position: GridPosition,
+    anchor: crate::geography::MacroCoordinate,
+    material: GeologicalMaterial,
+) -> u32 {
+    let material_key = match material {
+        GeologicalMaterial::PaleGranite => 0x1357_9BDF_u32,
+        GeologicalMaterial::VeilSlate => 0x2468_ACE0_u32,
+        GeologicalMaterial::CinderBasalt => 0xA5A5_5A5A_u32,
+    };
+    let mut value = u32::from(position.x).wrapping_mul(0x9E37_79B9)
+        ^ u32::from(position.y).wrapping_mul(0x85EB_CA6B)
+        ^ (anchor.x as u64 as u32).rotate_left(7)
+        ^ (anchor.y as u64 as u32).rotate_left(17)
+        ^ (anchor.stratum as u32).rotate_left(23)
+        ^ material_key;
     value ^= value >> 16;
     value = value.wrapping_mul(0x7FEB_352D);
     value ^= value >> 15;
