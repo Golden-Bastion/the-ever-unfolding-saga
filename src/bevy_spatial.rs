@@ -22,7 +22,7 @@ use crate::bevy_presentation::{
 };
 use crate::geography::climate::{self, Biome};
 use crate::geography::frontier;
-use crate::geography::local_surface::{LocalSurfaceMap, SurfaceWaterFeature};
+use crate::geography::local_surface::{LocalSurfaceMap, LocalSurfaceSample, SurfaceWaterFeature};
 use crate::geography::routes::{
     RouteCrossingKind, RouteHeading, RouteInfrastructure, RouteLandscapeKind, RouteLandscapeSample,
     RouteProfile,
@@ -77,6 +77,7 @@ const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
 const MAX_MOVEMENT_STEP_DISTANCE: f32 = PLAYER_COLLISION_HALF_EXTENT * 0.5;
 const DEPTH_STEP: f32 = 0.08;
 const GROUND_TERRAIN_DEPTH: f32 = -1.0;
+const MAX_SURFACE_DETAILS_PER_MAP: usize = 256;
 const WALL_TOP_DEPTH_BIAS: f32 = 0.002;
 const WALL_FACE_DEPTH_BIAS: f32 = -0.002;
 const PLAYER_DEPTH_OFFSET: f32 = 0.04;
@@ -2529,8 +2530,16 @@ fn update_spatial_world(
             if sprite.image != desired {
                 sprite.image = desired;
             }
-            let biome = surface_biome_at(state.surface.as_ref(), tile.0).or(state.biome);
-            sprite.color = terrain_tint(terrain, map.is_tile_discovered(tile.0), biome);
+            let surface_sample = surface_sample_at(state.surface.as_ref(), tile.0);
+            let biome = surface_sample
+                .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
+                .map(|sample| sample.biome())
+                .or(state.biome);
+            sprite.color =
+                surface_terrain_tint(terrain, map.is_tile_discovered(tile.0), surface_sample)
+                    .unwrap_or_else(|| {
+                        terrain_tint(terrain, map.is_tile_discovered(tile.0), biome)
+                    });
         }
     }
     for (side, mut sprite) in &mut wall_sides {
@@ -2612,6 +2621,7 @@ fn render_spatial_screen(
     let time_points = world_time.map(|(_, points, _)| points);
     let minutes_into_time_point = world_time.map(|(_, _, minutes)| minutes).unwrap_or(0);
 
+    let mut surface_details_spawned = 0;
     for y in 0..map.height {
         for x in 0..map.width {
             let position = GridPosition { x, y };
@@ -2660,14 +2670,31 @@ fn render_spatial_screen(
                 let mut tile_sprite = Sprite::from_image(image);
                 tile_sprite.custom_size =
                     Some(Vec2::new(TILE_HALF_WIDTH * 2.0, TILE_HALF_HEIGHT * 2.0));
-                let biome = surface_biome_at(state.surface.as_ref(), position).or(state.biome);
-                tile_sprite.color = terrain_tint(terrain, discovered, biome);
+                let surface_sample = surface_sample_at(state.surface.as_ref(), position);
+                let biome = surface_sample
+                    .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
+                    .map(|sample| sample.biome())
+                    .or(state.biome);
+                tile_sprite.color = surface_terrain_tint(terrain, discovered, surface_sample)
+                    .unwrap_or_else(|| terrain_tint(terrain, discovered, biome));
                 commands.spawn((
                     SpatialWorldEntity,
                     SpatialTile(position),
                     tile_sprite,
                     Transform::from_xyz(world_position.x, world_position.y + top_offset, top_depth),
                 ));
+                spawn_surface_details(
+                    &mut commands,
+                    SurfaceDetailContext {
+                        map,
+                        position,
+                        world_position,
+                        terrain,
+                        discovered,
+                        sample: surface_sample,
+                    },
+                    &mut surface_details_spawned,
+                );
             }
         }
     }
@@ -4954,11 +4981,228 @@ fn route_local_river_crossing_targets(
     targets
 }
 
-fn surface_biome_at(surface: Option<&LocalSurfaceMap>, position: GridPosition) -> Option<Biome> {
-    surface
-        .and_then(|surface| surface.sample_at_tile(position.x, position.y))
-        .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
-        .map(|sample| sample.biome())
+fn surface_sample_at(
+    surface: Option<&LocalSurfaceMap>,
+    position: GridPosition,
+) -> Option<LocalSurfaceSample> {
+    surface.and_then(|surface| surface.sample_at_tile(position.x, position.y))
+}
+
+fn surface_terrain_tint(
+    terrain: Terrain,
+    discovered: bool,
+    sample: Option<LocalSurfaceSample>,
+) -> Option<Color> {
+    let sample = sample?;
+    let biome = (sample.water() == SurfaceWaterFeature::Land).then_some(sample.biome());
+    let base = terrain_tint(terrain, discovered, biome);
+    let mut rgba = base.to_srgba();
+
+    if sample.water() == SurfaceWaterFeature::Ocean && sample.is_shoreline() {
+        return Some(if discovered {
+            Color::srgb(0.48, 0.69, 0.76)
+        } else {
+            Color::srgb(0.18, 0.30, 0.37)
+        });
+    }
+
+    // Elevation and ridge strength add broad relief shading without changing
+    // walkability, terrain classification, or the persisted local map.
+    let elevation = (sample.elevation_q16() as f32 / 65_536.0).clamp(-1.0, 1.0);
+    let mut shade = 0.94 + (elevation + 1.0) * 0.06;
+    shade -= sample.mountain_ridge_strength_q16() as f32 / 65_535.0 * 0.08;
+    if sample.is_shoreline() && sample.water() == SurfaceWaterFeature::Land {
+        shade += 0.035;
+    }
+
+    rgba.red = (rgba.red * shade).clamp(0.0, 1.0);
+    rgba.green = (rgba.green * shade).clamp(0.0, 1.0);
+    rgba.blue = (rgba.blue * shade).clamp(0.0, 1.0);
+    Some(Color::srgba(rgba.red, rgba.green, rgba.blue, rgba.alpha))
+}
+
+struct SurfaceDetailContext<'a> {
+    map: &'a LocalMap,
+    position: GridPosition,
+    world_position: Vec2,
+    terrain: Terrain,
+    discovered: bool,
+    sample: Option<LocalSurfaceSample>,
+}
+
+fn spawn_surface_details(
+    commands: &mut Commands,
+    context: SurfaceDetailContext<'_>,
+    details_spawned: &mut usize,
+) {
+    let SurfaceDetailContext {
+        map,
+        position,
+        world_position,
+        terrain,
+        discovered,
+        sample,
+    } = context;
+    if *details_spawned >= MAX_SURFACE_DETAILS_PER_MAP
+        || map.layout_id.as_deref() == Some("shrine_chamber")
+        || !discovered
+        || map.entry == position
+        || map
+            .props
+            .iter()
+            .any(|prop| prop.footprint_contains(position, map.width))
+        || map.exits.iter().any(|exit| exit.position == position)
+        || map
+            .points_of_interest
+            .iter()
+            .any(|poi| poi.position == position)
+        || map
+            .interactables
+            .iter()
+            .any(|actor| actor.position == position)
+        || map
+            .encounters
+            .iter()
+            .any(|encounter| encounter.position == position)
+    {
+        return;
+    }
+    let Some(sample) = sample else {
+        return;
+    };
+    let hash = surface_detail_hash(position, sample);
+    if sample.water() != SurfaceWaterFeature::Land {
+        if sample.water() == SurfaceWaterFeature::Ocean
+            && sample.is_shoreline()
+            && hash.is_multiple_of(4)
+        {
+            let mask = sample.shoreline_mask();
+            let vertical_normal = mask
+                & (crate::geography::coast::direction::NORTH
+                    | crate::geography::coast::direction::SOUTH)
+                != 0;
+            let horizontal_normal = mask
+                & (crate::geography::coast::direction::EAST
+                    | crate::geography::coast::direction::WEST)
+                != 0;
+            let angle = match (vertical_normal, horizontal_normal) {
+                (true, false) => 0.0,
+                (false, true) => std::f32::consts::FRAC_PI_2,
+                _ => std::f32::consts::FRAC_PI_4,
+            };
+            let foam =
+                Sprite::from_color(Color::srgba(0.66, 0.82, 0.86, 0.72), Vec2::new(13.0, 2.0));
+            *details_spawned += 1;
+            commands.spawn((
+                SpatialWorldEntity,
+                foam,
+                Transform::from_xyz(
+                    world_position.x,
+                    world_position.y + 1.0,
+                    GROUND_TERRAIN_DEPTH + 0.01,
+                )
+                .with_rotation(Quat::from_rotation_z(angle)),
+            ));
+        }
+        return;
+    }
+
+    let depth = depth_for(Vec2::new(
+        f32::from(position.x) + 0.5,
+        f32::from(position.y) + 0.5,
+    )) + 0.015;
+
+    if terrain == Terrain::Rubble
+        && (sample.is_mountain_barrier() || sample.biome() == Biome::Alpine)
+        && hash.is_multiple_of(3)
+    {
+        let rock = Sprite::from_color(
+            if discovered {
+                Color::srgb(0.43, 0.46, 0.50)
+            } else {
+                Color::srgb(0.20, 0.23, 0.27)
+            },
+            Vec2::new(20.0, 9.0),
+        );
+        *details_spawned += 1;
+        commands.spawn((
+            SpatialWorldEntity,
+            rock,
+            Transform::from_xyz(world_position.x, world_position.y + 4.0, depth)
+                .with_rotation(Quat::from_rotation_z(-0.35)),
+        ));
+        let rock_facet =
+            Sprite::from_color(Color::srgba(0.72, 0.74, 0.76, 0.72), Vec2::new(8.0, 3.0));
+        commands.spawn((
+            SpatialWorldEntity,
+            rock_facet,
+            Transform::from_xyz(
+                world_position.x - 2.0,
+                world_position.y + 7.0,
+                depth + 0.001,
+            )
+            .with_rotation(Quat::from_rotation_z(0.25)),
+        ));
+    }
+
+    if terrain != Terrain::Floor {
+        return;
+    }
+
+    let vegetation_chance = match sample.biome() {
+        Biome::TemperateForest => 3,
+        Biome::Taiga => 4,
+        Biome::Grassland if sample.moisture_q16() >= 28_000 => 9,
+        Biome::Tundra if sample.moisture_q16() >= 34_000 => 12,
+        _ => return,
+    };
+    if !hash.is_multiple_of(vegetation_chance) {
+        return;
+    }
+
+    let (canopy, trunk) = match sample.biome() {
+        Biome::TemperateForest => (Color::srgb(0.12, 0.25, 0.17), Color::srgb(0.30, 0.22, 0.15)),
+        Biome::Taiga => (Color::srgb(0.13, 0.25, 0.25), Color::srgb(0.27, 0.22, 0.17)),
+        Biome::Grassland => (Color::srgb(0.31, 0.43, 0.22), Color::srgb(0.38, 0.31, 0.19)),
+        Biome::Tundra => (Color::srgb(0.37, 0.43, 0.39), Color::srgb(0.35, 0.34, 0.29)),
+        _ => return,
+    };
+    *details_spawned += 1;
+    let trunk_sprite = Sprite::from_color(trunk, Vec2::new(3.0, 7.0));
+    commands.spawn((
+        SpatialWorldEntity,
+        trunk_sprite,
+        Transform::from_xyz(world_position.x, world_position.y + 5.0, depth + 0.001),
+    ));
+    let canopy_sprite = Sprite::from_color(canopy, Vec2::new(13.0, 11.0));
+    commands.spawn((
+        SpatialWorldEntity,
+        canopy_sprite,
+        Transform::from_xyz(world_position.x, world_position.y + 12.0, depth + 0.002),
+    ));
+    let highlight_sprite =
+        Sprite::from_color(Color::srgba(0.48, 0.58, 0.37, 0.75), Vec2::new(6.0, 4.0));
+    commands.spawn((
+        SpatialWorldEntity,
+        highlight_sprite,
+        Transform::from_xyz(
+            world_position.x - 2.0,
+            world_position.y + 15.0,
+            depth + 0.003,
+        ),
+    ));
+}
+
+fn surface_detail_hash(position: GridPosition, sample: LocalSurfaceSample) -> u32 {
+    let mut value = u32::from(position.x).wrapping_mul(0x9E37_79B9)
+        ^ u32::from(position.y).wrapping_mul(0x85EB_CA6B)
+        ^ sample.elevation_q16() as u32
+        ^ sample.moisture_q16();
+    value ^= value >> 16;
+    value = value.wrapping_mul(0x7FEB_352D);
+    value ^= value >> 15;
+    value = value.wrapping_mul(0x846C_A68B);
+    value ^ (value >> 16)
 }
 
 fn location_biome(game: &GameState, location_id: EntityId) -> Option<Biome> {

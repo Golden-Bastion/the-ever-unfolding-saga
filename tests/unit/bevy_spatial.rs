@@ -2398,3 +2398,28 @@ fn route_landscape_placeholder_palette_distinguishes_every_environment() {
         "Forest / Valley / Water"
     );
 }
+
+#[test]
+fn surface_detail_variation_is_stable_for_a_tile_and_changes_with_position() {
+    let anchor = crate::geography::MacroCoordinate::new(1_237, -842);
+    let surface = LocalSurfaceMap::sample_location(
+        41,
+        crate::geography::GEOGRAPHY_RULESET_VERSION,
+        anchor,
+        4,
+        64,
+        48,
+    )
+    .unwrap();
+    let sample = surface.sample_at_tile(32, 24).unwrap();
+    let position = GridPosition { x: 32, y: 24 };
+
+    assert_eq!(
+        surface_detail_hash(position, sample),
+        surface_detail_hash(position, sample)
+    );
+    assert_ne!(
+        surface_detail_hash(position, sample),
+        surface_detail_hash(GridPosition { x: 33, y: 24 }, sample)
+    );
+}

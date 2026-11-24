@@ -50,6 +50,10 @@ pub struct LocalSurfaceTile {
 pub struct LocalSurfaceSample {
     biome: Biome,
     water: SurfaceWaterFeature,
+    elevation_q16: i32,
+    mountain_ridge_strength_q16: u32,
+    moisture_q16: u32,
+    shoreline_mask: u8,
     mountain_barrier: bool,
     river_width: Option<RiverWidthClass>,
 }
@@ -61,6 +65,27 @@ impl LocalSurfaceSample {
 
     pub const fn water(self) -> SurfaceWaterFeature {
         self.water
+    }
+
+    pub const fn elevation_q16(self) -> i32 {
+        self.elevation_q16
+    }
+
+    pub const fn mountain_ridge_strength_q16(self) -> u32 {
+        self.mountain_ridge_strength_q16
+    }
+
+    pub const fn moisture_q16(self) -> u32 {
+        self.moisture_q16
+    }
+
+    /// Direction bits are shared with geography::coast::direction.
+    pub const fn shoreline_mask(self) -> u8 {
+        self.shoreline_mask
+    }
+
+    pub const fn is_shoreline(self) -> bool {
+        self.shoreline_mask != 0
     }
 
     pub const fn is_mountain_barrier(self) -> bool {
@@ -137,6 +162,8 @@ impl LocalSurfaceMap {
                     terrain::sample_surface(world_seed, ruleset_version, coordinate)?;
                 let climate_sample =
                     climate::sample_surface(world_seed, ruleset_version, coordinate)?;
+                let shoreline_sample =
+                    super::coast::sample_surface(world_seed, ruleset_version, coordinate)?;
                 let water = if !terrain_sample.is_land() {
                     SurfaceWaterFeature::Ocean
                 } else if waterbodies::sample_surface(world_seed, ruleset_version, coordinate)
@@ -150,6 +177,10 @@ impl LocalSurfaceMap {
                 samples.push(LocalSurfaceSample {
                     biome: climate_sample.biome(),
                     water,
+                    elevation_q16: terrain_sample.elevation_q16(),
+                    mountain_ridge_strength_q16: terrain_sample.mountain_ridge_strength_q16(),
+                    moisture_q16: climate_sample.moisture_q16(),
+                    shoreline_mask: shoreline_sample.opposite_terrain_mask(),
                     mountain_barrier: terrain_sample.is_mountain_barrier(),
                     river_width: None,
                 });
