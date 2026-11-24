@@ -2237,6 +2237,78 @@ fn interior_door_state_blocks_and_allows_continuous_grid_edge_crossing() {
 }
 
 #[test]
+fn underground_ground_uses_broken_stone_art_and_keeps_wall_tops() {
+    assert_eq!(underground_terrain_image_index(Terrain::Floor), 2);
+    assert_eq!(underground_terrain_image_index(Terrain::Ash), 2);
+    assert_eq!(underground_terrain_image_index(Terrain::Rubble), 2);
+    assert_eq!(underground_terrain_image_index(Terrain::Ford), 2);
+    assert_eq!(underground_terrain_image_index(Terrain::Wall), 3);
+    assert_eq!(underground_terrain_image_index(Terrain::Water), 0);
+    assert_eq!(underground_terrain_image_index(Terrain::Sand), 0);
+    assert_eq!(underground_terrain_image_index(Terrain::Bridge), 0);
+}
+
+#[test]
+fn underground_geology_palette_distinguishes_materials_and_discovery() {
+    let materials = [
+        GeologicalMaterial::PaleGranite,
+        GeologicalMaterial::VeilSlate,
+        GeologicalMaterial::CinderBasalt,
+    ];
+    for terrain in [Terrain::Wall, Terrain::Floor, Terrain::Rubble] {
+        let colors = materials.map(|material| geological_terrain_tint(terrain, material, true));
+        for (index, color) in colors.iter().enumerate() {
+            assert!(colors[index + 1..].iter().all(|other| other != color));
+        }
+    }
+    let wall_faces = materials.map(|material| geological_wall_face_tint(material, true));
+    for (index, color) in wall_faces.iter().enumerate() {
+        assert!(wall_faces[index + 1..].iter().all(|other| other != color));
+    }
+    for material in materials {
+        assert_ne!(
+            geological_terrain_tint(Terrain::Wall, material, true),
+            geological_terrain_tint(Terrain::Wall, material, false)
+        );
+        assert_ne!(
+            geological_wall_face_tint(material, true),
+            geological_wall_face_tint(material, false)
+        );
+    }
+}
+
+#[test]
+fn geological_detail_hash_is_deterministic_and_location_specific() {
+    let position = GridPosition { x: 17, y: 23 };
+    let anchor = crate::geography::MacroCoordinate::in_stratum(640, -320, -2);
+    let hash = geological_detail_hash(position, anchor, GeologicalMaterial::VeilSlate);
+    assert_eq!(
+        hash,
+        geological_detail_hash(position, anchor, GeologicalMaterial::VeilSlate)
+    );
+    assert_ne!(
+        hash,
+        geological_detail_hash(
+            GridPosition { x: 18, y: 23 },
+            anchor,
+            GeologicalMaterial::VeilSlate
+        )
+    );
+    assert_ne!(
+        hash,
+        geological_detail_hash(
+            position,
+            crate::geography::MacroCoordinate::in_stratum(641, -320, -2),
+            GeologicalMaterial::VeilSlate
+        )
+    );
+    assert_ne!(
+        hash,
+        geological_detail_hash(position, anchor, GeologicalMaterial::PaleGranite)
+    );
+}
+
+#[test]
 fn spatial_material_palette_distinguishes_terrain_and_crossing_types() {
     let discovered = [
         terrain_tint(Terrain::Floor, true, None),
