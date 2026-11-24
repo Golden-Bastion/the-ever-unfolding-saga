@@ -78,9 +78,18 @@ fn context_resolution_uses_existing_lifecycle_and_world_state() {
 
     let mut lifecycle = active_lifecycle();
     let combat = CombatState::default();
+    let expected_seed = lifecycle
+        .session
+        .as_ref()
+        .expect("session exists")
+        .state
+        .world
+        .generation
+        .expect("new world has generation metadata")
+        .seed;
     assert_eq!(
-        resolve_context(&lifecycle, &combat).0,
-        MusicContext::Exploration
+        resolve_context(&lifecycle, &combat),
+        (MusicContext::Exploration, expected_seed)
     );
     lifecycle.phase = LifecyclePhase::QuitConfirm;
     assert_eq!(
