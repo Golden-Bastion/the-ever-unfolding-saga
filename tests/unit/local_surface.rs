@@ -218,9 +218,6 @@ fn surface_samples_retain_elevation_shoreline_and_moisture_for_presentation() {
         terrain.mountain_ridge_strength_q16()
     );
     assert_eq!(sample.moisture_q16(), climate.moisture_q16());
-    assert_eq!(
-        sample.shoreline_mask(),
-        shoreline.opposite_terrain_mask()
-    );
+    assert_eq!(sample.shoreline_mask(), shoreline.opposite_terrain_mask());
     assert_eq!(sample.is_shoreline(), shoreline.is_shoreline());
 }

@@ -2535,12 +2535,11 @@ fn update_spatial_world(
                 .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
                 .map(|sample| sample.biome())
                 .or(state.biome);
-            sprite.color = surface_terrain_tint(
-                terrain,
-                map.is_tile_discovered(tile.0),
-                surface_sample,
-            )
-            .unwrap_or_else(|| terrain_tint(terrain, map.is_tile_discovered(tile.0), biome));
+            sprite.color =
+                surface_terrain_tint(terrain, map.is_tile_discovered(tile.0), surface_sample)
+                    .unwrap_or_else(|| {
+                        terrain_tint(terrain, map.is_tile_discovered(tile.0), biome)
+                    });
         }
     }
     for (side, mut sprite) in &mut wall_sides {
@@ -5039,9 +5038,18 @@ fn spawn_surface_details(
             .iter()
             .any(|prop| prop.footprint_contains(position, map.width))
         || map.exits.iter().any(|exit| exit.position == position)
-        || map.points_of_interest.iter().any(|poi| poi.position == position)
-        || map.interactables.iter().any(|actor| actor.position == position)
-        || map.encounters.iter().any(|encounter| encounter.position == position)
+        || map
+            .points_of_interest
+            .iter()
+            .any(|poi| poi.position == position)
+        || map
+            .interactables
+            .iter()
+            .any(|actor| actor.position == position)
+        || map
+            .encounters
+            .iter()
+            .any(|encounter| encounter.position == position)
     {
         return;
     }
@@ -5064,10 +5072,8 @@ fn spawn_surface_details(
                 (false, true) => std::f32::consts::FRAC_PI_2,
                 _ => std::f32::consts::FRAC_PI_4,
             };
-            let foam = Sprite::from_color(
-                Color::srgba(0.66, 0.82, 0.86, 0.72),
-                Vec2::new(13.0, 2.0),
-            );
+            let foam =
+                Sprite::from_color(Color::srgba(0.66, 0.82, 0.86, 0.72), Vec2::new(13.0, 2.0));
             *details_spawned += 1;
             commands.spawn((
                 SpatialWorldEntity,
@@ -5108,15 +5114,17 @@ fn spawn_surface_details(
             Transform::from_xyz(world_position.x, world_position.y + 4.0, depth)
                 .with_rotation(Quat::from_rotation_z(-0.35)),
         ));
-        let rock_facet = Sprite::from_color(
-            Color::srgba(0.72, 0.74, 0.76, 0.72),
-            Vec2::new(8.0, 3.0),
-        );
+        let rock_facet =
+            Sprite::from_color(Color::srgba(0.72, 0.74, 0.76, 0.72), Vec2::new(8.0, 3.0));
         commands.spawn((
             SpatialWorldEntity,
             rock_facet,
-            Transform::from_xyz(world_position.x - 2.0, world_position.y + 7.0, depth + 0.001)
-                .with_rotation(Quat::from_rotation_z(0.25)),
+            Transform::from_xyz(
+                world_position.x - 2.0,
+                world_position.y + 7.0,
+                depth + 0.001,
+            )
+            .with_rotation(Quat::from_rotation_z(0.25)),
         ));
     }
 
@@ -5136,22 +5144,10 @@ fn spawn_surface_details(
     }
 
     let (canopy, trunk) = match sample.biome() {
-        Biome::TemperateForest => (
-            Color::srgb(0.12, 0.25, 0.17),
-            Color::srgb(0.30, 0.22, 0.15),
-        ),
-        Biome::Taiga => (
-            Color::srgb(0.13, 0.25, 0.25),
-            Color::srgb(0.27, 0.22, 0.17),
-        ),
-        Biome::Grassland => (
-            Color::srgb(0.31, 0.43, 0.22),
-            Color::srgb(0.38, 0.31, 0.19),
-        ),
-        Biome::Tundra => (
-            Color::srgb(0.37, 0.43, 0.39),
-            Color::srgb(0.35, 0.34, 0.29),
-        ),
+        Biome::TemperateForest => (Color::srgb(0.12, 0.25, 0.17), Color::srgb(0.30, 0.22, 0.15)),
+        Biome::Taiga => (Color::srgb(0.13, 0.25, 0.25), Color::srgb(0.27, 0.22, 0.17)),
+        Biome::Grassland => (Color::srgb(0.31, 0.43, 0.22), Color::srgb(0.38, 0.31, 0.19)),
+        Biome::Tundra => (Color::srgb(0.37, 0.43, 0.39), Color::srgb(0.35, 0.34, 0.29)),
         _ => return,
     };
     *details_spawned += 1;
@@ -5167,10 +5163,8 @@ fn spawn_surface_details(
         canopy_sprite,
         Transform::from_xyz(world_position.x, world_position.y + 12.0, depth + 0.002),
     ));
-    let highlight_sprite = Sprite::from_color(
-        Color::srgba(0.48, 0.58, 0.37, 0.75),
-        Vec2::new(6.0, 4.0),
-    );
+    let highlight_sprite =
+        Sprite::from_color(Color::srgba(0.48, 0.58, 0.37, 0.75), Vec2::new(6.0, 4.0));
     commands.spawn((
         SpatialWorldEntity,
         highlight_sprite,
