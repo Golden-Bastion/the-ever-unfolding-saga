@@ -197,3 +197,30 @@ fn sample_axis_rejects_coordinate_overflow() {
     assert!(sample_axis(i64::MAX, 1).is_none());
     assert!(sample_axis(i64::MIN, 1).is_none());
 }
+
+#[test]
+fn surface_samples_retain_elevation_shoreline_and_moisture_for_presentation() {
+    use crate::geography::{coast, terrain};
+
+    let seed = 41;
+    let anchor = MacroCoordinate::new(1_237, -842);
+    let surface =
+        LocalSurfaceMap::sample_location(seed, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48)
+            .unwrap();
+    let sample = surface.sample_at_tile(32, 24).unwrap();
+    let terrain = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, anchor).unwrap();
+    let climate = climate::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, anchor).unwrap();
+    let shoreline = coast::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, anchor).unwrap();
+
+    assert_eq!(sample.elevation_q16(), terrain.elevation_q16());
+    assert_eq!(
+        sample.mountain_ridge_strength_q16(),
+        terrain.mountain_ridge_strength_q16()
+    );
+    assert_eq!(sample.moisture_q16(), climate.moisture_q16());
+    assert_eq!(
+        sample.shoreline_mask(),
+        shoreline.opposite_terrain_mask()
+    );
+    assert_eq!(sample.is_shoreline(), shoreline.is_shoreline());
+}
