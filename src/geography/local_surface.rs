@@ -484,7 +484,7 @@ fn coordinate_to_tile(position_q16: i64, anchor: i64, radius: u16, dimension: u1
     u16::try_from(tile.clamp(0, i128::from(dimension - 1))).ok()
 }
 
-/// Map a local tile center to the continuous macro-sample grid in Q16.
+/// Map a local tile coordinate to the continuous macro-sample grid in Q16.
 fn sample_grid_position_q16(
     tile: u16,
     tile_dimension: u16,
@@ -497,14 +497,29 @@ fn sample_grid_position_q16(
         return Some((0, 0, 0));
     }
 
-    // The location anchor remains aligned with the center tile on even-sized
-    // maps, matching the existing nearest-sample projection contract.
-    let position_q16 = i64::from(tile)
-        .checked_mul(i64::from(sample_dimension - 1))?
-        .checked_mul(1_i64 << 16)?
-        / i64::from(tile_dimension);
+    // Align the macro anchor with the center tile, including even-sized maps.
+    // The two sides are scaled independently so both outer tiles still reach
+    // the corresponding edges of the bounded macro-sample grid.
+    let center_tile = i64::from(tile_dimension / 2);
+    let center_sample_q16 = i64::from(sample_dimension - 1) * (1_i64 << 15);
     let maximum = i64::from(sample_dimension - 1) * (1_i64 << 16);
-    let position_q16 = position_q16.clamp(0, maximum);
+    let tile = i64::from(tile);
+    let position_q16 = if tile <= center_tile {
+        if center_tile == 0 {
+            center_sample_q16
+        } else {
+            center_sample_q16 * tile / center_tile
+        }
+    } else {
+        let right_span = i64::from(tile_dimension - 1) - center_tile;
+        if right_span == 0 {
+            center_sample_q16
+        } else {
+            center_sample_q16
+                + (maximum - center_sample_q16) * (tile - center_tile) / right_span
+        }
+    }
+    .clamp(0, maximum);
     let lower = usize::try_from(position_q16 >> 16).ok()?;
     let upper = (lower + 1).min(usize::from(sample_dimension - 1));
     Some((lower, upper, position_q16 & 0xFFFF))
