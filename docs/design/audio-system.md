@@ -21,7 +21,7 @@ The initial implementation uses [Verdandi](https://github.com/Golden-Bastion/ver
 
 General one-shot sound effects and environmental ambience remain in Bevy's native audio layer. Verdandi is not treated as a general-purpose game audio manager, and it does not own TEUS asset paths, cue IDs, or licensing records. The host-side audio manager routes those cues and applies the independent SFX gain.
 
-Current integration and known gaps are documented in [the audio system reference](../systems/audio.md). Verdandi follow-ups are tracked in [issue #19](https://github.com/Golden-Bastion/verdandi/issues/19) (transport/gain/fades), [issue #20](https://github.com/Golden-Bastion/verdandi/issues/20) (non-musical cue scope), and [issue #21](https://github.com/Golden-Bastion/verdandi/issues/21) (defeat and extensible stingers).
+Current integration and known gaps are documented in [the audio system reference](../systems/audio.md). Verdandi follow-ups are tracked in [issue #19](https://github.com/Golden-Bastion/verdandi/issues/19) (transport/gain/fades), [issue #20](https://github.com/Golden-Bastion/verdandi/issues/20) (non-musical cue scope), and [issue #21](https://github.com/Golden-Bastion/verdandi/issues/21) (defeat/retreat and extensible stingers).
 
 ## Initial soundtrack candidates
 - Main/title theme
