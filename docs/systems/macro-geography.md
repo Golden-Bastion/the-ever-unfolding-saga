@@ -2,7 +2,7 @@
 
 ## Current scope
 
-The geography samplers define renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel networks and bounded course tracing, derived local river geometry, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, bounded terrain-aware route planning, on-demand frontier materialization, persistent individual cave-chamber topology, and route-linked infrastructure requirements/state. The river-geometry module does not depend on Bevy or local-map dimensions; `local_surface` is the bounded adapter that projects global channel bands into one location's tile grid.
+The geography samplers define renderer-independent world coordinates and deterministic surface terrain, mountain ranges and route-facing barrier signals, shoreline, climate, hierarchical watershed, precipitation-weighted river-channel networks and bounded course tracing, derived local river geometry, closed-basin depression, underground cave-network fields, persistent location anchors/footprints, legacy embedding, bounded terrain-aware route planning, on-demand frontier materialization, persistent individual cave-chamber topology, and route-linked infrastructure requirements/state. The river-geometry module does not depend on Bevy or local-map dimensions; `local_surface` is the bounded adapter that projects broad surface fields and global channel bands into one location's tile grid.
 
 ## Region/chunk continuity contract
 
