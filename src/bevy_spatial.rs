@@ -5056,8 +5056,12 @@ fn spawn_surface_details(
     let Some(sample) = sample else {
         return;
     };
+    let hash = surface_detail_hash(position, sample);
     if sample.water() != SurfaceWaterFeature::Land {
-        if sample.water() == SurfaceWaterFeature::Ocean && sample.is_shoreline() {
+        if sample.water() == SurfaceWaterFeature::Ocean
+            && sample.is_shoreline()
+            && hash % 4 == 0
+        {
             let mask = sample.shoreline_mask();
             let vertical_normal = mask
                 & (crate::geography::coast::direction::NORTH
@@ -5089,7 +5093,6 @@ fn spawn_surface_details(
         return;
     }
 
-    let hash = surface_detail_hash(position, sample);
     let depth = depth_for(Vec2::new(
         f32::from(position.x) + 0.5,
         f32::from(position.y) + 0.5,
