@@ -66,11 +66,7 @@ impl AudioCueQueue {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn start_ambience(
-        &mut self,
-        key: impl Into<String>,
-        asset_path: impl Into<String>,
-    ) {
+    pub(crate) fn start_ambience(&mut self, key: impl Into<String>, asset_path: impl Into<String>) {
         self.pending.push(AudioCueRequest {
             asset_path: Some(asset_path.into()),
             key: Some(key.into()),
@@ -221,8 +217,7 @@ fn process_audio_cues(
                 let source = asset_server.load(asset_path);
                 commands.spawn((
                     AudioPlayer::new(source),
-                    PlaybackSettings::DESPAWN
-                        .with_volume(Volume::Linear(settings.sfx_gain())),
+                    PlaybackSettings::DESPAWN.with_volume(Volume::Linear(settings.sfx_gain())),
                     AudioBusMember,
                 ));
             }
@@ -237,8 +232,7 @@ fn process_audio_cues(
                 let entity = commands
                     .spawn((
                         AudioPlayer::new(source),
-                        PlaybackSettings::LOOP
-                            .with_volume(Volume::Linear(settings.sfx_gain())),
+                        PlaybackSettings::LOOP.with_volume(Volume::Linear(settings.sfx_gain())),
                         AudioBusMember,
                     ))
                     .id();

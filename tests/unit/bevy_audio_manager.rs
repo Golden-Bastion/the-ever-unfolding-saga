@@ -78,9 +78,15 @@ fn context_resolution_uses_existing_lifecycle_and_world_state() {
 
     let mut lifecycle = active_lifecycle();
     let combat = CombatState::default();
-    assert_eq!(resolve_context(&lifecycle, &combat).0, MusicContext::Exploration);
+    assert_eq!(
+        resolve_context(&lifecycle, &combat).0,
+        MusicContext::Exploration
+    );
     lifecycle.phase = LifecyclePhase::QuitConfirm;
-    assert_eq!(resolve_context(&lifecycle, &combat).0, MusicContext::Exploration);
+    assert_eq!(
+        resolve_context(&lifecycle, &combat).0,
+        MusicContext::Exploration
+    );
     lifecycle.phase = LifecyclePhase::Complete;
 
     let state = &mut lifecycle.session.as_mut().expect("session exists").state;
@@ -93,7 +99,10 @@ fn context_resolution_uses_existing_lifecycle_and_world_state() {
         .expect("new character starts in a world location");
     location.dangerous = false;
     location.spatial_layout = Some("hollow_market_square".into());
-    assert_eq!(resolve_context(&lifecycle, &combat).0, MusicContext::Settlement);
+    assert_eq!(
+        resolve_context(&lifecycle, &combat).0,
+        MusicContext::Settlement
+    );
 
     let state = &mut lifecycle.session.as_mut().expect("session exists").state;
     let current_location = state.character.location_id;
