@@ -2656,10 +2656,7 @@ fn render_spatial_screen(
                         WALL_HEIGHT + TILE_HALF_HEIGHT,
                     ));
                     if let Some(material) = underground_material {
-                        wall_sprite.color = geological_wall_face_tint(
-                            material,
-                            discovered,
-                        );
+                        wall_sprite.color = geological_wall_face_tint(material, discovered);
                     }
                     commands.spawn((
                         SpatialWorldEntity,
@@ -5348,11 +5345,23 @@ fn spawn_geological_details(
         || !discovered
         || !matches!(terrain, Terrain::Wall | Terrain::Rubble)
         || map.entry == position
-        || map.props.iter().any(|prop| prop.footprint_contains(position, map.width))
+        || map
+            .props
+            .iter()
+            .any(|prop| prop.footprint_contains(position, map.width))
         || map.exits.iter().any(|exit| exit.position == position)
-        || map.points_of_interest.iter().any(|poi| poi.position == position)
-        || map.interactables.iter().any(|actor| actor.position == position)
-        || map.encounters.iter().any(|encounter| encounter.position == position)
+        || map
+            .points_of_interest
+            .iter()
+            .any(|poi| poi.position == position)
+        || map
+            .interactables
+            .iter()
+            .any(|actor| actor.position == position)
+        || map
+            .encounters
+            .iter()
+            .any(|encounter| encounter.position == position)
     {
         return;
     }
@@ -5385,8 +5394,9 @@ fn spawn_geological_details(
     commands.spawn((
         SpatialWorldEntity,
         shard,
-        Transform::from_xyz(world_position.x, world_position.y + y_offset, depth)
-            .with_rotation(Quat::from_rotation_z(if hash & 1 == 0 { -0.38 } else { 0.32 })),
+        Transform::from_xyz(world_position.x, world_position.y + y_offset, depth).with_rotation(
+            Quat::from_rotation_z(if hash & 1 == 0 { -0.38 } else { 0.32 }),
+        ),
     ));
     let facet = Sprite::from_color(facet_color, Vec2::new(4.0, 2.0));
     commands.spawn((
