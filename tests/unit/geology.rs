@@ -95,7 +95,10 @@ fn geological_materials_vary_with_depth() {
         }
     }
 
-    assert!(found_depth_variation, "expected some material variation by depth");
+    assert!(
+        found_depth_variation,
+        "expected some material variation by depth"
+    );
 }
 
 #[test]
@@ -106,18 +109,9 @@ fn geological_materials_are_available_in_cave_space_and_solid_rock() {
     for y in -64..=64 {
         for x in -64..=64 {
             let coordinate = MacroCoordinate::in_stratum(x, y, -1);
-            let cave = underground::sample_underground(
-                812,
-                GEOGRAPHY_RULESET_VERSION,
-                coordinate,
-            )
-            .unwrap();
-            assert!(geology::sample_geology(
-                812,
-                GEOGRAPHY_RULESET_VERSION,
-                coordinate,
-            )
-            .is_some());
+            let cave = underground::sample_underground(812, GEOGRAPHY_RULESET_VERSION, coordinate)
+                .unwrap();
+            assert!(geology::sample_geology(812, GEOGRAPHY_RULESET_VERSION, coordinate,).is_some());
 
             found_cave_space |= cave.is_open();
             found_solid_rock |= cave.kind() == UndergroundKind::SolidRock;
