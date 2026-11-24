@@ -4998,21 +4998,27 @@ fn surface_terrain_tint(
     let base = terrain_tint(terrain, discovered, biome);
     let mut rgba = base.to_srgba();
 
-    if sample.water() == SurfaceWaterFeature::Ocean && sample.is_shoreline() {
-        return Some(if discovered {
-            Color::srgb(0.48, 0.69, 0.76)
+    let shoreline_strength =
+        f32::from(sample.shoreline_strength_q16()) / f32::from(u16::MAX);
+    if sample.water() == SurfaceWaterFeature::Ocean && shoreline_strength > 0.0 {
+        let shallow = if discovered {
+            Color::srgb(0.48, 0.69, 0.76).to_srgba()
         } else {
-            Color::srgb(0.18, 0.30, 0.37)
-        });
+            Color::srgb(0.18, 0.30, 0.37).to_srgba()
+        };
+        rgba.red += (shallow.red - rgba.red) * shoreline_strength;
+        rgba.green += (shallow.green - rgba.green) * shoreline_strength;
+        rgba.blue += (shallow.blue - rgba.blue) * shoreline_strength;
+        return Some(Color::srgba(rgba.red, rgba.green, rgba.blue, rgba.alpha));
     }
 
-    // Elevation and ridge strength add broad relief shading without changing
-    // walkability, terrain classification, or the persisted local map.
+    // Elevation and ridge strength add interpolated relief shading without
+    // changing walkability, terrain classification, or the persisted local map.
     let elevation = (sample.elevation_q16() as f32 / 65_536.0).clamp(-1.0, 1.0);
     let mut shade = 0.94 + (elevation + 1.0) * 0.06;
     shade -= sample.mountain_ridge_strength_q16() as f32 / 65_535.0 * 0.08;
-    if sample.is_shoreline() && sample.water() == SurfaceWaterFeature::Land {
-        shade += 0.035;
+    if sample.water() == SurfaceWaterFeature::Land {
+        shade += 0.035 * shoreline_strength;
     }
 
     rgba.red = (rgba.red * shade).clamp(0.0, 1.0);
