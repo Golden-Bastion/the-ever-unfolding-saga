@@ -207,7 +207,7 @@ fn surface_samples_retain_elevation_shoreline_and_moisture_for_presentation() {
     let surface =
         LocalSurfaceMap::sample_location(seed, GEOGRAPHY_RULESET_VERSION, anchor, 4, 64, 48)
             .unwrap();
-    let sample = surface.sample_at_tile(32, 24).unwrap();
+    let sample = surface.grid_sample(4, 3).unwrap();
     let terrain = terrain::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, anchor).unwrap();
     let climate = climate::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, anchor).unwrap();
     let shoreline = coast::sample_surface(seed, GEOGRAPHY_RULESET_VERSION, anchor).unwrap();
