@@ -5085,14 +5085,17 @@ fn spawn_surface_details(
         f32::from(position.y) + 0.5,
     )) + 0.015;
 
-    if terrain == Terrain::Rubble && sample.is_mountain_barrier() && hash % 3 == 0 {
+    if terrain == Terrain::Rubble
+        && (sample.is_mountain_barrier() || sample.biome() == Biome::Alpine)
+        && hash % 3 == 0
+    {
         let rock = Sprite::from_color(
             if discovered {
-                Color::srgb(0.62, 0.64, 0.67)
+                Color::srgb(0.43, 0.46, 0.50)
             } else {
-                Color::srgb(0.24, 0.27, 0.30)
+                Color::srgb(0.20, 0.23, 0.27)
             },
-            Vec2::new(15.0, 6.0),
+            Vec2::new(20.0, 9.0),
         );
         *details_spawned += 1;
         commands.spawn((
@@ -5101,6 +5104,20 @@ fn spawn_surface_details(
             Transform::from_xyz(world_position.x, world_position.y + 4.0, depth)
                 .with_rotation(Quat::from_rotation_z(-0.35)),
         ));
+        let rock_facet = Sprite::from_color(
+            Color::srgba(0.72, 0.74, 0.76, 0.72),
+            Vec2::new(8.0, 3.0),
+        );
+        commands.spawn((
+            SpatialWorldEntity,
+            rock_facet,
+            Transform::from_xyz(world_position.x - 2.0, world_position.y + 7.0, depth + 0.001)
+                .with_rotation(Quat::from_rotation_z(0.25)),
+        ));
+    }
+
+    if terrain != Terrain::Floor {
+        return;
     }
 
     let vegetation_chance = match sample.biome() {
