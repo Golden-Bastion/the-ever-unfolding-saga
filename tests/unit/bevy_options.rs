@@ -2,11 +2,13 @@ use super::*;
 use std::path::PathBuf;
 
 #[test]
-fn options_tabs_have_two_categories() {
+fn options_tabs_have_three_categories() {
     let mut options = OptionsState::default();
     assert_eq!(options_selection_end(&options), 1); // Install and Back.
     options.tab = 1;
     assert_eq!(options_selection_end(&options), 5);
+    options.tab = 2;
+    assert_eq!(options_selection_end(&options), 5); // Two volumes, Reset and Back.
 }
 
 #[test]
