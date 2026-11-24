@@ -501,7 +501,7 @@ fn sample_grid_position_q16(
     // maps, matching the existing nearest-sample projection contract.
     let position_q16 = i64::from(tile)
         .checked_mul(i64::from(sample_dimension - 1))?
-        .checked_mul(2 * (1_i64 << 16))?
+        .checked_mul(1_i64 << 16)?
         / i64::from(tile_dimension);
     let maximum = i64::from(sample_dimension - 1) * (1_i64 << 16);
     let position_q16 = position_q16.clamp(0, maximum);
