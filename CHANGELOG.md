@@ -8,8 +8,10 @@ This file records completed work in the current unreleased development line. Old
 
 - Carried authoritative elevation, mountain-ridge strength, moisture, and shoreline adjacency through the bounded local-surface projection for renderer use.
 - Added elevation/ridge relief shading, shallow-water coastal tinting and shoreline accents, deterministic sparse vegetation for suitable biomes, and rocky ridge details.
+- Bilinearly interpolated continuous elevation, ridge-strength, moisture, and shoreline-influence values across the bounded projection grid, while preserving nearest-sample biome, water, barrier, river-width, and directional shoreline classifications.
+- Changed coastal water and land-edge treatment to blend gradually across the local projection instead of applying one full-strength tint to every coarse shoreline sample.
 - Kept environmental details non-colliding and bounded to 256 detail anchors per local map. They are transient presentation only; no save data, geography ruleset, or local-map generator version changed.
-- Dedicated terrain/water artwork, finished mountain and vegetation silhouettes, fine shoreline composition, and underground geology remain future work.
+- Dedicated terrain/water artwork, finished mountain and vegetation silhouettes, and underground geology remain future work.
 
 ### Neighboring-region continuity regression coverage
 
