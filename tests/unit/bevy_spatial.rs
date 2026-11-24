@@ -162,6 +162,7 @@ fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
         ("spatial/terrain_ash.png", 48, 24),
         ("spatial/terrain_rubble.png", 48, 24),
         ("spatial/terrain_wall_top.png", 48, 24),
+        ("spatial/geology_tiles.png", 144, 48),
         ("spatial/player_oathbound.png", 16, 24),
         ("spatial/actors/npc.png", 32, 48),
         ("spatial/actors/hostile.png", 32, 48),
@@ -2237,7 +2238,7 @@ fn interior_door_state_blocks_and_allows_continuous_grid_edge_crossing() {
 }
 
 #[test]
-fn underground_ground_uses_broken_stone_art_and_keeps_wall_tops() {
+fn underground_generic_fallback_uses_broken_stone_art_and_keeps_wall_tops() {
     assert_eq!(underground_terrain_image_index(Terrain::Floor), 2);
     assert_eq!(underground_terrain_image_index(Terrain::Ash), 2);
     assert_eq!(underground_terrain_image_index(Terrain::Rubble), 2);
@@ -2246,6 +2247,41 @@ fn underground_ground_uses_broken_stone_art_and_keeps_wall_tops() {
     assert_eq!(underground_terrain_image_index(Terrain::Water), 0);
     assert_eq!(underground_terrain_image_index(Terrain::Sand), 0);
     assert_eq!(underground_terrain_image_index(Terrain::Bridge), 0);
+}
+
+#[test]
+fn underground_geology_atlas_maps_each_material_floor_and_ledge() {
+    for (material, floor_index, ledge_index) in [
+        (GeologicalMaterial::PaleGranite, 0, 3),
+        (GeologicalMaterial::VeilSlate, 1, 4),
+        (GeologicalMaterial::CinderBasalt, 2, 5),
+    ] {
+        for terrain in [Terrain::Floor, Terrain::Ash, Terrain::Rubble, Terrain::Ford] {
+            assert_eq!(
+                underground_geology_tile_index(terrain, material),
+                Some(floor_index)
+            );
+        }
+        assert_eq!(
+            underground_geology_tile_index(Terrain::Wall, material),
+            Some(ledge_index)
+        );
+    }
+    for terrain in [Terrain::Sand, Terrain::Water, Terrain::Bridge] {
+        assert_eq!(
+            underground_geology_tile_index(terrain, GeologicalMaterial::PaleGranite),
+            None
+        );
+    }
+}
+
+#[test]
+fn geological_texture_discovery_tint_preserves_art_and_shades_unknown_tiles() {
+    assert_eq!(geological_texture_discovery_tint(true), Color::WHITE);
+    assert_eq!(
+        geological_texture_discovery_tint(false),
+        Color::srgb(0.48, 0.48, 0.48)
+    );
 }
 
 #[test]

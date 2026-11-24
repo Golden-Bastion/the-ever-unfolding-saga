@@ -48,6 +48,10 @@ use crate::spatial_animation::{
 const TILE_HALF_WIDTH: f32 = 24.0;
 const TILE_HALF_HEIGHT: f32 = 12.0;
 const WALL_HEIGHT: f32 = 24.0;
+const GEOLOGY_TILE_WIDTH_PX: u32 = 48;
+const GEOLOGY_TILE_HEIGHT_PX: u32 = 24;
+const GEOLOGY_TILE_COLUMNS: u32 = 3;
+const GEOLOGY_TILE_ROWS: u32 = 2;
 const PLAYER_SPRITE_WIDTH: f32 = 16.0;
 const PLAYER_SPRITE_HEIGHT: f32 = 24.0;
 const PLAYER_COLLISION_HALF_EXTENT: f32 = 0.15;
@@ -243,6 +247,8 @@ pub(crate) enum SpatialInteractionRequest {
 #[derive(Resource, Default)]
 struct SpatialRenderAssets {
     tile_images: [Option<Handle<Image>>; 4],
+    geology_tile_image: Option<Handle<Image>>,
+    geology_tile_layout: Option<Handle<TextureAtlasLayout>>,
     wall_face_images: [Option<Handle<Image>>; 2],
     player_image: Option<Handle<Image>>,
     passage_image: Option<Handle<Image>>,
@@ -1071,6 +1077,34 @@ fn setup_spatial_render_assets(
         load_spatial_image(&mut images, "spatial/terrain_rubble.png"),
         load_spatial_image(&mut images, "spatial/terrain_wall_top.png"),
     ];
+    let geology_tile_image =
+        load_spatial_image(&mut images, "spatial/geology_tiles.png").and_then(|image| {
+            let valid = images.get(&image).is_some_and(|image| {
+                image.texture_descriptor.size.width
+                    == GEOLOGY_TILE_WIDTH_PX * GEOLOGY_TILE_COLUMNS
+                    && image.texture_descriptor.size.height
+                        == GEOLOGY_TILE_HEIGHT_PX * GEOLOGY_TILE_ROWS
+            });
+            if valid {
+                Some(image)
+            } else {
+                warn!(
+                    "Spatial geology tile sheet must be {}x{} pixels; using generic underground stone art instead",
+                    GEOLOGY_TILE_WIDTH_PX * GEOLOGY_TILE_COLUMNS,
+                    GEOLOGY_TILE_HEIGHT_PX * GEOLOGY_TILE_ROWS
+                );
+                None
+            }
+        });
+    let geology_tile_layout = geology_tile_image.as_ref().map(|_| {
+        atlas_layouts.add(TextureAtlasLayout::from_grid(
+            UVec2::new(GEOLOGY_TILE_WIDTH_PX, GEOLOGY_TILE_HEIGHT_PX),
+            GEOLOGY_TILE_COLUMNS,
+            GEOLOGY_TILE_ROWS,
+            None,
+            None,
+        ))
+    });
     let wall_face_images = [
         load_spatial_image(&mut images, "spatial/wall_face_left.png"),
         load_spatial_image(&mut images, "spatial/wall_face_right.png"),
@@ -1134,6 +1168,8 @@ fn setup_spatial_render_assets(
 
     commands.insert_resource(SpatialRenderAssets {
         tile_images,
+        geology_tile_image,
+        geology_tile_layout,
         wall_face_images,
         player_image,
         passage_image,
@@ -2531,29 +2567,53 @@ fn update_spatial_world(
     let player_sprite_size = spatial_player_sprite_size(&assets);
     for (tile, mut sprite) in &mut tiles {
         let terrain = map.terrain_at(tile.0).unwrap_or(Terrain::Wall);
-        let image_index = if state.geology.is_some() {
-            underground_terrain_image_index(terrain)
+        let discovered = map.is_tile_discovered(tile.0);
+        let geology_atlas_index = state
+            .geology
+            .and_then(|(material, _)| underground_geology_tile_index(terrain, material));
+        let using_geology_art = if let (
+            Some(index),
+            Some(image),
+            Some(layout),
+        ) = (
+            geology_atlas_index,
+            assets.geology_tile_image.as_ref(),
+            assets.geology_tile_layout.as_ref(),
+        ) {
+            sprite.image = image.clone();
+            sprite.texture_atlas = Some(TextureAtlas {
+                layout: layout.clone(),
+                index,
+            });
+            true
         } else {
-            terrain_image_index(terrain)
-        };
-        if let Some(desired) = assets.tile_images[image_index].clone() {
+            let image_index = if state.geology.is_some() {
+                underground_terrain_image_index(terrain)
+            } else {
+                terrain_image_index(terrain)
+            };
+            let Some(desired) = assets.tile_images[image_index].clone() else {
+                continue;
+            };
             if sprite.image != desired {
                 sprite.image = desired;
             }
-            let discovered = map.is_tile_discovered(tile.0);
-            let surface_sample = surface_sample_at(state.surface.as_ref(), tile.0);
-            let biome = surface_sample
-                .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
-                .map(|sample| sample.biome())
-                .or(state.biome);
-            sprite.color = state
-                .geology
-                .map(|(material, _)| geological_terrain_tint(terrain, material, discovered))
-                .unwrap_or_else(|| {
-                    surface_terrain_tint(terrain, discovered, surface_sample)
-                        .unwrap_or_else(|| terrain_tint(terrain, discovered, biome))
-                });
-        }
+            sprite.texture_atlas = None;
+            false
+        };
+        let surface_sample = surface_sample_at(state.surface.as_ref(), tile.0);
+        let biome = surface_sample
+            .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
+            .map(|sample| sample.biome())
+            .or(state.biome);
+        sprite.color = match state.geology {
+            Some((_material, _)) if using_geology_art => {
+                geological_texture_discovery_tint(discovered)
+            }
+            Some((material, _)) => geological_terrain_tint(terrain, material, discovered),
+            None => surface_terrain_tint(terrain, discovered, surface_sample)
+                .unwrap_or_else(|| terrain_tint(terrain, discovered, biome)),
+        };
     }
     for (side, mut sprite) in &mut wall_sides {
         let discovered = map.is_tile_discovered(side.tile);
@@ -5281,6 +5341,34 @@ fn underground_terrain_image_index(terrain: Terrain) -> usize {
         Terrain::Floor | Terrain::Ash | Terrain::Rubble | Terrain::Ford => 2,
         Terrain::Wall => 3,
         Terrain::Sand | Terrain::Water | Terrain::Bridge => terrain_image_index(terrain),
+    }
+}
+
+/// Returns the sprite-atlas cell for a material floor or raised-rock ledge.
+/// The sheet is arranged as three material columns (granite, slate, basalt)
+/// and two rows (floor, ledge).
+fn underground_geology_tile_index(
+    terrain: Terrain,
+    material: GeologicalMaterial,
+) -> Option<usize> {
+    let column = match material {
+        GeologicalMaterial::PaleGranite => 0,
+        GeologicalMaterial::VeilSlate => 1,
+        GeologicalMaterial::CinderBasalt => 2,
+    };
+    let row = match terrain {
+        Terrain::Floor | Terrain::Ash | Terrain::Rubble | Terrain::Ford => 0,
+        Terrain::Wall => 1,
+        Terrain::Sand | Terrain::Water | Terrain::Bridge => return None,
+    };
+    Some(row * GEOLOGY_TILE_COLUMNS as usize + column)
+}
+
+fn geological_texture_discovery_tint(discovered: bool) -> Color {
+    if discovered {
+        Color::WHITE
+    } else {
+        Color::srgb(0.48, 0.48, 0.48)
     }
 }
 
