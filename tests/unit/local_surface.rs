@@ -254,7 +254,7 @@ fn continuous_surface_fields_are_bilinearly_interpolated_but_categories_remain_n
     };
 
     // Tile (1, 1) lies one quarter of the way across each grid axis.
-    let projected = surface.sample_at_tile(1, 1).unwrap();
+    let projected = surface.sample_at_tile(2, 2).unwrap();
     assert_eq!(projected.elevation_q16(), 75);
     assert_eq!(projected.mountain_ridge_strength_q16(), 750);
     assert_eq!(projected.moisture_q16(), 7_500);
