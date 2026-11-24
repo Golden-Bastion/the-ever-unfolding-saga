@@ -77,6 +77,7 @@ const MAX_MOVEMENT_FRAME_DELTA_SECONDS: f32 = 0.20;
 const MAX_MOVEMENT_STEP_DISTANCE: f32 = PLAYER_COLLISION_HALF_EXTENT * 0.5;
 const DEPTH_STEP: f32 = 0.08;
 const GROUND_TERRAIN_DEPTH: f32 = -1.0;
+const MAX_SURFACE_DETAILS_PER_MAP: usize = 256;
 const WALL_TOP_DEPTH_BIAS: f32 = 0.002;
 const WALL_FACE_DEPTH_BIAS: f32 = -0.002;
 const PLAYER_DEPTH_OFFSET: f32 = 0.04;
@@ -2621,6 +2622,7 @@ fn render_spatial_screen(
     let time_points = world_time.map(|(_, points, _)| points);
     let minutes_into_time_point = world_time.map(|(_, _, minutes)| minutes).unwrap_or(0);
 
+    let mut surface_details_spawned = 0;
     for y in 0..map.height {
         for x in 0..map.width {
             let position = GridPosition { x, y };
@@ -2690,6 +2692,7 @@ fn render_spatial_screen(
                     terrain,
                     discovered,
                     surface_sample,
+                    &mut surface_details_spawned,
                 );
             }
         }
@@ -5025,8 +5028,10 @@ fn spawn_surface_details(
     terrain: Terrain,
     discovered: bool,
     sample: Option<LocalSurfaceSample>,
+    details_spawned: &mut usize,
 ) {
-    if !discovered
+    if *details_spawned >= MAX_SURFACE_DETAILS_PER_MAP
+        || !discovered
         || map.entry == position
         || map.props.iter().any(|prop| prop.footprint_contains(position, map.width))
         || map.exits.iter().any(|exit| exit.position == position)
@@ -5059,6 +5064,7 @@ fn spawn_surface_details(
                 Color::srgba(0.66, 0.82, 0.86, 0.72),
                 Vec2::new(13.0, 2.0),
             );
+            *details_spawned += 1;
             commands.spawn((
                 SpatialWorldEntity,
                 foam,
@@ -5088,6 +5094,7 @@ fn spawn_surface_details(
             },
             Vec2::new(15.0, 6.0),
         );
+        *details_spawned += 1;
         commands.spawn((
             SpatialWorldEntity,
             rock,
@@ -5126,6 +5133,7 @@ fn spawn_surface_details(
         ),
         _ => return,
     };
+    *details_spawned += 1;
     let trunk_sprite = Sprite::from_color(trunk, Vec2::new(3.0, 7.0));
     commands.spawn((
         SpatialWorldEntity,
