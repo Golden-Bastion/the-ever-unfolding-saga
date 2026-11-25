@@ -160,7 +160,7 @@ They are not prerequisites for the initial implementation. Their future design s
 
 ## 6. Enpicieus: world activity coordination
 
-Enpicieus is the world-level coordination system for eligible activity, encounters, and opportunities. It coordinates what may become active or relevant within the existing world simulation; it is not an omniscient author, a hidden difficulty manager, or a replacement for autonomous NPCs and domain systems.
+Enpicieus is the world-level coordination system for eligible activity, encounters, and opportunities. It coordinates what may become active or relevant within the existing world simulation; it is not an omniscient author, a hidden difficulty manager, or a replacement for autonomous NPCs and domain systems. It does not assess player skill or performance, balance encounters around the player, or adjust activity to manufacture a desired win rate. Follow the [challenge and difficulty philosophy](challenge-and-difficulty.md) for the intended player-facing challenge model.
 
 Its responsibilities may include:
 
@@ -171,7 +171,7 @@ Its responsibilities may include:
 - Supporting varied periods of activity and quiet without imposing a fixed dramatic rhythm on every region.
 - Respecting authored content, persistent outcomes, and the player's knowledge boundaries when presenting or surfacing consequences.
 
-Enpicieus must work with possibilities grounded in the world. It may select or schedule an eligible encounter from a contextual set, but must not invent convenient threats, remove existing dangers, or scale danger to the player's level merely to manufacture a desired challenge. World-driven challenge remains authoritative.
+Enpicieus must work with possibilities grounded in the world. It may select or schedule an eligible encounter from a contextual set, but must not invent convenient threats, remove existing dangers, scale danger to the player's level, or adapt activity to player performance merely to manufacture a desired challenge. World-driven challenge remains authoritative.
 
 The system coordinates rather than puppeteers. NPCs retain their own goals, knowledge, personality, commitments, and ability to refuse, fail, retreat, or pursue other priorities. Faction, wildlife, settlement, economy, and encounter systems remain owners of their domain state and rules. Enpicieus may request or schedule domain work through explicit interfaces; it must not maintain parallel copies of those systems' authoritative state.
 
