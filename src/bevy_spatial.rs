@@ -1221,11 +1221,10 @@ fn setup_spatial_render_assets(
 }
 
 fn cave_entrance_atlas_has_expected_size(size: UVec2) -> bool {
-    size
-        == UVec2::new(
-            CAVE_ENTRANCE_TILE_WIDTH_PX * CAVE_ENTRANCE_TILE_COLUMNS,
-            CAVE_ENTRANCE_TILE_HEIGHT_PX * CAVE_ENTRANCE_TILE_ROWS,
-        )
+    size == UVec2::new(
+        CAVE_ENTRANCE_TILE_WIDTH_PX * CAVE_ENTRANCE_TILE_COLUMNS,
+        CAVE_ENTRANCE_TILE_HEIGHT_PX * CAVE_ENTRANCE_TILE_ROWS,
+    )
 }
 
 fn cave_exit_atlas_index(visual_kind: MapExitVisualKind) -> Option<usize> {

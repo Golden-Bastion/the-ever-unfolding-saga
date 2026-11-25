@@ -157,9 +157,18 @@ fn spatial_actor_visual_roles_preserve_distinct_world_readability() {
 
 #[test]
 fn cave_exit_visual_roles_select_only_the_three_authored_atlas_cells() {
-    assert_eq!(cave_exit_atlas_index(MapExitVisualKind::CaveEntrance), Some(2));
-    assert_eq!(cave_exit_atlas_index(MapExitVisualKind::VerticalShaft), Some(3));
-    assert_eq!(cave_exit_atlas_index(MapExitVisualKind::CavePassage), Some(5));
+    assert_eq!(
+        cave_exit_atlas_index(MapExitVisualKind::CaveEntrance),
+        Some(2)
+    );
+    assert_eq!(
+        cave_exit_atlas_index(MapExitVisualKind::VerticalShaft),
+        Some(3)
+    );
+    assert_eq!(
+        cave_exit_atlas_index(MapExitVisualKind::CavePassage),
+        Some(5)
+    );
     assert_eq!(cave_exit_atlas_index(MapExitVisualKind::Trail), None);
     assert!(cave_entrance_atlas_has_expected_size(UVec2::new(96, 96)));
     assert!(!cave_entrance_atlas_has_expected_size(UVec2::new(96, 95)));
@@ -239,8 +248,14 @@ fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
                             has_opaque_pixel |= alpha == 255;
                         }
                     }
-                    assert!(has_transparent_pixel, "cave atlas cell {cell} should have transparency");
-                    assert!(has_opaque_pixel, "cave atlas cell {cell} should contain visible artwork");
+                    assert!(
+                        has_transparent_pixel,
+                        "cave atlas cell {cell} should have transparency"
+                    );
+                    assert!(
+                        has_opaque_pixel,
+                        "cave atlas cell {cell} should contain visible artwork"
+                    );
                 }
             }
         }
