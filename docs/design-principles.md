@@ -32,7 +32,7 @@ This document is the canonical record of the current product direction. It super
 23. **Location-based travel.** Use distinct local spatial areas connected by travel choices and transitions, not a required seamless global terrain map.
 24. **Procedural foundations with authored meaning.** Procedural generation provides variety; deliberate placement and authored content make locations distinctive and meaningful.
 25. **Authored and emergent stories.** Handcrafted stories create memorable experiences; simulation and player actions produce consequences and unexpected developments.
-26. **Layered NPC population.** Important NPCs receive greater individuality and depth; ordinary NPCs still have enough identity and autonomy to create a living world.
+26. **Distinct, autonomous NPCs.** Important NPCs receive greater individuality and depth; ordinary NPCs still have enough identity and autonomy to create a living world. Behaviour emerges from separate personality, capability, motivation, relationships, knowledge, and circumstances. NPCs act only on information they could plausibly acquire, react with believable limits and delays, and retain consequential identity and commitments across simulation-fidelity changes.
 27. **Hybrid relationship systems.** Underlying values and traits drive behaviour, while dialogue, events, actions, and relationship stages communicate outcomes.
 28. **Hybrid progression.** Combine attributes, skills, equipment, milestones, practice, and significant life experiences.
 29. **Consequential failure and death.** Failures can have lasting effects. Death may end the current character’s story while the wider world and potentially the legacy continue.
