@@ -20,6 +20,8 @@ NPCs should be represented as actors with capabilities, motivations, relationshi
 
 Not every NPC needs a deep personality or continuous simulation immediately. Important companions, leaders, and other consequential NPCs can receive richer behavior; routine NPCs and distant groups may use simpler or event-driven models. The same underlying concepts should still apply.
 
+NPC personality and decision-making follow the shared [NPC behaviour specification](npc-behavior.md). Keep personality, competence, current motivation, relationships, knowledge, and temporary circumstances distinct. Personality traits should influence concrete choices without becoming rigid classes or overriding stronger commitments and immediate circumstances. Loyalty and trust remain target-specific relationship values, not substitutes for personality or general willingness.
+
 ### Loyalty and trust: two independent relationship axes
 
 For a given NPC in relation to a specific person, leader, or group, track two separate values in the range -100 to +100:
