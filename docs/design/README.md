@@ -23,6 +23,7 @@ The root [ROADMAP.md](../../ROADMAP.md) is the only project-wide index of remain
 - [World-topology compatibility audit](world-topology-compatibility-audit.md) — current runtime identities, generation, graph/exit, local-map, and save contracts to preserve during v0.53.x expansion.
 - [Procedural content generation](procedural-content-generation.md) — coherent region/location identity, inhabitants, opportunities, authored-content precedence, and determinism.
 - [World simulation](world-simulation.md) — authoritative time, continuous/event-driven/deferred simulation, persistent consequences, and update guarantees.
+- [Challenge and difficulty philosophy](challenge-and-difficulty.md) — fixed world challenge, no difficulty presets or adaptive scaling, preparation, fairness, failure, and accessibility.
 - [NPC behaviour](npc-behavior.md) — personality, perception, knowledge, decision-making, navigation, group behaviour, and simulation fidelity.
 - [Character lives and inheritance](character-lives-and-inheritance.md) — progression, ambitions, permanent life records, retirement, death, and successor continuity.
 - [Social influence and organizations](social-influence-and-organizations.md) — loyalty/trust, cooperation, recruitment, assignments, group structure, and persistence.
