@@ -156,6 +156,16 @@ fn spatial_actor_visual_roles_preserve_distinct_world_readability() {
 }
 
 #[test]
+fn cave_exit_visual_roles_select_only_the_three_authored_atlas_cells() {
+    assert_eq!(cave_exit_atlas_index(MapExitVisualKind::CaveEntrance), Some(2));
+    assert_eq!(cave_exit_atlas_index(MapExitVisualKind::VerticalShaft), Some(3));
+    assert_eq!(cave_exit_atlas_index(MapExitVisualKind::CavePassage), Some(5));
+    assert_eq!(cave_exit_atlas_index(MapExitVisualKind::Trail), None);
+    assert!(cave_entrance_atlas_has_expected_size(UVec2::new(96, 96)));
+    assert!(!cave_entrance_atlas_has_expected_size(UVec2::new(96, 95)));
+}
+
+#[test]
 fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
     for (reference, width, height) in [
         ("spatial/terrain_floor.png", 48, 24),
@@ -163,6 +173,7 @@ fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
         ("spatial/terrain_rubble.png", 48, 24),
         ("spatial/terrain_wall_top.png", 48, 24),
         ("spatial/geology_tiles.png", 144, 48),
+        ("spatial/cave_entrances.png", 96, 96),
         ("spatial/player_oathbound.png", 16, 24),
         ("spatial/actors/npc.png", 32, 48),
         ("spatial/actors/hostile.png", 32, 48),
@@ -196,7 +207,7 @@ fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
             "{reference} height"
         );
 
-        if reference.starts_with("spatial/actors/") {
+        if reference.starts_with("spatial/actors/") || reference == "spatial/cave_entrances.png" {
             let rgba = image
                 .data
                 .as_deref()
@@ -215,6 +226,23 @@ fn selected_folder_spatial_pngs_decode_with_expected_dimensions() {
                 pixels.iter().any(|pixel| pixel[3] == 255),
                 "{reference} should contain opaque sprite pixels"
             );
+            if reference == "spatial/cave_entrances.png" {
+                for cell in 0..6 {
+                    let cell_x = (cell % 3) * 32;
+                    let cell_y = (cell / 3) * 48;
+                    let mut has_transparent_pixel = false;
+                    let mut has_opaque_pixel = false;
+                    for y in cell_y..cell_y + 48 {
+                        for x in cell_x..cell_x + 32 {
+                            let alpha = rgba[((y * width + x) * 4 + 3) as usize];
+                            has_transparent_pixel |= alpha == 0;
+                            has_opaque_pixel |= alpha == 255;
+                        }
+                    }
+                    assert!(has_transparent_pixel, "cave atlas cell {cell} should have transparency");
+                    assert!(has_opaque_pixel, "cave atlas cell {cell} should contain visible artwork");
+                }
+            }
         }
     }
 }
