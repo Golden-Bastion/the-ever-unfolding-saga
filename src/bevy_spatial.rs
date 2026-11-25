@@ -52,6 +52,10 @@ const GEOLOGY_TILE_WIDTH_PX: u32 = 48;
 const GEOLOGY_TILE_HEIGHT_PX: u32 = 24;
 const GEOLOGY_TILE_COLUMNS: u32 = 3;
 const GEOLOGY_TILE_ROWS: u32 = 2;
+const CAVE_ENTRANCE_TILE_WIDTH_PX: u32 = 32;
+const CAVE_ENTRANCE_TILE_HEIGHT_PX: u32 = 48;
+const CAVE_ENTRANCE_TILE_COLUMNS: u32 = 3;
+const CAVE_ENTRANCE_TILE_ROWS: u32 = 2;
 const PLAYER_SPRITE_WIDTH: f32 = 16.0;
 const PLAYER_SPRITE_HEIGHT: f32 = 24.0;
 const PLAYER_COLLISION_HALF_EXTENT: f32 = 0.15;
@@ -249,6 +253,8 @@ struct SpatialRenderAssets {
     tile_images: [Option<Handle<Image>>; 4],
     geology_tile_image: Option<Handle<Image>>,
     geology_tile_layout: Option<Handle<TextureAtlasLayout>>,
+    cave_entrance_image: Option<Handle<Image>>,
+    cave_entrance_layout: Option<Handle<TextureAtlasLayout>>,
     wall_face_images: [Option<Handle<Image>>; 2],
     player_image: Option<Handle<Image>>,
     passage_image: Option<Handle<Image>>,
@@ -1105,6 +1111,31 @@ fn setup_spatial_render_assets(
             None,
         ))
     });
+    let cave_entrance_image =
+        load_spatial_image(&mut images, "spatial/cave_entrances.png").and_then(|image| {
+            let valid = images.get(&image).is_some_and(|image| {
+                cave_entrance_atlas_has_expected_size(image.texture_descriptor.size.into())
+            });
+            if valid {
+                Some(image)
+            } else {
+                warn!(
+                    "Spatial cave entrance sheet must be {}x{} pixels; using generic passage art instead",
+                    CAVE_ENTRANCE_TILE_WIDTH_PX * CAVE_ENTRANCE_TILE_COLUMNS,
+                    CAVE_ENTRANCE_TILE_HEIGHT_PX * CAVE_ENTRANCE_TILE_ROWS
+                );
+                None
+            }
+        });
+    let cave_entrance_layout = cave_entrance_image.as_ref().map(|_| {
+        atlas_layouts.add(TextureAtlasLayout::from_grid(
+            UVec2::new(CAVE_ENTRANCE_TILE_WIDTH_PX, CAVE_ENTRANCE_TILE_HEIGHT_PX),
+            CAVE_ENTRANCE_TILE_COLUMNS,
+            CAVE_ENTRANCE_TILE_ROWS,
+            None,
+            None,
+        ))
+    });
     let wall_face_images = [
         load_spatial_image(&mut images, "spatial/wall_face_left.png"),
         load_spatial_image(&mut images, "spatial/wall_face_right.png"),
@@ -1170,6 +1201,8 @@ fn setup_spatial_render_assets(
         tile_images,
         geology_tile_image,
         geology_tile_layout,
+        cave_entrance_image,
+        cave_entrance_layout,
         wall_face_images,
         player_image,
         passage_image,
@@ -1182,6 +1215,23 @@ fn setup_spatial_render_assets(
         player_animation_layout,
         player_animation_config,
     });
+}
+
+fn cave_entrance_atlas_has_expected_size(size: UVec2) -> bool {
+    size
+        == UVec2::new(
+            CAVE_ENTRANCE_TILE_WIDTH_PX * CAVE_ENTRANCE_TILE_COLUMNS,
+            CAVE_ENTRANCE_TILE_HEIGHT_PX * CAVE_ENTRANCE_TILE_ROWS,
+        )
+}
+
+fn cave_exit_atlas_index(visual_kind: MapExitVisualKind) -> Option<usize> {
+    match visual_kind {
+        MapExitVisualKind::CaveEntrance => Some(2),
+        MapExitVisualKind::VerticalShaft => Some(3),
+        MapExitVisualKind::CavePassage => Some(5),
+        _ => None,
+    }
 }
 
 fn load_spatial_image(images: &mut Assets<Image>, reference: &str) -> Option<Handle<Image>> {
@@ -2855,11 +2905,35 @@ fn render_spatial_screen(
             f32::from(exit.position.y) + 0.5,
         );
         let exit_position = map_to_world(exit_grid, Some(map));
-        if let Some(image) = assets.passage_image.clone() {
+        let visual_kind = exit.visual_kind();
+        let cave_sprite = match (
+            assets.cave_entrance_image.clone(),
+            assets.cave_entrance_layout.clone(),
+            cave_exit_atlas_index(visual_kind),
+        ) {
+            (Some(image), Some(layout), Some(index)) => {
+                let sprite_size = spatial_player_sprite_size(&assets);
+                let mut sprite = Sprite::from_atlas_image(image, TextureAtlas { layout, index });
+                sprite.custom_size = Some(sprite_size);
+                Some((sprite, sprite_size))
+            }
+            _ => None,
+        };
+        if let Some((sprite, sprite_size)) = cave_sprite {
+            commands.spawn((
+                SpatialWorldEntity,
+                sprite,
+                Transform::from_xyz(
+                    exit_position.x,
+                    exit_position.y + sprite_size.y * 0.5,
+                    depth_for(exit_grid) + PLAYER_DEPTH_OFFSET,
+                ),
+            ));
+        } else if let Some(image) = assets.passage_image.clone() {
             let color = if ferry_landing {
                 Color::srgb(0.30, 0.58, 0.68)
             } else {
-                match exit.visual_kind() {
+                match visual_kind {
                     MapExitVisualKind::Frontier => Color::srgb(0.76, 0.70, 0.55),
                     MapExitVisualKind::Trail => Color::srgb(0.70, 0.64, 0.49),
                     MapExitVisualKind::MountainPass => Color::srgb(0.62, 0.59, 0.54),
