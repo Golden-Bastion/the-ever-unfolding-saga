@@ -32,6 +32,13 @@ This file records completed work in the current unreleased development line. Old
 - Added renderer tests for underground texture selection, material/discovery palettes, and deterministic location-specific detail placement. No save schema, geography ruleset, cave connectivity, or local-map generator version changed.
 - Larger geological formation silhouettes and richer cave-wall structures remain future work.
 
+### Cave transition artwork
+
+- Added the optional transparent six-cell cave-transition atlas, validated as 96×96 pixels with 32×48 cells.
+- Rendered natural cave entrances, vertical shafts, and natural cave passages from their dedicated atlas cells, sized against the current player sprite dimensions.
+- Kept ordinary routes on the existing `passage.png` marker and retained it as the fallback when the cave atlas is missing or invalid. The other three atlas cells remain reserved for future variants.
+- Added regression coverage for atlas dimensions, all six transparent sprite cells, and the three cave-exit category mappings. No cave topology, interaction, persistence, or save-format behavior changed.
+
 ### Macro-geography surface presentation
 
 - Carried authoritative elevation, mountain-ridge strength, moisture, and shoreline adjacency through the bounded local-surface projection for renderer use.
