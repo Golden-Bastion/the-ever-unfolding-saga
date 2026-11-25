@@ -55,7 +55,7 @@ This document is the canonical record of the current product direction. It super
 43. **Integrated cultural identity.** Visual design, history, customs, beliefs, laws, economics, and relationships reinforce cultural identity.
 44. **Consequences at multiple scales.** Actions may affect individuals, communities, factions, and regions according to their significance and circumstances.
 45. **Layered, knowledge-dependent reputation.** Reputation varies by individual, faction, settlement, and region. Information travels through plausible channels; NPCs respond to what they witness, know, or believe.
-46. **Contextual justice.** Laws, enforcement, evidence, witnesses, social standing, and local power shape plausible consequences. Justice emerges from what authorities can know and do.
+46. **Lethal consequences for offenses.** Offenses are punishable by death. Common sense, local custom, authority, and circumstances shape what people regard as an offense and who responds. Discovery and lethal retaliation matter; a general prison, trial, or sentencing simulation is outside the intended scope.
 47. **Character-centred warfare.** War can reshape regions, but the player experiences it through travel, combat, allies, personal obligations, and local consequences—not a separate grand-strategy game.
 48. **Simulation-driven settlements.** Population, prosperity, resources, leadership, safety, and local events change settlements over time. Players encounter these changes directly without necessarily managing settlements.
 49. **Persistent world simulation.** NPCs, settlements, factions, and local conditions evolve away from the player, with simulation detail and fidelity scaled to relevance.
