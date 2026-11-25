@@ -26,6 +26,7 @@ This file records completed work in the current unreleased development line. Old
 
 - Added the first spatial-renderer integration for the deterministic underground material field. Each cave location resolves its material from the persisted underground geography anchor and world seed; the sampler remains independent from cave topology.
 - Integrated the existing six-cell geology tile sheet as a 48×24 sprite atlas: pale-granite, veil-slate, and cinder-basalt floor tiles plus matching raised-rock ledge tops. Material selection is driven by the underground geology sample, not gameplay terrain rules.
+- Mechanically reduced the supplied sheet to a compact 48-entry RGBA palette when re-encoding the PNG; the original six-cell layout is retained, and no new stone artwork was generated.
 - Retained the existing isometric wall-face art and its material palette, along with discovered/undiscovered shading. The generic rubble and masonry art remain safe fallbacks when the optional geology atlas is absent or invalid.
 - Added sparse deterministic fracture/outcrop accents on discovered wall and rubble tiles. Details are transient, non-colliding, capped per map, and avoid entrances, actors, props, encounters, and points of interest.
 - Added renderer tests for underground texture selection, material/discovery palettes, and deterministic location-specific detail placement. No save schema, geography ruleset, cave connectivity, or local-map generator version changed.
