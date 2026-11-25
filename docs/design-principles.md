@@ -46,7 +46,7 @@ This document is the canonical record of the current product direction. It super
 34. **Meaningful economic consequences.** Player and NPC actions affect prices, resources, production, and regional prosperity within plausible limits.
 35. **Hybrid time model.** Spatial gameplay runs in real time; deliberate activities advance time according to duration; menus and records generally pause time or avoid advancing it.
 36. **Slow-motion tactical orders.** Tactical slow motion lets players issue orders while the world continues moving slowly. This supports tactical choices in large battles while retaining real-time action and autonomous allies. Orders remain constrained by plausible communication and authority.
-37. **World-driven challenge.** Dangers follow world logic rather than automatically scaling to the player. Preparation, equipment, allies, tactics, and activity shape risk, and players may avoid or retreat from danger.
+37. **World-driven challenge.** Dangers follow world logic rather than automatically scaling to the player or adapting to player performance. Preparation, equipment, allies, knowledge, tactics, and activity shape risk; players may encounter threats beyond their current capabilities and may avoid, retreat from, or return to them later.
 38. **Context-sensitive survival needs.** Needs matter during expeditions and harsh conditions, injuries, or shortages without turning ordinary play into a maintenance loop.
 39. **Exploration-linked gathering and crafting.** Gathering rewards exploration; alchemy and selective crafting support preparation and experimentation rather than becoming a full crafting simulator.
 40. **Flexible character identity.** Players customise appearance and starting traits/background; identity continues evolving through choices, experiences, relationships, and progression.
@@ -76,7 +76,7 @@ This document is the canonical record of the current product direction. It super
 ## V. Complexity, fairness, and player understanding
 
 60. **Deep simulation, accessible presentation.** Systems may be intricate underneath while the interface surfaces relevant decisions, understandable feedback, and convenient actions without exposing every calculation.
-61. **Flexible difficulty and accessibility.** Presets and individual options adjust combat pressure, survival demands, information clarity, and other friction while preserving world logic where practical.
+61. **Fixed challenge and accessibility.** The game offers no selectable gameplay difficulty presets or adaptive difficulty. Challenge follows coherent world and system rules; accessibility options remove unnecessary interaction and presentation barriers without becoming hidden difficulty controls. Preparation, knowledge, tactics, and player decisions provide ways to meet demanding situations.
 62. **Contextual learning.** Introduce mechanics when the character encounters relevant situations, with optional explanations and reference material available later.
 63. **Explainable simulation.** Communicate important causes, effects, contributing factors, and uncertainty consistent with character knowledge, without exposing every calculation or granting omniscience.
 64. **Contextual choices.** Present actions plausible for the character’s circumstances, abilities, knowledge, and relationships. Show known costs and risks; let uncertain consequences emerge naturally.
