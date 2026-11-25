@@ -110,7 +110,7 @@ This document is the canonical record of the current product direction. It super
 86. **Single-player first; multiplayer later.** Prioritise single-player. Avoid unnecessary architectural decisions that would make future cooperative multiplayer impossible, but do not treat multiplayer as a current design constraint.
 87. **Low-cost multiplayer compatibility.** Maintain sound state ownership and clear system boundaries, using determinism where naturally useful, without premature networking abstractions.
 88. **Community-driven localisation.** Prepare localisation-ready foundations and documented translation files so contributors can add languages without changing game logic.
-89. **Layered accessibility.** Provide accessible defaults and essential options early, then expand configurable controls, visual/audio alternatives, interface scaling, and adjustable gameplay assistance.
+89. **Layered accessibility.** Provide accessible defaults and essential options early, then expand configurable controls, visual/audio alternatives, interface scaling, and other accommodations that remove unnecessary barriers. Accessibility work must not introduce hidden adaptive difficulty or silently rebalance the world.
 
 ## VIII. Platform and release policy
 
