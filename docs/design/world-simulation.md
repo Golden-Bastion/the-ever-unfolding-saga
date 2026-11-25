@@ -131,9 +131,11 @@ A complete economy with production, consumption, pricing, population needs, and 
 
 ### 5.4 NPC and entity behavior
 
-The architecture should support both stable/event-driven characters and entities with detailed goals, perception, movement, and schedules. Do not require full continuous simulation for every background NPC in the first milestone.
+NPCs and other autonomous entities use the shared [NPC behaviour specification](npc-behavior.md) for personality, capabilities, motivation, perception, knowledge, memory, decision-making, navigation, and group behaviour. The world simulation owns their authoritative time, persistence, scheduling, and fidelity transitions; it does not prescribe one universal AI algorithm.
 
-When an entity moves, changes role, or otherwise evolves, dependent dialogue, quests, location references, and interactions must remain consistent. Roaming entities and complex AI will receive dedicated design work.
+Do not require full continuous simulation for every background NPC. Important actors and active situations may need detailed goals, perception, movement, and repeated decisions, while routine or distant activity may use scheduled, aggregate, or deferred resolution. Every level must preserve identity, commitments, relationships, and consequential outcomes.
+
+When an entity moves, changes role, or otherwise evolves, dependent dialogue, quests, location references, and interactions must remain consistent. NPCs act only on information they could plausibly acquire; authoritative world facts are not automatically shared with every actor. Roaming entities and complex AI should follow the dedicated NPC behaviour specification rather than grow as isolated special cases.
 
 ### 5.5 Seasonal climate and weather
 
@@ -156,7 +158,30 @@ Wildlife populations, predator-prey behavior, migration, settlement economies, a
 
 They are not prerequisites for the initial implementation. Their future design should define the expected player-facing experience, entity counts, time model, determinism requirements, and measurable performance budgets before implementation.
 
-## 6. Active, inactive, and distant world regions
+## 6. Enpicieus: world activity coordination
+
+Enpicieus is the world-level coordination system for eligible activity, encounters, and opportunities. It coordinates what may become active or relevant within the existing world simulation; it is not an omniscient author, a hidden difficulty manager, or a replacement for autonomous NPCs and domain systems.
+
+Its responsibilities may include:
+
+- Evaluating which existing world situations, events, and encounter opportunities are eligible to develop or become active.
+- Coordinating regional activity such as patrols, roaming threats, wildlife movement, travelling groups, local disputes, and other supported world events.
+- Considering geography, routes, population, faction interests, time, environmental conditions, and established world state.
+- Avoiding contradictory, duplicated, or implausibly repetitive activity.
+- Supporting varied periods of activity and quiet without imposing a fixed dramatic rhythm on every region.
+- Respecting authored content, persistent outcomes, and the player's knowledge boundaries when presenting or surfacing consequences.
+
+Enpicieus must work with possibilities grounded in the world. It may select or schedule an eligible encounter from a contextual set, but must not invent convenient threats, remove existing dangers, or scale danger to the player's level merely to manufacture a desired challenge. World-driven challenge remains authoritative.
+
+The system coordinates rather than puppeteers. NPCs retain their own goals, knowledge, personality, commitments, and ability to refuse, fail, retreat, or pursue other priorities. Faction, wildlife, settlement, economy, and encounter systems remain owners of their domain state and rules. Enpicieus may request or schedule domain work through explicit interfaces; it must not maintain parallel copies of those systems' authoritative state.
+
+Randomness must be constrained by valid context and use stable inputs or deterministic streams where reproducibility and persistence require them. Authored encounters and mod-provided content retain their declared precedence and constraints. Re-entry, save/load, and character inheritance must not reroll established activity or duplicate consequences.
+
+The coordination layer should be bounded and relevance-aware. It may use candidate evaluation, scheduling, and aggregate regional summaries rather than continuously processing every possible event or actor. Its workload and decisions must be inspectable through development tools and reproducible scenarios.
+
+Enpicieus is a coordination responsibility within world simulation, not a requirement for a separate crate or a single monolithic AI controller. Its detailed implementation should be designed only as supporting world domains mature.
+
+## 7. Active, inactive, and distant world regions
 
 World topology from #365 means the world can grow as the player explores. Uncreated regions have no runtime entities to simulate and should not require background processing.
 
@@ -171,7 +196,7 @@ Switching fidelity modes must not cause state to reset, duplicate outcomes, or c
 
 The project should profile real workloads before introducing elaborate scheduling, threading, or complex simulation infrastructure. Likewise, it should not hard-code a tiny world population based solely on assumptions about performance. Limits and budgets should follow measurement on representative desktop and Android hardware.
 
-## 7. Visible consequences and history
+## 8. Visible consequences and history
 
 Simulation results should affect what the player can observe or do: a route's availability, a location's state, an NPC's presence or dialogue, faction information, available resources, current opportunities, or encounter behavior.
 
@@ -186,7 +211,7 @@ A history record that a bridge collapsed and was repaired does not determine whe
 
 Simulation systems should emit structured results or change records that presentation can display appropriately. Presentation must not implement authoritative rules.
 
-## 8. Persistence and inheritance
+## 9. Persistence and inheritance
 
 The save system must store sufficient authoritative data to continue simulation consistently: world time, persistent state changes, relevant scheduled transitions or deadlines, cooldowns, stable identities, and duplicate-prevention markers where required.
 
@@ -202,7 +227,7 @@ Older saves require conservative migration with safe defaults. Missing new field
 
 Event definitions can be rehydrated from the current content package where appropriate, while runtime-created events and world state require their existing explicit persistence path. Content updates must not silently erase established world consequences.
 
-## 9. Performance, determinism, and engineering quality
+## 10. Performance, determinism, and engineering quality
 
 - **Profile before restricting scope.** Use representative workloads and target-device measurements to identify real bottlenecks before reducing simulation fidelity.
 - **Keep ownership explicit.** Each domain defines its state, update method, time semantics, and transition rules.
