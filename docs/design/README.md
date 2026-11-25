@@ -7,7 +7,7 @@ The root [ROADMAP.md](../../ROADMAP.md) is the only project-wide index of remain
 ## Product direction
 
 - [Game vision](game-vision.md) — character-focused experience, self-directed lives, exploration, and inherited world history.
-- [Primary player experience](primary-player-experience.md) — exploration and combat as central pleasures, player freedom, world judgment, violent consequences, pursuit, and legacy.
+- [Primary player experience](primary-player-experience.md) — exploration and combat as central pleasures, player freedom, world judgment, lethal consequences for offenses, pursuit, and legacy.
 - [Spatial gameplay](spatial-gameplay.md) — safe-location actions, spatial exploration, investigation, dynamic encounters, and eventual action combat.
 - [World scale and travel](world-scale-and-travel.md) — minimum sense of scale for local maps, locations, regions, overland journeys, and travel time.
 - [Pixel-art visual direction](pixel-art-direction.md) — graphics-first visual identity, asset consistency, and incremental migration.
