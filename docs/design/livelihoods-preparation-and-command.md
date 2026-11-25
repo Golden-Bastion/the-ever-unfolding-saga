@@ -4,7 +4,7 @@
 
 The Ever-Unfolding Saga should support different ways of living in and influencing its persistent world without becoming a collection of separate simulation games.
 
-Farming, gathering, crafting, alchemy, trade, expedition preparation, and commanding groups in battle should build upon shared systems for resources, inventory, world time, NPCs, assignments, organizations, combat, and persistence.
+Gathering, crafting, alchemy, trade, expedition preparation, and commanding groups in battle should build upon shared systems for resources, inventory, world time, NPCs, assignments, organizations, combat, and persistence.
 
 These are long-term design directions, not claims that all the described systems currently exist or commitments to implement them all at full depth. The goal is to establish a coherent foundation that can be expanded incrementally while keeping exploration, individual characters, and lasting consequences at the center of the game.
 
@@ -21,7 +21,7 @@ These are long-term design directions, not claims that all the described systems
 
 The world should support a connected resource loop:
 
-1. **Acquisition:** gather materials, hunt, harvest crops, and discover resources through exploration.
+1. **Acquisition:** gather materials, hunt, and discover resources through exploration or commerce.
 2. **Transformation:** turn suitable resources into useful goods through crafting and alchemy, including potions and other preparations.
 3. **Exchange:** sell surplus goods, purchase supplies, and trade resources between locations.
 4. **Application:** use the resulting goods, wealth, and capabilities for exploration, combat, expeditions, and other ambitions.
@@ -42,19 +42,11 @@ When infrastructure lifecycle gameplay is implemented in v0.55.x:
 
 Do not implement a parallel infrastructure stockpile, resource catalogue, crafting recipe system, or worker simulator solely to make route construction playable. The shared resource/inventory and work foundations are prerequisites.
 
-### Farming and productive work
-
-Farming should be a supported livelihood rather than a separate farming simulator.
-
-- The player may participate in productive work directly.
-- Work may be delegated to NPCs through the shared worker or assignment system.
-- Production should depend on appropriate conditions and elapsed world time.
-- Harvested resources should enter the same inventory, storage, crafting, and trading systems used elsewhere.
-- Farming should not require micromanaging individual plants or maintaining a continuous daily checklist.
-
 ### Trade, crafting, and alchemy
 
-Trading should offer meaningful choices based on location, availability, and relevant circumstances without immediately requiring a fully simulated market economy.
+Trading should offer meaningful choices based on location, availability, demand, risk, and relevant circumstances without immediately requiring a fully simulated market economy. Trade can be a substantial character livelihood: a player may buy and sell goods between settlements, arrange or join caravans, hire protection, guard merchandise personally, or become an armed merchant capable of defending a route and their cargo. These possibilities should emerge from the same travel, inventory, combat, NPC, organization, and economic systems used elsewhere—not from a separate business-management game.
+
+Trade routes should create meaningful decisions about what to carry, where to sell, how much risk to accept, whom to trust, and whether protection or additional help is worth its cost. Hostile groups, local conditions, conflict, and changing availability may make a route dangerous or unprofitable. The game should not guarantee safe passage or manufacture danger to challenge the player.
 
 Crafting and alchemy should produce useful, differentiated results that interact with exploration, preparation, trade, and other systems. Avoid unnecessary resource and recipe proliferation that adds complexity without meaningful decisions.
 
@@ -126,7 +118,7 @@ These systems should remain extensions of The Ever-Unfolding Saga's shared world
 
 **Not currently intended as separate full simulators:**
 
-- A detailed farming-management game.
+- A player-facing farming or agriculture-management gameplay loop.
 - A comprehensive business or market-management game.
 - A standalone grand-strategy or kingdom-management game.
 - A survival game centered on continuously managing hunger, thirst, and similar needs.
@@ -134,7 +126,7 @@ These systems should remain extensions of The Ever-Unfolding Saga's shared world
 
 Inheritance remains an important part of the game's identity, but supporting descendants, succession, property, relationships, and lasting legacies does not require simulating every aspect of a dynasty.
 
-Likewise, the world may contain farms, businesses, armies, and families without requiring the player to manage every detail of each institution.
+Agriculture may exist as background settlement production or world context where useful, but it is not a player livelihood or a planned gameplay loop. Likewise, the world may contain businesses, armies, and families without requiring the player to manage every detail of each institution.
 
 A feature should justify its complexity by reinforcing the central experience, interacting meaningfully with existing systems, or producing distinctive consequences. The mere possibility of adding more depth is not sufficient justification for doing so.
 
@@ -165,7 +157,7 @@ This direction must not be interpreted as a reason to delay or displace the curr
 
 The direction should be considered coherent when:
 
-- The same resources and inventory representations are useful across gathering, farming, crafting, alchemy, and trade.
+- The same resources and inventory representations are useful across gathering, crafting, alchemy, and trade.
 - Productive NPC work can use shared time and assignment mechanisms rather than requiring a separate worker simulation for every activity.
 - Preparation has concrete effects on expeditions and combat without creating a mandatory continuous-needs loop.
 - Tactical command builds upon the spatial combat experience and existing NPC and organizational logic.
