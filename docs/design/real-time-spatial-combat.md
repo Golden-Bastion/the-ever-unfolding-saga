@@ -83,9 +83,15 @@ Support, as appropriate:
 
 The practical simultaneous-entity limits should be driven by gameplay readability, presentation, and Android performance rather than an arbitrary universal cap.
 
-Enemy behavior should be designed around readable combat roles and varied attack/defense rhythms so encounters can be difficult without simply scaling HP/damage.
+Enemy behavior should be designed around readable combat roles and varied attack/defense rhythms so encounters can be difficult without simply scaling HP/damage. Combatants should reuse the shared [NPC behaviour specification](npc-behavior.md) for personality, capabilities, perception, knowledge, reaction limits, and relevant memory rather than introducing a separate personality system for combat.
 
-Potential role families include aggressive, defensive, skirmishing, swarm-oriented, heavy, and boss behaviors, but these are design directions rather than a fixed implementation requirement.
+Combat role and personality are independent. Two enemies with the same role may differ in courage, aggression, caution, patience, discipline, or willingness to cooperate. Competence, equipment, injuries, morale, orders, immediate danger, and available information also affect their choices. These characteristics should influence concrete tactics and risk tolerance, not merely dialogue or cosmetic labels.
+
+Enemies should not automatically know the player's exact position or intentions when they cannot perceive or infer them. Awareness should reflect sight, sound, recent contact, communication, and other plausible evidence. Reactions should allow for attention and reaction delays; mistakes, hesitation, retreat, surrender, or regrouping may be appropriate where supported by the character and encounter.
+
+Group behaviour may include protecting allies, coordinating approaches, exploiting openings, maintaining distance, flanking, or withdrawing. Coordination depends on communication, shared knowledge, leadership, and circumstances; enemies should not act with perfect collective awareness by default.
+
+Potential role families include aggressive, defensive, skirmishing, swarm-oriented, heavy, and boss behaviors, but these are design directions rather than a fixed implementation requirement. Morale and willingness to continue fighting should be distinct from health: injury, fear, leadership, loyalty, objectives, and escape options can influence whether a combatant continues, retreats, or surrenders.
 
 ## Hit and injury model
 
