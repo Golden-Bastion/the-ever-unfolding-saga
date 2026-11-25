@@ -11,7 +11,8 @@ These are first-pass original pixel-art assets packaged as protected base-game d
 - `player_oathbound.png`: static fallback player character sprite.
 - `player_oathbound_animated.png`: transparent 192×384 directional animation atlas (6 columns × 8 rows of 32×48 frames), with four idle frames and six walking frames per direction.
 - `player_oathbound_animated.json`: mod-aware animation manifest defining frame/atlas dimensions and the row, frame range, duration, and looping behavior for each directional idle/walk clip.
-- `passage.png`: physical edge-passage marker.
+- `passage.png`: physical edge-passage marker and fallback for cave transitions when the optional cave atlas is unavailable.
+- `cave_entrances.png`: transparent 96×96 atlas arranged as six 32×48 cells (3 columns × 2 rows). The renderer uses cell 2 for natural cave entrances, cell 3 for vertical shafts, and cell 5 for natural cave passages; cells 0, 1, and 4 remain reserved for future variants. Cave sprites use the player's current sprite dimensions, while ordinary route exits continue to use `passage.png`.
 - `prop_pillar.png`: small stone pillar; 32×40 pixels, one-cell collision footprint.
 - `prop_table.png`: weathered wooden table; 72×48 pixels, two-cell collision footprint.
 - `actors/npc.png`: neutral hooded traveller; transparent 32×48 upright sprite, displayed at 17×22 logical pixels.
