@@ -1114,7 +1114,10 @@ fn setup_spatial_render_assets(
     let cave_entrance_image =
         load_spatial_image(&mut images, "spatial/cave_entrances.png").and_then(|image| {
             let valid = images.get(&image).is_some_and(|image| {
-                cave_entrance_atlas_has_expected_size(image.texture_descriptor.size.into())
+                cave_entrance_atlas_has_expected_size(UVec2::new(
+                    image.texture_descriptor.size.width,
+                    image.texture_descriptor.size.height,
+                ))
             });
             if valid {
                 Some(image)
