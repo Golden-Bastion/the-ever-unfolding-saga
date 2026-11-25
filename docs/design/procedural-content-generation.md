@@ -101,7 +101,7 @@ Generated factions should have contextual roles: interests, influence, resource 
 
 NPC presence should reflect the purpose and population of each location. Settlements may have service providers, resource owners, information holders, or participants in local disputes. Remote ruins should not automatically receive a conventional population simply because NPCs are expected everywhere.
 
-Generated NPCs should have at least a coherent role and relevant relationships. Important personalities can receive more detailed authored characterization. Background inhabitants do not all require a full biography, complex personal goals, or continuous simulation.
+Generated NPCs should have at least a coherent role and relevant relationships. Important personalities can receive more detailed authored characterization. Background inhabitants do not all require a full biography, complex personal goals, or continuous simulation. Their initial behavioural profiles should follow the shared [NPC behaviour specification](npc-behavior.md): distinguish stable personality tendencies from competence, current motivation, relationships, knowledge, and temporary circumstances. Generate traits from contextual, deterministic inputs rather than unconstrained random combinations; population roles, regional conditions, faction ties, and authored characterization should produce plausible individuals. Persist generated identities and profiles so re-entry, save/load, and inheritance do not reroll them.
 
 Faction relationships should remain coherent across locations. If a faction influences a settlement, controls a route, or competes over resources, related content should reflect those facts rather than rerolling them independently at each site.
 
