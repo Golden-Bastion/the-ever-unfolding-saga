@@ -14,7 +14,7 @@ This document is the canonical record of the current product direction. It super
 
 ## II. Exploration, gameplay, and interface
 
-8. **Exploration is central.** Exploration is a primary way to encounter places, characters, stories, dangers, and opportunities.
+8. **Exploration and combat are central pleasures.** Exploration is a primary way to encounter places, characters, stories, dangers, and opportunities; combat is also a meaningful experience in its own right, not merely an obstacle or a supporting activity.
 9. **Supporting activities serve the main experience.** Their depth depends on how much they enrich the character’s life and gameplay.
 10. **Meaningful-experience test.** Evaluate features by the meaningful experiences or consequences they create for the character.
 11. **Clear interface responsibilities.** Spatial gameplay and menus/records have distinct responsibilities. Clarify and harmonize the existing interface; do not assume a wholesale redesign is required.

@@ -16,7 +16,7 @@ The Ever-Unfolding Saga is a dark-fantasy open-world RPG about exploration, self
 
 The player enters a world that extends beyond the known frontier, chooses how to live, and leaves consequences that can outlast a single character. When a character dies, another can continue in the same world and inherit its history.
 
-The experience should combine an evocative wilderness, dangerous encounters, meaningful relationships, consequential decisions, and freedom to pursue different lives. Its world should reward curiosity, while its systems allow player actions to shape a persistent history.
+The experience should combine an evocative wilderness, dangerous encounters, meaningful relationships, consequential decisions, and freedom to pursue different lives. Exploration and combat are both central pleasures: players discover what the world contains, then decide how to engage with it, including through direct and sometimes brutal violence. The world should reward curiosity while allowing player actions—constructive, destructive, or otherwise—to shape a persistent history.
 
 The objective is not to reproduce any particular existing game, but to develop a coherent experience from these design aspirations.
 
@@ -70,7 +70,13 @@ The precise inheritance rules should be defined alongside the systems they affec
 
 The interaction of world state, procedural generation, character goals, relationships, factions, events, and player decisions should create situations that are not limited to a fixed sequence of authored quests.
 
-The world should be able to produce opportunities and consequences from its existing context. Generated situations should be coherent enough to invite meaningful decisions rather than merely providing interchangeable tasks.
+The world should be able to produce opportunities and consequences from its existing context. Generated situations should be coherent enough to invite meaningful decisions rather than merely providing interchangeable tasks. Player-initiated actions, including violence unrelated to an authored quest, should also be able to create consequential situations. The world may judge a character through fear, admiration, hatred, respect, distrust, or competing interpretations, according to what individuals and groups know or believe.
+
+Consequences should emerge through the world's people and institutions rather than through a universal morality score or a scripted escalation track. Witnesses, survivors, evidence, reports, rumours, investigations, local laws, faction interests, available personnel, and the ability to organize a response all shape what happens. Authorities and other actors must act on information they could plausibly acquire; the simulation should not reveal unseen actions to them automatically. Responses may range from avoidance or local hostility to organized pursuit or a large military operation when the scale of the event and the responding group's actual capabilities justify it. Pursuit must remain part of the world: forces need information, time, leadership, movement, and supplies, and the player may evade, mislead, confront, outlast, or be overtaken by them.
+
+The same event need not produce one universal judgement. Different individuals, settlements, factions, and regions may interpret it differently, and their views may be mistaken, biased, delayed, or changed by later events. A character may be feared by one community, celebrated by its enemies, and unknown elsewhere. Reputation should reflect what each observer or group knows and believes, not omniscient access to the complete event history.
+
+The intended experience allows violence to be enjoyable as moment-to-moment gameplay without making it consequence-free in the persistent world. Combat should be satisfying in itself; consequences should arise from coherent simulation, not from moralizing restrictions that arbitrarily prevent plausible actions. A player may choose to save and reload around an experiment or destructive spree. That is player-controlled use of saves, not an in-world action or a reason for the simulation to judge the player outside the state of the loaded timeline.
 
 Simulation complexity should be introduced where it contributes to the experience. A fully simulated ecosystem or society is not a prerequisite for every procedural feature.
 
