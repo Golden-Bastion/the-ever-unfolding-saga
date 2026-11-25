@@ -45,14 +45,15 @@ The simulation must distinguish what happened in the authoritative world state f
 
 Violence can affect individuals, families, settlements, organizations, factions, trade, local leadership, and regional stability. The scale and form of the response depend on the event and the people or institutions affected.
 
-A response is not a mandatory wanted-level ladder. Depending on local law, authority, resources, priorities, evidence, and relationships, possible reactions include:
+A response is not a mandatory wanted-level ladder. Depending on local custom, authority, resources, priorities, evidence, and relationships, possible reactions include:
 
 - Individuals avoiding, confronting, reporting, or seeking revenge against the character.
 - Victims' families, companions, or allies pursuing their own response.
-- Local guards investigating, warning, detaining, or attempting to arrest the character.
-- Patrols, bounty hunters, mercenaries, or faction forces searching for or pursuing them.
+- Local authorities, patrols, bounty hunters, mercenaries, or faction forces searching for and attempting to kill the character.
 - Leaders organizing a larger force when the threat, political stakes, and available capabilities justify it.
 - Rival groups exploiting the event, sheltering the character, recruiting them, or using the incident for their own purposes.
+
+Offenses are punishable by death. The design does not include a general prison, trial, or sentencing framework. This is not a detailed universal criminal code: common sense, local custom, authority, and circumstances determine what people regard as an offense and who responds. The gameplay focus is discovery, identification, and lethal retaliation—not a simulated judicial process.
 
 A large-scale hunt—including a force numbering in the hundreds—is a possible outcome, not a scripted guarantee or a universal response to a fixed number of kills. It must arise from the world having a reason and the actual capacity to organize such an operation.
 
@@ -62,9 +63,9 @@ Organized pursuit requires more than spawning enemies near the player. Respondin
 
 Prolonged conflict should be able to wear a character down. Where the relevant survival and combat systems support them, injuries, fatigue, depleted supplies, equipment damage, lost allies, and accumulated pressure can make continued resistance increasingly difficult.
 
-This should create meaningful decisions rather than a predetermined execution. The player may fight, retreat, hide, mislead pursuers, seek shelter, negotiate, surrender, or attempt to escape by another route when circumstances allow. Pursuers should be dangerous because of their actual numbers, coordination, equipment, information, and persistence—not because the game secretly scales their statistics.
+This should create meaningful decisions rather than a predetermined execution. The player may fight, retreat, hide, mislead pursuers, seek shelter, or attempt to escape by another route when circumstances allow. Pursuers should be dangerous because of their actual numbers, coordination, equipment, information, and persistence—not because the game secretly scales their statistics.
 
-A character who starts a violent confrontation may ultimately be captured or killed after surviving repeated engagements. That outcome should follow from the situation and established rules, not from an invisible script that decides the player must lose.
+A character who starts a violent confrontation may ultimately be killed by pursuers after surviving repeated engagements. That outcome should follow from the situation and established rules, not from an invisible script that decides the player must lose.
 
 The world's challenge remains world-driven. Authorities and enemies do not become stronger simply because the player has performed well, and they do not become weaker to ensure the player survives.
 
@@ -95,4 +96,4 @@ Save reliability and recovery remain governed by the project's persistence princ
 - Do not let supporting systems turn this experience into a collection of disconnected simulators.
 - Do not claim planned behaviour is already implemented; implementation status and sequencing belong in the roadmap and relevant system plans.
 
-The governing test is whether a player's actions create understandable, persistent, and world-appropriate reactions while preserving meaningful freedom to explore, fight, retreat, fail, die, and begin another life in the same evolving world.
+The governing test is whether a player's actions create understandable, persistent, and world-appropriate reactions while preserving meaningful freedom to explore, fight, retreat, fail, die, and begin another life in the same evolving world. Crime-related design should stay focused on discovery, identification, and lethal retaliation; it must not grow into a separate prison or justice simulator.
