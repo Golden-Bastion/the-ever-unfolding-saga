@@ -51,6 +51,16 @@ Contextual interaction discovery returns every eligible nearby NPC, corpse, POI,
 
 Talking transitions from the spatial view into a dedicated close-up dialogue scene while preserving the active spatial session underneath. The scene places the player and NPC together, composes each portrait from the deterministic, renderer-neutral portrait layers, and presents memory, availability, responses, and choices in a dedicated dialogue area. Portrait PNGs are resolved through the same mod-aware asset loader as other game art; layers retain their declared draw order, missing parts are omitted, and the legacy NPC portrait text is shown only when no usable image layer can be loaded. A shared scene-root transition animates entry and exit. Movement remains suspended until the exit transition completes, then resumes at the exact previous exploration position. Searching a corpse retains its contextual inspection/recovery overlay and existing loot, hidden-discovery, and note presentation. Dialogue, time advancement, quest effects, and inventory mutation continue to use the authoritative game rules rather than renderer-owned logic.
 
+## NPC navigation and tactical movement
+
+The local-map topology remains authoritative for NPC movement and navigation. NPC navigation follows the shared [NPC behaviour specification](../design/npc-behavior.md), while this system owns the spatial facts and movement constraints that navigation must respect.
+
+Navigation queries must use the same walkability, collision, room/door, exit, and infrastructure rules as player movement. NPCs must not path through walls, blocked footprints, closed or locked doors, unavailable crossings, or route connections they cannot legitimately use. Actor-specific size, movement capability, and relevant conditions may further constrain reachable cells.
+
+As tactical behaviour is developed, spatial navigation may expose reusable information about reachable areas, line of sight, cover or concealment, chokepoints, approach positions, hazards, and escape routes. These are environmental facts or affordances; the NPC decision system determines whether they matter to a particular actor and goal.
+
+The current grid and room topology is the foundation. A navigation mesh or another representation may be introduced for larger or more complex spaces if profiling and gameplay requirements justify it, but no replacement technology is mandated. Navigation must remain renderer-neutral and must not make Bevy presentation state authoritative.
+
 ## Persistent spatial encounters
 
 `game/encounters.rs` groups campaign encounter profiles by their optional `spawn_group` when a local map is entered. Profiles within one group are weighted alternatives; each distinct group is evaluated independently and can materialize one record. Profiles without a group share the default group, preserving the original single-pool behavior. Eligible profiles are filtered by authored world conditions, their deterministic chance roll, and positive weight. The weighted selection uses a seed derived from the persistent map seed, location identity, world day, time, and (for non-default groups) the group identity. It does not consume the general gameplay RNG stream.
