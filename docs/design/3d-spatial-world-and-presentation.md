@@ -132,7 +132,7 @@ The world has no predetermined maximum extent. New regions are generated progres
 
 Use uniform base spatial chunk dimensions as the common technical loading unit. Large locations and environments are composed of more chunks, not special map types with unrelated streaming rules. The exact chunk dimensions and vertical partitioning remain open.
 
-A chunk is not a region, location, biome, or simulation domain. It is a technical unit for spatial generation, loading, memory management, and possibly persistence partitioning. Different environments may contain very different geometry and entity counts within the same base chunk dimensions.
+A chunk is not a region, location, biome, or simulation domain. It is a technical unit for spatial generation, loading, memory management, and possibly persistence partitioning. A small location may fit within one chunk or a few chunks; a large settlement, forest, cave system, or underground complex may span many. Different environments may contain very different geometry and entity counts within the same base chunk dimensions.
 
 Keep three independent decisions:
 - **Spatial loading:** whether geometry and runtime spatial structures are resident.
