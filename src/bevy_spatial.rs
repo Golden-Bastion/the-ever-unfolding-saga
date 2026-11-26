@@ -4733,8 +4733,9 @@ fn spawn_celestial_visual(
     Some(visual)
 }
 
-#[allow(clippy::too_many_arguments)] // Keep the presentation regions independently queried.
-const REAL_SECONDS_PER_WORLD_MINUTE: f64 = 5.0;
+// 3 real seconds per in-game minute: 3 minutes/hour, 72 minutes/day,
+// 8h24m/week, and 18 days 6 hours per 365-day in-game year.
+const REAL_SECONDS_PER_WORLD_MINUTE: f64 = 3.0;
 const MAX_SPATIAL_CLOCK_FRAME_DELTA_SECONDS: f64 = 5.0;
 
 #[allow(clippy::too_many_arguments)]
