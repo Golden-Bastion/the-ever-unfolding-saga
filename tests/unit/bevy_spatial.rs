@@ -2025,7 +2025,7 @@ fn spatial_environment_tint_tracks_dawn_day_dusk_and_night() {
 }
 
 #[test]
-fn spatial_clock_advances_one_world_minute_per_five_real_seconds() {
+fn spatial_clock_advances_one_world_minute_per_three_real_seconds() {
     let mut spatial = SpatialExplorationState::default();
     let mut game = crate::model::create_new_state(
         "Clock Test",
@@ -2036,7 +2036,7 @@ fn spatial_clock_advances_one_world_minute_per_five_real_seconds() {
     let initial_points = game.world.time_points;
 
     // No movement input is involved: simply remaining on the map advances time.
-    for _ in 0..4 {
+    for _ in 0..2 {
         advance_spatial_clock(&mut spatial, &mut game, 1.0);
     }
     assert_eq!(game.world.minutes_into_time_point, 0);
@@ -2052,7 +2052,7 @@ fn spatial_clock_advances_one_world_minute_per_five_real_seconds() {
         "08:01"
     );
 
-    for _ in 0..595 {
+    for _ in 0..1797 {
         advance_spatial_clock(&mut spatial, &mut game, 1.0);
     }
     assert_eq!(game.world.time_points, initial_points + 1);
