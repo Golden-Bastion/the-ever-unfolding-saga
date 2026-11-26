@@ -26,6 +26,24 @@ The codebase already has:
 
 The design should strengthen these foundations rather than replace them without cause. Current code contains some generated-world behavior stored in faction/NPC memory as free-text markers; new mechanical relationships should move toward structured state as the relevant systems are developed.
 
+## Spatial state, simulation, and presentation boundaries
+
+World simulation follows a hybrid ownership model. Persistent entities own their authoritative state and identity; specialized systems and processes own the rules that update entities and govern interactions. NPCs, settlements, factions, resources, structures, and other entities do not become properties of a region merely because they are geographically located there. Regions organize geography and provide context; domain systems retain their own state ownership and may span multiple regions.
+
+The continuous 3D spatial world introduces three independent runtime questions:
+
+- **Spatial loading:** whether geometry, collision representation, and runtime spatial structures for an area are resident.
+- **Simulation activity:** whether entities and processes in that area require detailed, aggregate, or deferred updates.
+- **Rendering:** whether an area or entity is currently visible or otherwise needed for presentation.
+
+These decisions must not be coupled. A chunk may be loaded for predicted traversal without every entity receiving high-fidelity simulation. An off-screen actor or process may remain simulation-relevant. A visible area may use reduced presentation detail without changing authoritative collision, movement, or world state.
+
+Streaming and simulation scheduling are relevance-based, not distance-only. Relevance may include expected player movement, visibility, connected passages, active encounters, consequential NPCs, scheduled work, dependencies, and hardware budgets. Loading should anticipate movement across chunk, region, location, interior, and underground boundaries so continuous traversal does not expose loading seams.
+
+Unloading releases temporary geometry and runtime representations, not authoritative world state. Persist meaningful modifications, placed entities, identities, discoveries, and ongoing process state. Do not persist transient physics-engine internals by default when they can be reconstructed from authoritative gameplay state. Ongoing processes must continue through active simulation or be resolved through deterministic, bounded aggregate/deferred updates; unloading must not silently freeze consequences.
+
+Physical simulation is gameplay-driven. Physics resolves supported physical interactions; world simulation owns lasting consequences and schedules; NPC and faction systems own their responses. Use the least complex simulation that preserves the intended player-facing behaviour. This is not a requirement for scientifically accurate or universally continuous physical simulation.
+
 ## 1. Simulation model: support multiple fidelity levels
 
 The architecture should not impose a universal choice between a fully continuous simulation and an entirely event-driven world. Different domains may need different approaches, and the same domain may use different levels of detail depending on context.
@@ -185,7 +203,7 @@ Enpicieus is a coordination responsibility within world simulation, not a requir
 
 World topology from #365 means the world can grow as the player explores. Uncreated regions have no runtime entities to simulate and should not require background processing.
 
-For created regions, simulation fidelity should be determined by domain requirements and relevance—not merely by distance from the player. The architecture may support:
+For created regions and spatial chunks, simulation fidelity should be determined by domain requirements and relevance—not merely by distance from the player. Region boundaries, chunk boundaries, loading state, and rendering visibility do not define simulation ownership or fidelity. The architecture may support:
 
 - Full or high-detail updates for active spatial encounters and systems whose intermediate behavior is observable.
 - Lower-frequency or aggregate updates for domains where an approximate model preserves the intended consequences.
