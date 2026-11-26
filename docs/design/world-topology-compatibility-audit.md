@@ -91,7 +91,7 @@ A topology migration must preserve at least:
 - Existing `World.local_maps`, map keys, terrain, rooms, doors, props, discoveries, encounter records, and passage state.
 - Existing local-map seeds and generator versions. New world/region generation must not silently regenerate a saved local map.
 
-## Gaps against the approved topology design
+## Gaps against the v0.53 topology plan at audit time (historical)
 
 | Area | Current state | Required extension |
 |---|---|---|
@@ -115,7 +115,7 @@ A topology migration must preserve at least:
 6. **Make expansion idempotent.** Reaching the same frontier more than once must resolve to the same stable region/location/route identities and must not duplicate content or consume unrelated random streams.
 7. **Preserve character/world ownership.** Regional geography, established routes, and physical discoveries remain world-owned; exact live character position/session state remains character-owned.
 
-## Recommended implementation order
+## Implementation order recorded at audit time (historical)
 
 The sequence in the approved topology design remains appropriate. These substeps make its compatibility prerequisites explicit:
 
@@ -142,7 +142,7 @@ The migration contract is:
 
 This resolves whether legacy worlds should be embedded or left behind. The exact embedding algorithm, coordinate schema, and deterministic compatibility-seed derivation still need to be designed and tested before the save migration is implemented. In particular, geography scale and route geometry must be chosen so the embedding can satisfy the existing graph without pretending that old route layouts were authored against terrain that did not yet exist.
 
-## Design decisions still open for coordinate-backed topology
+## Coordinate-backed questions recorded at audit time (subject to the newer target design)
 
 - **Authored placement contract (partially resolved in v0.53.14):** `LocationContent` may provide an exact surface anchor and footprint radius, and persisted location-geography records retain authored content IDs as stable keys. Environmental archetypes now provide settlement, wilderness, and landmark placement preferences; region-level placement constraints and local-map connection-point requirements remain open.
 - **Geography scale (resolved 21 November 2026):** each region is a signed chunk of 256 × 256 macro samples. `RegionCoordinate` identifies chunks and `MacroCoordinate` identifies positions in the shared global sample lattice; both include a vertical stratum index, with zero for the surface and negative values for underground layers. This is separate from local-map tile dimensions; continuous terrain sampling/interpolation remains future implementation work.
