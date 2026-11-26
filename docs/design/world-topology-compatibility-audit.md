@@ -7,7 +7,7 @@
 
 ## Purpose and limits
 
-The v0.53.x topology work must extend the existing world/location graph and local spatial maps without invalidating established campaigns. This audit identifies the persistent identities and behaviors that a coordinate-backed world must preserve.
+This is an implementation audit of the v0.53.x graph, local-map, and macro-geography foundation. It records existing runtime identities and compatibility obligations; it is not the target world architecture. The approved target is now a continuous 3D spatial world with streamed chunks, as specified in [3D Spatial World and Presentation Architecture](3d-spatial-world-and-presentation.md) and [World Topology and Seamless Spatial Traversal](world-topology-and-travel.md). The audit remains useful for identifying existing state and migration risks, but its local-map transition model and fixed technical region partition must not be treated as the final geographical model.
 
 This change is documentation-only. It adds no coordinates, route entities, generator changes, save migrations, or gameplay behavior. Requirements already settled in the topology design remain authoritative; unresolved implementation choices are identified rather than silently decided here.
 
