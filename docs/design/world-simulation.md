@@ -59,7 +59,7 @@ Every simulation domain must declare what it guarantees when processed in detail
 
 ## 2. Authoritative time and update boundaries
 
-The existing in-game clock remains authoritative for world time. Outside an active local spatial session, the application being open, rendering frames, or real-world hours passing must not independently advance the world. During active local exploration, world time advances at one in-game minute per five real-world seconds, whether the character is moving or standing still. The clock pauses when exploration is paused, a gameplay menu or interaction overlay is open, route transit or combat takes control, or another screen is active.
+The existing in-game clock remains authoritative for world time. Outside an active local spatial session, the application being open, rendering frames, or real-world hours passing must not independently advance the world. During active local exploration, world time advances at one in-game minute per three real-world seconds, whether the character is moving or standing still. The clock pauses when exploration is paused, a gameplay menu or interaction overlay is open, route transit or combat takes control, or another screen is active.
 
 Action-driven costs, physical travel, fast travel, waiting, and resting remain additive to the real-time local clock. The minute-level remainder is persistent; each 120 elapsed in-game minutes advances one existing two-hour time point through the shared time-management path. Conditions and generated-world evolution therefore continue to use the established two-hour processing boundary rather than gaining a second independent clock.
 
