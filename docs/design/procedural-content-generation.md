@@ -196,7 +196,7 @@ Performance should scale primarily with the region or location being created or 
 3. **Location content plans.** Define primary features, secondary features, landmarks, resources, and local interactions, guaranteeing identity but not loot.
 4. **Contextual populations and factions.** Generate inhabitants and faction presence according to location purpose and regional structure.
 5. **Opportunity generation.** Create eligible quests, encounters, and discoveries from actual context, with duplicate prevention and explicit effects.
-6. **Spatial exploration integration.** Translate the location plan into a deterministic local map with reachable, meaningful features and route exits.
+6. **Spatial world integration.** Translate the location plan into deterministic 3D spatial geometry, structures, reachable features, and physical connections that can be streamed without treating a location as one map.
 7. **Mod extensibility and balance.** Add validated template definitions, tune content density and repetition through playtesting, and preserve existing saves and authored campaigns.
 
 These stages should be split into smaller implementation issues when work begins. They do not require replacing the current spatial prototype or implementing comprehensive world simulation first.
@@ -212,7 +212,7 @@ These stages should be split into smaller implementation issues when work begins
 - Established content does not reroll on re-entry, save/load, or character inheritance.
 - Authored campaign content and compatible mod content retain precedence and stable references.
 - Each region or location can be generated without rebuilding the entire generated world.
-- Generated local maps can express location identity and meaningful features, with valid route connections.
+- Generated spatial geometry expresses location identity and meaningful features, with physically valid connections to surrounding world geometry.
 - Tests cover repeatability, content-reference integrity, authored-content preservation, save compatibility, duplicate prevention, and bounded generation cost.
 
 ## Details intentionally left open
