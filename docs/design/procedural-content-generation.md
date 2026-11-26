@@ -22,6 +22,32 @@ Generation is divided into five complementary layers:
 
 Creating a region does not require generating all its quests, spawning every inhabitant, simulating every creature, or immediately creating a detailed local terrain map.
 
+## World geography generation and regional identity
+
+World geography is generated progressively and hierarchically. Generate a coherent broad geographical region before filling it with increasingly detailed content. When exploration approaches an established regional boundary or the generated world's frontier, generate the next distinct region and reconcile its shared geographical features with its neighbors.
+
+Regions are variable-sized natural geographical units with stable identities and boundaries. Their extents should follow coherent physical geography where practical: watersheds, mountain systems, major rivers, coastlines, peninsulas, passes, and meaningful terrain transitions. These features guide regional boundaries but do not impose one universal rule; a boundary need not always be a physical barrier. Regions do not expand when the player reaches an edge. A neighboring region begins beyond the boundary.
+
+Do not confuse natural regions with the regular coordinate/sample partition used to index and generate data. A technical grid or fixed-size sample chunk may be useful for deterministic lookup, caching, generation, and streaming, but it does not define the shape or identity of a natural region. The current 256 × 256 macro-sample `RegionCoordinate` partition is an implementation structure, not a settled natural-region size.
+
+Use a hybrid geographical generation method:
+- **Feature-driven structure** establishes coherent large-scale elements such as landmasses, coastlines, mountain systems, major plains, watersheds, and principal river networks.
+- **Field-driven detail** supplies continuous or sampled environmental properties such as elevation, temperature, moisture, rainfall, and related regional variation.
+- **Derived features** use both structure and fields. Rivers must respect drainage and elevation; terrain and vegetation must reflect geography and climate; settlement placement must respect terrain, water, resources, and travel access.
+
+This is a dependency model, not a requirement for one strictly linear generator. Features may constrain one another, but generation order and shared inputs must be explicit and deterministic.
+
+Use one master world seed. Derive stable regional seeds from the world seed and each region's stable identity, while sampling shared geographical fields and cross-boundary features in global world coordinates. Regional seeds provide scoped variation; they do not independently invent boundary values. Generation must be independent of exploration and request order: generating region B before region A must not change their shared geography or either region's established content.
+
+Authored and mod-provided geographical content may define explicit anchors, constraints, or overrides. Overrides must be validated against neighboring geography and must not silently invalidate established world state. Version the relevant generation rulesets. Persist established region identities, generated geography, locations, and meaningful modifications so a later generator version cannot silently rewrite an existing world.
+
+Generation levels:
+1. **Continental and broad regional geography:** establish landmasses, coastlines, major elevation structures, mountain systems, broad plains, and watershed structure.
+2. **Regional environmental detail:** derive elevation and environmental fields, river/lake networks, climate, terrain, and ecological conditions.
+3. **Locations and infrastructure:** place settlements, landmarks, caves, ruins, resource sites, roads, and other persistent world entities in context.
+4. **Detailed spatial geometry:** generate the 3D terrain, structures, interiors, cave geometry, and local environmental detail when spatially relevant.
+5. **Population and opportunities:** instantiate or materialize NPCs, resources, encounters, and opportunities according to stable identities and simulation relevance, without requiring every possible entity to be loaded at once.
+
 ## 1. Regional identity
 
 Each region should have a recognizable identity derived from its geography and history. Existing characteristics—theme, climate, resources, prosperity, danger, and population—remain useful.
@@ -155,7 +181,7 @@ Generated regions, locations, entities, and opportunities should have stable gen
 
 When a region is created, its world-level content should be materialized once and attached to persistent state. Re-entering the region, loading a save, or inheriting the world must not regenerate its inhabitants, names, relationships, or opportunities.
 
-Detailed local-map geometry can be generated lazily when Explore is selected, as defined in #365. Meaningful discoveries and changes must be persisted.
+Detailed 3D spatial geometry and its chunks are generated or loaded as they become relevant to continuous traversal. A location is not synonymous with one local map, and entering a named location does not require a scene transition. Meaningful discoveries and changes must be persisted independently of generated geometry.
 
 The current global bootstrap generation flow must evolve into idempotent, region- and location-scoped generation as frontier expansion is implemented. Creating a region must not repopulate the entire world.
 
@@ -195,7 +221,7 @@ Exact population counts, a fixed number of points of interest per location, the 
 
 A complete economy, ecosystem simulation, independently goal-driven NPC society, procedural narrative generator, and complex long-term faction simulation are not prerequisites. Each may justify a separate design if it materially improves the experience.
 
-The content generator's responsibility is to make a varied, coherent, persistent world that offers meaningful possibilities. Dedicated systems determine how those possibilities evolve and how the player acts on them.
+The content generator's responsibility is to make a varied, coherent, persistent world that offers meaningful possibilities. It establishes geography and initial content; dedicated systems determine how entities and processes evolve and how the player acts on them. Region boundaries, ecosystem ranges, faction territories, and simulation domains need not coincide.
 
 ## Related design direction
 
