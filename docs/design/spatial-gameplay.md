@@ -16,9 +16,9 @@ The existing world model and gameplay rules remain authoritative. Text-based dia
 
 ## Core interaction model
 
-Spatial gameplay is the normal player-facing context for locations, including settlements and safe areas. There is no separate dashboard or location-level `Explore` action: the player inhabits the current location through its spatial map and moves between locations through physical passages or eligible known-route fast travel.
+Spatial gameplay is the normal player-facing context for the continuous world, including settlements, interiors, wilderness, and underground spaces. There is no separate dashboard or location-level `Explore` action. The player inhabits the world directly and moves through connected 3D space; logical location and region boundaries do not require a map transition. Eligible known-route fast travel remains optional.
 
-Ordinary world interactions are contextual and proximity-driven. Nearby eligible NPCs expose Talk through the spatial interaction wheel; searching remains, examining points of interest, and entering passages use the same in-world interaction model. Trade, when implemented, should be added to this contextual NPC interaction flow rather than as a detached dashboard or location-level button.
+Ordinary world interactions are contextual and proximity-driven. Nearby eligible NPCs expose Talk through the spatial interaction wheel; searching remains, examining points of interest, and physically traversing doors, gates, stairs, ladders, tunnels, and other connections use the same in-world interaction model. Trade, when implemented, should be added to this contextual NPC interaction flow rather than as a detached dashboard or location-level button.
 
 Meditation is a deliberate character activity exposed through the spatial pause menu, and remains subject to the authoritative safe-to-meditate rules. Other character records and system functions remain in their dedicated screens and menus. This distinction is about where an interaction belongs, not whether the current location has a spatial map.
 
@@ -28,9 +28,9 @@ Investigation is contextual to the world state. An eligible active threat expose
 
 The spatial world should not be an empty decorative map. Smaller threats and other encounters should appear according to world time, location, current conditions, quests, and other authored rules rather than being limited to a single global threat flag.
 
-The encounter layer groups authored profiles by optional `spawn_group`. One eligible weighted alternative from each group may materialize as a persistent stationary record when a local map is entered. Profiles without an explicit group share the default pool, while distinct named groups can produce multiple independent records on one map. Each record snapshots its identity, quest link, combat profile, health, group, and location; later content changes or re-entry do not silently reroll or reset it. A group whose conditions are not yet satisfied may materialize when the player next enters the map after those conditions become true.
+The encounter layer groups authored profiles by optional `spawn_group`. One eligible weighted alternative from each group may materialize as a persistent entity when its spatial area becomes relevant. Profiles without an explicit group share the default pool, while distinct named groups can produce multiple independent records on one map. Each record snapshots its identity, quest link, combat profile, health, group, and world placement; later content changes, chunk unloading, or re-entry do not silently reroll or reset it. A group whose conditions are not yet satisfied may materialize when the player next enters the map after those conditions become true.
 
-Enemies may later roam through the spatial world rather than remaining permanently fixed to one tile/location. Roaming, awareness, pursuit, encounter respawning, and off-screen updates remain broader simulation work.
+Enemies may roam through the continuous spatial world rather than remaining permanently fixed to one tile or location. Roaming, awareness, pursuit, encounter respawning, and off-screen updates remain broader simulation work.
 
 The existing world/time/event systems should be extended to drive this behavior where practical instead of creating an unrelated second simulation.
 
