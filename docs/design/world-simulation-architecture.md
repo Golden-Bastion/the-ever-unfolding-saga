@@ -1,6 +1,6 @@
 # World Simulation Architecture
 
-> This specification records the simulation-architecture decisions agreed in the world-simulation design workshop. It supplements [World Simulation and Evolution](world-simulation.md), which defines the gameplay goals, simulation domains, persistence principles, and fidelity model. These are target architectural decisions, not claims about the current runtime implementation.
+> This specification records the simulation-architecture decisions agreed in the world-simulation design workshop. It supplements [World Simulation and Evolution](world-simulation.md), which defines the gameplay goals, simulation domains, persistence principles, and fidelity model. Where this document makes a more specific architectural decision than the general guidance in that document, this specification governs. These are target architectural decisions, not claims about the current runtime implementation.
 
 ## Architectural direction
 
