@@ -123,6 +123,22 @@ The geography module owns signed global/region coordinate conversion, determinis
 
 The exact module list may evolve, but new modules should represent meaningful responsibilities rather than arbitrary slices of large files.
 
+## Target spatial architecture
+
+The approved target design is an authoritative, continuous 3D spatial world with a primarily 2D pixel-art presentation. This is a design direction, not a claim that the current production implementation has completed the migration. TEUS Lab contains isolated 3D prototypes and validation work; production implementation should follow the evidence and a deliberate integration plan.
+
+The current `spatial.rs` local-map model and `bevy_spatial.rs` renderer describe the existing implementation. They must not be mistaken for the final world contract. The target architecture separates:
+
+- **World and geography state:** stable world/region/location identities, global coordinates, shared geographical fields, routes, persistent modifications, and domain entities.
+- **Spatial geometry:** streamed chunks and environment-specific geometry representations, with common gameplay-facing collision, traversal, navigation, and spatial-query contracts.
+- **Simulation:** entity-owned authoritative state and specialized systems/processes that update it, independently of chunk loading and rendering.
+- **Presentation:** Bevy camera, rendering, sprite/texture placement, animation, lighting, and effects. Presentation consumes authoritative spatial state and cannot decide gameplay movement or collision.
+- **Persistence:** world changes and stable identities survive chunk unloading and are sufficient to reconstruct runtime spatial representations.
+
+The canonical scale is 1 world unit per metre. Global, region-relative, and local coordinates represent the same position; local-origin changes do not alter authoritative global position. Spatial chunks use uniform base dimensions as technical loading units, while natural regions have variable geographical boundaries. Loading, simulation activity, and rendering visibility are separate relevance decisions.
+
+The detailed target contract is maintained in [3D Spatial World and Presentation Architecture](design/3d-spatial-world-and-presentation.md). Do not create parallel gameplay state or a second authoritative world model during prototyping or migration.
+
 ## Game flow
 
 `main.rs` starts the Bevy application. Bevy lifecycle systems own start/load/creation/quit/death presentation and navigation. The gameplay-menu adapter owns the spatial pause/navigation overlay and interim World Map, while dedicated Bevy adapters own records, interaction, combat, and console screens.
