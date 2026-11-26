@@ -1,20 +1,28 @@
-# World Topology, Local Exploration, and Hybrid Travel
+# World Topology and Seamless Spatial Traversal
 
 > Design record migrated from [GitHub issue #365](https://github.com/Golden-Bastion/the-ever-unfolding-saga/issues/365). This document preserves the settled direction, constraints, and intentionally open design choices. Implementation status and sequencing belong in the root [roadmap](../../ROADMAP.md); this document is not a progress log.
 
-The design direction is settled and its core topology/geography foundations are being implemented incrementally. This document records the world-topology and travel decisions, constraints, and intentionally open choices.
-
-The design extends the graph-based world within the spatial-first gameplay model. It does not require a seamless global terrain map; it defines how spatial locations, routes, and regional geography connect.
+The prior graph/local-map design and its implementation history are retained below for migration context. They no longer define the target player experience. The approved target is a continuous, progressively generated 3D spatial world, as described in [3D Spatial World and Presentation Architecture](3d-spatial-world-and-presentation.md).
 
 ## Goal
 
-Create a persistent, extensible world in which the player experiences locations through spatial local areas, travels between them by physically using map exits where appropriate, and uses fast travel on established routes when the intervening journey does not need to be played.
+Define a persistent, progressively generated world whose geography, locations, routes, and continuous 3D spatial environment remain coherent independently of loading and rendering. The world expands by adding distinct neighboring regions at established geographical boundaries; regions do not grow to absorb exploration. See [3D Spatial World and Presentation Architecture](3d-spatial-world-and-presentation.md) and [World Scale and Travel](world-scale-and-travel.md) for the spatial and physical-scale contracts.
 
-The world should be able to expand beyond its initial frontier without generating or simulating every possible region up front.
+## Current target architecture
 
-The spatial scale must remain meaningful: outdoor areas should take several minutes to cross, locations may contain multiple connected local areas, and regions must represent far more distance than a single local map. See [World Scale and Travel](world-scale-and-travel.md) for the scale hierarchy and implementation constraints. The current 64×48 local-map default is only an initial increase, not the final target.
+The approved target is a seamless, physically traversable 3D world. Outdoor terrain, settlements, buildings, interiors, caves, dungeons, and connected underground spaces belong to the same continuous spatial world wherever they physically connect. Crossing a logical location or region boundary does not inherently trigger a map transition or destination-selection menu. Spatial chunks are streamed around relevant activity; they are not player-facing destinations.
 
-## Settled design decisions
+The world model exists independently of loaded geometry, spatial chunks, and rendering. Regions are stable, variable-sized geographical units with boundaries derived primarily from natural geography. Generate broad geography first, then progressively derive regional detail, locations, and detailed spatial geometry. The regular coordinate/sample partition used by the current macro-geography implementation is a technical indexing/generation structure, not the definition of natural region boundaries.
+
+Keep geographical adjacency, travel connectivity, and physical traversability distinct. Geographical adjacency records which regions meet. Travel connectivity records roads, paths, passes, bridges, ferries, and other journey-level infrastructure. Physical traversability is determined by 3D geometry, current barriers, and actor capabilities. The travel graph remains useful for route knowledge, journey estimates, logistics, and optional fast travel; it does not replace continuous movement.
+
+Regions organize natural geography, world locations, and connections. They do not own all simulation state. Settlements, factions, NPCs, resources, ecosystems, and historical events retain their own identities and domain ownership, and may span multiple regions.
+
+The world uses 1 world unit per metre. Global, region-relative, and local coordinates describe the same authoritative position. Uniform base spatial chunks are streamed according to relevance, while loading, simulation activity, and rendering remain independent. Unloading a chunk releases its runtime representation but preserves meaningful world changes and the state required to reconstruct it.
+
+These are target design decisions, not a claim that the current v0.53.x local-map and route implementation already provides seamless traversal or streaming.
+
+## v0.53 implementation record: graph-and-local-map transition model (transitional)
 
 ### 1. Two levels of geography
 
@@ -113,7 +121,9 @@ A successor should be able to revisit locations and routes and encounter the per
 
 **Legacy-world embedding decision (20 November 2026):** existing worlds must be brought into the coordinate-backed topology through a deterministic, one-time compatibility embedding. They will not remain on a separate topology-only path. The embedding must derive placements from the saved region/location identities and graph structure, use stable ID-based tie-breaking, and persist the result with migration provenance. It must preserve all existing runtime IDs, `next_id`, graph edges, world history, and saved local maps. This is a compatibility placement, not a claim that the generated coordinates recover the world's original physical geography. New terrain/geography synthesized around those placements must be explicitly understood as a compatibility layer and must fit around established routes and local maps rather than relocating them. Worlds without generation metadata must also receive a deterministic persisted compatibility seed if the geography layer requires one; that seed must be derived from stable saved data, not display names or mutable content.
 
-## Persistent route records
+## Existing route records and persistence
+
+The route-record and save-compatibility details below describe the current graph-backed implementation and data that may remain useful during migration. They do not restore local-map boundaries as the target spatial architecture.
 
 Persistent world connectivity is represented by first-class route records. `World.routes` is the sole saved authority for travel topology; each route has a stable string ID, two location endpoints stored in canonical numeric-ID order, and an explicit direction (`Bidirectional`, `AtoB`, or `BtoA`). Distinct route IDs may connect the same pair of locations. Route identity is independent of display names, local-map positions, and presentation order.
 
@@ -211,12 +221,12 @@ The intended regional/world map is a geography-informed route graph, not a gener
 
 Mountain ridge strength is exposed as a soft route-corridor resistance signal, not an absolute impassability flag. Route placement should prefer weaker corridors through a ridge belt where practical; these low-resistance crossings are candidates for mountain passes. The actual route type (trail, road, engineered pass, or another authored connection) determines what infrastructure or local-map passage is required. Water remains a separate crossing constraint: oceans, lakes, confirmed rivers, and unresolved river estimates must retain their distinct classifications. A route must not silently treat a water feature or an inconclusive river estimate as ordinary dry land. Underground cave geography is sampled independently on negative strata. Chamber nodes expose stable global identities and reciprocal passage links to neighboring chambers; a physical cave route may use only a passage represented by that connected network. Separate strata are not implicitly connected vertically: only explicit deterministic entrance/shaft links between adjacent layers are traversable; matching horizontal coordinates alone never imply a connection.
 
-### Selected macro-geography coordinate contract
+### Selected macro-geography coordinate contract (current technical partition)
 
 The initial macro-geography implementation uses a hierarchical signed coordinate model:
 
-- Each region occupies one fixed **256 × 256 macro-sample chunk**.
-- `RegionCoordinate` identifies a chunk in signed region coordinates. The origin is `(0, 0)`; negative coordinates support expansion in every direction. Its `stratum` is zero at the surface and negative for underground layers.
+- The current implementation assigns one fixed **256 × 256 macro-sample chunk** to each `RegionCoordinate`. This is a technical generation/indexing partition, not the approved definition of a natural geographical region.
+- `RegionCoordinate` identifies a chunk in signed technical coordinates. The origin is `(0, 0)`; negative coordinates support expansion in every direction. Its `stratum` is zero at the surface and negative for underground layers. The target natural-region identity and its variable boundary must be modeled separately.
 - `MacroCoordinate` identifies a sample in one shared global lattice and carries the same stratum index. Conversion uses Euclidean division/remainder so negative coordinates partition consistently; separate underground networks can occupy independently addressable strata while sharing horizontal coordinates.
 - A region-local sample `(x, y)` maps to global sample `(region.x * 256 + x, region.y * 256 + y)`, with checked arithmetic and local indices in `0..256`.
 - Coordinate-derived sample seeds depend only on world seed, geography ruleset version, and signed global coordinate including stratum. Generation order, runtime entity IDs, and display names are excluded.
@@ -224,8 +234,8 @@ The initial macro-geography implementation uses a hierarchical signed coordinate
 
 The coordinate foundation has since been extended with deterministic elevation, climate and biomes, shorelines, hierarchical watersheds, river-channel estimates, closed-basin lakes, surface-water connectivity, mountain ranges, underground cave generation, and geography-backed location anchors/footprints. Persistent cave-chamber routes and reachable local-map transitions are implemented separately from the overland planner. More detailed underground geology and a geography-backed World Map presentation remain future work. Route-infrastructure records and availability enforcement are implemented; player-facing construction, resource costs, maintenance/repair, ownership transfer, and permission resolution are deferred to v0.55.x. Region coordinates are gameplay data, not World Map presentation positions. Macro samples are also distinct from local-map tiles; no fixed conversion between those resolutions is implied.
 
-### Architectural boundary
+### Architectural boundary in the current implementation
 
-World topology owns region/location identity and route edges. Macro-geography owns the continuous terrain model; geography-aware location placement and footprints build on that foundation. Local-map generation derives playable local environments from those anchors. Travel validates and uses the corresponding physical connections. Map rendering only visualizes these systems; visual layout coordinates are not authoritative world data.
+The current implementation assigns region/location identity and route edges through the world topology model. Macro-geography owns the continuous terrain model; geography-aware location placement and footprints build on that foundation. Current local-map generation derives playable local environments from those anchors. This is a transitional implementation contract. The target architecture replaces per-location map transitions with continuous 3D spatial traversal and streamed chunks. Presentation remains non-authoritative.
 
 The interim graph-style World Map must not introduce geographical coordinates or persist its temporary graph-layout positions. It consumes discovered route identities and region/location identities. Surveyed regions expose only a bounded broad-terrain summary derived from macro-geography; exact terrain and landmarks remain hidden until local exploration. The graph can later be replaced by a geography-backed presentation without changing gameplay travel rules.
