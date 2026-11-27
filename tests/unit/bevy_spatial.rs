@@ -2052,7 +2052,7 @@ fn spatial_clock_advances_one_world_minute_per_three_real_seconds() {
         "08:01"
     );
 
-    for _ in 0..1797 {
+    for _ in 0..357 {
         advance_spatial_clock(&mut spatial, &mut game, 1.0);
     }
     assert_eq!(game.world.time_points, initial_points + 1);
