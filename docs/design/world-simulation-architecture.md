@@ -8,7 +8,7 @@ TEUS will use a **centralized authoritative world-state model with modular domai
 
 The central model is the coherent authoritative representation of world state. It is not a single monolithic simulator, and it does not mean every system may freely mutate every field. Specialized domain processors own the rules and controlled write access for the state within their responsibility.
 
-The current five-domain responsibility map is defined in [Simulation Domains and Shared Infrastructure](world-simulation-domains.md). That specification establishes gameplay scope and ownership boundaries; processor APIs and implementation details remain subject to later technical design.
+The current five-domain responsibility map is defined in [Simulation Domains and Shared Infrastructure](world-simulation-domains.md). That specification establishes gameplay scope and ownership boundaries. The agreed internal execution model—including processor boundaries, triggers, communication, temporary state, suspension, fidelity, lifecycle, and diagnostics—is defined in [Simulation Processor Architecture](simulation-processor-architecture.md); concrete APIs and implementation details remain subject to later technical design.
 
 Persistent entities retain stable identities and authoritative state independently of regions, chunks, loading, and presentation. Domain processors manage the rules that update that state. Enpicieus coordinates simulation execution and relevance; it does not replace domain logic or become the owner of every domain's state.
 
@@ -166,7 +166,7 @@ Domain processors remain responsible for their own simulation rules, state owner
 
 These decisions establish the architecture but do not select implementation details that have not yet been designed. The following remain open for later technical work:
 
-- Domain APIs, internal processor boundaries, and the initial set of implemented processors. The agreed gameplay responsibilities and domain ownership map are defined in [Simulation Domains and Shared Infrastructure](world-simulation-domains.md).
+- Concrete domain APIs, processor APIs, and the initial set of implemented processors. The agreed responsibility boundaries are defined in [Simulation Domains and Shared Infrastructure](world-simulation-domains.md), while processor execution contracts are defined in [Simulation Processor Architecture](simulation-processor-architecture.md).
 - The concrete world-state data layout and controlled write-interface design.
 - The simulation phase representation and dependency declaration format.
 - The deterministic parallel execution strategy and conflict-coordination primitives.
