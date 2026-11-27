@@ -26,14 +26,30 @@ This document records ongoing engineering and documentation practices. It is not
 
 ## Development and review workflow
 
-- Inspect the current main branch and relevant implementation before changing code or documentation.
-- Work on a dedicated branch and use pull requests for normal repository changes.
-- Update the roadmap when the status or sequencing of unfinished work changes; update the changelog when work is completed.
-- Review every changed file for consistency, stale references, and unintended scope changes.
-- Use Semantic Versioning for project releases. Documentation-only reorganization does not by itself require a version bump.
-- Validate changes with the checks appropriate to their scope and inspect the final PR head before relying on CI results.
-- Do not describe a planned feature as implemented or a source-level test as proof of device-level behavior.
-- Keep third-party asset and audio provenance and license terms traceable in project documentation.
+Development is organized around coherent milestones rather than individual micro-tasks. A milestone groups related implementation, integration, tests, assets, and documentation into one meaningful delivery. Its scope should follow real dependencies and shared system boundaries, not an arbitrary PR size.
+
+1. Inspect the current `main` branch, the authoritative roadmap, relevant design and architecture documents, existing implementation, and related issues.
+2. Identify the milestone outcome, dependencies, acceptance criteria, and unresolved design decisions. Ask the project owner only for decisions that cannot be resolved from established project direction.
+3. Create one dedicated branch for the milestone and implement its related work together. Use multiple commits as practical checkpoints, but normally open one PR for the integrated milestone rather than a series of PRs for each component.
+4. Keep the milestone focused. Do not bundle unrelated cleanup or speculative features. Split work only when it is independently useful, has a separate dependency or release boundary, or would otherwise make the integrated change unsafe or impractical to review.
+5. Review the full branch as a whole: check cross-system integration, consistency, regression risks, test coverage, platform implications, and documentation. Add or update tests for the changed behavior and run the checks available in the development environment.
+6. Update `ROADMAP.md` as work is completed, deferred, re-scoped, or blocked. Update the changelog and relevant design/system documentation according to their responsibilities.
+7. Open a substantial but reviewable PR that describes the milestone goal, the integrated changes, important decisions, validation, and remaining limitations. Hand it to the project owner for review and the established CI/merge process.
+
+Prefer fewer, meaningful PRs over frequent small PRs. Do not inflate scope merely to make a PR larger, and do not fragment a coherent subsystem merely to make PRs smaller. The owner should be able to review a milestone as one understandable improvement.
+
+The project owner remains responsible for product direction, final design decisions, local/device playtesting, subjective gameplay and audiovisual review, and merging. Agents should complete as much implementation and automated verification as practical before requesting that review. Do not claim automated checks prove physical-device behavior or subjective quality.
+
+### Branch and merge policy
+
+- Implementation work belongs on dedicated branches and is delivered through pull requests targeting `main`.
+- Do not push implementation changes directly to `main`, merge PRs manually, or bypass the owner's review/merge process.
+- Documentation-only workflow or policy updates may be committed directly to `main` when the project owner explicitly requests it.
+- Keep commits descriptive and logically grouped. A milestone may contain multiple commits; commit count is not the unit of review.
+- Avoid unrelated formatting changes and opportunistic refactoring.
+- Validate the final PR head and report what was actually checked. Do not wait for CI to finish or repeatedly poll it when the owner's automation handles checks and merging.
+
+Use Semantic Versioning for project releases. Documentation-only workflow changes do not by themselves require a version bump.
 
 ## Changelog and release-note rotation
 

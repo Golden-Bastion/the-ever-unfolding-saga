@@ -40,31 +40,35 @@ When documentation conflicts, investigate the discrepancy rather than silently c
 
 For every development task:
 
-1. Inspect the latest repository state, relevant documentation, and related issues or existing implementation.
+1. Inspect the latest repository state, relevant documentation, related issues, and existing implementation.
 2. Understand the current implementation and its architectural constraints before changing it.
-3. Identify the intended outcome and outline a focused implementation plan.
-4. Implement the requested work without unnecessarily changing unrelated systems.
-5. Review the modified files for consistency, correctness, and unintended effects.
-6. Update relevant documentation and `ROADMAP.md` to reflect what was actually completed.
-7. Prepare a focused branch and pull request.
+3. Identify a coherent outcome and outline a milestone-level implementation plan. Group related work that shares dependencies, state, interfaces, or validation into one delivery.
+4. Implement the milestone as an integrated whole, including necessary supporting code, tests, assets, and documentation. Do not split naturally connected work into artificial micro-tasks or PRs.
+5. Review the complete change set for consistency, correctness, integration gaps, regressions, and unintended scope.
+6. Update relevant documentation and `ROADMAP.md` to reflect what was actually completed and what remains.
+7. Prepare one substantial, reviewable pull request for the milestone.
 
-Prefer small, independently understandable changes and commits over large, difficult-to-review batches.
+Prefer fewer, meaningful milestone PRs over a stream of small PRs. A milestone may span multiple development sessions, and its branch should remain the working place for that coherent body of work. Use intermediate commits as useful checkpoints; commits do not each need to represent a separately reviewable feature.
+
+Milestone size is governed by coherence and reviewability, not by an arbitrary file, line, or task count. A milestone should deliver a meaningful integrated improvement, but must not become an unrelated collection of changes or an unreviewable rewrite. Split work when independent parts can be reviewed and delivered safely on their own, when a dependency requires an earlier landing, or when the scope becomes too broad to validate reliably.
 
 Build solid foundations for future development. Do not rush to declare a system complete merely because its first usable implementation exists.
 
 Preserve existing functionality unless the requested change intentionally modifies or removes it.
 
-If an important design decision or requirement is missing, ask the project owner rather than inventing an answer.
+If an important design decision or requirement is missing, ask the project owner rather than inventing an answer. Do not interrupt the owner for routine implementation details already established by project documentation or prior decisions.
 
 ## 4. Git and pull request workflow
 
-- Work on dedicated feature or fix branches.
-- Prefer pull requests over direct changes to `main`.
-- Keep commits focused and descriptive.
+- Work on dedicated feature or fix branches for implementation work.
+- Use milestone-level pull requests targeting `main`; avoid opening separate PRs for every small component of the same coherent milestone.
+- Keep commits descriptive and logically grouped, but do not create a PR for each commit.
 - Avoid unrelated formatting changes or opportunistic refactoring.
-- Write pull request descriptions that explain the problem, implementation, and relevant design decisions.
+- Write pull request descriptions that explain the milestone goal, integrated implementation, important design decisions, validation, and remaining limitations.
 - Link related issues where appropriate.
 - Do not merge pull requests manually.
+
+Documentation-only workflow or policy updates may be committed directly to `main` when explicitly requested by the project owner. This exception does not authorize direct pushes of implementation changes.
 
 The project owner has a local automation script that monitors pull request checks, merges a PR when its checks pass, and notifies the owner when checks fail.
 
@@ -124,6 +128,7 @@ When modifying persistent data:
 - Ensure stable identifiers remain meaningful where the corresponding content remains part of the intended game.
 
 Backward compatibility is a means of protecting players, not an end in itself. A deliberate redesign or breaking change is acceptable when it is the soundest way to achieve the current product direction.
+
 ## 8. Gameplay and design constraints
 
 Keep the established design direction in mind when implementing gameplay systems:
@@ -182,12 +187,13 @@ The owner values sound architecture and maintainability over the fastest possibl
 
 ## 12. Final reporting
 
-When a task is complete, provide a concise report covering:
+When a milestone is complete, provide a concise report covering:
 
-- What changed.
+- The milestone goal and what changed across the integrated work.
 - Important implementation or design decisions.
-- Relevant commits and pull request.
+- The pull request and relevant commits.
 - Documentation and roadmap updates.
-- Any remaining work, known limitations, or decisions requiring the owner's input.
+- Validation performed and its results when available.
+- Remaining work, known limitations, or decisions requiring the owner's input.
 
 Keep the report factual. Distinguish completed implementation from future work and do not overstate what the change accomplishes.
