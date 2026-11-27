@@ -4,6 +4,11 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### World clock pacing
+
+- Increased active local-exploration clock speed from one in-game minute per five real seconds to one per three real seconds. This yields three real minutes per in-game hour, 72 minutes per day, 8h24m per week, and 18 days 6 hours per 365-day year.
+- Kept meditation, action costs, and route travel on the shared in-game-time advancement path; meditation recovery remains based on elapsed in-game time.
+
 ### v0.53.38: Verdandi-backed audio foundation
 
 - Integrated the Verdandi procedural-music plugin, pinned to a reviewed repository commit and Bevy 0.20-compatible API.
