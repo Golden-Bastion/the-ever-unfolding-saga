@@ -50,6 +50,10 @@ Content / Events    Persistence
 
 Content loading supplies definitions to the runtime but should not own live world state. Presentation reads state and produces output but should not implement game rules. Persistence serializes and restores state but should not decide gameplay outcomes.
 
+## Startup recovery and safe mode
+
+The target startup architecture includes a small supervisor and a diagnostic fallback path that do not depend on Bevy's renderer or normal application initialization. Recoverable startup failures should lead to a readable, copyable diagnostic report; manual safe-mode entry and automatic recovery after failed launches are both required. Hard native crashes or operating-system process termination cannot be guaranteed to recover in-process, so durable startup markers and next-launch recovery are part of the design. The detailed contract is maintained in [Startup Recovery and Safe Mode](design/startup-recovery-and-safe-mode.md). This is a target requirement, not a claim that the current startup path already provides it.
+
 ## Current module direction
 
 The current codebase has been progressively decomposed from large modules into responsibility-based modules. The intended structure is approximately:
