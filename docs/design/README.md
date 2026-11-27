@@ -16,14 +16,16 @@ The root [ROADMAP.md](../../ROADMAP.md) is the only project-wide index of remain
 ## Presentation and interface
 
 - [Presentation direction](presentation-direction.md) — intended visual language, exploration/combat HUD hierarchy, character hub, map presentation, shared feedback, and desktop/Android adaptation.
-- [Hybrid 2D gameplay and 3D rendering](hybrid-2d-gameplay-3d-rendering.md) — reference constraints for a possible 3D-backed presentation of 2D gameplay; active experimentation, progress tracking, and validation live exclusively in the private TEUS Lab repository, not the TEUS roadmap.
+- [3D spatial world and presentation](3d-spatial-world-and-presentation.md) — approved authoritative 3D gameplay world, seamless traversal, hybrid geometry, movement, environmental modification, coordinates, chunk streaming, persistence, and 2D-led presentation.
+- [Historical 2D-gameplay/3D-rendering proposal](hybrid-2d-gameplay-3d-rendering-history.md) — superseded design record retained for context; it is not the current target.
 
 ## World and character systems
 
-- [World topology and hybrid travel](world-topology-and-travel.md) — regional geography, location graphs, local maps, physical exits, fast travel, persistence, and expansion.
+- [World topology and seamless traversal](world-topology-and-travel.md) — natural regions, geographical adjacency, travel connectivity, progressive expansion, and migration from the current graph/local-map implementation.
 - [World-topology compatibility audit](world-topology-compatibility-audit.md) — current runtime identities, generation, graph/exit, local-map, and save contracts to preserve during v0.53.x expansion.
 - [Procedural content generation](procedural-content-generation.md) — coherent region/location identity, inhabitants, opportunities, authored-content precedence, and determinism.
 - [World simulation](world-simulation.md) — authoritative time, continuous/event-driven/deferred simulation, persistent consequences, and update guarantees.
+- [World simulation architecture](world-simulation-architecture.md) — centralized authoritative state, modular domain processors, deterministic parallel execution, scheduling, events, extensibility, versioning, budgets, and fidelity coordination.
 - [Challenge and difficulty philosophy](challenge-and-difficulty.md) — fixed world challenge, no difficulty presets or adaptive scaling, preparation, fairness, failure, and accessibility.
 - [NPC behaviour](npc-behavior.md) — personality, perception, knowledge, decision-making, navigation, group behaviour, and simulation fidelity.
 - [Character lives and inheritance](character-lives-and-inheritance.md) — progression, ambitions, permanent life records, retirement, death, and successor continuity.

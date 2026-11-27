@@ -1,6 +1,6 @@
-# Hybrid 2D Gameplay and 3D Rendering Architecture
+# Historical Proposal: 2D Gameplay and 3D Rendering
 
-> Status: reference design only. The prototype, active investigation, implementation planning, validation results, and decisions are maintained exclusively in the separate private [TEUS Lab repository](https://github.com/Golden-Bastion/teus-lab). This document preserves high-level design constraints for TEUS; it is not an active TEUS milestone or a commitment to migrate the production renderer. TEUS continues to ship its existing 2D renderer.
+> Status: superseded historical proposal. This document records an earlier direction in which gameplay remained 2D and 3D was used only for presentation. It is retained to explain the evolution of the design, not as an active specification. The approved target is now the authoritative 3D spatial world described in [3D Spatial World and Presentation Architecture](3d-spatial-world-and-presentation.md). Prototype implementation and validation remain in the private [TEUS Lab repository](https://github.com/Golden-Bastion/teus-lab).
 
 ## Separate implementation and tracking
 

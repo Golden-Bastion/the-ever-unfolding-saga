@@ -6,7 +6,7 @@ Long-term art-direction foundation. This is not a single bulk art-replacement ta
 
 ## Vision
 
-Develop a coherent authored pixel-art language for a character-focused spatial RPG. Spatial gameplay should communicate movement, exploration, atmosphere, environmental interaction, and future action combat primarily through visuals and spatial presentation. Dialogue, descriptions, records, history, and contextual text remain important where they serve the experience.
+Develop a coherent authored pixel-art language for a character-focused RPG whose authoritative spatial world and gameplay are 3D. Spatial gameplay should communicate movement, exploration, atmosphere, environmental interaction, and future action combat primarily through visuals and spatial presentation. The world may use 3D geometry and physics while characters, creatures, props, effects, and environmental surfaces retain primarily 2D pixel-art assets. Dialogue, descriptions, records, history, and contextual text remain important where they serve the experience.
 
 The defining quality is **beauty grounded in a believable dark-fantasy world**. The visual identity is gothic and grounded, but the world must not be uniformly grim, dark, or harsh. Natural beauty, regional character, open skies, and moments of warmth are essential parts of its identity. Beauty should emerge from place, light, weather, materials, and composition rather than from ornamental excess.
 
@@ -40,7 +40,7 @@ Baldur's Gate II is not part of the approved visual reference set.
 - Retain a **flexible three-quarter view** as the general spatial presentation direction.
 - Do not force all environments, buildings, props, or maps into a rigid isometric grid. Perspective and composition may adapt to the scene while preserving spatial readability.
 - Establish depth through coherent ground planes, overlap, scale, shadows, occlusion, and environmental layers.
-- Keep movement, collision, interaction reach, and gameplay coordinates authoritative and independent of decorative perspective choices.
+- Keep movement, collision, interaction reach, and gameplay coordinates authoritative in the 3D spatial model; camera and presentation transforms must not alter them.
 - Camera framing should support navigation and awareness of nearby actors, passages, threats, and points of interest. Art composition must not conceal actionable space.
 
 ### Characters and proportions
@@ -78,7 +78,7 @@ Pixel art should eventually cover relevant categories such as:
 - Player characters, NPCs, portraits, and enemies.
 - Local environments, architecture, vegetation, terrain, weather, and environmental effects.
 - Items, equipment, resources, trophies, and important world objects.
-- Tiles and environmental elements for future tile/grid exploration maps.
+- Textures, sprites, terrain surfaces, architecture, and environmental elements for streamed 3D spatial environments.
 - Combat telegraphs, contextual effects, and other gameplay-significant visuals.
 - UI icons and accents where they improve recognition or hierarchy.
 
@@ -110,7 +110,7 @@ The existing 32×48 player frame and 6×8 directional idle/walk atlas remain the
 
 ## Relationship to future world exploration
 
-The art direction must support authored tile-based environments, moving entities, enemies, investigation targets, and future combat encounters without requiring a separate style for each system. As world topology and regional generation mature, visual variation should be driven by geography, climate, settlement identity, local resources, and authored location identity—not by random palette swaps alone.
+The art direction must support authored 3D environments presented with primarily 2D pixel-art assets, moving entities, enemies, investigation targets, and future combat encounters without requiring a separate style for each system. As world topology and regional generation mature, visual variation should be driven by geography, climate, settlement identity, local resources, and authored location identity—not by random palette swaps alone.
 
 ## Non-goals
 

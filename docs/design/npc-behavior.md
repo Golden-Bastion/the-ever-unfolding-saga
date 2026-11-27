@@ -47,7 +47,7 @@ Information may be incomplete, delayed, mistaken, biased, or outdated. A report 
 
 Separate authoritative world facts from each NPC's knowledge of those facts. The world may know that a route is blocked while a distant traveller still believes it is open. NPCs should not react to hidden player actions or remote events unless information reaches them through a plausible mechanism.
 
-Perception must be bounded by the environment and the actor's actual capabilities. Occlusion, distance, noise, attention, weather, lighting, and other relevant factors may affect detection as their supporting systems become available. Do not require a physically exhaustive sensory simulation before the basic knowledge boundary is useful.
+Perception must be bounded by the environment and the actor's actual capabilities. Three-dimensional occlusion, distance, elevation, line of sight, audibility, attention, weather, lighting, and other relevant factors may affect detection as their supporting systems become available. Do not require a physically exhaustive sensory simulation before the basic knowledge boundary is useful.
 
 ## 4. Memory and continuity
 
@@ -80,12 +80,13 @@ An NPC's response should reflect reaction time and attention. A character alread
 
 ## 6. Navigation and tactical awareness
 
-Navigation is more than selecting a shortest path. Actors should be able to use the environment in ways appropriate to their goals and capabilities.
+Navigation is more than selecting a shortest path. Actors navigate the authoritative continuous 3D spatial world and should use the environment in ways appropriate to their goals and capabilities. A named location, region boundary, or chunk boundary is not inherently a movement transition.
 
 The navigation foundation should support, as relevant:
 
-- Reachability and valid movement through authoritative topology.
-- Alternative routes, obstacles, doors, passages, and environmental hazards.
+- Reachability and valid movement through authoritative 3D geometry and traversable surfaces.
+- Actor-specific movement capabilities such as grounded locomotion, climbing, jumping, swimming, or flight where supported.
+- Alternative routes, obstacles, doors, passages, elevation changes, and environmental hazards.
 - Cover, concealment, visibility, and defensible positions.
 - Approach distance, line of sight, escape routes, and safe retreat.
 - Flanking, group spacing, chokepoints, and other tactical opportunities.
@@ -93,9 +94,9 @@ The navigation foundation should support, as relevant:
 
 Do not require every actor to evaluate every tactical feature. Expose environmental affordances through reusable queries or annotations and let the decision system consider only those relevant to its role and current goal.
 
-The navigation implementation must respect the authoritative spatial map and world-route topology. A tactical preference cannot authorize movement through blocked geometry, closed or locked doors, unavailable infrastructure, or an undiscovered route that the actor has no means to know.
+The navigation implementation must respect authoritative 3D geometry, physical connections, actor movement capabilities, and relevant world state. A tactical preference cannot authorize movement through blocked geometry, closed or locked doors, unavailable infrastructure, or a route the actor cannot physically traverse. The travel graph may inform route knowledge and journey planning, but it does not replace local 3D pathfinding or prove physical reachability.
 
-A navigation mesh is one possible representation for larger spaces, not a required replacement for the current grid and room topology. Choose representations according to the environment and measured needs.
+A navigation mesh is one possible representation for larger spaces, not a decision already made or a universal requirement. Heightfield, mesh, volumetric, and modular geometry may need different internal navigation representations behind common traversal queries. Choose implementations according to the environment, actor capabilities, and measured needs.
 
 ## 7. Group behaviour and communication
 
