@@ -8,7 +8,7 @@ TEUS will use a **centralized authoritative world-state model with modular domai
 
 The central model is the coherent authoritative representation of world state. It is not a single monolithic simulator, and it does not mean every system may freely mutate every field. Specialized domain processors own the rules and controlled write access for the state within their responsibility.
 
-Examples of domains include geography and environment, settlements and economies, NPCs and populations, factions, and world events. The exact boundaries and initial implementation scope remain subject to their dedicated designs.
+The current five-domain responsibility map is defined in [Simulation Domains and Shared Infrastructure](world-simulation-domains.md). That specification establishes gameplay scope and ownership boundaries; processor APIs and implementation details remain subject to later technical design.
 
 Persistent entities retain stable identities and authoritative state independently of regions, chunks, loading, and presentation. Domain processors manage the rules that update that state. Enpicieus coordinates simulation execution and relevance; it does not replace domain logic or become the owner of every domain's state.
 
@@ -166,7 +166,7 @@ Domain processors remain responsible for their own simulation rules, state owner
 
 These decisions establish the architecture but do not select implementation details that have not yet been designed. The following remain open for later technical work:
 
-- Exact domain boundaries, APIs, and the initial set of implemented processors.
+- Domain APIs, internal processor boundaries, and the initial set of implemented processors. The agreed gameplay responsibilities and domain ownership map are defined in [Simulation Domains and Shared Infrastructure](world-simulation-domains.md).
 - The concrete world-state data layout and controlled write-interface design.
 - The simulation phase representation and dependency declaration format.
 - The deterministic parallel execution strategy and conflict-coordination primitives.
