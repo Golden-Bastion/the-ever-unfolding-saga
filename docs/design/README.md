@@ -25,7 +25,9 @@ The root [ROADMAP.md](../../ROADMAP.md) is the only project-wide index of remain
 - [World-topology compatibility audit](world-topology-compatibility-audit.md) — current runtime identities, generation, graph/exit, local-map, and save contracts to preserve during v0.53.x expansion.
 - [Procedural content generation](procedural-content-generation.md) — coherent region/location identity, inhabitants, opportunities, authored-content precedence, and determinism.
 - [World simulation](world-simulation.md) — authoritative time, continuous/event-driven/deferred simulation, persistent consequences, and update guarantees.
-- [World simulation architecture](world-simulation-architecture.md) — centralized authoritative state, modular domain processors, deterministic parallel execution, scheduling, events, extensibility, versioning, budgets, and fidelity coordination.
+- [World simulation architecture](world-simulation-architecture.md) — centralized authoritative state, deterministic parallel execution, world time, events, extensibility, versioning, budgets, and fidelity coordination.
+- [Simulation processor architecture](simulation-processor-architecture.md) — domain-owned state, focused processors, execution triggers, communication, derived state, suspension, fidelity, concurrency, and diagnostics.
+- [Startup recovery and safe mode](startup-recovery-and-safe-mode.md) — Bevy-independent startup diagnostics, copyable crash reports, manual and automatic safe-mode entry, and recovery limits.
 - [Simulation domains and shared infrastructure](world-simulation-domains.md) — five-domain responsibility map, authoritative state ownership, cross-domain mechanics, player-facing scope, and shared infrastructure.
 - [Challenge and difficulty philosophy](challenge-and-difficulty.md) — fixed world challenge, no difficulty presets or adaptive scaling, preparation, fairness, failure, and accessibility.
 - [NPC behaviour](npc-behavior.md) — personality, perception, knowledge, decision-making, navigation, group behaviour, and simulation fidelity.
