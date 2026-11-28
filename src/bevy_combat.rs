@@ -10,7 +10,9 @@ use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId,
 };
 use crate::game::combat::{self, CombatEncounter, CombatResult, CombatStep};
-use verdandi::prelude::{ImpactMaterial, WeaponHandlingKind, WeaponHandlingMaterial, WeaponImpactKind};
+use verdandi::prelude::{
+    ImpactMaterial, WeaponHandlingKind, WeaponHandlingMaterial, WeaponImpactKind,
+};
 use crate::input::InputEvent;
 use crate::presentation::CombatResultView;
 
@@ -147,7 +149,12 @@ fn combat_input(
             }
             InputEvent::Character('1') => {
                 set_selection(&mut combat_state, &mut navigation, 0);
-                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation, &mut audio_events);
+                activate_current_selection(
+                    &mut lifecycle,
+                    &mut combat_state,
+                    &mut navigation,
+                    &mut audio_events,
+                );
             }
             InputEvent::Character('2') => {
                 set_selection(&mut combat_state, &mut navigation, 1);
@@ -264,7 +271,13 @@ fn activate_current_selection(
                     seed ^ 0x4849_5450_4C41_59,
                 );
             }
-            if matches!(&step, CombatStep::Result { outcome: CombatResult::Victory | CombatResult::Fled, .. }) {
+            if matches!(
+                &step,
+                CombatStep::Result {
+                    outcome: CombatResult::Victory | CombatResult::Fled,
+                    ..
+                }
+            ) {
                 audio_events.weapon_handling(
                     WeaponHandlingKind::Sheathe,
                     WeaponHandlingMaterial::Metal,
