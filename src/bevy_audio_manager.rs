@@ -165,11 +165,14 @@ fn sync_outdoor_wind_ambience(
     }
 
     if runtime.prepared_seed != Some(seed) {
-        runtime.clip = create_wind_loop(seed);
+        let Some(clip) = create_wind_loop(seed) else {
+            warn!("Could not prepare realistic outdoor wind ambience");
+            return;
+        };
+        runtime.clip = Some(clip);
         runtime.prepared_seed = Some(seed);
     }
     let Some(clip) = runtime.clip.clone() else {
-        warn!("Could not prepare realistic outdoor wind ambience");
         return;
     };
     match controller.play_loop(
