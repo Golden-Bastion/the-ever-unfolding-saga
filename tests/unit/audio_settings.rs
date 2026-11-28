@@ -18,14 +18,22 @@ fn volume_adjustments_are_bounded_and_independent() {
 
 #[test]
 fn reset_restores_all_audio_preferences() {
-    let mut settings = AudioSettings { music_volume_percent: 10, sfx_volume_percent: 95, ambience_volume_percent: 60 };
+    let mut settings = AudioSettings {
+        music_volume_percent: 10,
+        sfx_volume_percent: 95,
+        ambience_volume_percent: 60,
+    };
     settings.reset();
     assert_eq!(settings, AudioSettings::default());
 }
 
 #[test]
 fn loaded_values_are_clamped_to_supported_ranges() {
-    let mut settings = AudioSettings { music_volume_percent: 255, sfx_volume_percent: 0, ambience_volume_percent: 255 };
+    let mut settings = AudioSettings {
+        music_volume_percent: 255,
+        sfx_volume_percent: 0,
+        ambience_volume_percent: 255,
+    };
     settings.normalize();
     assert_eq!(settings.music_volume_percent(), MAX_VOLUME_PERCENT);
     assert_eq!(settings.sfx_volume_percent(), MIN_VOLUME_PERCENT);
@@ -34,7 +42,11 @@ fn loaded_values_are_clamped_to_supported_ranges() {
 
 #[test]
 fn category_gains_remain_independent() {
-    let settings = AudioSettings { music_volume_percent: 25, sfx_volume_percent: 80, ambience_volume_percent: 45 };
+    let settings = AudioSettings {
+        music_volume_percent: 25,
+        sfx_volume_percent: 80,
+        ambience_volume_percent: 45,
+    };
     assert!((settings.music_gain() - 0.25).abs() < f32::EPSILON);
     assert!((settings.sfx_gain() - 0.8).abs() < f32::EPSILON);
     assert!((settings.ambience_gain() - 0.45).abs() < f32::EPSILON);
@@ -42,16 +54,22 @@ fn category_gains_remain_independent() {
 
 #[test]
 fn settings_round_trip_through_json() {
-    let settings = AudioSettings { music_volume_percent: 35, sfx_volume_percent: 65, ambience_volume_percent: 55 };
+    let settings = AudioSettings {
+        music_volume_percent: 35,
+        sfx_volume_percent: 65,
+        ambience_volume_percent: 55,
+    };
     let encoded = serde_json::to_vec(&settings).expect("audio settings should serialize");
-    let decoded: AudioSettings = serde_json::from_slice(&encoded).expect("audio settings should deserialize");
+    let decoded: AudioSettings =
+        serde_json::from_slice(&encoded).expect("audio settings should deserialize");
     assert_eq!(decoded, settings);
 }
 
 #[test]
 fn older_settings_files_default_ambience_without_losing_other_values() {
     let encoded = br#"{"music_volume_percent":35,"sfx_volume_percent":65}"#;
-    let decoded: AudioSettings = serde_json::from_slice(encoded).expect("older audio settings should deserialize");
+    let decoded: AudioSettings =
+        serde_json::from_slice(encoded).expect("older audio settings should deserialize");
     assert_eq!(decoded.music_volume_percent(), 35);
     assert_eq!(decoded.sfx_volume_percent(), 65);
     assert_eq!(decoded.ambience_volume_percent(), 80);
