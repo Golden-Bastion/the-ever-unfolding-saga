@@ -56,11 +56,17 @@ impl Default for AudioRuntimeState {
     }
 }
 
+struct RetiredWindClip {
+    _clip: Arc<AudioClip>,
+    remaining_seconds: f32,
+}
+
 #[derive(Resource, Default)]
 struct WindAmbienceRuntime {
     active_seed: Option<u64>,
     prepared_seed: Option<u64>,
     clip: Option<Arc<AudioClip>>,
+    retired_clips: Vec<RetiredWindClip>,
 }
 
 const WIND_LOOP_KEY: LoopKey = LoopKey(0x5445_5553_5749_4E44);
@@ -130,6 +136,7 @@ fn apply_audio_buses(settings: Res<AudioSettings>, controller: Res<AudioControll
 }
 
 fn sync_outdoor_wind_ambience(
+    time: Res<Time>,
     navigation: Res<NavigationState>,
     gameplay: Res<crate::bevy_gameplay::GameplayRuntimeState>,
     spatial: Res<SpatialExplorationState>,
@@ -137,6 +144,12 @@ fn sync_outdoor_wind_ambience(
     controller: Res<AudioController>,
     mut runtime: ResMut<WindAmbienceRuntime>,
 ) {
+    let delta = time.delta_secs().max(0.0);
+    for retired in &mut runtime.retired_clips {
+        retired.remaining_seconds -= delta;
+    }
+    runtime.retired_clips.retain(|retired| retired.remaining_seconds > 0.0);
+
     let should_play = navigation.current_screen == Some(ScreenId::SpatialExploration)
         && !gameplay.is_paused()
         && spatial.outdoor_ambience_active();
@@ -169,7 +182,12 @@ fn sync_outdoor_wind_ambience(
             warn!("Could not prepare realistic outdoor wind ambience");
             return;
         };
-        runtime.clip = Some(clip);
+        if let Some(previous) = runtime.clip.replace(clip) {
+            runtime.retired_clips.push(RetiredWindClip {
+                _clip: previous,
+                remaining_seconds: 2.5,
+            });
+        }
         runtime.prepared_seed = Some(seed);
     }
     let Some(clip) = runtime.clip.clone() else {
