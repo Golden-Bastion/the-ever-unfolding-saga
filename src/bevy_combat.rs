@@ -215,14 +215,13 @@ fn activate_current_selection(
     match combat_state.phase {
         Some(CombatScreenPhase::Active) => {
             let action = combat_state.selected;
-            let (step, enemy_hp_before, enemy_hp_after, player_hp_before, player_hp_after, seed) = {
+            let (step, player_hp_before, player_hp_after, seed) = {
                 let Some(session) = lifecycle.session.as_mut() else {
                     return;
                 };
                 let Some(encounter) = combat_state.encounter.as_mut() else {
                     return;
                 };
-                let enemy_hp_before = encounter.enemy_hp;
                 let player_hp_before = session.state.character.hp;
                 let seed = session
                     .state
@@ -235,8 +234,6 @@ fn activate_current_selection(
                 let step = combat::resolve_action(&mut session.state, encounter, action);
                 (
                     step,
-                    enemy_hp_before,
-                    encounter.enemy_hp,
                     player_hp_before,
                     session.state.character.hp,
                     seed,
@@ -256,11 +253,7 @@ fn activate_current_selection(
                     0.52,
                     seed ^ 0x4755_4152_44,
                 ),
-                2 => audio_events.weapon_handling(
-                    WeaponHandlingKind::Sheathe,
-                    WeaponHandlingMaterial::Metal,
-                    seed ^ 0x464C_4545,
-                ),
+                2 => {},
                 _ => {}
             }
             if player_hp_after < player_hp_before {
@@ -270,9 +263,6 @@ fn activate_current_selection(
                     0.38,
                     seed ^ 0x4849_5450_4C41_59,
                 );
-            }
-            if enemy_hp_after < enemy_hp_before && enemy_hp_after == 0 {
-                // The existing musical Victory stinger remains the dominant result cue.
             }
             if matches!(&step, CombatStep::Result { outcome: CombatResult::Victory | CombatResult::Fled, .. }) {
                 audio_events.weapon_handling(
