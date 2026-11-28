@@ -23,7 +23,6 @@ const MAX_GENERATION_CHUNKS: usize = 100;
 const GENERATION_CHUNK_SAMPLES: usize = 1_024;
 const CLIP_RETENTION_MARGIN_SECONDS: f32 = 0.35;
 
-#[derive(Default)]
 struct RetainedAudioClip {
     _clip: Arc<AudioClip>,
     remaining_seconds: f32,
