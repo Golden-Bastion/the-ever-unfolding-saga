@@ -32,7 +32,7 @@ Combat start plays Verdandi's `CombatStart` stinger. A successful combat result 
 
 Verdandi 0.9.0 supplies Retro and Realistic procedural sound families, including footsteps, impacts, breakage, weapon/equipment handling, object/tool/mechanical actions, wind, and rain. Its `AudioClip`, `AudioController`, and `SoundCategory` APIs provide resident one-shots, keyed loops, fades, and bounded voice management. Environmental acoustics can add distance, occlusion, and room reflections.
 
-TEUS no longer owns Bevy audio players, direct `AudioSink` routing, or a playback/ambience lifecycle. Gameplay producers enqueue bounded semantic requests in `AudioEventQueue`; the audio adapter selects Realistic generators and submits prepared PCM through Verdandi. This queue carries gameplay meaning only—it does not implement playback, voice management, or mixing.
+TEUS no longer owns Bevy audio players, direct `AudioSink` routing, or an independent playback engine. It retains only a small context adapter for deciding when its keyed outdoor-wind loop should be active; Verdandi owns loop replacement, playback, fades, voice management, and mixing. Gameplay producers enqueue bounded semantic requests in `AudioEventQueue`; the audio adapter selects Realistic generators and submits prepared PCM through Verdandi. This queue carries gameplay meaning only—it does not implement playback, voice management, or mixing.
 
 TEUS selects the Realistic family exclusively. Retro generators remain available in Verdandi but are not selected by the game.
 
