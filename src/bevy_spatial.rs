@@ -41,6 +41,7 @@ use crate::spatial::{
     SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind, Terrain,
 };
 use verdandi::prelude::realistic::FootstepSurface;
+use verdandi::prelude::{WeaponHandlingKind, WeaponHandlingMaterial};
 
 use crate::spatial_animation::{
     PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,
@@ -1466,6 +1467,17 @@ fn spatial_input(
                 });
                 match result {
                     Some(Ok(())) => {
+                        let seed = lifecycle
+                            .session
+                            .as_ref()
+                            .and_then(|session| session.state.world.generation.map(|generation| generation.seed))
+                            .or_else(|| lifecycle.session.as_ref().and_then(|session| session.state.world.geography_seed))
+                            .unwrap_or(1);
+                        audio_events.weapon_handling(
+                            WeaponHandlingKind::Draw,
+                            WeaponHandlingMaterial::Metal,
+                            seed ^ 0x4452_4157,
+                        );
                         navigation.open_screen(ScreenId::Combat);
                         state.interaction_wheel = None;
                     }
