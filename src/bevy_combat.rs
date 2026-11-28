@@ -11,11 +11,10 @@ use crate::bevy_presentation::{
 };
 use crate::game::combat::{self, CombatEncounter, CombatResult, CombatStep};
 use crate::input::InputEvent;
-use verdandi::prelude::{
-    DamageEffectKind, ImpactMaterial, WeaponHandlingKind, WeaponHandlingMaterial,
-    WeaponImpactKind,
-};
 use crate::presentation::CombatResultView;
+use verdandi::prelude::{
+    DamageEffectKind, ImpactMaterial, WeaponHandlingKind, WeaponHandlingMaterial, WeaponImpactKind,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CombatScreenPhase {
@@ -255,12 +254,7 @@ fn activate_current_selection(
                     .unwrap_or(session.state.rng_state)
                     ^ u64::from(session.state.character.turn);
                 let step = combat::resolve_action(&mut session.state, encounter, action);
-                (
-                    step,
-                    player_hp_before,
-                    session.state.character.hp,
-                    seed,
-                )
+                (step, player_hp_before, session.state.character.hp, seed)
             };
 
             match action {

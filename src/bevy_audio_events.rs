@@ -133,7 +133,9 @@ fn process_audio_events(
     for retained in &mut retention.0 {
         retained.remaining_seconds -= delta;
     }
-    retention.0.retain(|retained| retained.remaining_seconds > 0.0);
+    retention
+        .0
+        .retain(|retained| retained.remaining_seconds > 0.0);
 
     for event in std::mem::take(&mut events.0) {
         match event {

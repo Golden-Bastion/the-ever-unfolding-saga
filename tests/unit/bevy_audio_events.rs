@@ -15,11 +15,7 @@ fn queue_preserves_realistic_event_parameters() {
     let mut queue = AudioEventQueue::default();
     queue.footstep(FootstepSurface::ShallowWater, 11);
     queue.weapon_impact(WeaponImpactKind::Block, ImpactMaterial::Shield, 0.65, 12);
-    queue.weapon_handling(
-        WeaponHandlingKind::Draw,
-        WeaponHandlingMaterial::Metal,
-        13,
-    );
+    queue.weapon_handling(WeaponHandlingKind::Draw, WeaponHandlingMaterial::Metal, 13);
     queue.damage_effect(DamageEffectKind::BluntTrauma, 0.52, 0.38, 14);
 
     assert_eq!(

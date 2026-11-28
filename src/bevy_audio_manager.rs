@@ -84,7 +84,12 @@ pub(crate) fn install(app: &mut App) {
     .init_resource::<WindAmbienceRuntime>()
     .add_systems(
         Update,
-        (sync_music_context, apply_audio_buses, sync_outdoor_wind_ambience).chain(),
+        (
+            sync_music_context,
+            apply_audio_buses,
+            sync_outdoor_wind_ambience,
+        )
+            .chain(),
     );
 }
 
@@ -148,7 +153,9 @@ fn sync_outdoor_wind_ambience(
     for retired in &mut runtime.retired_clips {
         retired.remaining_seconds -= delta;
     }
-    runtime.retired_clips.retain(|retired| retired.remaining_seconds > 0.0);
+    runtime
+        .retired_clips
+        .retain(|retired| retired.remaining_seconds > 0.0);
 
     let should_play = navigation.current_screen == Some(ScreenId::SpatialExploration)
         && !gameplay.is_paused()

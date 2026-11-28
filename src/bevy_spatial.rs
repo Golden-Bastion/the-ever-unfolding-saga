@@ -1608,8 +1608,8 @@ fn spatial_input(
                 {
                     state.footstep_distance_remainder -= FOOTSTEP_STRIDE_DISTANCE_PX;
                     state.footstep_sequence = state.footstep_sequence.wrapping_add(1);
-                    let seed = world_seed
-                        ^ state.footstep_sequence.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+                    let seed =
+                        world_seed ^ state.footstep_sequence.wrapping_mul(0x9E37_79B9_7F4A_7C15);
                     audio_events.footstep(footstep_surface, seed);
                     emitted += 1;
                 }
