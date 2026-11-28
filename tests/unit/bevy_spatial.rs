@@ -2,6 +2,15 @@ use super::*;
 use crate::spatial::{configure_map_exits, generate_local_map};
 
 #[test]
+fn footstep_stride_distance_is_direction_independent_in_screen_space() {
+    let horizontal = screen_direction_to_world(Vec2::X);
+    let vertical = screen_direction_to_world(Vec2::Y);
+
+    assert!((projected_screen_delta(horizontal).length() - 1.0).abs() < 0.000_1);
+    assert!((projected_screen_delta(vertical).length() - 1.0).abs() < 0.000_1);
+}
+
+#[test]
 fn realistic_footsteps_follow_ground_material_and_biome() {
     assert_eq!(
         footstep_surface_for_terrain(Terrain::Sand, Some(Biome::Desert), false),
