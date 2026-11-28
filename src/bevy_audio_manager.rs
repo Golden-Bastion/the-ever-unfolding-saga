@@ -59,6 +59,8 @@ impl Default for AudioRuntimeState {
 #[derive(Resource, Default)]
 struct WindAmbienceRuntime {
     active_seed: Option<u64>,
+    prepared_seed: Option<u64>,
+    clip: Option<Arc<AudioClip>>,
 }
 
 const WIND_LOOP_KEY: LoopKey = LoopKey(0x5445_5553_5749_4E44);
@@ -139,8 +141,11 @@ fn sync_outdoor_wind_ambience(
         && !gameplay.is_paused()
         && spatial.outdoor_ambience_active();
     if !should_play {
-        if runtime.active_seed.take().is_some() {
-            let _ = controller.stop_loop(WIND_LOOP_KEY, Duration::from_millis(1_500));
+        if runtime.active_seed.is_some() {
+            match controller.stop_loop(WIND_LOOP_KEY, Duration::from_millis(1_500)) {
+                Ok(()) => runtime.active_seed = None,
+                Err(error) => debug!("Verdandi could not stop outdoor ambience yet: {error:?}"),
+            }
         }
         return;
     }
@@ -154,16 +159,16 @@ fn sync_outdoor_wind_ambience(
         .generation
         .map(|generation| generation.seed)
         .or(session.state.world.geography_seed)
-        .unwrap_or(session.state.rng_state)
-        ^ session.state.character.location_id.rotate_left(19);
+        .unwrap_or(session.state.rng_state);
     if runtime.active_seed == Some(seed) {
         return;
     }
 
-    if runtime.active_seed.take().is_some() {
-        let _ = controller.stop_loop(WIND_LOOP_KEY, Duration::from_millis(700));
+    if runtime.prepared_seed != Some(seed) {
+        runtime.clip = create_wind_loop(seed);
+        runtime.prepared_seed = Some(seed);
     }
-    let Some(clip) = create_wind_loop(seed) else {
+    let Some(clip) = runtime.clip.clone() else {
         warn!("Could not prepare realistic outdoor wind ambience");
         return;
     };
@@ -195,7 +200,7 @@ fn create_wind_loop(seed: u64) -> Option<Arc<AudioClip>> {
 }
 
 fn crossfade_loop(source: &[f32], fade_frames: usize) -> Option<Vec<f32>> {
-    if !source.len().is_multiple_of(2) || fade_frames == 0 {
+    if !source.len().is_multiple_of(2) || fade_frames < 2 {
         return None;
     }
     let frame_count = source.len() / 2;
