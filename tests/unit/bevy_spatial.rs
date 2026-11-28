@@ -2,6 +2,51 @@ use super::*;
 use crate::spatial::{configure_map_exits, generate_local_map};
 
 #[test]
+fn footstep_stride_distance_is_direction_independent_in_screen_space() {
+    let horizontal = screen_direction_to_world(Vec2::X);
+    let vertical = screen_direction_to_world(Vec2::Y);
+
+    assert!((projected_screen_delta(horizontal).length() - 1.0).abs() < 0.000_1);
+    assert!((projected_screen_delta(vertical).length() - 1.0).abs() < 0.000_1);
+}
+
+#[test]
+fn realistic_footsteps_follow_ground_material_and_biome() {
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Sand, Some(Biome::Desert), false),
+        FootstepSurface::Dirt
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Rubble, Some(Biome::Alpine), false),
+        FootstepSurface::Gravel
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Floor, Some(Biome::Grassland), false),
+        FootstepSurface::Grass
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Floor, Some(Biome::Tundra), false),
+        FootstepSurface::Snow
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Ford, Some(Biome::Grassland), false),
+        FootstepSurface::ShallowWater
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Bridge, None, false),
+        FootstepSurface::Wood
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Floor, None, true),
+        FootstepSurface::Stone
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Floor, None, false),
+        FootstepSurface::Stone
+    );
+}
+
+#[test]
 fn spatial_hud_condition_summary_has_a_clear_empty_state() {
     assert_eq!(format_condition_summary(&[]), "Conditions: none");
     let conditions = vec![

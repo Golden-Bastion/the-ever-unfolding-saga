@@ -11,10 +11,10 @@ use bevy::prelude::*;
 use bevy_picking::events::PointerRelease;
 
 use crate::{
-    audio_settings, bevy_audio_manager, bevy_combat, bevy_console, bevy_dev_tools, bevy_feedback,
-    bevy_gameplay, bevy_interactions, bevy_lifecycle, bevy_navigation_bridge, bevy_options,
-    bevy_presentation, bevy_records, bevy_runtime, bevy_spatial, bevy_touch,
-    bevy_world_map_viewport, ui_settings,
+    audio_settings, bevy_audio_events, bevy_audio_manager, bevy_combat, bevy_console,
+    bevy_dev_tools, bevy_feedback, bevy_gameplay, bevy_interactions, bevy_lifecycle,
+    bevy_navigation_bridge, bevy_options, bevy_presentation, bevy_records, bevy_runtime,
+    bevy_spatial, bevy_touch, bevy_world_map_viewport, ui_settings,
 };
 
 const WINDOW_TITLE: &str = "The Ever-Unfolding Saga";
@@ -42,6 +42,7 @@ pub fn run() {
     bevy_presentation::install(&mut app);
     audio_settings::install(&mut app);
     bevy_audio_manager::install(&mut app);
+    bevy_audio_events::install(&mut app);
     ui_settings::install(&mut app);
     bevy_touch::install(&mut app);
     bevy_runtime::install(&mut app);

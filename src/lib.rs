@@ -1,6 +1,7 @@
 mod asset_loading;
 mod audio_settings;
 mod bevy_app;
+mod bevy_audio_events;
 mod bevy_audio_manager;
 mod bevy_combat;
 mod bevy_console;

@@ -12,6 +12,9 @@ use crate::bevy_presentation::{
 use crate::game::combat::{self, CombatEncounter, CombatResult, CombatStep};
 use crate::input::InputEvent;
 use crate::presentation::CombatResultView;
+use verdandi::prelude::{
+    DamageEffectKind, ImpactMaterial, WeaponHandlingKind, WeaponHandlingMaterial, WeaponImpactKind,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CombatScreenPhase {
@@ -115,6 +118,7 @@ fn combat_input(
     mut combat_state: ResMut<CombatState>,
     mut navigation: ResMut<NavigationState>,
     mut input_queue: ResMut<GameplayInputQueue>,
+    mut audio_events: ResMut<crate::bevy_audio_events::AudioEventQueue>,
 ) {
     if lifecycle.phase != LifecyclePhase::Complete
         || lifecycle.session.is_none()
@@ -145,22 +149,42 @@ fn combat_input(
             }
             InputEvent::Character('1') => {
                 set_selection(&mut combat_state, &mut navigation, 0);
-                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation);
+                activate_current_selection(
+                    &mut lifecycle,
+                    &mut combat_state,
+                    &mut navigation,
+                    &mut audio_events,
+                );
             }
             InputEvent::Character('2') => {
                 set_selection(&mut combat_state, &mut navigation, 1);
-                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation);
+                activate_current_selection(
+                    &mut lifecycle,
+                    &mut combat_state,
+                    &mut navigation,
+                    &mut audio_events,
+                );
             }
             InputEvent::Character('3') => {
                 set_selection(&mut combat_state, &mut navigation, 2);
-                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation);
+                activate_current_selection(
+                    &mut lifecycle,
+                    &mut combat_state,
+                    &mut navigation,
+                    &mut audio_events,
+                );
             }
             InputEvent::Confirm => {
                 if combat_state.phase == Some(CombatScreenPhase::Active) {
                     let last = combat_state.action_count().saturating_sub(1);
                     combat_state.selected = navigation.selected.min(last);
                 }
-                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation);
+                activate_current_selection(
+                    &mut lifecycle,
+                    &mut combat_state,
+                    &mut navigation,
+                    &mut audio_events,
+                );
             }
             InputEvent::Cancel => {
                 combat_state.clear();
@@ -208,18 +232,67 @@ fn activate_current_selection(
     lifecycle: &mut LifecycleState,
     combat_state: &mut CombatState,
     navigation: &mut NavigationState,
+    audio_events: &mut crate::bevy_audio_events::AudioEventQueue,
 ) {
     match combat_state.phase {
         Some(CombatScreenPhase::Active) => {
-            let step = {
+            let action = combat_state.selected;
+            let (step, player_hp_before, player_hp_after, seed) = {
                 let Some(session) = lifecycle.session.as_mut() else {
                     return;
                 };
                 let Some(encounter) = combat_state.encounter.as_mut() else {
                     return;
                 };
-                combat::resolve_action(&mut session.state, encounter, combat_state.selected)
+                let player_hp_before = session.state.character.hp;
+                let seed = session
+                    .state
+                    .world
+                    .generation
+                    .map(|generation| generation.seed)
+                    .or(session.state.world.geography_seed)
+                    .unwrap_or(session.state.rng_state)
+                    ^ u64::from(session.state.character.turn);
+                let step = combat::resolve_action(&mut session.state, encounter, action);
+                (step, player_hp_before, session.state.character.hp, seed)
             };
+
+            match action {
+                0 => audio_events.weapon_impact(
+                    WeaponImpactKind::Strike,
+                    ImpactMaterial::Flesh,
+                    0.72,
+                    seed ^ 0x4154_5441_434B,
+                ),
+                1 => audio_events.weapon_impact(
+                    WeaponImpactKind::Block,
+                    ImpactMaterial::Shield,
+                    0.52,
+                    seed ^ 0x4755_4152_44,
+                ),
+                _ => {}
+            }
+            if player_hp_after < player_hp_before {
+                audio_events.damage_effect(
+                    DamageEffectKind::BluntTrauma,
+                    0.52,
+                    0.38,
+                    seed ^ 0x4849_5450_4C41_59,
+                );
+            }
+            if matches!(
+                &step,
+                CombatStep::Result {
+                    outcome: CombatResult::Victory | CombatResult::Fled,
+                    ..
+                }
+            ) {
+                audio_events.weapon_handling(
+                    WeaponHandlingKind::Sheathe,
+                    WeaponHandlingMaterial::Metal,
+                    seed ^ 0x5348_4541_5448_45,
+                );
+            }
             apply_step(combat_state, navigation, step);
         }
         Some(CombatScreenPhase::Result) => {
