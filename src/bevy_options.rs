@@ -284,7 +284,8 @@ fn options_input(
 fn options_selection_end(options: &OptionsState) -> usize {
     match options.tab {
         0 => mod_back_action_index(options.mods.len()),
-        1 | 2 => 5,
+        1 => 5,
+        2 => 7,
         _ => 0,
     }
 }
@@ -406,11 +407,13 @@ fn activate_audio_action(
         1 => settings.adjust_music_volume(crate::audio_settings::VOLUME_STEP),
         2 => settings.adjust_sfx_volume(-crate::audio_settings::VOLUME_STEP),
         3 => settings.adjust_sfx_volume(crate::audio_settings::VOLUME_STEP),
-        4 => {
+        4 => settings.adjust_ambience_volume(-crate::audio_settings::VOLUME_STEP),
+        5 => settings.adjust_ambience_volume(crate::audio_settings::VOLUME_STEP),
+        6 => {
             settings.reset();
             true
         }
-        5 => {
+        7 => {
             close_options(lifecycle, navigation, options);
             return;
         }
@@ -421,9 +424,10 @@ fn activate_audio_action(
         match settings.save() {
             Ok(()) => {
                 options.message = Some(format!(
-                    "Music volume: {}%. Sound effects: {}%.",
+                    "Music: {}%. Effects: {}%. Ambience: {}%.",
                     settings.music_volume_percent(),
-                    settings.sfx_volume_percent()
+                    settings.sfx_volume_percent(),
+                    settings.ambience_volume_percent()
                 ));
             }
             Err(error) => {
@@ -920,14 +924,10 @@ fn render_audio_tab(
     settings: &crate::audio_settings::AudioSettings,
 ) {
     bevy_presentation::spawn_label(commands, list, "AUDIO");
-    bevy_presentation::spawn_muted_label(
-        commands,
-        list,
-        "No sound-effect or ambience assets are installed yet.",
-    );
     for (label, value, decrease, increase) in [
         ("Music volume", settings.music_volume_percent(), 0, 1),
-        ("SFX / ambience", settings.sfx_volume_percent(), 2, 3),
+        ("Effects volume", settings.sfx_volume_percent(), 2, 3),
+        ("Ambience volume", settings.ambience_volume_percent(), 4, 5),
     ] {
         let row = bevy_presentation::spawn_option_row(commands, list);
         bevy_presentation::spawn_label(commands, row.label, label);
@@ -950,8 +950,8 @@ fn render_audio_tab(
 }
 
 fn render_audio_footer(commands: &mut Commands, footer: Entity, options: &OptionsState) {
-    spawn_option_control_button(commands, footer, 4, "Reset", options.selected == 4);
-    spawn_option_control_button(commands, footer, 5, "Back", options.selected == 5);
+    spawn_option_control_button(commands, footer, 6, "Reset", options.selected == 6);
+    spawn_option_control_button(commands, footer, 7, "Back", options.selected == 7);
 }
 
 fn render_interface_footer(commands: &mut Commands, footer: Entity, options: &OptionsState) {

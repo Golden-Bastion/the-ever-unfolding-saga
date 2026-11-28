@@ -62,8 +62,8 @@ The current codebase has been progressively decomposed from large modules into r
 src/
 ├── main.rs                  # Bevy application entry point
 ├── bevy_app.rs              # Bevy app/bootstrap configuration
-├── audio_settings.rs        # persistent music and sound-effects preferences
-├── bevy_audio_manager.rs    # state-driven Verdandi music and host-owned Bevy audio cues
+├── audio_settings.rs        # persistent music, effects, and ambience preferences
+├── bevy_audio_manager.rs    # state-driven Verdandi contexts and unified audio-bus controls
 ├── bevy_presentation.rs     # shared Bevy UI primitives and semantic input routing
 ├── bevy_lifecycle.rs        # start/load/creation/quit/death lifecycle orchestration
 ├── bevy_navigation_bridge.rs # lifecycle completion and spatial exploration hand-off

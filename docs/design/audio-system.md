@@ -17,11 +17,11 @@ The initial audio-system implementation is part of the current v0.53.x developme
 
 ## Implementation boundary
 
-The initial implementation uses [Verdandi](https://github.com/Golden-Bastion/verdandi) as the procedural music engine. Verdandi owns seeded composition, musical presets, intensity/layer control, looping playback, preset crossfades, and built-in musical stingers. TEUS owns state resolution and maps gameplay contexts to Verdandi controls.
+Verdandi is the single audio engine for TEUS. It owns seeded procedural composition, musical layers and stingers, procedural sound generation, PCM playback, mixing, looping, fades, and independent music/effects/ambience buses. Its Bevy 0.20 plugin supplies the application's audio output and exposes one unified controller.
 
-General one-shot sound effects and environmental ambience remain in Bevy's native audio layer. Verdandi is not treated as a general-purpose game audio manager, and it does not own TEUS asset paths, cue IDs, or licensing records. The host-side audio manager routes those cues and applies the independent SFX gain.
+TEUS owns authoritative state resolution and maps gameplay contexts and semantic gameplay events to Verdandi controls and generators. It does not maintain a parallel Bevy audio player, cue queue, or mixer. Host-owned recordings, if introduced later, must be decoded to PCM off the audio callback and supplied as Verdandi clips.
 
-Current integration and known gaps are documented in [the audio system reference](../systems/audio.md). Verdandi follow-ups are tracked in [issue #19](https://github.com/Golden-Bastion/verdandi/issues/19) (transport/gain/fades), [issue #20](https://github.com/Golden-Bastion/verdandi/issues/20) (non-musical cue scope), and [issue #21](https://github.com/Golden-Bastion/verdandi/issues/21) (defeat/retreat and extensible stingers).
+Current integration and remaining event wiring are documented in [the audio system reference](../systems/audio.md). Verdandi issues [#19](https://github.com/Golden-Bastion/verdandi/issues/19) (transport and gain controls) and [#20](https://github.com/Golden-Bastion/verdandi/issues/20) (non-musical playback) are complete. [Issue #21](https://github.com/Golden-Bastion/verdandi/issues/21) remains open for defeat/retreat and extensible event stingers. TEUS still needs to connect available generators to concrete gameplay events and review their output in-game.
 
 ## Initial soundtrack candidates
 - Main/title theme

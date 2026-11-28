@@ -48,29 +48,6 @@ fn settlement_layout_matching_is_explicit() {
 }
 
 #[test]
-fn host_audio_queue_preserves_cue_order_and_ambience_lifecycle() {
-    let mut queue = AudioCueQueue::default();
-    queue.play_effect("audio/footstep.ogg");
-    queue.start_ambience("forest", "audio/forest_wind.ogg");
-    queue.stop_ambience("forest");
-
-    assert_eq!(queue.pending.len(), 3);
-    assert!(matches!(
-        &queue.pending[0],
-        AudioCueRequest::OneShot { asset_path } if asset_path == "audio/footstep.ogg"
-    ));
-    assert!(matches!(
-        &queue.pending[1],
-        AudioCueRequest::StartAmbience { key, asset_path }
-            if key == "forest" && asset_path == "audio/forest_wind.ogg"
-    ));
-    assert!(matches!(
-        &queue.pending[2],
-        AudioCueRequest::StopAmbience { key } if key == "forest"
-    ));
-}
-
-#[test]
 fn context_resolution_uses_existing_lifecycle_and_world_state() {
     let title = resolve_context(&LifecycleState::default(), &CombatState::default());
     assert_eq!(title, (MusicContext::Title, 1));

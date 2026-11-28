@@ -2352,7 +2352,7 @@ dependencies = [
 
 [[package]]
 name = "ever_unfolding_saga"
-version = "0.53.38"
+version = "0.53.39"
 dependencies = [
  "atomic-write-file",
  "bevy",
@@ -4991,8 +4991,8 @@ dependencies = [
 
 [[package]]
 name = "verdandi"
-version = "0.6.0"
-source = "git+https://github.com/Golden-Bastion/verdandi?rev=182bca1bcb7c639075601ca86a4b16092b2b41f9#182bca1bcb7c639075601ca86a4b16092b2b41f9"
+version = "0.9.0"
+source = "git+https://github.com/Golden-Bastion/verdandi?rev=d93a3cd2fa3294f9cb4605d18117d5f47712784c#d93a3cd2fa3294f9cb4605d18117d5f47712784c"
 dependencies = [
  "bevy",
 ]
