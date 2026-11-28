@@ -9,11 +9,12 @@ use std::sync::Arc;
 use bevy::prelude::*;
 use verdandi::prelude::{
     realistic::{
-        FootstepConfig, FootstepGenerator, FootstepSurface, WeaponHandlingConfig,
-        WeaponHandlingGenerator, WeaponImpactConfig, WeaponImpactGenerator,
+        DamageEffectConfig, DamageEffectGenerator, FootstepConfig, FootstepGenerator,
+        FootstepSurface, WeaponHandlingConfig, WeaponHandlingGenerator, WeaponImpactConfig,
+        WeaponImpactGenerator,
     },
-    AudioClip, AudioController, ImpactMaterial, ProceduralGenerator, SoundCategory,
-    WeaponHandlingKind, WeaponHandlingMaterial, WeaponImpactKind,
+    AudioClip, AudioController, DamageEffectKind, ImpactMaterial, ProceduralGenerator,
+    SoundCategory, WeaponHandlingKind, WeaponHandlingMaterial, WeaponImpactKind,
 };
 
 const OUTPUT_SAMPLE_RATE: u32 = 44_100;
@@ -43,6 +44,12 @@ enum AudioEvent {
         force: u8,
         seed: u64,
     },
+    DamageEffect {
+        kind: DamageEffectKind,
+        force: u8,
+        size: u8,
+        seed: u64,
+    },
     WeaponHandling {
         kind: WeaponHandlingKind,
         material: WeaponHandlingMaterial,
@@ -70,6 +77,21 @@ impl AudioEventQueue {
             kind,
             material,
             force: (force.clamp(0.0, 1.0) * 100.0).round() as u8,
+            seed,
+        });
+    }
+
+    pub(crate) fn damage_effect(
+        &mut self,
+        kind: DamageEffectKind,
+        force: f32,
+        size: f32,
+        seed: u64,
+    ) {
+        self.push(AudioEvent::DamageEffect {
+            kind,
+            force: (force.clamp(0.0, 1.0) * 100.0).round() as u8,
+            size: (size.clamp(0.0, 1.0) * 100.0).round() as u8,
             seed,
         });
     }
@@ -143,6 +165,24 @@ fn process_audio_events(
                 match WeaponImpactGenerator::new(config, seed) {
                     Ok(generator) => play_generated(generator, &controller, &mut retention),
                     Err(error) => warn!("Could not prepare realistic weapon impact: {error}"),
+                }
+            }
+            AudioEvent::DamageEffect {
+                kind,
+                force,
+                size,
+                seed,
+            } => {
+                let config = DamageEffectConfig {
+                    sample_rate: OUTPUT_SAMPLE_RATE,
+                    intensity: 0.66,
+                    force: f32::from(force) / 100.0,
+                    size: f32::from(size) / 100.0,
+                    kind,
+                };
+                match DamageEffectGenerator::new(config, seed) {
+                    Ok(generator) => play_generated(generator, &controller, &mut retention),
+                    Err(error) => warn!("Could not prepare realistic damage effect: {error}"),
                 }
             }
             AudioEvent::WeaponHandling {
