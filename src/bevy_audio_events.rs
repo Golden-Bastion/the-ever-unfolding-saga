@@ -141,7 +141,7 @@ fn process_audio_events(
                     kind,
                 };
                 match WeaponImpactGenerator::new(config, seed) {
-                    Ok(generator) => play_generated(generator, &controller),
+                    Ok(generator) => play_generated(generator, &controller, &mut retention),
                     Err(error) => warn!("Could not prepare realistic weapon impact: {error}"),
                 }
             }
@@ -159,7 +159,7 @@ fn process_audio_events(
                     kind,
                 };
                 match WeaponHandlingGenerator::new(config, seed) {
-                    Ok(generator) => play_generated(generator, &controller),
+                    Ok(generator) => play_generated(generator, &controller, &mut retention),
                     Err(error) => warn!("Could not prepare realistic weapon handling: {error}"),
                 }
             }
