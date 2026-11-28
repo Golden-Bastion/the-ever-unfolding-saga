@@ -11,7 +11,8 @@ use crate::bevy_presentation::{
 };
 use crate::game::combat::{self, CombatEncounter, CombatResult, CombatStep};
 use verdandi::prelude::{
-    ImpactMaterial, WeaponHandlingKind, WeaponHandlingMaterial, WeaponImpactKind,
+    DamageEffectKind, ImpactMaterial, WeaponHandlingKind, WeaponHandlingMaterial,
+    WeaponImpactKind,
 };
 use crate::input::InputEvent;
 use crate::presentation::CombatResultView;
@@ -264,9 +265,9 @@ fn activate_current_selection(
                 _ => {}
             }
             if player_hp_after < player_hp_before {
-                audio_events.weapon_impact(
-                    WeaponImpactKind::Strike,
-                    ImpactMaterial::Flesh,
+                audio_events.damage_effect(
+                    DamageEffectKind::BluntTrauma,
+                    0.52,
                     0.38,
                     seed ^ 0x4849_5450_4C41_59,
                 );
