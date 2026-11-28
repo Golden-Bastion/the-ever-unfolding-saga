@@ -32,9 +32,18 @@ Combat start plays Verdandi's `CombatStart` stinger. A successful combat result 
 
 Verdandi 0.9.0 supplies Retro and Realistic procedural sound families, including footsteps, impacts, breakage, weapon/equipment handling, object/tool/mechanical actions, wind, and rain. Its `AudioClip`, `AudioController`, and `SoundCategory` APIs provide resident one-shots, keyed loops, fades, and bounded voice management. Environmental acoustics can add distance, occlusion, and room reflections.
 
-The previous TEUS-owned `AudioCueQueue`, `AudioPlayer` spawning, `AudioSink` volume routing, and separate Bevy ambience lifecycle have been removed. Music, effects, and ambience now use Verdandi's single controller and mixer.
+TEUS no longer owns Bevy audio players, direct `AudioSink` routing, or a playback/ambience lifecycle. Gameplay producers enqueue bounded semantic requests in `AudioEventQueue`; the audio adapter selects Realistic generators and submits prepared PCM through Verdandi. This queue carries gameplay meaning only—it does not implement playback, voice management, or mixing.
 
-The procedural generators and mixer are available, but gameplay cue production is not yet connected to footsteps, combat events, weather, or location ambience. Gameplay systems should emit semantic audio requests; the audio adapter will select the appropriate Verdandi generator/profile and submit prepared PCM. Do not reintroduce direct Bevy audio playback into gameplay systems.
+TEUS selects the Realistic family exclusively. Retro generators remain available in Verdandi but are not selected by the game.
+
+Connected cues currently include:
+- Distance-paced footsteps selected from the current terrain and biome. Grass, dirt/sand, gravel/rubble, stone, wood bridges, snow, and shallow-water splash profiles are distinguished.
+- Weapon draw on combat entry, weapon-contact cues for attacks, block/shield contact, and a body-contact cue when the player takes damage. Victory/retreat sheathing uses the realistic weapon-handling generator.
+- A keyed, crossfaded Realistic wind loop while an outdoor spatial location is active. The generated loop is cached per world and fades out when leaving active outdoor exploration.
+
+The current world model does not yet expose dynamic weather. Climate precipitation potential is not actual weather, so TEUS does not infer rain from it or play rain as though a storm were occurring. Rain, water-flow, fire, cave, wildlife, and settlement ambience remain future work; Verdandi generator coverage is tracked in [issue #45](https://github.com/Golden-Bastion/verdandi/issues/45). A dedicated non-contact weapon-swing/air-slice generator is tracked in [issue #46](https://github.com/Golden-Bastion/verdandi/issues/46). Defeat/retreat and extensible musical stingers remain in [issue #21](https://github.com/Golden-Bastion/verdandi/issues/21).
+
+Short one-shot PCM is prepared outside the audio callback. TEUS retains each generated clip for its playback lifetime, as required by Verdandi's ownership contract. Do not reintroduce direct Bevy audio playback into gameplay systems.
 
 For authored audio in the future, the host remains responsible for loading/decoding source files off the audio callback, constructing Verdandi `AudioClip` values, and retaining their `Arc` ownership while queued or playing. No recorded audio assets or external sample libraries are bundled.
 
