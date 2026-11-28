@@ -10,6 +10,7 @@ use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId,
 };
 use crate::game::combat::{self, CombatEncounter, CombatResult, CombatStep};
+use verdandi::prelude::{ImpactMaterial, WeaponHandlingKind, WeaponHandlingMaterial, WeaponImpactKind};
 use crate::input::InputEvent;
 use crate::presentation::CombatResultView;
 
@@ -115,6 +116,7 @@ fn combat_input(
     mut combat_state: ResMut<CombatState>,
     mut navigation: ResMut<NavigationState>,
     mut input_queue: ResMut<GameplayInputQueue>,
+    mut audio_events: ResMut<crate::bevy_audio_events::AudioEventQueue>,
 ) {
     if lifecycle.phase != LifecyclePhase::Complete
         || lifecycle.session.is_none()
@@ -145,7 +147,7 @@ fn combat_input(
             }
             InputEvent::Character('1') => {
                 set_selection(&mut combat_state, &mut navigation, 0);
-                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation);
+                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation, &mut audio_events);
             }
             InputEvent::Character('2') => {
                 set_selection(&mut combat_state, &mut navigation, 1);
@@ -208,18 +210,77 @@ fn activate_current_selection(
     lifecycle: &mut LifecycleState,
     combat_state: &mut CombatState,
     navigation: &mut NavigationState,
+    audio_events: &mut crate::bevy_audio_events::AudioEventQueue,
 ) {
     match combat_state.phase {
         Some(CombatScreenPhase::Active) => {
-            let step = {
+            let action = combat_state.selected;
+            let (step, enemy_hp_before, enemy_hp_after, player_hp_before, player_hp_after, seed) = {
                 let Some(session) = lifecycle.session.as_mut() else {
                     return;
                 };
                 let Some(encounter) = combat_state.encounter.as_mut() else {
                     return;
                 };
-                combat::resolve_action(&mut session.state, encounter, combat_state.selected)
+                let enemy_hp_before = encounter.enemy_hp;
+                let player_hp_before = session.state.character.hp;
+                let seed = session
+                    .state
+                    .world
+                    .generation
+                    .map(|generation| generation.seed)
+                    .or(session.state.world.geography_seed)
+                    .unwrap_or(session.state.rng_state)
+                    ^ u64::from(session.state.character.turn);
+                let step = combat::resolve_action(&mut session.state, encounter, action);
+                (
+                    step,
+                    enemy_hp_before,
+                    encounter.enemy_hp,
+                    player_hp_before,
+                    session.state.character.hp,
+                    seed,
+                )
             };
+
+            match action {
+                0 => audio_events.weapon_impact(
+                    WeaponImpactKind::Strike,
+                    ImpactMaterial::Flesh,
+                    0.72,
+                    seed ^ 0x4154_5441_434B,
+                ),
+                1 => audio_events.weapon_impact(
+                    WeaponImpactKind::Block,
+                    ImpactMaterial::Shield,
+                    0.52,
+                    seed ^ 0x4755_4152_44,
+                ),
+                2 => audio_events.weapon_handling(
+                    WeaponHandlingKind::Sheathe,
+                    WeaponHandlingMaterial::Metal,
+                    seed ^ 0x464C_4545,
+                ),
+                _ => {}
+            }
+            if player_hp_after < player_hp_before {
+                audio_events.weapon_impact(
+                    WeaponImpactKind::Strike,
+                    ImpactMaterial::Flesh,
+                    0.38,
+                    seed ^ 0x4849_5450_4C41_59,
+                );
+            }
+            if enemy_hp_after < enemy_hp_before && enemy_hp_after == 0 {
+                // The existing musical Victory stinger remains the dominant result cue.
+            }
+            if matches!(&step, CombatStep::Result { outcome: CombatResult::Victory | CombatResult::Fled, .. }) {
+                audio_events.weapon_handling(
+                    WeaponHandlingKind::Sheathe,
+                    WeaponHandlingMaterial::Metal,
+                    seed ^ 0x5348_4541_5448_45,
+                );
+            }
             apply_step(combat_state, navigation, step);
         }
         Some(CombatScreenPhase::Result) => {
