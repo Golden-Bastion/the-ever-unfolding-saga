@@ -1,15 +1,21 @@
 //! State-driven audio integration. Verdandi owns music, effects, ambience,
 //! procedural generation, mixing, and playback; TEUS maps game state to controls.
 
+use std::sync::Arc;
+use std::time::Duration;
+
 use bevy::prelude::*;
 use verdandi::prelude::{
     AudioBus, AudioController, MusicConfig, MusicPace, MusicPreset, MusicStinger,
-    ProceduralMusicPlugin,
+    ProceduralGenerator, ProceduralMusicPlugin, AudioClip, LoopKey, SoundCategory,
+    realistic::{WindConfig, WindGenerator},
 };
 
 use crate::audio_settings::AudioSettings;
 use crate::bevy_combat::CombatState;
 use crate::bevy_lifecycle::{LifecyclePhase, LifecycleState};
+use crate::bevy_presentation::{NavigationState, ScreenId};
+use crate::bevy_spatial::SpatialExplorationState;
 use crate::game::combat::CombatResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,6 +56,16 @@ impl Default for AudioRuntimeState {
     }
 }
 
+#[derive(Resource, Default)]
+struct WindAmbienceRuntime {
+    active_seed: Option<u64>,
+}
+
+const WIND_LOOP_KEY: LoopKey = LoopKey(0x5445_5553_5749_4E44);
+const OUTPUT_SAMPLE_RATE: u32 = 44_100;
+const WIND_LOOP_SECONDS: usize = 10;
+const WIND_CROSSFADE_FRAMES: usize = OUTPUT_SAMPLE_RATE as usize / 2;
+
 pub(crate) fn install(app: &mut App) {
     app.add_plugins(ProceduralMusicPlugin::new(MusicConfig {
         auto_intensity: false,
@@ -57,7 +73,11 @@ pub(crate) fn install(app: &mut App) {
         ..default()
     }))
     .init_resource::<AudioRuntimeState>()
-    .add_systems(Update, (sync_music_context, apply_audio_buses).chain());
+    .init_resource::<WindAmbienceRuntime>()
+    .add_systems(
+        Update,
+        (sync_music_context, apply_audio_buses, sync_outdoor_wind_ambience).chain(),
+    );
 }
 
 fn sync_music_context(
@@ -105,6 +125,95 @@ fn apply_audio_buses(settings: Res<AudioSettings>, controller: Res<AudioControll
     controller.set_bus_volume(AudioBus::Music, settings.music_gain());
     controller.set_bus_volume(AudioBus::Effects, settings.sfx_gain());
     controller.set_bus_volume(AudioBus::Ambience, settings.ambience_gain());
+}
+
+fn sync_outdoor_wind_ambience(
+    navigation: Res<NavigationState>,
+    gameplay: Res<crate::bevy_gameplay::GameplayRuntimeState>,
+    spatial: Res<SpatialExplorationState>,
+    lifecycle: Res<LifecycleState>,
+    controller: Res<AudioController>,
+    mut runtime: ResMut<WindAmbienceRuntime>,
+) {
+    let should_play = navigation.current_screen == Some(ScreenId::SpatialExploration)
+        && !gameplay.is_paused()
+        && spatial.outdoor_ambience_active();
+    if !should_play {
+        if runtime.active_seed.take().is_some() {
+            let _ = controller.stop_loop(WIND_LOOP_KEY, Duration::from_millis(1_500));
+        }
+        return;
+    }
+
+    let Some(session) = lifecycle.session.as_ref() else {
+        return;
+    };
+    let seed = session
+        .state
+        .world
+        .generation
+        .map(|generation| generation.seed)
+        .or(session.state.world.geography_seed)
+        .unwrap_or(session.state.rng_state)
+        ^ session.state.character.location_id.rotate_left(19);
+    if runtime.active_seed == Some(seed) {
+        return;
+    }
+
+    if runtime.active_seed.take().is_some() {
+        let _ = controller.stop_loop(WIND_LOOP_KEY, Duration::from_millis(700));
+    }
+    let Some(clip) = create_wind_loop(seed) else {
+        warn!("Could not prepare realistic outdoor wind ambience");
+        return;
+    };
+    match controller.play_loop(
+        WIND_LOOP_KEY,
+        clip,
+        SoundCategory::Ambience,
+        0.24,
+        Duration::from_millis(1_800),
+    ) {
+        Ok(()) => runtime.active_seed = Some(seed),
+        Err(error) => debug!("Verdandi rejected outdoor ambience: {error:?}"),
+    }
+}
+
+fn create_wind_loop(seed: u64) -> Option<Arc<AudioClip>> {
+    let config = WindConfig {
+        sample_rate: OUTPUT_SAMPLE_RATE,
+        intensity: 0.28,
+        brightness: 0.32,
+    };
+    let mut generator = WindGenerator::new(config, seed).ok()?;
+    let mut source = vec![0.0_f32; WIND_LOOP_SECONDS * OUTPUT_SAMPLE_RATE as usize * 2];
+    generator.render(&mut source).ok()?;
+    let samples = crossfade_loop(&source, WIND_CROSSFADE_FRAMES)?;
+    AudioClip::from_samples(OUTPUT_SAMPLE_RATE, 2, samples)
+        .ok()
+        .map(Arc::new)
+}
+
+fn crossfade_loop(source: &[f32], fade_frames: usize) -> Option<Vec<f32>> {
+    if !source.len().is_multiple_of(2) || fade_frames == 0 {
+        return None;
+    }
+    let frame_count = source.len() / 2;
+    if frame_count <= fade_frames * 2 {
+        return None;
+    }
+
+    let mut output = Vec::with_capacity((frame_count - fade_frames) * 2);
+    output.extend_from_slice(&source[fade_frames * 2..(frame_count - fade_frames) * 2]);
+    for frame in 0..fade_frames {
+        let blend = frame as f32 / fade_frames as f32;
+        let tail = (frame_count - fade_frames + frame) * 2;
+        let head = frame * 2;
+        for channel in 0..2 {
+            output.push(source[tail + channel] * (1.0 - blend) + source[head + channel] * blend);
+        }
+    }
+    Some(output)
 }
 
 fn resolve_context(lifecycle: &LifecycleState, combat: &CombatState) -> (MusicContext, u64) {
