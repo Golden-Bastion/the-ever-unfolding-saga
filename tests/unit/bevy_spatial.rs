@@ -40,6 +40,10 @@ fn realistic_footsteps_follow_ground_material_and_biome() {
         footstep_surface_for_terrain(Terrain::Floor, None, true),
         FootstepSurface::Stone
     );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Floor, None, false),
+        FootstepSurface::Stone
+    );
 }
 
 #[test]
