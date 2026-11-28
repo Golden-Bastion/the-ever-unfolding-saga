@@ -40,6 +40,8 @@ use crate::spatial::{
     LocalMapConfig, MapExit, MapExitVisualKind, MapRouteDestination, SpatialDiscoveryDefinition,
     SpatialEncounterStatus, SpatialEntityKind, SpatialPropKind, Terrain,
 };
+use verdandi::prelude::realistic::FootstepSurface;
+
 use crate::spatial_animation::{
     PlayerAnimation, PlayerAnimationConfig, PLAYER_ANIMATION_MANIFEST_REFERENCE,
     PLAYER_ANIMATION_SHEET_REFERENCE,
@@ -60,6 +62,7 @@ const PLAYER_SPRITE_WIDTH: f32 = 16.0;
 const PLAYER_SPRITE_HEIGHT: f32 = 24.0;
 const PLAYER_COLLISION_HALF_EXTENT: f32 = 0.15;
 const PLAYER_SPEED: f32 = 180.0; // Screen-space pixels per second.
+const FOOTSTEP_STRIDE_DISTANCE: f32 = 1.65;
 #[cfg(any(target_os = "android", test))]
 const JOYSTICK_RADIUS_PX: f32 = 68.0;
 #[cfg(any(target_os = "android", test))]
@@ -299,6 +302,8 @@ pub(crate) struct SpatialExplorationState {
     biome: Option<Biome>,
     surface: Option<LocalSurfaceMap>,
     geology: Option<(GeologicalMaterial, crate::geography::MacroCoordinate)>,
+    footstep_distance_remainder: f32,
+    footstep_sequence: u64,
 }
 
 impl SpatialExplorationState {
@@ -1387,6 +1392,7 @@ fn spatial_input(
     mut combat_state: ResMut<crate::bevy_combat::CombatState>,
     mut queue: ResMut<GameplayInputQueue>,
     mut state: ResMut<SpatialExplorationState>,
+    mut audio_events: ResMut<crate::bevy_audio_events::AudioEventQueue>,
     joystick: Res<SpatialJoystickState>,
     interaction_state: Res<crate::bevy_interactions::BevyInteractionState>,
     mut activations: MessageReader<UiButtonActivation>,
@@ -1536,12 +1542,38 @@ fn spatial_input(
                 time.delta_secs(),
                 PLAYER_SPEED * input_strength,
             );
+            let travelled = next.distance(previous_position);
+            let footstep_surface = footstep_surface_for_position(
+                map,
+                state.surface.as_ref(),
+                state.biome,
+                state.geology.is_some(),
+                next,
+            );
             state.player_animation.set_motion(
                 direction.x,
                 direction.y,
                 next.distance_squared(previous_position) > 0.000_001,
                 input_strength,
             );
+            if travelled.is_finite() && travelled > 0.000_001 {
+                state.footstep_distance_remainder += travelled;
+                let world_seed = lifecycle
+                    .session
+                    .as_ref()
+                    .and_then(|session| session.state.world.generation.map(|generation| generation.seed))
+                    .or_else(|| lifecycle.session.as_ref().and_then(|session| session.state.world.geography_seed))
+                    .unwrap_or(1);
+                let mut emitted = 0;
+                while state.footstep_distance_remainder >= FOOTSTEP_STRIDE_DISTANCE && emitted < 3 {
+                    state.footstep_distance_remainder -= FOOTSTEP_STRIDE_DISTANCE;
+                    state.footstep_sequence = state.footstep_sequence.wrapping_add(1);
+                    let seed = world_seed
+                        ^ state.footstep_sequence.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+                    audio_events.footstep(footstep_surface, seed);
+                    emitted += 1;
+                }
+            }
             state.position = next;
             if let Some(session) = state.session.as_mut() {
                 session.position = GridPosition {
@@ -5158,6 +5190,48 @@ fn route_local_river_crossing_targets(
     targets.sort_by_key(|position| (position.y, position.x));
     targets.dedup();
     targets
+}
+
+fn footstep_surface_for_position(
+    map: &LocalMap,
+    surface: Option<&LocalSurfaceMap>,
+    biome: Option<Biome>,
+    underground: bool,
+    position: Vec2,
+) -> FootstepSurface {
+    let cell = GridPosition {
+        x: position.x.floor().max(0.0) as u16,
+        y: position.y.floor().max(0.0) as u16,
+    };
+    let terrain = map.terrain_at(cell).unwrap_or(Terrain::Wall);
+    let local_biome = surface_sample_at(surface, cell)
+        .filter(|sample| sample.water() == SurfaceWaterFeature::Land)
+        .map(|sample| sample.biome())
+        .or(biome);
+    footstep_surface_for_terrain(terrain, local_biome, underground)
+}
+
+fn footstep_surface_for_terrain(
+    terrain: Terrain,
+    biome: Option<Biome>,
+    underground: bool,
+) -> FootstepSurface {
+    match terrain {
+        Terrain::Ash | Terrain::Sand => FootstepSurface::Dirt,
+        Terrain::Rubble => FootstepSurface::Gravel,
+        Terrain::Ford | Terrain::Water => FootstepSurface::ShallowWater,
+        Terrain::Bridge => FootstepSurface::Wood,
+        Terrain::Wall => FootstepSurface::Stone,
+        Terrain::Floor if underground => FootstepSurface::Stone,
+        Terrain::Floor => match biome {
+            Some(Biome::Grassland | Biome::TemperateForest | Biome::Taiga) => {
+                FootstepSurface::Grass
+            }
+            Some(Biome::Tundra) => FootstepSurface::Snow,
+            Some(Biome::Alpine) => FootstepSurface::Gravel,
+            Some(Biome::Coast | Biome::Desert | Biome::Ocean) | None => FootstepSurface::Dirt,
+        },
+    }
 }
 
 fn surface_sample_at(
