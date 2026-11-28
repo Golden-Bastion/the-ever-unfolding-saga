@@ -164,6 +164,12 @@ fn sync_outdoor_wind_ambience(
     }
 
     let Some(session) = lifecycle.session.as_ref() else {
+        if runtime.active_seed.is_some() {
+            match controller.stop_loop(WIND_LOOP_KEY, Duration::from_millis(1_500)) {
+                Ok(()) => runtime.active_seed = None,
+                Err(error) => debug!("Verdandi could not stop outdoor ambience yet: {error:?}"),
+            }
+        }
         return;
     };
     let seed = session
