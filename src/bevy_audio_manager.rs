@@ -206,7 +206,7 @@ fn crossfade_loop(source: &[f32], fade_frames: usize) -> Option<Vec<f32>> {
     let mut output = Vec::with_capacity((frame_count - fade_frames) * 2);
     output.extend_from_slice(&source[fade_frames * 2..(frame_count - fade_frames) * 2]);
     for frame in 0..fade_frames {
-        let blend = frame as f32 / fade_frames as f32;
+        let blend = frame as f32 / (fade_frames - 1) as f32;
         let tail = (frame_count - fade_frames + frame) * 2;
         let head = frame * 2;
         for channel in 0..2 {
