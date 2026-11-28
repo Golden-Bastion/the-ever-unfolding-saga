@@ -6,9 +6,9 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use verdandi::prelude::{
-    AudioBus, AudioController, MusicConfig, MusicPace, MusicPreset, MusicStinger,
-    ProceduralGenerator, ProceduralMusicPlugin, AudioClip, LoopKey, SoundCategory,
     realistic::{WindConfig, WindGenerator},
+    AudioBus, AudioClip, AudioController, LoopKey, MusicConfig, MusicPace, MusicPreset,
+    MusicStinger, ProceduralGenerator, ProceduralMusicPlugin, SoundCategory,
 };
 
 use crate::audio_settings::AudioSettings;
