@@ -4,6 +4,16 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.40: Realistic gameplay audio integration
+
+- Connected spatial movement to Verdandi's Realistic footstep generator. Footsteps are paced by distance travelled and selected from local terrain/biome, including shallow-water splashes.
+- Added semantic combat audio requests for weapon draw, strike contact, guard/block contact, player damage, and weapon sheathing on victory or retreat. The Realistic family is selected exclusively; TEUS does not use Verdandi's Retro family.
+- Added a bounded gameplay-event queue and retained generated PCM clips for their playback lifetime, keeping gameplay rules separate from Verdandi playback and mixing.
+- Added a world-seeded, crossfaded Realistic wind loop for active outdoor exploration. The prepared clip is cached per world and uses Verdandi's keyed ambience loop/fade controls.
+- Did not connect rain: the current climate model exposes precipitation potential, not dynamic weather. Rain and additional water/fire/cave/wildlife/settlement ambience generators are tracked in Verdandi issue #45; non-contact weapon swings are tracked in #46. Defeat/retreat musical stingers remain in issue #21.
+- Added automated coverage for bounded semantic cue queuing, terrain/biome footstep selection, and ambience-loop crossfade continuity.
+- Bumped Rust and Android metadata to 0.53.40.
+
 ### v0.53.39: Verdandi 0.9.0 unified audio integration
 
 - Updated the Verdandi dependency from 0.6.0 to the released 0.9.0 commit.
