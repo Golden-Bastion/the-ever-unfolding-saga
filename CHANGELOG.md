@@ -10,6 +10,7 @@ This file records completed work in the current unreleased development line. Old
 - Removed TEUS's separate Bevy one-shot/loop cue queue, AudioPlayer spawning, AudioSink gain routing, and custom ambience lifecycle. Verdandi now owns music, effects, ambience, procedural generation, mixing, and playback through its unified Bevy controller.
 - Routed independent music, effects, and ambience preferences to Verdandi's three audio buses. Existing two-value settings files remain compatible; ambience defaults to 80%.
 - Kept game-state-to-music-context mapping and the existing combat-start/victory stingers. Procedural sound families are available, while gameplay event and location-ambience triggers remain to be connected.
+- Kept defeat/retreat and extensible event stingers tracked in Verdandi issue #21; issues #19 and #20 are complete.
 - Aligned cache warm-up with PR validation by installing Linux ALSA development headers required by Verdandi's Bevy audio output backend.
 
 ### World clock pacing

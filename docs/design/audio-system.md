@@ -21,7 +21,7 @@ Verdandi is the single audio engine for TEUS. It owns seeded procedural composit
 
 TEUS owns authoritative state resolution and maps gameplay contexts and semantic gameplay events to Verdandi controls and generators. It does not maintain a parallel Bevy audio player, cue queue, or mixer. Host-owned recordings, if introduced later, must be decoded to PCM off the audio callback and supplied as Verdandi clips.
 
-Current integration and remaining event wiring are documented in [the audio system reference](../systems/audio.md). The earlier Verdandi follow-ups for transport, non-musical audio, and event stingers are superseded by the 0.9.0 API; remaining work is to connect the available generators to concrete gameplay events and review their output in-game.
+Current integration and remaining event wiring are documented in [the audio system reference](../systems/audio.md). Verdandi issues [#19](https://github.com/Golden-Bastion/verdandi/issues/19) (transport and gain controls) and [#20](https://github.com/Golden-Bastion/verdandi/issues/20) (non-musical playback) are complete. [Issue #21](https://github.com/Golden-Bastion/verdandi/issues/21) remains open for defeat/retreat and extensible event stingers. TEUS still needs to connect available generators to concrete gameplay events and review their output in-game.
 
 ## Initial soundtrack candidates
 - Main/title theme

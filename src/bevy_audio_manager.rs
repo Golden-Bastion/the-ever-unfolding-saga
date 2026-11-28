@@ -42,7 +42,11 @@ struct AudioRuntimeState {
 
 impl Default for AudioRuntimeState {
     fn default() -> Self {
-        Self { context: Some(MusicContext::Title), seed: Some(1), last_combat_result: None }
+        Self {
+            context: Some(MusicContext::Title),
+            seed: Some(1),
+            last_combat_result: None,
+        }
     }
 }
 
@@ -64,7 +68,9 @@ fn sync_music_context(
 ) {
     match combat.result_outcome() {
         Some(outcome) if runtime.last_combat_result != Some(outcome) => {
-            if outcome == CombatResult::Victory { controller.play_stinger(MusicStinger::Victory); }
+            if outcome == CombatResult::Victory {
+                controller.play_stinger(MusicStinger::Victory);
+            }
             runtime.last_combat_result = Some(outcome);
         }
         None => runtime.last_combat_result = None,
@@ -76,7 +82,9 @@ fn sync_music_context(
         controller.set_seed(seed);
         runtime.seed = Some(seed);
     }
-    if runtime.context == Some(context) { return; }
+    if runtime.context == Some(context) {
+        return;
+    }
 
     let previous = runtime.context;
     let (preset, pace, intensity) = context.arrangement();
@@ -90,27 +98,47 @@ fn sync_music_context(
 }
 
 fn apply_audio_buses(settings: Res<AudioSettings>, controller: Res<AudioController>) {
-    if !settings.is_changed() { return; }
+    if !settings.is_changed() {
+        return;
+    }
+
     controller.set_bus_volume(AudioBus::Music, settings.music_gain());
     controller.set_bus_volume(AudioBus::Effects, settings.sfx_gain());
     controller.set_bus_volume(AudioBus::Ambience, settings.ambience_gain());
 }
 
 fn resolve_context(lifecycle: &LifecycleState, combat: &CombatState) -> (MusicContext, u64) {
-    let Some(session) = lifecycle.session.as_ref() else { return (MusicContext::Title, 1); };
-    if !matches!(lifecycle.phase, LifecyclePhase::Complete | LifecyclePhase::QuitConfirm) {
+    let Some(session) = lifecycle.session.as_ref() else {
+        return (MusicContext::Title, 1);
+    };
+    if !matches!(
+        lifecycle.phase,
+        LifecyclePhase::Complete | LifecyclePhase::QuitConfirm
+    ) {
         return (MusicContext::Title, 1);
     }
+
     let game = &session.state;
-    let seed = game.world.generation.map(|generation| generation.seed)
-        .or(game.world.geography_seed).unwrap_or(game.rng_state);
+    let seed = game
+        .world
+        .generation
+        .map(|generation| generation.seed)
+        .or(game.world.geography_seed)
+        .unwrap_or(game.rng_state);
     let context = if combat.is_presenting() {
         MusicContext::Combat
-    } else if game.threat.active || game.world.location_by_id(game.character.location_id)
-        .is_some_and(|location| location.dangerous) {
+    } else if game.threat.active
+        || game
+            .world
+            .location_by_id(game.character.location_id)
+            .is_some_and(|location| location.dangerous)
+    {
         MusicContext::Danger
-    } else if game.world.location_by_id(game.character.location_id)
-        .is_some_and(|location| is_settlement_layout(location.spatial_layout.as_deref())) {
+    } else if game
+        .world
+        .location_by_id(game.character.location_id)
+        .is_some_and(|location| is_settlement_layout(location.spatial_layout.as_deref()))
+    {
         MusicContext::Settlement
     } else {
         MusicContext::Exploration
@@ -119,7 +147,10 @@ fn resolve_context(lifecycle: &LifecycleState, combat: &CombatState) -> (MusicCo
 }
 
 fn is_settlement_layout(layout: Option<&str>) -> bool {
-    matches!(layout, Some("settlement" | "village" | "town" | "city" | "hollow_market_square"))
+    matches!(
+        layout,
+        Some("settlement" | "village" | "town" | "city" | "hollow_market_square")
+    )
 }
 
 #[cfg(test)]
