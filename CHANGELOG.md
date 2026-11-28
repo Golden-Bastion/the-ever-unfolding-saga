@@ -10,7 +10,7 @@ This file records completed work in the current unreleased development line. Old
 - Added semantic combat audio requests for weapon draw, strike contact, guard/block contact, player damage, and weapon sheathing on victory or retreat. The Realistic family is selected exclusively; TEUS does not use Verdandi's Retro family.
 - Added a bounded gameplay-event queue and retained generated PCM clips for their playback lifetime, keeping gameplay rules separate from Verdandi playback and mixing.
 - Added a world-seeded, crossfaded Realistic wind loop for active outdoor exploration. The prepared clip is cached per world and uses Verdandi's keyed ambience loop/fade controls.
-- Did not connect rain: the current climate model exposes precipitation potential, not dynamic weather. Rain playback awaits dynamic weather; additional water/fire/cave/wildlife/settlement ambience generators are tracked in Verdandi issue #45; non-contact weapon swings are tracked in #46. Defeat/retreat musical stingers remain in issue #21.
+- Did not connect rain: the current climate model exposes precipitation potential, not dynamic weather. Rain playback awaits dynamic weather; additional water/fire/cave/wildlife/settlement ambience generators are tracked in Verdandi issue #45; non-contact weapon swings are tracked in #46. Defeat/retreat musical stingers remain missing from the 0.9.0 API; follow-up work is tracked in issue #47 (after #21 was closed without those variants).
 - Added automated coverage for bounded semantic cue queuing, terrain/biome footstep selection, and ambience-loop crossfade continuity.
 - Bumped Rust and Android metadata to 0.53.40.
 
@@ -20,7 +20,7 @@ This file records completed work in the current unreleased development line. Old
 - Removed TEUS's separate Bevy one-shot/loop cue queue, AudioPlayer spawning, AudioSink gain routing, and custom ambience lifecycle. Verdandi now owns music, effects, ambience, procedural generation, mixing, and playback through its unified Bevy controller.
 - Routed independent music, effects, and ambience preferences to Verdandi's three audio buses. Existing two-value settings files remain compatible; ambience defaults to 80%.
 - Kept game-state-to-music-context mapping and the existing combat-start/victory stingers. Procedural sound families are available, while gameplay event and location-ambience triggers remain to be connected.
-- Kept defeat/retreat and extensible event stingers tracked in Verdandi issue #21; issues #19 and #20 are complete.
+- Kept defeat/retreat and extensible event stingers tracked in Verdandi issue #21 at the time; the missing API follow-up is now tracked in issue #47. Issues #19 and #20 are complete.
 - Aligned cache warm-up with PR validation by installing Linux ALSA development headers required by Verdandi's Bevy audio output backend.
 
 ### World clock pacing
