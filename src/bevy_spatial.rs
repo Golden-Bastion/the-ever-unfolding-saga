@@ -311,6 +311,10 @@ impl SpatialExplorationState {
     pub(crate) fn request_presentation_refresh(&mut self) {
         self.dirty = true;
     }
+
+    pub(crate) fn outdoor_ambience_active(&self) -> bool {
+        self.surface.is_some() && !self.sandbox_mode && self.route_transit.is_none()
+    }
 }
 
 fn announce_location(state: &mut SpatialExplorationState, location_name: &str) {
