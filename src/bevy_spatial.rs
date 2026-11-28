@@ -5269,7 +5269,8 @@ fn footstep_surface_for_terrain(
             }
             Some(Biome::Tundra) => FootstepSurface::Snow,
             Some(Biome::Alpine) => FootstepSurface::Gravel,
-            Some(Biome::Coast | Biome::Desert | Biome::Ocean) | None => FootstepSurface::Dirt,
+            Some(Biome::Coast | Biome::Desert | Biome::Ocean) => FootstepSurface::Dirt,
+            None => FootstepSurface::Stone,
         },
     }
 }
