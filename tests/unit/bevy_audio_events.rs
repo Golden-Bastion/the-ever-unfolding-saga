@@ -20,6 +20,7 @@ fn queue_preserves_realistic_event_parameters() {
         WeaponHandlingMaterial::Metal,
         13,
     );
+    queue.damage_effect(DamageEffectKind::BluntTrauma, 0.52, 0.38, 14);
 
     assert_eq!(
         queue.0.pop_front(),
@@ -43,6 +44,15 @@ fn queue_preserves_realistic_event_parameters() {
             kind: WeaponHandlingKind::Draw,
             material: WeaponHandlingMaterial::Metal,
             seed: 13,
+        })
+    );
+    assert_eq!(
+        queue.0.pop_front(),
+        Some(AudioEvent::DamageEffect {
+            kind: DamageEffectKind::BluntTrauma,
+            force: 52,
+            size: 38,
+            seed: 14,
         })
     );
 }
