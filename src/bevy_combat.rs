@@ -10,11 +10,11 @@ use crate::bevy_presentation::{
     self, BevyScreenRoot, GameplayInputQueue, NavigationState, ScreenId,
 };
 use crate::game::combat::{self, CombatEncounter, CombatResult, CombatStep};
+use crate::input::InputEvent;
 use verdandi::prelude::{
     DamageEffectKind, ImpactMaterial, WeaponHandlingKind, WeaponHandlingMaterial,
     WeaponImpactKind,
 };
-use crate::input::InputEvent;
 use crate::presentation::CombatResultView;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -159,18 +159,33 @@ fn combat_input(
             }
             InputEvent::Character('2') => {
                 set_selection(&mut combat_state, &mut navigation, 1);
-                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation, &mut audio_events);
+                activate_current_selection(
+                    &mut lifecycle,
+                    &mut combat_state,
+                    &mut navigation,
+                    &mut audio_events,
+                );
             }
             InputEvent::Character('3') => {
                 set_selection(&mut combat_state, &mut navigation, 2);
-                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation, &mut audio_events);
+                activate_current_selection(
+                    &mut lifecycle,
+                    &mut combat_state,
+                    &mut navigation,
+                    &mut audio_events,
+                );
             }
             InputEvent::Confirm => {
                 if combat_state.phase == Some(CombatScreenPhase::Active) {
                     let last = combat_state.action_count().saturating_sub(1);
                     combat_state.selected = navigation.selected.min(last);
                 }
-                activate_current_selection(&mut lifecycle, &mut combat_state, &mut navigation, &mut audio_events);
+                activate_current_selection(
+                    &mut lifecycle,
+                    &mut combat_state,
+                    &mut navigation,
+                    &mut audio_events,
+                );
             }
             InputEvent::Cancel => {
                 combat_state.clear();
