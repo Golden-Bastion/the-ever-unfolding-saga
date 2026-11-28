@@ -276,7 +276,6 @@ fn activate_current_selection(
                     0.52,
                     seed ^ 0x4755_4152_44,
                 ),
-                2 => {},
                 _ => {}
             }
             if player_hp_after < player_hp_before {
