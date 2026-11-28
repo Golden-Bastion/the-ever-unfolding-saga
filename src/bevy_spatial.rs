@@ -63,7 +63,7 @@ const PLAYER_SPRITE_WIDTH: f32 = 16.0;
 const PLAYER_SPRITE_HEIGHT: f32 = 24.0;
 const PLAYER_COLLISION_HALF_EXTENT: f32 = 0.15;
 const PLAYER_SPEED: f32 = 180.0; // Screen-space pixels per second.
-const FOOTSTEP_STRIDE_DISTANCE: f32 = 1.65;
+const FOOTSTEP_STRIDE_DISTANCE_PX: f32 = 70.0;
 #[cfg(any(target_os = "android", test))]
 const JOYSTICK_RADIUS_PX: f32 = 68.0;
 #[cfg(any(target_os = "android", test))]
@@ -1558,7 +1558,7 @@ fn spatial_input(
                 time.delta_secs(),
                 PLAYER_SPEED * input_strength,
             );
-            let travelled = next.distance(previous_position);
+            let travelled = projected_screen_delta(next - previous_position).length();
             let footstep_surface = footstep_surface_for_position(
                 map,
                 state.surface.as_ref(),
@@ -1581,8 +1581,8 @@ fn spatial_input(
                     .or_else(|| lifecycle.session.as_ref().and_then(|session| session.state.world.geography_seed))
                     .unwrap_or(1);
                 let mut emitted = 0;
-                while state.footstep_distance_remainder >= FOOTSTEP_STRIDE_DISTANCE && emitted < 3 {
-                    state.footstep_distance_remainder -= FOOTSTEP_STRIDE_DISTANCE;
+                while state.footstep_distance_remainder >= FOOTSTEP_STRIDE_DISTANCE_PX && emitted < 3 {
+                    state.footstep_distance_remainder -= FOOTSTEP_STRIDE_DISTANCE_PX;
                     state.footstep_sequence = state.footstep_sequence.wrapping_add(1);
                     let seed = world_seed
                         ^ state.footstep_sequence.wrapping_mul(0x9E37_79B9_7F4A_7C15);
@@ -5776,6 +5776,13 @@ fn prop_depth(ground_position: Vec2) -> f32 {
 /// the player behind a floor diamond while crossing a tile.
 fn depth_for_position(position: Vec2) -> f32 {
     depth_for(position)
+}
+
+fn projected_screen_delta(world_delta: Vec2) -> Vec2 {
+    Vec2::new(
+        (world_delta.x - world_delta.y) * TILE_HALF_WIDTH,
+        -(world_delta.x + world_delta.y) * TILE_HALF_HEIGHT,
+    )
 }
 
 fn screen_direction_to_world(screen_direction: Vec2) -> Vec2 {
