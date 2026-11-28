@@ -100,3 +100,23 @@ fn context_resolution_uses_existing_lifecycle_and_world_state() {
         .dangerous = true;
     assert_eq!(resolve_context(&lifecycle, &combat).0, MusicContext::Danger);
 }
+
+#[test]
+fn outdoor_wind_loop_crossfade_keeps_the_loop_boundary_continuous() {
+    let source = (0..10)
+        .flat_map(|frame| [frame as f32, frame as f32])
+        .collect::<Vec<_>>();
+    let looped = crossfade_loop(&source, 2).expect("valid stereo loop");
+
+    assert_eq!(looped.len() / 2, 8);
+    assert_eq!(&looped[..2], &[2.0, 2.0]);
+    assert_eq!(&looped[looped.len() - 2..], &[1.0, 1.0]);
+    assert!((looped[looped.len() - 2] - looped[0]).abs() <= 1.0);
+}
+
+#[test]
+fn outdoor_wind_loop_rejects_invalid_crossfade_windows() {
+    assert!(crossfade_loop(&[0.0, 1.0, 2.0], 1).is_none());
+    assert!(crossfade_loop(&[0.0; 8], 0).is_none());
+    assert!(crossfade_loop(&[0.0; 8], 2).is_none());
+}
