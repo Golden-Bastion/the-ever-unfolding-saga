@@ -116,7 +116,7 @@ fn outdoor_wind_loop_crossfade_keeps_the_loop_boundary_continuous() {
 
 #[test]
 fn outdoor_wind_loop_rejects_invalid_crossfade_windows() {
-    assert!(crossfade_loop(&[0.0, 1.0, 2.0], 1).is_none());
+    assert!(crossfade_loop(&[0.0; 12], 1).is_none());
     assert!(crossfade_loop(&[0.0; 8], 0).is_none());
     assert!(crossfade_loop(&[0.0; 8], 2).is_none());
 }
