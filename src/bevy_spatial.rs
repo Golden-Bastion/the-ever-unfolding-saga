@@ -1474,8 +1474,19 @@ fn spatial_input(
                         let seed = lifecycle
                             .session
                             .as_ref()
-                            .and_then(|session| session.state.world.generation.map(|generation| generation.seed))
-                            .or_else(|| lifecycle.session.as_ref().and_then(|session| session.state.world.geography_seed))
+                            .and_then(|session| {
+                                session
+                                    .state
+                                    .world
+                                    .generation
+                                    .map(|generation| generation.seed)
+                            })
+                            .or_else(|| {
+                                lifecycle
+                                    .session
+                                    .as_ref()
+                                    .and_then(|session| session.state.world.geography_seed)
+                            })
                             .unwrap_or(1);
                         audio_events.weapon_handling(
                             WeaponHandlingKind::Draw,
@@ -1577,11 +1588,24 @@ fn spatial_input(
                 let world_seed = lifecycle
                     .session
                     .as_ref()
-                    .and_then(|session| session.state.world.generation.map(|generation| generation.seed))
-                    .or_else(|| lifecycle.session.as_ref().and_then(|session| session.state.world.geography_seed))
+                    .and_then(|session| {
+                        session
+                            .state
+                            .world
+                            .generation
+                            .map(|generation| generation.seed)
+                    })
+                    .or_else(|| {
+                        lifecycle
+                            .session
+                            .as_ref()
+                            .and_then(|session| session.state.world.geography_seed)
+                    })
                     .unwrap_or(1);
                 let mut emitted = 0;
-                while state.footstep_distance_remainder >= FOOTSTEP_STRIDE_DISTANCE_PX && emitted < 3 {
+                while state.footstep_distance_remainder >= FOOTSTEP_STRIDE_DISTANCE_PX
+                    && emitted < 3
+                {
                     state.footstep_distance_remainder -= FOOTSTEP_STRIDE_DISTANCE_PX;
                     state.footstep_sequence = state.footstep_sequence.wrapping_add(1);
                     let seed = world_seed
