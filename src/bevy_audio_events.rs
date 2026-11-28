@@ -20,6 +20,16 @@ const OUTPUT_SAMPLE_RATE: u32 = 44_100;
 const MAX_PENDING_EVENTS: usize = 64;
 const MAX_GENERATION_CHUNKS: usize = 100;
 const GENERATION_CHUNK_SAMPLES: usize = 1_024;
+const CLIP_RETENTION_MARGIN_SECONDS: f32 = 0.35;
+
+#[derive(Default)]
+struct RetainedAudioClip {
+    _clip: Arc<AudioClip>,
+    remaining_seconds: f32,
+}
+
+#[derive(Resource, Default)]
+struct AudioClipRetention(VecDeque<RetainedAudioClip>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AudioEvent {
@@ -88,13 +98,22 @@ impl AudioEventQueue {
 
 pub(crate) fn install(app: &mut App) {
     app.init_resource::<AudioEventQueue>()
+        .init_resource::<AudioClipRetention>()
         .add_systems(Update, process_audio_events);
 }
 
 fn process_audio_events(
     mut events: ResMut<AudioEventQueue>,
     controller: Res<AudioController>,
+    time: Res<Time>,
+    mut retention: ResMut<AudioClipRetention>,
 ) {
+    let delta = time.delta_secs().max(0.0);
+    for retained in &mut retention.0 {
+        retained.remaining_seconds -= delta;
+    }
+    retention.0.retain(|retained| retained.remaining_seconds > 0.0);
+
     for event in std::mem::take(&mut events.0) {
         match event {
             AudioEvent::Footstep { surface, seed } => {
@@ -104,7 +123,7 @@ fn process_audio_events(
                     brightness: 0.46,
                 };
                 match FootstepGenerator::new_for_surface(config, surface, seed) {
-                    Ok(generator) => play_generated(generator, &controller),
+                    Ok(generator) => play_generated(generator, &controller, &mut retention),
                     Err(error) => warn!("Could not prepare realistic footstep: {error}"),
                 }
             }
@@ -148,7 +167,11 @@ fn process_audio_events(
     }
 }
 
-fn play_generated<G: ProceduralGenerator>(mut generator: G, controller: &AudioController) {
+fn play_generated<G: ProceduralGenerator>(
+    mut generator: G,
+    controller: &AudioController,
+    retention: &mut AudioClipRetention,
+) {
     let mut samples = Vec::with_capacity(OUTPUT_SAMPLE_RATE as usize);
     let mut chunk = [0.0_f32; GENERATION_CHUNK_SAMPLES];
 
@@ -174,8 +197,12 @@ fn play_generated<G: ProceduralGenerator>(mut generator: G, controller: &AudioCo
             return;
         }
     };
-    if let Err(error) = controller.play_one_shot(clip, SoundCategory::Effects, 1.0) {
-        debug!("Verdandi rejected a gameplay sound request: {error:?}");
+    match controller.play_one_shot(clip.clone(), SoundCategory::Effects, 1.0) {
+        Ok(()) => retention.0.push_back(RetainedAudioClip {
+            remaining_seconds: clip.duration().as_secs_f32() + CLIP_RETENTION_MARGIN_SECONDS,
+            _clip: clip,
+        }),
+        Err(error) => debug!("Verdandi rejected a gameplay sound request: {error:?}"),
     }
 }
 
