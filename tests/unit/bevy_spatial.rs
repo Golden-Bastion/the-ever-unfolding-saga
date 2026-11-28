@@ -2,6 +2,38 @@ use super::*;
 use crate::spatial::{configure_map_exits, generate_local_map};
 
 #[test]
+fn realistic_footsteps_follow_ground_material_and_biome() {
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Sand, Some(Biome::Desert), false),
+        FootstepSurface::Dirt
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Rubble, Some(Biome::Alpine), false),
+        FootstepSurface::Gravel
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Floor, Some(Biome::Grassland), false),
+        FootstepSurface::Grass
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Floor, Some(Biome::Tundra), false),
+        FootstepSurface::Snow
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Ford, Some(Biome::Grassland), false),
+        FootstepSurface::ShallowWater
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Bridge, None, false),
+        FootstepSurface::Wood
+    );
+    assert_eq!(
+        footstep_surface_for_terrain(Terrain::Floor, None, true),
+        FootstepSurface::Stone
+    );
+}
+
+#[test]
 fn spatial_hud_condition_summary_has_a_clear_empty_state() {
     assert_eq!(format_condition_summary(&[]), "Conditions: none");
     let conditions = vec![
