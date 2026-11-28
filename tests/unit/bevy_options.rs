@@ -8,7 +8,7 @@ fn options_tabs_have_three_categories() {
     options.tab = 1;
     assert_eq!(options_selection_end(&options), 5);
     options.tab = 2;
-    assert_eq!(options_selection_end(&options), 5); // Two volumes, Reset and Back.
+    assert_eq!(options_selection_end(&options), 7); // Three buses, Reset and Back.
 }
 
 #[test]

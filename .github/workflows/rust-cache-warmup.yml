@@ -20,6 +20,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install native audio development libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libasound2-dev
+
       - name: Checkout
         uses: actions/checkout@v7.0.1
 
@@ -39,6 +44,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install native audio development libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libasound2-dev
+
       - name: Checkout
         uses: actions/checkout@v7.0.1
 

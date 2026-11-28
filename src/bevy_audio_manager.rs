@@ -1,12 +1,10 @@
-//! State-driven audio integration. Verdandi owns procedural music; Bevy owns
-//! host-supplied one-shot and looping audio assets.
+//! State-driven audio integration. Verdandi owns music, effects, ambience,
+//! procedural generation, mixing, and playback; TEUS maps game state to controls.
 
-use std::collections::HashMap;
-
-use bevy::audio::{AudioPlayer, AudioSink, AudioSinkPlayback, PlaybackSettings, Volume};
 use bevy::prelude::*;
 use verdandi::prelude::{
-    MusicConfig, MusicController, MusicPace, MusicPreset, MusicStinger, ProceduralMusicPlugin,
+    AudioBus, AudioController, MusicConfig, MusicPace, MusicPreset, MusicStinger,
+    ProceduralMusicPlugin,
 };
 
 use crate::audio_settings::AudioSettings;
@@ -35,45 +33,6 @@ impl MusicContext {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum AudioCueRequest {
-    OneShot { asset_path: String },
-    StartAmbience { key: String, asset_path: String },
-    StopAmbience { key: String },
-}
-
-#[derive(Resource, Default)]
-pub(crate) struct AudioCueQueue {
-    pending: Vec<AudioCueRequest>,
-    active_ambience: HashMap<String, Entity>,
-}
-
-impl AudioCueQueue {
-    #[allow(dead_code)]
-    pub(crate) fn play_effect(&mut self, asset_path: impl Into<String>) {
-        self.pending.push(AudioCueRequest::OneShot {
-            asset_path: asset_path.into(),
-        });
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn start_ambience(&mut self, key: impl Into<String>, asset_path: impl Into<String>) {
-        self.pending.push(AudioCueRequest::StartAmbience {
-            key: key.into(),
-            asset_path: asset_path.into(),
-        });
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn stop_ambience(&mut self, key: impl Into<String>) {
-        self.pending
-            .push(AudioCueRequest::StopAmbience { key: key.into() });
-    }
-}
-
-#[derive(Component)]
-struct AudioBusMember;
-
 #[derive(Resource)]
 struct AudioRuntimeState {
     context: Option<MusicContext>,
@@ -83,11 +42,7 @@ struct AudioRuntimeState {
 
 impl Default for AudioRuntimeState {
     fn default() -> Self {
-        Self {
-            context: Some(MusicContext::Title),
-            seed: Some(1),
-            last_combat_result: None,
-        }
+        Self { context: Some(MusicContext::Title), seed: Some(1), last_combat_result: None }
     }
 }
 
@@ -98,24 +53,18 @@ pub(crate) fn install(app: &mut App) {
         ..default()
     }))
     .init_resource::<AudioRuntimeState>()
-    .init_resource::<AudioCueQueue>()
-    .add_systems(
-        Update,
-        (sync_music_context, process_audio_cues, apply_audio_volumes).chain(),
-    );
+    .add_systems(Update, (sync_music_context, apply_audio_buses).chain());
 }
 
 fn sync_music_context(
     lifecycle: Res<LifecycleState>,
     combat: Res<CombatState>,
-    controller: Res<MusicController>,
+    controller: Res<AudioController>,
     mut runtime: ResMut<AudioRuntimeState>,
 ) {
     match combat.result_outcome() {
         Some(outcome) if runtime.last_combat_result != Some(outcome) => {
-            if outcome == CombatResult::Victory {
-                controller.play_stinger(MusicStinger::Victory);
-            }
+            if outcome == CombatResult::Victory { controller.play_stinger(MusicStinger::Victory); }
             runtime.last_combat_result = Some(outcome);
         }
         None => runtime.last_combat_result = None,
@@ -127,9 +76,7 @@ fn sync_music_context(
         controller.set_seed(seed);
         runtime.seed = Some(seed);
     }
-    if runtime.context == Some(context) {
-        return;
-    }
+    if runtime.context == Some(context) { return; }
 
     let previous = runtime.context;
     let (preset, pace, intensity) = context.arrangement();
@@ -142,39 +89,28 @@ fn sync_music_context(
     runtime.context = Some(context);
 }
 
+fn apply_audio_buses(settings: Res<AudioSettings>, controller: Res<AudioController>) {
+    if !settings.is_changed() { return; }
+    controller.set_bus_volume(AudioBus::Music, settings.music_gain());
+    controller.set_bus_volume(AudioBus::Effects, settings.sfx_gain());
+    controller.set_bus_volume(AudioBus::Ambience, settings.ambience_gain());
+}
+
 fn resolve_context(lifecycle: &LifecycleState, combat: &CombatState) -> (MusicContext, u64) {
-    let Some(session) = lifecycle.session.as_ref() else {
-        return (MusicContext::Title, 1);
-    };
-    if !matches!(
-        lifecycle.phase,
-        LifecyclePhase::Complete | LifecyclePhase::QuitConfirm
-    ) {
+    let Some(session) = lifecycle.session.as_ref() else { return (MusicContext::Title, 1); };
+    if !matches!(lifecycle.phase, LifecyclePhase::Complete | LifecyclePhase::QuitConfirm) {
         return (MusicContext::Title, 1);
     }
-
     let game = &session.state;
-    let seed = game
-        .world
-        .generation
-        .map(|generation| generation.seed)
-        .or(game.world.geography_seed)
-        .unwrap_or(game.rng_state);
-
+    let seed = game.world.generation.map(|generation| generation.seed)
+        .or(game.world.geography_seed).unwrap_or(game.rng_state);
     let context = if combat.is_presenting() {
         MusicContext::Combat
-    } else if game.threat.active
-        || game
-            .world
-            .location_by_id(game.character.location_id)
-            .is_some_and(|location| location.dangerous)
-    {
+    } else if game.threat.active || game.world.location_by_id(game.character.location_id)
+        .is_some_and(|location| location.dangerous) {
         MusicContext::Danger
-    } else if game
-        .world
-        .location_by_id(game.character.location_id)
-        .is_some_and(|location| is_settlement_layout(location.spatial_layout.as_deref()))
-    {
+    } else if game.world.location_by_id(game.character.location_id)
+        .is_some_and(|location| is_settlement_layout(location.spatial_layout.as_deref())) {
         MusicContext::Settlement
     } else {
         MusicContext::Exploration
@@ -183,69 +119,7 @@ fn resolve_context(lifecycle: &LifecycleState, combat: &CombatState) -> (MusicCo
 }
 
 fn is_settlement_layout(layout: Option<&str>) -> bool {
-    matches!(
-        layout,
-        Some("settlement" | "village" | "town" | "city" | "hollow_market_square")
-    )
-}
-
-fn process_audio_cues(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    settings: Res<AudioSettings>,
-    mut queue: ResMut<AudioCueQueue>,
-) {
-    for request in std::mem::take(&mut queue.pending) {
-        match request {
-            AudioCueRequest::OneShot { asset_path } => {
-                let source = asset_server.load(asset_path);
-                commands.spawn((
-                    AudioPlayer::new(source),
-                    PlaybackSettings::DESPAWN.with_volume(Volume::Linear(settings.sfx_gain())),
-                    AudioBusMember,
-                ));
-            }
-            AudioCueRequest::StartAmbience { key, asset_path } => {
-                if let Some(previous) = queue.active_ambience.remove(&key) {
-                    commands.entity(previous).despawn();
-                }
-                let source = asset_server.load(asset_path);
-                let entity = commands
-                    .spawn((
-                        AudioPlayer::new(source),
-                        PlaybackSettings::LOOP.with_volume(Volume::Linear(settings.sfx_gain())),
-                        AudioBusMember,
-                    ))
-                    .id();
-                queue.active_ambience.insert(key, entity);
-            }
-            AudioCueRequest::StopAmbience { key } => {
-                if let Some(entity) = queue.active_ambience.remove(&key) {
-                    commands.entity(entity).despawn();
-                }
-            }
-        }
-    }
-}
-
-fn apply_audio_volumes(
-    settings: Res<AudioSettings>,
-    mut sinks: Query<(
-        &mut AudioSink,
-        Option<&verdandi::prelude::MusicTrack>,
-        Option<&AudioBusMember>,
-    )>,
-) {
-    for (mut sink, music_track, audio_bus_member) in &mut sinks {
-        let gain = if music_track.is_some() {
-            settings.music_gain()
-        } else if audio_bus_member.is_some() {
-            settings.sfx_gain()
-        } else {
-            continue;
-        };
-        sink.set_volume(Volume::Linear(gain));
-    }
+    matches!(layout, Some("settlement" | "village" | "town" | "city" | "hollow_market_square"))
 }
 
 #[cfg(test)]

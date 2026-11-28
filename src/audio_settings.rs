@@ -15,6 +15,7 @@ pub(crate) const VOLUME_STEP: i16 = 5;
 pub(crate) struct AudioSettings {
     music_volume_percent: u8,
     sfx_volume_percent: u8,
+    ambience_volume_percent: u8,
 }
 
 impl Default for AudioSettings {
@@ -22,6 +23,7 @@ impl Default for AudioSettings {
         Self {
             music_volume_percent: 70,
             sfx_volume_percent: 80,
+            ambience_volume_percent: 80,
         }
     }
 }
@@ -64,6 +66,10 @@ impl AudioSettings {
         self.sfx_volume_percent
     }
 
+    pub(crate) fn ambience_volume_percent(self) -> u8 {
+        self.ambience_volume_percent
+    }
+
     pub(crate) fn music_gain(self) -> f32 {
         f32::from(self.music_volume_percent) / 100.0
     }
@@ -72,12 +78,20 @@ impl AudioSettings {
         f32::from(self.sfx_volume_percent) / 100.0
     }
 
+    pub(crate) fn ambience_gain(self) -> f32 {
+        f32::from(self.ambience_volume_percent) / 100.0
+    }
+
     pub(crate) fn adjust_music_volume(&mut self, delta: i16) -> bool {
         adjust_volume(&mut self.music_volume_percent, delta)
     }
 
     pub(crate) fn adjust_sfx_volume(&mut self, delta: i16) -> bool {
         adjust_volume(&mut self.sfx_volume_percent, delta)
+    }
+
+    pub(crate) fn adjust_ambience_volume(&mut self, delta: i16) -> bool {
+        adjust_volume(&mut self.ambience_volume_percent, delta)
     }
 
     pub(crate) fn reset(&mut self) {
@@ -90,6 +104,9 @@ impl AudioSettings {
             .clamp(MIN_VOLUME_PERCENT, MAX_VOLUME_PERCENT);
         self.sfx_volume_percent = self
             .sfx_volume_percent
+            .clamp(MIN_VOLUME_PERCENT, MAX_VOLUME_PERCENT);
+        self.ambience_volume_percent = self
+            .ambience_volume_percent
             .clamp(MIN_VOLUME_PERCENT, MAX_VOLUME_PERCENT);
     }
 }

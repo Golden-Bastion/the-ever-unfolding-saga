@@ -1,7 +1,7 @@
 [package]
 name = "ever_unfolding_saga"
 
-version = "0.53.38"
+version = "0.53.39"
 edition = "2021"
 license = "BUSL-1.1"
 # ---- related to license, `data/` is under CC-BY-NC-ND 4.0 ----
@@ -37,7 +37,7 @@ dirs = "6"
 atomic-write-file = "0.3.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-verdandi = { git = "https://github.com/Golden-Bastion/verdandi", rev = "182bca1bcb7c639075601ca86a4b16092b2b41f9", default-features = false, features = ["bevy-plugin"] }
+verdandi = { git = "https://github.com/Golden-Bastion/verdandi", rev = "d93a3cd2fa3294f9cb4605d18117d5f47712784c", default-features = false, features = ["bevy-plugin"] }
 flate2 = "1.1"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]

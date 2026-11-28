@@ -4,6 +4,14 @@ This file records completed work in the current unreleased development line. Old
 
 ## Unreleased — v0.53.x
 
+### v0.53.39: Verdandi 0.9.0 unified audio integration
+
+- Updated the Verdandi dependency from 0.6.0 to the released 0.9.0 commit.
+- Removed TEUS's separate Bevy one-shot/loop cue queue, AudioPlayer spawning, AudioSink gain routing, and custom ambience lifecycle. Verdandi now owns music, effects, ambience, procedural generation, mixing, and playback through its unified Bevy controller.
+- Routed independent music, effects, and ambience preferences to Verdandi's three audio buses. Existing two-value settings files remain compatible; ambience defaults to 80%.
+- Kept game-state-to-music-context mapping and the existing combat-start/victory stingers. Procedural sound families are available, while gameplay event and location-ambience triggers remain to be connected.
+- Aligned cache warm-up with PR validation by installing Linux ALSA development headers required by Verdandi's Bevy audio output backend.
+
 ### World clock pacing
 
 - Increased active local-exploration clock speed from one in-game minute per five real seconds to one per three real seconds. This yields three real minutes per in-game hour, 72 minutes per day, 8h24m per week, and 18 days 6 hours per 365-day year.
